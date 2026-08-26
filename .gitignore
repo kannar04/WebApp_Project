@@ -1,34 +1,95 @@
-# Gradle files
-.gradle/
-build/
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# Local configuration file (sdk path, etc)
-local.properties
-
-# Log/OS Files
-*.log
-
-# Android Studio generated files and folders
-captures/
-.externalNativeBuild/
-.cxx/
-*.aab
-*.apk
-output-metadata.json
-
-# IntelliJ
-*.iml
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
 .idea/
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
+*.sublime-project
+*.sublime-workspace
 
-# Keystore files
-*.jks
-*.keystore
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+!.env.example
 
-# Google Services (e.g. APIs or Firebase)
-google-services.json
+# =========================
+# PHP dependencies
+# =========================
+vendor/
 
-# Android Profiling
-*.hprof
+# Composer files
+# Nên commit composer.json và composer.lock
+composer.phar
+
+# =========================
+# Node / Bootstrap dependencies
+# Chỉ cần nếu project dùng npm
+# =========================
+node_modules/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+log/
+
+# =========================
+# Cache / Temporary files
+# =========================
+cache/
+tmp/
+temp/
+
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# =========================
+# Uploaded files
+# Nếu website cho user upload file
+# =========================
+uploads/*
+!uploads/.gitkeep
+
+# =========================
+# Local database / backup
+# =========================
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# Nếu muốn giữ file database mẫu thì có thể dùng:
+# !database/sample.sql
+
+# =========================
+# XAMPP / Local configuration
+# =========================
+xampp/
+phpmyadmin/
+
+# Local config chứa password/database credentials
+config.local.php
+database.local.php
+
+# =========================
+# Build / Distribution
+# =========================
+dist/
+build/
