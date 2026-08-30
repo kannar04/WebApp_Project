@@ -11,4 +11,4 @@
 | 31241021765 | Lê Trung Phong *(Nhóm trưởng)* |
 | 31241020790 | Đỗ Sơn Thành                   |
 | 31241020025 | Nguyễn Tuấn Khôi               |
-|             | Nguyễn Minh Thức               |
+| 31241025109 | Nguyễn Minh Thức               |
