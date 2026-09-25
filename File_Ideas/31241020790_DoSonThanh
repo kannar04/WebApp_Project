@@ -1,0 +1,45 @@
+Tên đồ án: Ứng dụng home 2 home chia sẽ chổ ở, airBnB
+Guest
+Register / login (Optional nếu ko cần lưu thông tin người dùng chỉ làm MVP)
+Browse available accommodations (needed)
+Search by (Optional):
+location
+date
+number of guests
+price
+View accommodation details (needed)
+photos
+description
+price/night
+amenities
+location
+host information
+reviews
+Select dates ( needed)
+Calculate total price (optional)
+Make a booking (needed)
+View booking history (optional)
+Cancel booking (needed)
+Leave a review after staying (optional?)
+
+Host
+Register / login (optional)
+Create accommodation listing (needed)
+Edit/delete listing (needed)
+Upload accommodation photos (needed)
+Set: (needed)
+price
+available dates
+maximum guests
+amenities
+description
+View incoming bookings (optional,life quality)
+Accept/reject booking (needed, lify cycle)
+View booking history (optional)
+System
+Prevent double-booking (needed)
+Calculate booking cost (optional if we dont do the same feature above)
+Track booking status (needed)
+Authentication / authorization (optional if we dont do login)
+Basic notifications (optional)
+
