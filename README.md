@@ -2,7 +2,7 @@
 
 ## Tên đề tài
 
-**[Chưa chốt]**
+** Ứng dụng home 2 home chia sẻ chổ ở, airBnB **
 
 ## Các thành viên
 
