@@ -1,0 +1,7 @@
+Các chức năng nên chia ra thành 3 phần:
+Must-have: bắt buộc phải có. Core
+Ví dụ: Chức năng cho phép cho thuê (là quan trọng vì không có nó thì ứng dụng sẽ không hoạt động/ hoặc không có thì ứng dụng không có ý nghĩa)
+Important: Chức năng hỗ trợ
+Ví dụ: Chức năng cho phép chia sẻ thông tin nơi cho thuê (để hỗ trợ là chính). 
+Nice-to-have: Chức năng bên lề
+Ví dụ: Chức năng nhắn tin trao đổi giữa bên thuê và bên cho thuê (Có thể đính thông tin liên lạc và liên hệ trực tiếp qua các nền tảng khá. Ví dụ: Zalo)
