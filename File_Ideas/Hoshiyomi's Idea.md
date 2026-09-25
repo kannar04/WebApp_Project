@@ -1,17 +1,4 @@
-HOME 2 HOME — ĐẶC TẢ CHỨC NĂNG
-Phiên bản: 1.0 · Nền tảng: Client Website + Admin Website + Backend API
-1. Mục tiêu và vai trò
-Home 2 Home kết nối người cần thuê chỗ ở với chủ nhà. Khách tìm và đặt chỗ; chủ nhà quản lý tin và lịch; quản trị viên kiểm duyệt hệ thống.
-Vai trò
-Quyền chính
-Guest
-Tìm kiếm, xem thông tin chỗ ở
-Customer
-Đặt chỗ, nhắn tin, lưu yêu thích, đánh giá
-Host
-Đăng chỗ ở, quản lý lịch, xử lý yêu cầu đặt
-Admin
-Duyệt tin, quản lý tài khoản và báo cáo
+HOME 2 HOME —CHỨC NĂNG
 
 Một tài khoản có thể vừa là Customer vừa là Host.
 2. Client Website
@@ -45,59 +32,3 @@ SV-03: Kiểm tra lịch trống, số khách và ngăn xác nhận đặt trùn
 SV-04: Tính tổng tiền trên server và lưu giá tại thời điểm đặt.
 SV-05: Quản lý trạng thái đơn, thanh toán, đánh giá, tin nhắn và thông báo.
 SV-06: Kiểm tra dữ liệu đầu vào, ghi nhật ký thao tác quản trị.
-4. Quy tắc nghiệp vụ
-Ngày trả phải sau ngày nhận; số khách không vượt sức chứa.
-Tin chỉ xuất hiện công khai khi có trạng thái PUBLISHED.
-Đơn CONFIRMED không được trùng khoảng lưu trú với đơn xác nhận khác của cùng chỗ ở. Kiểm tra và xác nhận trong cùng giao dịch dữ liệu.
-Giá do server tính: tổng tiền = số đêm × giá/đêm + phụ phí − giảm giá.
-Chủ nhà chỉ sửa tin của mình; khách chỉ xem đơn của mình; Admin truy cập chức năng quản trị.
-Khách chỉ đánh giá đơn COMPLETED.
-Trạng thái tin: DRAFT → PENDING_REVIEW → PUBLISHED hoặc REJECTED; tin đã đăng có thể HIDDEN.
-Trạng thái đơn: PENDING → CONFIRMED → COMPLETED; từ PENDING có thể sang REJECTED hoặc CANCELLED; đơn CONFIRMED có thể hủy theo chính sách.
-Thanh toán MVP: Thanh toán khi nhận phòng, ghi UNPAID/PAID. Tích hợp cổng thanh toán là phần mở rộng.
-5. Dữ liệu chính
-Bảng
-Nội dung
-users, user_roles
-Tài khoản và vai trò
-properties, property_images, amenities
-Tin đăng, ảnh, tiện nghi
-blocked_dates, bookings, payments
-Lịch, đơn đặt, thanh toán
-reviews, conversations, messages
-Đánh giá và nhắn tin
-notifications, reports
-Thông báo và báo cáo vi phạm
-
-6. API tham khảo
-Method
-Endpoint
-Quyền
-POST
-/api/auth/register, /api/auth/login
-Public
-GET
-/api/properties, /api/properties/{id}
-Public
-POST / PATCH
-/api/properties, /api/properties/{id}
-Host/chủ sở hữu
-GET
-/api/properties/{id}/availability
-Public
-POST / GET
-/api/bookings, /api/bookings/my
-Customer
-PATCH
-/api/bookings/{id}/confirm, /api/bookings/{id}/cancel
-Người có quyền
-POST
-/api/bookings/{id}/reviews
-Khách đã lưu trú
-GET / PATCH
-/api/admin/properties/pending, /api/admin/properties/{id}/review
-Admin
-
-7. Tiêu chí hoàn thành MVP
-Chủ nhà đăng tin → Admin duyệt → khách tìm và đặt → chủ nhà xác nhận → server ngăn đặt trùng ngày → hoàn thành lưu trú → khách đánh giá
- 
