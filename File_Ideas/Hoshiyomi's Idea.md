@@ -99,5 +99,5 @@ GET / PATCH
 Admin
 
 7. Tiêu chí hoàn thành MVP
-Chủ nhà đăng tin → Admin duyệt → khách tìm và đặt → chủ nhà xác nhận → server ngăn đặt trùng ngày → hoàn thành lưu trú → khách đánh giá.
-
+Chủ nhà đăng tin → Admin duyệt → khách tìm và đặt → chủ nhà xác nhận → server ngăn đặt trùng ngày → hoàn thành lưu trú → khách đánh giá
+ 
