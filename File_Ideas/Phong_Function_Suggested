@@ -1,0 +1,73 @@
+1. Chức năng của hệ thống / Admin
+Đăng nhập Admin.
+Quản lý tài khoản người dùng.
+Thêm / sửa / xóa tài khoản.
+Khóa / mở khóa tài khoản.
+Quản lý danh mục chỗ ở.
+Thêm / sửa / xóa danh mục.
+Quản lý danh sách chỗ ở.
+Xem / sửa / xóa bài đăng chỗ ở.
+Quản lý các bài viết / tin tức.
+Thêm / sửa / xóa bài viết.
+Quản lý danh sách booking.
+Xem thông tin booking.
+Cập nhật trạng thái booking.
+Quản lý đánh giá / nhận xét.
+Xóa các đánh giá không phù hợp.
+Xem thống kê cơ bản:
+Số người dùng.
+Số chỗ ở.
+Số booking.
+Số Host / Guest.
+
+2. Chức năng của Guest
+Đăng ký tài khoản.
+Đăng nhập / đăng xuất.
+Xem và chỉnh sửa thông tin cá nhân.
+Xem danh sách chỗ ở.
+Tìm kiếm chỗ ở.
+Lọc chỗ ở theo:
+Địa điểm.
+Giá.
+Loại chỗ ở.
+Xem chi tiết chỗ ở.
+Xem hình ảnh chỗ ở.
+Xem thông tin Host.
+Xem lịch còn trống.
+Chọn ngày check-in / check-out.
+Gửi yêu cầu đặt chỗ.
+Xem danh sách booking của mình.
+Xem trạng thái booking.
+Hủy booking.
+Đánh giá / nhận xét sau khi hoàn thành chuyến ở.
+Lưu chỗ ở yêu thích.
+Chia sẻ thông tin chỗ ở.
+
+3. Chức năng của Host
+Đăng ký / đăng nhập.
+Chỉnh sửa hồ sơ cá nhân.
+Đăng chỗ ở mới.
+Thêm thông tin chỗ ở:
+Tên chỗ ở.
+Danh mục.
+Địa chỉ.
+Mô tả.
+Giá.
+Số người tối đa.
+Số phòng.
+Tiện nghi.
+Hình ảnh.
+Sửa thông tin chỗ ở.
+Xóa chỗ ở.
+Ẩn / hiện bài đăng.
+Quản lý lịch khả dụng.
+Xem các yêu cầu đặt chỗ.
+Chấp nhận booking.
+Từ chối booking.
+Xem danh sách booking.
+Cập nhật trạng thái booking.
+Xem đánh giá của Guest.
+Xem thống kê cơ bản:
+Số chỗ ở đã đăng.
+Số booking.
+Số booking hoàn thành.
