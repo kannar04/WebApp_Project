@@ -22,7 +22,7 @@ final class AdminController extends Controller
     public function userRoles(string $id): never
     {
         Csrf::ensure(); $admin=$this->requireRole('admin'); $roles=$_POST['roles']??[];
-        if (!is_array($roles) || count($roles)>3 || array_filter($roles,fn($role)=>!is_string($role)||!in_array($role,['guest','host','admin'],true))) {
+        if (!$this->rolesAreValid($roles)) {
             Session::flash('error','Vai trò không hợp lệ.'); $this->redirect('/admin');
         }
         $this->managedUserChange((int)$id,(int)$admin['id'],'set_user_roles',implode(',',$roles),
@@ -35,8 +35,8 @@ final class AdminController extends Controller
             'phone'=>trim((string)($_POST['phone']??'')),'password'=>(string)($_POST['password']??'')];
         $roles=$_POST['roles']??['guest'];
         if ($data['full_name']==='' || mb_strlen($data['full_name'])>150 || !filter_var($data['email'],FILTER_VALIDATE_EMAIL)
-            || strlen($data['email'])>254 || strlen($data['phone'])>20 || strlen($data['password'])<8 || !is_array($roles)
-            || array_filter($roles,fn($role)=>!is_string($role)||!in_array($role,['guest','host','admin'],true))) {
+            || strlen($data['email'])>254 || strlen($data['phone'])>20 || strlen($data['password'])<8
+            || !$this->rolesAreValid($roles)) {
             Session::flash('error','Thông tin tài khoản mới không hợp lệ.'); $this->redirect('/admin');
         }
         $database=Database::connection(); $database->beginTransaction();
@@ -76,7 +76,8 @@ final class AdminController extends Controller
             $this->redirect('/admin/users/'.$userId.'/edit');
         }
         $roles = $_POST['roles'] ?? ['guest'];
-        if (!is_array($roles)) {
+        if (!$this->rolesAreValid($roles)) {
+            Session::old(array_diff_key($data, ['password'=>1]));
             Session::flash('error', 'Vai trò không hợp lệ.');
             $this->redirect('/admin/users/'.$userId.'/edit');
         }
@@ -107,6 +108,15 @@ final class AdminController extends Controller
         Csrf::ensure(); $admin=$this->requireRole('admin');
         $this->managedUserChange((int)$id,(int)$admin['id'],'delete_user','Soft delete',
             fn()=>(new User())->softDelete((int)$id),'Đã xóa mềm tài khoản.');
+    }
+
+    private function rolesAreValid(mixed $roles): bool
+    {
+        if (!is_array($roles) || count($roles) > 3) { return false; }
+        foreach ($roles as $role) {
+            if (!is_string($role) || !in_array($role, ['guest', 'host', 'admin'], true)) { return false; }
+        }
+        return true;
     }
 
     private function managedUserChange(int $id, int $adminId, string $action, string $details, callable $operation, string $message): never
@@ -154,8 +164,28 @@ final class AdminController extends Controller
             $this->redirect('/admin/listings/'.$id.'/edit');
         }
     }
-    public function listingVisibility(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');(new AdminRepository())->setListingVisibility((int)$id,(int)$admin['id'],!empty($_POST['visible']));Session::flash('success','Đã cập nhật hiển thị listing.');$this->redirect('/admin');}
-    public function listingDelete(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');(new AdminRepository())->softDeleteListing((int)$id,(int)$admin['id']);Session::flash('success','Đã gỡ listing (soft delete).');$this->redirect('/admin');}
+    public function listingVisibility(string $id): never
+    {
+        Csrf::ensure(); $admin = $this->requireRole('admin');
+        try {
+            (new AdminRepository())->setListingVisibility((int)$id, (int)$admin['id'], !empty($_POST['visible']));
+            Session::flash('success', 'Đã cập nhật hiển thị listing.');
+        } catch (\Throwable $exception) {
+            Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể cập nhật hiển thị. Vui lòng thử lại.');
+        }
+        $this->redirect('/admin');
+    }
+    public function listingDelete(string $id): never
+    {
+        Csrf::ensure(); $admin = $this->requireRole('admin');
+        try {
+            (new AdminRepository())->softDeleteListing((int)$id, (int)$admin['id']);
+            Session::flash('success', 'Đã gỡ listing (soft delete).');
+        } catch (\Throwable $exception) {
+            Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể gỡ chỗ ở. Vui lòng thử lại.');
+        }
+        $this->redirect('/admin');
+    }
     public function bookingTransition(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');try{(new BookingService())->adminTransition((int)$id,(int)$admin['id'],(string)($_POST['status']??''));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/admin');}
 }
 

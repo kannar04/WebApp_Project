@@ -22,12 +22,14 @@ final class Listing
         return $statement->fetchAll();
     }
 
-    public function findPublic(int $id): ?array
+    public function findPublic(int $id, bool $withDetails = true): ?array
     {
         $statement = $this->db->prepare('CALL `sp_listing_get_public`(?)');
         $statement->execute([$id]);
         $listing = $statement->fetch();
         if (!$listing) { return null; }
+        // Existence checks need the same public/host guards, not three child queries.
+        if (!$withDetails) { return $listing; }
         $listing['photos'] = $this->photos($id);
         $listing['amenities'] = $this->amenities($id);
         $listing['reviews'] = $this->reviews($id);

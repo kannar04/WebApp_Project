@@ -2,6 +2,8 @@
 
 Audit date: 2026-10-09.
 
+Cleanup recheck: `.env.example`/`.env.sample` đã được sửa lại thành ngoại lệ `!` vì snapshot trước đó không còn khớp cấu hình hiện tại. `codebase_cleanup_test.php` kiểm chứng 16 đường dẫn riêng tư bị ignore và 26 đường dẫn chia sẻ không bị ignore. Không có tracked ignored files; `.env.example` an toàn hiện đủ điều kiện add vào Git nhưng không được tự stage/commit. Chưa phát hiện credential sản xuất; seed credentials chỉ dùng local. Các kết quả lịch sử dưới đây không thay thế recheck này.
+
 ## Scope and stack
 
 Inspected the complete workspace inventory (including hidden files outside `.git`),

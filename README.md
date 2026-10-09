@@ -34,6 +34,8 @@ docs/         kiến trúc, traceability, tiến độ và test report
 C:\xampp\php\php.exe database\import.php
 ```
 
+Lệnh này chỉ dành cho DB mới/chưa có bảng. Nếu DB đã tồn tại, importer sẽ dừng trước khi seed để tránh ghi đè dữ liệu nhóm. `.env.example` được chia sẻ trong Git, mặc định tắt debug.
+
 Nếu đã có `db_home2home`, chỉ cài routines, không cần import/seed lại dữ liệu:
 
 ```powershell
@@ -64,12 +66,16 @@ Không dùng các tài khoản/mật khẩu này trên môi trường public.
 C:\xampp\php\php.exe database\install_procedures.php --include-tests
 C:\xampp\php\php.exe tests\stored_procedure_audit_test.php
 C:\xampp\php\php.exe tests\schema_test.php
+C:\xampp\php\php.exe tests\schema_test.php --compare-live
+C:\xampp\php\php.exe tests\codebase_cleanup_test.php
 C:\xampp\php\php.exe tests\booking_flow_test.php
 C:\xampp\php\php.exe tests\procedure_flow_test.php
 powershell -ExecutionPolicy Bypass -File tests\http_smoke.ps1
 ```
 
 Quote và tổng tiền được tính trong routines. Transaction booking lưu snapshot chính sách, giá từng đêm, event, notification và audit Admin; caller transaction được giữ bằng savepoint. Chi tiết tại [docs/stored-procedure-audit.md](docs/stored-procedure-audit.md).
+
+Schema khởi tạo khớp cấu trúc MariaDB hiện hữu (22 bảng). Installer không tự chạy migration DROP `040`; giữ script lịch sử để nhóm review riêng. Kiểm thử thiết lập độc lập: `tests/fresh_setup_test.php` tạo DB/server tạm riêng và dọn DB của chính nó, không dùng DB chia sẻ. Audit mới: [docs/codebase-cleanup-report.md](docs/codebase-cleanup-report.md).
 
 ## Giới hạn hiện tại
 

@@ -10,4 +10,4 @@ if ($app['env'] !== 'local' || !in_array($config['host'], ['localhost','127.0.0.
     fwrite(STDERR, "BLOCKED: installer is restricted to local db_home2home.\n"); exit(1);
 }
 $count = installHome2HomeProcedures(\Core\Database::connection(), in_array('--include-tests', $argv, true));
-echo "Installed {$count} routine definitions; pruned only superseded refactor helpers; no data or grants changed.\n";
+echo "Installed {$count} routine definitions; no DROP, data or grants changed.\n";

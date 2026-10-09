@@ -147,6 +147,18 @@ try {
     $state=& $php tests/http_audit_fixture.php inspect $marker | ConvertFrom-Json
     if ($response.Status -ne 200 -or $response.Path -notlike '/admin/listings/*/edit' -or !$response.Content.Contains('Admin preserved address') -or [decimal]$state.base_nightly_rate -ne 100000) { throw "Admin invalid fee recovery failed (HTTP $($response.Status))" }
     Write-Output 'PASS Admin invalid listing data preserves form and database'
+    foreach($operation in @('visibility','delete')) {
+        $response=Request ('/admin/listings/999999999/'+$operation) $adminSession 'POST' @{_token=$adminToken;visible='1'}
+        if($response.Status -ne 200 -or $response.Path -ne '/admin' -or !$response.Content.Contains('alert-danger')) { throw 'Missing Admin listing did not recover safely' }
+    }
+    Write-Output 'PASS Admin nonexistent listing visibility/delete error recovery'
+    foreach($invalidRole in @('roles','roles[]','roles[0][]')) {
+        $invalidData=@{_token=$adminToken;full_name='Preserved role input';email=($fixture.emailPrefix+'-guest@home2home.test');phone='';password=''}
+        $invalidData[$invalidRole]='invalid-role'
+        $response=Request ('/admin/users/'+$fixture.guestId) $adminSession 'POST' $invalidData
+        if($response.Status -ne 200 -or $response.Path -notlike '/admin/users/*/edit' -or !$response.Content.Contains('Preserved role input') -or !$response.Content.Contains('alert-danger')) { throw 'Invalid Admin edit roles changed data or lost form' }
+    }
+    Write-Output 'PASS Admin edit rejects scalar/unknown/nested roles and preserves non-secret input'
     $response=Request ('/admin/users/'+$fixture.adminId) $adminSession 'POST' @{_token=$adminToken;full_name='HTTP audit admin';email=($fixture.emailPrefix+'-admin@home2home.test');phone='';password='';'roles[]'='guest'}
     if ($response.Status -ne 200 -or $response.Path -ne '/admin') { throw 'Admin self-demotion guard failed' }
     $response=Request ('/admin/users/'+$fixture.guestId) $adminSession 'POST' @{_token=$adminToken;full_name='HTTP audit guest';email=($fixture.emailPrefix+'-admin@home2home.test');phone='';password='';'roles[]'='guest'}

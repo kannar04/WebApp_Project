@@ -22,7 +22,19 @@ $pdo = new PDO($dsn, $config['username'], $config['password'], [
     PDO::MYSQL_ATTR_MULTI_STATEMENTS => true,
 ]);
 
-$files = in_array('--seed-only', $argv, true) ? ['seed.sql'] : ['schema.sql', 'seed.sql'];
+$seedOnly = in_array('--seed-only', $argv, true);
+// IF NOT EXISTS does not validate an existing schema; seed upserts may overwrite team data.
+$existingTables = $pdo->prepare('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=?');
+$existingTables->execute([$config['database']]);
+if ((int) $existingTables->fetchColumn() > 0 && !$seedOnly) {
+    fwrite(STDERR, "BLOCKED: database already has tables. Use database/install_procedures.php; initialization will not reseed existing data.\n");
+    exit(1);
+}
+if ($seedOnly && !in_array('--confirm-demo-seed', $argv, true)) {
+    fwrite(STDERR, "BLOCKED: --seed-only can overwrite demo-ID records. Review seed.sql and explicitly add --confirm-demo-seed only for a disposable local demo database.\n");
+    exit(1);
+}
+$files = $seedOnly ? ['seed.sql'] : ['schema.sql', 'seed.sql'];
 foreach ($files as $file) {
     $sql = file_get_contents(__DIR__ . '/' . $file);
     if ($sql === false) {

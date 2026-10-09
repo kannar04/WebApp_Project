@@ -10,10 +10,12 @@
 - `routes/web.php`: khai báo route GET/POST.
 - `core/`: Router, Controller, Database, Session, Auth, CSRF và bootstrap/autoload.
 - `app/Controllers/`: HTTP input, validation, authorization, response.
-- `app/Models/`: prepared query và mapping dữ liệu.
-- `app/Services/`: nghiệp vụ nhiều bảng/transaction như booking và upload.
+- `app/Models/`: PDO CALL qua ProcedureConnection và mapping dữ liệu; không SQL nghiệp vụ trực tiếp.
+- `app/Services/`: kiểm tra request/điều phối CALL booking và lưu upload; transaction nghiệp vụ nằm trong routines.
 - `app/Views/`: HTML/Bootstrap, không truy vấn SQL.
-- `database/`: schema, seed UTF-8 và importer CLI.
+- `database/`: schema chuẩn 22 bảng, seed UTF-8, routines/migrations và importer CLI; không DDL trong request.
+
+Dataflow dữ liệu: `Browser → Router → Controller (Auth/CSRF/validation) → Model/Service → ProcedureConnection → PDO CALL → routine → tables → result sets drained/closed → View/JSON`. Migration `040` giữ lại nhưng không chạy mặc định; chỉ review/executed riêng khi có xác nhận.
 
 ## Dataflow chính
 
@@ -59,6 +61,6 @@ State machine hiện có:
 ## Quyết định quan trọng
 
 - Dùng schema hiện hữu trong ERD (`base_nightly_rate`, `policy_snapshot`, event tables) làm nguồn đúng.
-- Booking nằm trong Service vì thay đổi nhiều bảng cần atomicity.
+- BookingService là facade; routine booking giữ atomicity/locking/snapshot và dùng savepoint để không commit transaction của caller.
 - Không tích hợp payment/map/email khi chưa có credential và yêu cầu nghiệp vụ đủ chi tiết.
 

@@ -83,3 +83,13 @@ Completed and verified locally:
 Reports: stored-procedure-audit.md, user-journey-audit.md, user-test-matrix.md.
 Remaining NOT_VERIFIED: production least-privilege deployment, high-load/deadlock stress, full assistive-technology audit, Oracle MySQL compatibility/non-Vietnam named timezones.
 
+## 2026-10-09 — Codebase cleanup & team Git hygiene
+
+- Baseline clean branch `test`; no commit/push/merge/untrack or shared schema/routine/grant mutation.
+- Removed unused amenities form marker; eliminated three unused detail CALLs per wishlist add; shared strict Admin role validation across create/edit/roles, with safe error recovery for missing Admin listings.
+- Canonical schema now matches exact DDL of all 22 live ERD tables; verified in an isolated database, without ALTER on the live DB. Existing-schema initialization and unconfirmed reseeding are blocked; historical DROP migration retained but no longer executed by default.
+- `.env.example`/`.env.sample` are shareable, debug defaults off; private environment/uploads/dumps remain ignored. Preserved the existing user upload; no production file removed.
+- PASS: 66 PHP lint, 106 CALL/78 signatures, installer/Git gates, schema parity, all integration suites, two-process overlap, expanded HTTP Admin cases, 48 Chrome viewport/page checks, HTTP smoke and controlled DB outage.
+- PASS independent source-copy setup with separate DB/server and Guest/Host/Admin login/quote. No remote clone/teammate Apache deployment or full accessibility/load certification claimed.
+- Reports: codebase-cleanup-audit.md, codebase-cleanup-report.md, database-consistency-audit.md.
+

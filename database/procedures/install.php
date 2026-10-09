@@ -9,14 +9,15 @@ function installHome2HomeProcedures(PDO $pdo, bool $testing = false): int
     if ($testing) { $files[] = __DIR__.'/testing.sql'; }
     $count = 0;
     foreach ($files as $file) {
+        // Retain the historical cleanup migration, but require separate reviewed execution.
+        // Routine consumers outside PHP cannot be ruled out by this installer.
+        if (basename($file) === '040_prune_transition_helpers.sql') { continue; }
         $sql = file_get_contents($file);
         if ($sql === false) { throw new RuntimeException('Cannot read procedure script.'); }
         $sql = preg_replace('/^DELIMITER\s+.*$/m', '', $sql);
         foreach (explode('$$', $sql) as $definition) {
             $create = preg_match('/\bCREATE\s+(?:OR REPLACE\s+)?PROCEDURE\b/i', $definition);
-            $prune = basename($file) === '040_prune_transition_helpers.sql'
-                && preg_match('/\bDROP PROCEDURE IF EXISTS `sp_[a-z_]+`\s*$/', trim($definition));
-            if (!$create && !$prune) { continue; }
+            if (!$create) { continue; }
             $pdo->exec(trim($definition));
             if ($create) { $count++; }
         }

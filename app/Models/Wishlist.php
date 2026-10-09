@@ -14,7 +14,7 @@ final class Wishlist
             $database->prepare('CALL `NMT_sp_remove_wishlist_item`(?,?)')->execute([$userId, $listingId]);
             return false;
         }
-        if (!(new Listing())->findPublic($listingId)) {
+        if (!(new Listing())->findPublic($listingId, false)) {
             throw new DomainException('Chỗ ở không tồn tại hoặc không còn hiển thị.');
         }
         $statement = $database->prepare('CALL `NMT_sp_add_wishlist_item`(?,?)');

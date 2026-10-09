@@ -2,6 +2,8 @@
 
 Ngày kiểm thử: 2026-10-09 (Asia/Saigon).
 
+Phần dưới là snapshot kiểm thử ban đầu. Kết quả cleanup mới và hướng dẫn seed có xác nhận: [codebase-cleanup-report.md](codebase-cleanup-report.md), [database-setup.md](database-setup.md). Đã kiểm thử hai process đồng thời và Chrome 48 page/viewport checks; không nhầm với stress test tải lớn. Import/seed mặc định giờ chặn DB đã có bảng.
+
 ## Kết quả đã chạy
 
 | Nhóm | Lệnh/luồng | Kết quả |

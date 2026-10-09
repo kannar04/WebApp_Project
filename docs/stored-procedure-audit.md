@@ -2,6 +2,8 @@
 
 Ngày kiểm tra: 2026-10-09. Trạng thái: **COMPLIANT trong phạm vi SQL nghiệp vụ PHP**, đã kiểm thử runtime; không phải chứng nhận production.
 
+Cleanup follow-up: [codebase-cleanup-report.md](codebase-cleanup-report.md). Số liệu refactor bên dưới là lịch sử; installer hiện không chạy migration DROP `040` tự động, schema khởi tạo đã khớp DDL 22 bảng, và các số đếm dữ liệu cũ không phải invariant của app đang sử dụng.
+
 ## Kết quả
 
 - Trước refactor: **108 vị trí thực thi SQL nghiệp vụ trực tiếp**. Cách đếm: mỗi vị trí `prepare/query` là một site, kể cả query động hoặc cleanup chạy trong vòng lặp; không đếm từng lần thực thi.

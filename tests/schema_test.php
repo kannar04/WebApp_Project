@@ -6,6 +6,10 @@ require dirname(__DIR__) . '/core/bootstrap.php';
 require dirname(__DIR__) . '/database/procedures/install.php';
 
 $config = require dirname(__DIR__) . '/config/database.php';
+$appConfig = require dirname(__DIR__) . '/config/app.php';
+if ($appConfig['env'] !== 'local' || !in_array($config['host'], ['localhost','127.0.0.1','::1'], true)) {
+    throw new RuntimeException('Schema fixtures require a local loopback database.');
+}
 $pdo = new PDO(
     sprintf('mysql:host=%s;port=%d;charset=%s', $config['host'], $config['port'], $config['charset']),
     $config['username'],
@@ -35,10 +39,23 @@ try {
         throw new RuntimeException('Seed lặp lại không đúng hoặc danh mục bị inactive.');
     }
     $count = (int) $pdo->query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='{$testDatabase}'")->fetchColumn();
-    if ($count < 18) {
+    if ($count !== 22) {
         throw new RuntimeException('Schema thiếu bảng: chỉ tạo được ' . $count);
     }
     echo "PASS schema: {$count} tables created; SQL seed repeat safe" . PHP_EOL;
+    if (in_array('--compare-live', $argv, true)) {
+        $tables = $pdo->query('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME')->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($tables as $table) {
+            if (!preg_match('/^[a-z][a-z_0-9]*$/D', $table) || !preg_match('/^[a-z][a-z_0-9]*$/D', $config['database'])) {
+                throw new RuntimeException('Unexpected table/schema identifier.');
+            }
+            $actual = $pdo->query('SHOW CREATE TABLE `'.$table.'`')->fetch(PDO::FETCH_ASSOC)['Create Table'];
+            $baseline = $pdo->query('SHOW CREATE TABLE `'.$config['database'].'`.`'.$table.'`')->fetch(PDO::FETCH_ASSOC)['Create Table'];
+            $normalize = static fn(string $ddl): string => preg_replace('/ AUTO_INCREMENT=\d+/', '', $ddl);
+            if ($normalize($actual) !== $normalize($baseline)) { throw new RuntimeException('Schema parity failed: '.$table); }
+        }
+        echo "PASS exact SHOW CREATE TABLE parity for 22 tables (excluding generated sequence counters)\n";
+    }
     $guestStatement=$pdo->prepare('CALL sp_user_get_by_email(?)');
     $guestStatement->execute(['guest@home2home.test']);
     $guest=$guestStatement->fetch(PDO::FETCH_ASSOC);

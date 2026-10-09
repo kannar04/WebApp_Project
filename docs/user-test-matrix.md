@@ -80,3 +80,24 @@ Bảng này cập nhật kết quả sau refactor; các số liệu trong phần
 | SP-26 | Payments, email delivery, reset-password and other absent routes | Outside implemented workflow scope; no claim of completion | NOT_APPLICABLE |
 
 Fixtures use exact generated markers/IDs. Uploaded test images are removed only after matching the fixture listing prefix, generated basename and resolved public/uploads root. Other uploads/files are untouched. Historical dates are never injected into the live database.
+
+## Cleanup regression — 2026-10-09
+
+| ID | Priority / scope | Executed evidence | Result |
+|---|---|---|---|
+| CL-01 | Must: Auth/roles/profile/Host enrollment/logout | Expanded http_audit.ps1 + fresh_setup_test.php | PASS |
+| CL-02 | Must: browse/detail/quote/booking/history/Host confirm/Guest cancel | HTTP smoke/audit + booking/source/procedure integration | PASS |
+| CL-03 | Must: Host create/edit/calendar/visibility/photo upload | Real fixture create/upload, bad MIME rollback, owner/calendar guards | PASS |
+| CL-04 | Must: Admin user edit role payload validation | HTTP scalar/unknown/nested role payloads rejected; form data retained | PASS |
+| CL-05 | Must: Admin listing mutations | Update/moderation/visibility/soft-delete routines; missing listing POST recovers to Admin | PASS |
+| CL-06 | Important: wishlist and post-stay review | Actual Chrome add/remove/restore; isolated completed stay duplicate/owner review guards | PASS |
+| CL-07 | Database parity and setup safety | schema_test.php --compare-live; recording PDO proves zero DROP; importer refusal checks | PASS |
+| CL-08 | Team Git setup | 16 ignored/26 shared paths; eligible file copy into TEMP, isolated fresh DB/HTTP server | PASS |
+| CL-09 | Syntax/UX regression | 66 PHP lint; Chrome V8/CSS; 48 checks at 375/768/1024/1440; controlled DB outage | PASS |
+| CL-10 | Must: complete Host deletion and image reorder/removal | No dedicated routes in current app; absent before cleanup; not introduced in stabilization | NOT_VERIFIED |
+| CL-11 | Important: password reset/change, category CRUD, reports, inbox/email, map, full filter/pagination | Absent or incomplete before cleanup; see requirements-matrix.md | NOT_VERIFIED |
+| CL-12 | Optional: payments/messages/promotion/Instant Book/news/i18n/dark mode | Not implemented by cleanup | NOT_VERIFIED |
+| CL-13 | Remote GitHub clone/permissions and teammate Apache setup | Independent local copy tested, not a remote clone or other machine | NOT_VERIFIED |
+| CL-14 | Full keyboard/screen reader, load/deadlock stress, production grants/Oracle MySQL | Not executed/deployed | NOT_VERIFIED |
+
+These results apply to implemented workflows, not to every planned feature in Functions.txt. Existing runtime uploads and team assets were preserved; live record counts are allowed to change during normal app use.
