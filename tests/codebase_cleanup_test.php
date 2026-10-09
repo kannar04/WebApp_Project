@@ -22,10 +22,15 @@ foreach ($recording->definitions as $definition) {
     cleanupExpect(!preg_match('/\bDROP\s+(TABLE|DATABASE|PROCEDURE)\b/i', $definition), 'Installer unexpectedly executes DROP.');
     cleanupExpect(!preg_match('/\bPROCEDURE\s+`?sp_test_/i', $definition), 'Test routines installed without opt-in.');
 }
-cleanupExpect($productionCount === 75, 'Unexpected production definition count.');
+$expectedProduction=75;
+foreach (['050_quality_core.sql','055_quality_search.sql','060_quality_community.sql','065_password_recovery.sql'] as $migration) {
+    $source=file_get_contents(dirname(__DIR__).'/database/procedures/'.$migration);
+    $expectedProduction+=preg_match_all('/CREATE OR REPLACE PROCEDURE/',$source);
+}
+cleanupExpect($productionCount === $expectedProduction, 'Unexpected production definition count.');
 $withTests = new RecordingInstallerPDO();
-cleanupExpect(installHome2HomeProcedures($withTests, true) === 89, 'Test routine opt-in changed.');
-echo "PASS installer: 75 production definitions, 14 opt-in test definitions; zero DROP\n";
+cleanupExpect(installHome2HomeProcedures($withTests, true) === $expectedProduction+16, 'Test routine opt-in changed.');
+echo "PASS installer: $productionCount production definitions, 16 opt-in test definitions; zero DROP\n";
 
 $controller = new App\Controllers\AdminController();
 $rolesValidator = new ReflectionMethod($controller, 'rolesAreValid');

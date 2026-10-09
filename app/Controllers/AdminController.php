@@ -11,7 +11,26 @@ use Core\Database;
 use Core\Session;
 final class AdminController extends Controller
 {
-    public function dashboard(): void {$this->requireRole('admin');$repo=new AdminRepository();$this->render('admin/dashboard',['title'=>'Quản trị Home2Home','stats'=>$repo->stats(),'users'=>(new User())->all((string)($_GET['q']??'')),'listings'=>$repo->listings(),'bookings'=>(new Booking())->all()]);}
+    public function dashboard(): void
+    {
+        $admin=$this->requireRole('admin'); $repo=new AdminRepository();
+        $query=is_string($_GET['booking_q']??null)?mb_substr(trim($_GET['booking_q']),0,254):'';
+        $status=is_string($_GET['booking_status']??null)?$_GET['booking_status']:'';
+        if (!in_array($status,['','pending','confirmed','rejected','cancelled','completed'],true)) { $status=''; Session::flash('error','Trạng thái lọc booking không hợp lệ.'); }
+        $this->render('admin/dashboard',['title'=>'Quản trị Home2Home','stats'=>$repo->stats(),
+            'users'=>(new User())->all(is_string($_GET['q']??null)?$_GET['q']:''),'listings'=>$repo->listings(),
+            'bookings'=>(new Booking())->adminSearch((int)$admin['id'],$query,$status),'bookingQuery'=>$query,'bookingStatus'=>$status]);
+    }
+    public function listingPreview(string $id): void
+    {
+        $admin=$this->requireRole('admin'); $model=new \App\Models\Listing();
+        $listing=$model->adminPreview((int)$id,(int)$admin['id']);
+        if (!$listing) { http_response_code(404); $this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']); return; }
+        try { $calendar=\Core\Calendar::month($_GET['month']??date('Y-m')); }
+        catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
+        $this->render('listings/show',['title'=>'Xem trước: '.$listing['title'],'listing'=>$listing,'preview'=>true,'calendar'=>$calendar,
+            'calendarDays'=>$model->calendar((int)$id,(int)$admin['id'],$calendar['start'],$calendar['end']),'calendarPath'=>'/admin/listings/'.$id.'/preview']);
+    }
     public function userStatus(string $id): never
     {
         Csrf::ensure(); $admin=$this->requireRole('admin'); $status=(string)($_POST['status']??'');

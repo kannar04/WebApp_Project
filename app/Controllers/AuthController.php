@@ -14,5 +14,38 @@ final class AuthController extends Controller
     public function registerForm(): void {if(Auth::check()){$this->redirect('/');}$this->render('auth/register',['title'=>'Tạo tài khoản','old'=>Session::pullOld()],'layouts/auth');}
     public function register(): never {Csrf::ensure();$data=['full_name'=>trim((string)($_POST['full_name']??'')),'email'=>trim((string)($_POST['email']??'')),'phone'=>trim((string)($_POST['phone']??'')),'password'=>(string)($_POST['password']??'')];$errors=Validator::required($data,['full_name'=>'Họ tên','email'=>'Email','password'=>'Mật khẩu']);if(!filter_var($data['email'],FILTER_VALIDATE_EMAIL)){$errors['email']='Email không hợp lệ.';}if(strlen($data['password'])<8){$errors['password']='Mật khẩu cần ít nhất 8 ký tự.';}if(mb_strlen($data['full_name'])>150||strlen($data['phone'])>20||strlen($data['email'])>254){$errors['length']='Thông tin tài khoản vượt giới hạn độ dài.';}if($errors){Session::old(array_diff_key($data,['password'=>1]));Session::flash('error',implode(' ',array_values($errors)));$this->redirect('/register');}try{(new User())->create($data['email'],$data['password'],$data['full_name'],$data['phone']);Auth::attempt($data['email'],$data['password']);Session::flash('success','Tài khoản đã được tạo.');$this->redirect('/');}catch(\PDOException $e){Session::old(array_diff_key($data,['password'=>1]));Session::flash('error',$e->getCode()==='23000'?'Email đã được sử dụng.':'Không thể tạo tài khoản.');$this->redirect('/register');}}
     public function logout(): never {Csrf::ensure();Auth::logout();Session::start();Session::flash('success','Bạn đã đăng xuất.');$this->redirect('/');}
+    public function forgotForm(): void
+    {
+        $this->render('auth/forgot',['title'=>'Khôi phục mật khẩu','mailReady'=>(new \App\Services\PasswordRecoveryService())->configured()],'layouts/auth');
+    }
+    public function forgot(): never
+    {
+        Csrf::ensure(); $email=$_POST['email']??'';
+        try {
+            if (!is_string($email) || strlen($email)>254 || !filter_var($email,FILTER_VALIDATE_EMAIL)) { throw new \DomainException('Email không hợp lệ.'); }
+            (new \App\Services\PasswordRecoveryService())->request($email);
+            Session::flash('success','Nếu tài khoản đang hoạt động và dịch vụ gửi mail được cấu hình, bạn sẽ nhận hướng dẫn khôi phục. Kiểm tra thư rác hoặc liên hệ quản trị viên nếu chưa nhận được.');
+        } catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
+        $this->redirect('/forgot-password');
+    }
+    public function resetForm(): void
+    {
+        header('Referrer-Policy: no-referrer'); header('Cache-Control: no-store');
+        $token=$_GET['token']??'';
+        if (!is_string($token) || !preg_match('/^[a-f0-9]{64}$/D',$token)) { http_response_code(422); $token=''; }
+        $this->render('auth/reset',['title'=>'Đặt mật khẩu mới','resetToken'=>$token],'layouts/auth');
+    }
+    public function reset(): never
+    {
+        Csrf::ensure();
+        try {
+            $token=$_POST['token']??''; $password=$_POST['password']??''; $confirmation=$_POST['password_confirmation']??'';
+            if (!is_string($token) || !is_string($password) || !is_string($confirmation) || $password!==$confirmation) { throw new \DomainException('Xác nhận mật khẩu không khớp.'); }
+            (new \App\Models\PasswordReset())->consume($token,$password);
+            if (Auth::check()) { Auth::logout(); Session::start(); }
+            Session::flash('success','Đã đặt mật khẩu mới. Vui lòng đăng nhập lại.'); $this->redirect('/login');
+        } catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
+        $this->redirect('/forgot-password');
+    }
 }
 

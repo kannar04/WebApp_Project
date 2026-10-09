@@ -68,7 +68,15 @@ Verified journeys:
 - Review: eligible completed historical fixture được seed **chỉ trong isolated schema-test DB** → one review → duplicate/other guest rejected → public guest-name projection.
 - Error recovery: 403/404, JSON 401/404/419, HTML/API 500 khi DB outage.
 
-48 responsive page/viewport checks thực tế: home/detail, Guest profile/bookings/wishlist/home, Host dashboard/form/calendar, Admin dashboard/user form/listing form tại 375, 768, 1024, 1440px. Thêm login, real AJAX và favorite interactions. Đây là Chrome viewport checks, không phải chứng nhận mọi thiết bị.
+48 responsive page/viewport checks thực tế ở lần audit trước: home/detail, Guest profile/bookings/wishlist/home, Host dashboard/form/calendar, Admin dashboard/user form/listing form tại 375, 768, 1024, 1440px. Thêm login, real AJAX và favorite interactions. Đây là Chrome viewport checks, không phải chứng nhận mọi thiết bị.
+
+Core follow-up mới: 80 viewport checks + hai booking-detail viewport + ba thao tác chuyển tháng thật, mobile Admin table scroll, AJAX/favorite; thêm HTTP/DB photo management, private preview, replies/reports/catalog/inbox, avatar và phân trang 12+1. Email recovery **đang chờ cấu hình** theo xác nhận của người dùng. Maps/native share external còn NOT_VERIFIED. Evidence, screenshot và các giới hạn hiện tại ở [final verification](quality/final-verification.md); đối chiếu toàn bộ [94 nhóm](quality/requirements-matrix.md).
 
 No reproduced P0–P2 remains in the **tested implemented** journeys. Full keyboard/screen reader, load/stress, production privileges/deployment and features without current routes remain NOT_VERIFIED. Older report sections are historical snapshots, not current unverified blockers already resolved in this follow-up.
+
+## Visual UX follow-up — 2026-10-09
+
+Observed and repaired homepage filter misalignment (32.39px desktop delta), missing dropdown labels/reset, invalid-filter input loss, inconsistent action/amenity grouping and search feedback. Corrected post-password-change confirmation/session redirect, invalid profile/report input loss, Admin/review/email labels and Bootstrap-overridden keyboard outline. Targeted helper/footer contrast now measured 5.12/5.53.
+
+Real browser filter GETs, Enter/refresh/detail/Back, Tab/Space, mobile navbar and keyboard Admin scrolling passed. Fresh isolated PHP/SQL/HTTP/Chrome regression exited 0; 92 extended page/viewport checks, actual before/after screenshots and limitations recorded in [ui-ux-visual-audit.md](quality/ui-ux-visual-audit.md). Native-dialog visuals, full assistive-technology testing and external Maps/share remain NOT_VERIFIED; email delivery still BLOCKED, đang chờ cấu hình.
 

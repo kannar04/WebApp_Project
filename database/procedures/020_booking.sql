@@ -132,6 +132,8 @@ BEGIN
         INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
             VALUES(p_actor,'transition_booking','booking',p_booking,JSON_OBJECT('details',p_target),NOW(6));
     END IF;
+    INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+        VALUES(v_host,p_booking,'in_app',CONCAT('booking_',p_target),'Cập nhật booking',CONCAT('Booking #',p_booking,' chuyển sang ',p_target,'.'),'sent',1,NOW(6));
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_booking_transition; END IF;
 END$$
 
@@ -187,6 +189,8 @@ BEGIN
     INSERT INTO booking_events(booking_id,actor_id,from_status,to_status,reason,created_at) VALUES(p_booking,p_guest,v_status,'cancelled','Khách hủy booking.',NOW(6));
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
         VALUES(v_host,p_booking,'in_app','booking_cancelled','Cập nhật booking','Khách đã hủy booking.','sent',1,NOW(6));
+    INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+        VALUES(v_guest,p_booking,'in_app','booking_cancelled','Đã hủy booking',CONCAT('Booking #',p_booking,' đã hủy. Mức hoàn: ',v_refund,' (',v_percent,'%).'),'sent',1,NOW(6));
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_booking_cancel; END IF;
     SELECT v_percent refund_percent,v_refund refund_amount;
 END$$

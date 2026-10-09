@@ -4,7 +4,7 @@ namespace App\Models;
 use Core\ProcedureConnection as Database;
 final class AdminRepository
 {
-    public function stats(): array {$db=Database::connection();return ['users'=>(int)$db->query('CALL `sp_admin_count_users`()')->fetchColumn(),'hosts'=>(int)$db->query('CALL `sp_admin_count_hosts`()')->fetchColumn(),'listings'=>(int)$db->query('CALL `sp_admin_count_listings`()')->fetchColumn(),'bookings'=>(int)$db->query('CALL `sp_admin_count_bookings`()')->fetchColumn(),'revenue'=>(float)$db->query('CALL `sp_admin_total_revenue`()')->fetchColumn()];}
+    public function stats(): array {$db=Database::connection();return ['guests'=>(int)$db->query('CALL sp_admin_count_guests()')->fetchColumn(),'users'=>(int)$db->query('CALL `sp_admin_count_users`()')->fetchColumn(),'hosts'=>(int)$db->query('CALL `sp_admin_count_hosts`()')->fetchColumn(),'listings'=>(int)$db->query('CALL `sp_admin_count_listings`()')->fetchColumn(),'bookings'=>(int)$db->query('CALL `sp_admin_count_bookings`()')->fetchColumn(),'revenue'=>(float)$db->query('CALL `sp_admin_total_revenue`()')->fetchColumn()];}
     public function listings(): array {return Database::connection()->query('CALL `sp_admin_listings`()')->fetchAll();}
     public function moderate(int $listingId, int $adminId, string $action, string $note): void
     {

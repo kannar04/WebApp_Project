@@ -19,6 +19,7 @@ final class Auth
         }
         session_regenerate_id(true);
         $_SESSION['user_id'] = (int) $user['id'];
+        $_SESSION['auth_version'] = hash('sha256',$user['password_hash']);
         self::$resolvedUser = null;
         self::$resolved = false;
         return true;
@@ -34,6 +35,10 @@ final class Auth
             return null;
         }
         self::$resolvedUser = (new User())->findWithRoles((int) $_SESSION['user_id']);
+        if (self::$resolvedUser && !hash_equals(self::$resolvedUser['auth_version'],(string)($_SESSION['auth_version']??''))) {
+            self::$resolvedUser=null;
+            unset($_SESSION['user_id'],$_SESSION['auth_version']);
+        }
         return self::$resolvedUser;
     }
 
@@ -49,6 +54,10 @@ final class Auth
             setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
         }
         session_destroy();
+        // Start a fresh anonymous session/cookie so post-logout confirmation survives redirects.
+        session_id('');
+        Session::start();
+        session_regenerate_id(true);
         self::$resolvedUser = null;
         self::$resolved = true;
     }

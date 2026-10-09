@@ -5,6 +5,59 @@
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const baseUrl = document.querySelector('meta[name="app-base-url"]')?.content.replace(/\/$/, '') || '';
 
+        const filterForm = document.querySelector('[data-filter-form]');
+        if (filterForm) {
+            const minimum = filterForm.elements.min_price;
+            const maximum = filterForm.elements.max_price;
+            const feedback = filterForm.querySelector('[data-price-error]');
+            const rangeMessage = 'Giá đến phải lớn hơn hoặc bằng giá từ.';
+            function validatePriceRange() {
+                const min = Number(minimum.value);
+                const max = Number(maximum.value);
+                // Zero has the existing server meaning: no price bound.
+                const reversed = minimum.value !== '' && maximum.value !== '' && min > 0 && max > 0 && min > max;
+                maximum.setCustomValidity(reversed ? rangeMessage : '');
+                maximum.classList.toggle('is-invalid', reversed || !maximum.validity.valid);
+                if (!maximum.validity.valid) {
+                    maximum.setAttribute('aria-invalid', 'true');
+                    maximum.setAttribute('aria-describedby', 'filter-help filter-error-max_price');
+                    feedback.textContent = reversed ? rangeMessage : maximum.validationMessage;
+                } else if (maximum.validity.valid) {
+                    maximum.removeAttribute('aria-invalid');
+                    maximum.setAttribute('aria-describedby', 'filter-help');
+                }
+            }
+            minimum.addEventListener('input', validatePriceRange);
+            maximum.addEventListener('input', validatePriceRange);
+            validatePriceRange();
+        }
+
+        document.querySelectorAll('[data-filter-form], [data-search-form]').forEach(form => {
+            form.addEventListener('submit', event => {
+                if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
+                form.dataset.submitting = 'true';
+                form.setAttribute('aria-busy', 'true');
+                const button = form.querySelector('button[type="submit"]');
+                if (button) {
+                    button.dataset.idleLabel = button.textContent;
+                    button.disabled = true;
+                    button.textContent = 'Đang tìm…';
+                }
+            });
+        });
+
+        // Back/forward cache must not leave a restored search/booking button disabled.
+        window.addEventListener('pageshow', () => {
+            document.querySelectorAll('button[data-idle-label]').forEach(button => {
+                button.disabled = false;
+                button.textContent = button.dataset.idleLabel;
+            });
+            document.querySelectorAll('form[data-submitting]').forEach(form => {
+                delete form.dataset.submitting;
+                form.removeAttribute('aria-busy');
+            });
+        });
+
         document.querySelectorAll('[data-favorite]').forEach(button => {
             button.addEventListener('click', async function () {
                 this.disabled = true;
@@ -92,6 +145,7 @@
             bookingForm.addEventListener('submit', () => {
                 const submitButton = bookingForm.querySelector('button[type="submit"]');
                 if (submitButton) {
+                    submitButton.dataset.idleLabel = submitButton.textContent;
                     submitButton.disabled = true;
                     submitButton.textContent = 'Đang gửi yêu cầu…';
                 }

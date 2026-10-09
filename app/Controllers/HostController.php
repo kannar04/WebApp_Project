@@ -11,10 +11,55 @@ use Core\Csrf;
 use Core\Session;
 final class HostController extends Controller
 {
-    public function dashboard(): void {$u=$this->requireRole('host');$this->render('host/dashboard',['title'=>'Không gian Host','stats'=>(new HostRepository())->stats((int)$u['id']),'listings'=>(new Listing())->hostListings((int)$u['id']),'bookings'=>(new Booking())->forHost((int)$u['id'])]);}
+    public function dashboard(): void {$u=$this->requireRole('host');$this->render('host/dashboard',['title'=>'Không gian Host','stats'=>(new HostRepository())->stats((int)$u['id']),'monthlyRevenue'=>(new HostRepository())->monthlyRevenue((int)$u['id']),'listings'=>(new Listing())->hostListings((int)$u['id']),'bookings'=>(new Booking())->forHost((int)$u['id'])]);}
     public function createForm(): void {$this->requireRole('host');$m=new Listing();$this->render('host/listing-form',['title'=>'Đăng chỗ ở','listing'=>null,'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>[],'old'=>Session::pullOld()]);}
-    public function editForm(string $id): void {$u=$this->requireRole('host');$m=new Listing();$listing=$m->findOwned((int)$id,(int)$u['id']);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('host/listing-form',['title'=>'Chỉnh sửa chỗ ở','listing'=>$listing,'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>$m->amenityIds((int)$id),'old'=>Session::pullOld()]);}
-    public function availabilityPage(string $id): void {$u=$this->requireRole('host');$m=new Listing();$listing=$m->findOwned((int)$id,(int)$u['id']);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('host/availability',['title'=>'Lịch khả dụng','listing'=>$listing,'dates'=>$m->availability((int)$id,(int)$u['id'])]);}
+    public function editForm(string $id): void {$u=$this->requireRole('host');$m=new Listing();$listing=$m->findOwned((int)$id,(int)$u['id']);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('host/listing-form',['title'=>'Chỉnh sửa chỗ ở','listing'=>$listing,'photos'=>$m->photos((int)$id,(int)$u['id']),'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>$m->amenityIds((int)$id),'old'=>Session::pullOld()]);}
+    public function availabilityPage(string $id): void
+    {
+        $user=$this->requireRole('host'); $model=new Listing();
+        $listing=$model->findOwned((int)$id,(int)$user['id']);
+        if (!$listing) { http_response_code(404); $this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']); return; }
+        try { $calendar=\Core\Calendar::month($_GET['month']??date('Y-m')); }
+        catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
+        $this->render('host/availability',['title'=>'Lịch khả dụng','listing'=>$listing,
+            'dates'=>$model->availability((int)$id,(int)$user['id']),'calendar'=>$calendar,
+            'calendarDays'=>$model->calendar((int)$id,(int)$user['id'],$calendar['start'],$calendar['end']),
+            'calendarPath'=>'/host/listings/'.$id.'/availability']);
+    }
+
+    public function delete(string $id): never
+    {
+        Csrf::ensure(); $user=$this->requireRole('host');
+        try { (new Listing())->softDelete((int)$id,(int)$user['id']); Session::flash('success','Đã xóa mềm tin. Lịch sử booking và ảnh gốc được giữ nguyên.'); }
+        catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
+        $this->redirect('/host');
+    }
+
+    public function photos(string $id): never
+    {
+        Csrf::ensure(); $user=$this->requireRole('host');
+        try {
+            $model=new Listing();
+            if (!$model->findOwned((int)$id,(int)$user['id'])) { throw new \DomainException('Không có quyền quản lý ảnh.'); }
+            $positions=$_POST['positions']??[]; $remove=$_POST['remove']??[];
+            if (!is_array($positions) || !is_array($remove) || count($positions)>100 || count($remove)>100) { throw new \DomainException('Danh sách ảnh không hợp lệ.'); }
+            foreach ($remove as $photoId) { if (!is_scalar($photoId) || !ctype_digit((string)$photoId)) { throw new \DomainException('ID ảnh không hợp lệ.'); } }
+            $remove=array_map('intval',$remove); $ordered=[];
+            foreach ($positions as $photoId=>$position) {
+                if (!ctype_digit((string)$photoId) || filter_var($position,FILTER_VALIDATE_INT,['options'=>['min_range'=>1,'max_range'=>100]])===false) { throw new \DomainException('Thứ tự ảnh phải từ 1 đến 100.'); }
+                if (!in_array((int)$photoId,$remove,true)) { $ordered[(int)$photoId]=(int)$position; }
+            }
+            // Require a complete snapshot: omission/malformed payload cannot silently remove photos.
+            $current=array_map('intval',array_column($model->photos((int)$id,(int)$user['id']),'id'));
+            if (array_diff($current,array_map('intval',array_keys($positions))) || array_diff(array_map('intval',array_keys($positions)),$current)
+                || array_diff($remove,$current)) { throw new \DomainException('Danh sách ảnh đã thay đổi. Hãy tải lại trang.'); }
+            if (count(array_unique($ordered))!==count($ordered)) { throw new \DomainException('Các ảnh giữ lại phải có thứ tự khác nhau.'); }
+            asort($ordered,SORT_NUMERIC);
+            $model->managePhotos((int)$id,(int)$user['id'],array_keys($ordered),$current);
+            Session::flash('success','Đã cập nhật ảnh và gửi tin duyệt lại. Chỉ gỡ liên kết; không xóa file gốc.');
+        } catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
+        $this->redirect('/host/listings/'.$id.'/edit');
+    }
     public function store(): never {Csrf::ensure();$u=$this->requireRole('host');$this->persist(null,(int)$u['id']);}
     public function update(string $id): never {Csrf::ensure();$u=$this->requireRole('host');$this->persist((int)$id,(int)$u['id']);}
     private function persist(?int $listingId, int $hostId): never

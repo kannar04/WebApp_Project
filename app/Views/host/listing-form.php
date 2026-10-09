@@ -19,3 +19,11 @@ $selectedAmenities = $oldInput['amenities'] ?? $selectedAmenities;
 <div class="form-group"><label for="photo">Thêm ảnh (JPG, PNG, WebP)</label><input class="form-control-file" id="photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp"></div>
 <button class="btn btn-primary" type="submit">Lưu và gửi duyệt</button> <a class="btn btn-ghost" href="<?= e(url('/host')) ?>">Hủy</a></form>
 </div></section>
+<?php if($isEdit): ?>
+<section class="page-section pt-0"><div class="container narrow"><form class="surface-card" method="post" action="<?= e(url('/host/listings/'.$listing['id'].'/photos')) ?>"><?= csrf_field() ?>
+<h2>Quản lý ảnh hiện có</h2><p>Đổi thứ tự (số nhỏ hiển thị trước) hoặc chọn ảnh cần gỡ. Tin được duyệt lại sau khi thay đổi ảnh; file gốc không bị xóa.</p>
+<?php if(!$photos): ?><p class="text-muted">Chưa có ảnh. Dùng mục “Thêm ảnh” ở trên.</p><?php else: ?><div class="row">
+<?php foreach($photos as $index=>$photo): ?><div class="col-sm-6 mb-3"><img class="photo-thumbnail" src="<?= e(image_url($photo['image_url'])) ?>" alt="<?= e($photo['alt_text']) ?>">
+<label for="position-<?= (int)$photo['id'] ?>">Thứ tự ảnh <?= $index+1 ?></label><input class="form-control mb-2" id="position-<?= (int)$photo['id'] ?>" type="number" min="1" max="100" name="positions[<?= (int)$photo['id'] ?>]" value="<?= $index+1 ?>" required>
+<label><input type="checkbox" name="remove[]" value="<?= (int)$photo['id'] ?>"> Gỡ ảnh này khỏi tin</label></div><?php endforeach; ?></div><button class="btn btn-outline-primary" data-confirm="Lưu thứ tự/gỡ ảnh đã chọn và gửi tin duyệt lại?">Lưu quản lý ảnh</button><?php endif; ?>
+</form></div></section><?php endif; ?>
