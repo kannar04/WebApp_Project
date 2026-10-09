@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS listing_photos (
     alt_text VARCHAR(255) NOT NULL,
     sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    UNIQUE KEY uq_listing_photo_order (listing_id, sort_order),
     CONSTRAINT fk_photos_listing FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -238,7 +239,7 @@ CREATE TABLE IF NOT EXISTS listing_moderation_events (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     listing_id BIGINT UNSIGNED NOT NULL,
     admin_id BIGINT UNSIGNED NOT NULL,
-    action ENUM('approved','rejected','hidden','restored') NOT NULL,
+    action ENUM('approve','reject','hide','remove') NOT NULL,
     reason TEXT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_moderation_listing FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE,

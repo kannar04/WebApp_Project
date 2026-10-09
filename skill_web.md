@@ -77,6 +77,18 @@
 
 ## 8. PHP MVC Architecture
 
+### Stored Procedure Only Database Access — Home2Home Rule
+
+- Với Home2Home, PHP không thực hiện SELECT/INSERT/UPDATE/DELETE/REPLACE trực tiếp trên bảng nghiệp vụ; PDO chỉ thực thi `CALL` với tham số được bind đúng kiểu.
+- Quy tắc này bổ sung mục 7 (MySQL), không loại bỏ các kiến thức CRUD nền tảng.
+- Kiểm tra routine hiện hữu trước khi tạo mới; SQL định nghĩa routine và migration được quản lý trong `database/procedures/`.
+- Model/Service dùng `Core\ProcedureConnection`; adapter kiểm tra câu CALL, bind NULL/int/bool/string, đọc hết result sets và đóng cursor kể cả khi lỗi.
+- Routines kiểm tra bất biến, trạng thái, role/ownership phù hợp; Controller vẫn phải xác thực, authorize, validate và kiểm tra CSRF.
+- Workflow nhiều bước phải nguyên tử. Routine mở/commit transaction chỉ khi chưa có transaction; nếu caller đã mở thì dùng savepoint và không commit transaction của caller.
+- Khóa booking theo thứ tự listing → booking; kiểm tra overlap bằng current locking read. Giá, nights, policy snapshot, event, cancellation và notification nằm cùng transaction.
+- Schema/migration, metadata `information_schema` và loader SQL CLI được phân loại REVIEW_REQUIRED; không dùng ngoại lệ này cho SQL nghiệp vụ.
+- Mọi routine cần kiểm tra signature, dữ liệu trả về, lỗi/rollback và regression; không ghi PASS nếu chưa chạy.
+
 **Vai trò:**
 - **Model:** định nghĩa entity, quản lý danh sách và thao tác dữ liệu. Ví dụ `UserEntity`, `Users`.
 - **View:** hiển thị biểu mẫu, bảng dữ liệu và HTML/Bootstrap. Ví dụ `ListUser`.
@@ -184,6 +196,9 @@ Phần này là kỹ thuật mở rộng riêng cho đồ án Home2Home, không 
 Route động phải ép kiểu ID và Controller luôn kiểm tra ownership/role; không tin ID gửi từ client.
 
 ### Database và dataflow
+
+- **Stored Procedure Only:** `Browser → Controller → Model/Service → PDO CALL → MySQL routine → tables → result → View/JSON`; không đưa SQL nghiệp vụ trở lại PHP.
+- Thay đổi schema/routine phải có script SQL tái tạo được, migration an toàn, mapping trong `docs/stored-procedure-audit.md` và test tương ứng.
 
 - Cấu hình DB tập trung trong `config/database.php`, lấy credential từ environment.
 - Dùng `utf8mb4`, exception mode, native prepared statement và transaction cho thay đổi liên bảng.

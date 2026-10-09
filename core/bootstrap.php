@@ -55,3 +55,11 @@ function asset(string $path): string { return url('/assets/' . ltrim($path, '/')
 function old(string $key, mixed $default = ''): mixed { return $GLOBALS['old'][$key] ?? $default; }
 function csrf_field(): string { return '<input type="hidden" name="_token" value="' . e(\Core\Csrf::token()) . '">'; }
 
+/** Resolve database image paths under the configured app base, preserving remote URLs. */
+function image_url(?string $path): string
+{
+    if (!$path) { return asset('images/placeholder.svg'); }
+    if (preg_match('#^https?://#i', $path)) { return $path; }
+    return url('/'.ltrim($path, '/'));
+}
+

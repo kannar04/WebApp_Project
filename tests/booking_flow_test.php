@@ -3,9 +3,16 @@
 declare(strict_types=1);
 
 use App\Services\BookingService;
-use Core\Database;
+use Core\ProcedureConnection as Database;
 
 require dirname(__DIR__) . '/core/bootstrap.php';
+
+function fixtureRead(\Core\ProcedureConnection $db, int $id, string $field): mixed
+{
+    $statement = $db->prepare('CALL sp_test_booking_inspect(?)');
+    $statement->execute([$id]);
+    return $statement->fetch()[$field];
+}
 
 $service = new BookingService();
 $db = Database::connection();
@@ -21,7 +28,7 @@ try {
 
     $bookingId = $service->create(1, 3, $start->format('Y-m-d'), $end->format('Y-m-d'), 2);
     $bookingIds[] = $bookingId;
-    $nightCount = (int) $db->query('SELECT COUNT(*) FROM booking_nights WHERE booking_id=' . (int) $bookingId)->fetchColumn();
+    $nightCount = (int) fixtureRead($db, $bookingId, 'nights');
     if ($nightCount !== 2) {
         throw new RuntimeException('Không tạo đủ booking_nights.');
     }
@@ -37,20 +44,20 @@ try {
 
     $service->hostTransition($bookingId, 2, 'confirmed');
     $refund = $service->cancelByGuest($bookingId, 3, 'Automated integration test');
-    $status = $db->query('SELECT status FROM bookings WHERE id=' . (int) $bookingId)->fetchColumn();
+    $status = fixtureRead($db, $bookingId, 'status');
     if ($status !== 'cancelled' || (float) $refund['refund_amount'] !== 2650000.0) {
         throw new RuntimeException('Vòng đời hoặc tính hoàn tiền không đúng.');
     }
 
-    $events = (int) $db->query('SELECT COUNT(*) FROM booking_events WHERE booking_id=' . (int) $bookingId)->fetchColumn();
-    $notifications = (int) $db->query('SELECT COUNT(*) FROM notifications WHERE booking_id=' . (int) $bookingId)->fetchColumn();
+    $events = (int) fixtureRead($db, $bookingId, 'events');
+    $notifications = (int) fixtureRead($db, $bookingId, 'notifications');
     if ($events !== 3 || $notifications !== 3) {
         throw new RuntimeException('Event/notification dataflow không đầy đủ.');
     }
     $adminBookingId = $service->create(1, 3, $start->format('Y-m-d'), $end->format('Y-m-d'), 1);
     $bookingIds[] = $adminBookingId;
     $service->adminTransition($adminBookingId, 1, 'rejected');
-    $adminStatus = $db->query('SELECT status FROM bookings WHERE id=' . (int) $adminBookingId)->fetchColumn();
+    $adminStatus = fixtureRead($db, $adminBookingId, 'status');
     if ($adminStatus !== 'rejected') {
         throw new RuntimeException('Admin transition không cập nhật đúng trạng thái.');
     }
@@ -58,10 +65,7 @@ try {
 } finally {
     foreach ($bookingIds as $bookingId) {
         $db->beginTransaction();
-        foreach (['booking_cancellations', 'notifications', 'booking_events', 'booking_nights'] as $table) {
-            $db->prepare("DELETE FROM {$table} WHERE booking_id=?")->execute([$bookingId]);
-        }
-        $db->prepare('DELETE FROM bookings WHERE id=?')->execute([$bookingId]);
+        $db->prepare('CALL sp_test_cleanup_booking(?)')->execute([$bookingId]);
         $db->commit();
     }
 }

@@ -44,6 +44,9 @@ class Controller
                     Session::put('intended_url', $uri);
                 }
             }
+            if (str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json')) {
+                $this->json(false, 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', null, [], 401);
+            }
             Session::flash('error', 'Vui lòng đăng nhập để tiếp tục.');
             $this->redirect('/login');
         }

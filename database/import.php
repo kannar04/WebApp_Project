@@ -7,7 +7,15 @@ if (PHP_SAPI !== 'cli') {
     exit;
 }
 
+require dirname(__DIR__) . '/core/bootstrap.php';
+
 $config = require dirname(__DIR__) . '/config/database.php';
+$appConfig = require dirname(__DIR__) . '/config/app.php';
+if ($appConfig['env'] !== 'local' || !in_array($config['host'], ['localhost', '127.0.0.1', '::1'], true)
+    || $config['database'] !== 'db_home2home') {
+    fwrite(STDERR, "BLOCKED: demo SQL import requires local db_home2home.\n");
+    exit(1);
+}
 $dsn = sprintf('mysql:host=%s;port=%d;charset=%s', $config['host'], $config['port'], $config['charset']);
 $pdo = new PDO($dsn, $config['username'], $config['password'], [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -23,4 +31,7 @@ foreach ($files as $file) {
     $pdo->exec($sql);
     echo 'Imported ' . $file . PHP_EOL;
 }
+require __DIR__.'/procedures/install.php';
+$count = installHome2HomeProcedures($pdo);
+echo "Installed {$count} routine definitions".PHP_EOL;
 

@@ -18,7 +18,11 @@ try {
     if ($config['debug']) {
         echo '<pre>' . e((string) $exception) . '</pre>';
     } else {
-        echo 'Home2Home đang tạm thời gặp sự cố. Vui lòng thử lại.';
+        if (str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') || str_starts_with((string) ($_SERVER['REQUEST_URI'] ?? ''), '/api/')) {
+            (new \Core\Controller())->json(false, 'Home2Home đang tạm thời gặp sự cố. Vui lòng thử lại.', null, [], 500);
+        }
+        // This standalone view remains usable even when authentication/database lookup fails.
+        require dirname(__DIR__) . '/app/Views/errors/500.php';
     }
 }
 

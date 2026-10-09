@@ -4,7 +4,7 @@ Nền tảng Web kết nối Host có chỗ ở với Guest cần tìm và đặ
 
 ## Stack
 
-- PHP 8.2 OOP, MVC, PDO
+- PHP 8.2 OOP, MVC, PDO CALL / Stored Procedures
 - MySQL/MariaDB (`db_home2home`)
 - HTML5, CSS3, JavaScript/AJAX
 - Bootstrap 4.6.2
@@ -16,7 +16,7 @@ Nền tảng Web kết nối Host có chỗ ở với Guest cần tìm và đặ
 app/          Controllers, Models, Services, Views
 config/       cấu hình app/database từ environment
 core/         Router, Controller, PDO, Auth, Session, CSRF
-database/     schema, seed và importer UTF-8
+database/     schema, seed, procedure migrations và importer UTF-8
 public/       front controller, assets, uploads
 routes/       route web/API
 tests/        schema, booking integration, HTTP smoke
@@ -32,6 +32,12 @@ docs/         kiến trúc, traceability, tiến độ và test report
 
 ```powershell
 C:\xampp\php\php.exe database\import.php
+```
+
+Nếu đã có `db_home2home`, chỉ cài routines, không cần import/seed lại dữ liệu:
+
+```powershell
+C:\xampp\php\php.exe database\install_procedures.php
 ```
 
 5. Chạy nhanh:
@@ -55,19 +61,22 @@ Không dùng các tài khoản/mật khẩu này trên môi trường public.
 ## Test
 
 ```powershell
+C:\xampp\php\php.exe database\install_procedures.php --include-tests
+C:\xampp\php\php.exe tests\stored_procedure_audit_test.php
 C:\xampp\php\php.exe tests\schema_test.php
 C:\xampp\php\php.exe tests\booking_flow_test.php
+C:\xampp\php\php.exe tests\procedure_flow_test.php
 powershell -ExecutionPolicy Bypass -File tests\http_smoke.ps1
 ```
 
-Quote và tổng tiền luôn được tính lại ở server. Transaction booking lưu snapshot chính sách, giá từng đêm, event và notification. Chi tiết tại [docs/architecture.md](docs/architecture.md).
+Quote và tổng tiền được tính trong routines. Transaction booking lưu snapshot chính sách, giá từng đêm, event, notification và audit Admin; caller transaction được giữ bằng savepoint. Chi tiết tại [docs/stored-procedure-audit.md](docs/stored-procedure-audit.md).
 
 ## Giới hạn hiện tại
 
 - Chưa có reset mật khẩu/email delivery, bản đồ, payment, messaging và optional features.
-- Admin chưa có đầy đủ create/edit/delete user và transition booking.
+- Admin user CRUD/status/roles, listing CRUD/moderation và booking transition đã kiểm thử local; dashboard dữ liệu lớn vẫn cần thêm pagination phù hợp.
 - Filter nâng cao/pagination, report workflow, notification inbox và Host reply review chưa hoàn chỉnh.
-- HTTP và DB integration đã chạy; chưa có visual regression bằng browser automation ở lượt này.
+- HTTP/DB integration và Chrome responsive/AJAX cho Guest/Host/Admin đã chạy; chưa có screenshot-diff regression, full screen reader/keyboard hoặc load testing production.
 
 ## Nhóm thực hiện
 

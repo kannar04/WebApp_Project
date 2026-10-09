@@ -1,16 +1,21 @@
 <?php
 declare(strict_types=1);
 namespace App\Models;
-use Core\Database;
+use Core\ProcedureConnection as Database;
 final class AdminRepository
 {
-    public function stats(): array {$db=Database::connection();return ['users'=>(int)$db->query('SELECT COUNT(*) FROM users WHERE deleted_at IS NULL')->fetchColumn(),'hosts'=>(int)$db->query("SELECT COUNT(*) FROM user_roles WHERE role='host'")->fetchColumn(),'listings'=>(int)$db->query('SELECT COUNT(*) FROM listings WHERE deleted_at IS NULL')->fetchColumn(),'bookings'=>(int)$db->query('SELECT COUNT(*) FROM bookings')->fetchColumn(),'revenue'=>(float)$db->query("SELECT COALESCE(SUM(total_amount),0) FROM bookings WHERE status='completed'")->fetchColumn()];}
-    public function listings(): array {return Database::connection()->query("SELECT l.*,l.moderation_reason moderation_note,u.full_name host_name,pt.name property_type FROM listings l JOIN users u ON u.id=l.host_id JOIN property_types pt ON pt.id=l.property_type_id WHERE l.deleted_at IS NULL ORDER BY l.created_at DESC")->fetchAll();}
-    public function moderate(int $listingId,int $adminId,string $action,string $note): void {$status=$action==='approved'?'approved':'rejected';$db=Database::connection();$db->beginTransaction();try{$db->prepare('UPDATE listings SET moderation_status=?,moderation_reason=?,reviewed_by=?,reviewed_at=NOW(6),updated_at=NOW(6) WHERE id=?')->execute([$status,$note,$adminId,$listingId]);$db->prepare('INSERT INTO listing_moderation_events(listing_id,admin_id,action,reason,created_at) VALUES(?,?,?,?,NOW(6))')->execute([$listingId,$adminId,$action,$note]);$this->audit($adminId,'moderate_listing','listing',$listingId,$action.': '.$note);$db->commit();}catch(\Throwable $e){$db->rollBack();throw $e;}}
-    public function audit(int $adminId,string $action,string $type,?int $id,string $details=''): void {$summary=json_encode(['details'=>$details],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);Database::connection()->prepare('INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at) VALUES(?,?,?,?,?,NOW(6))')->execute([$adminId,$action,$type,$id??0,$summary]);}
-    public function findListing(int $id): ?array {$s=Database::connection()->prepare('SELECT l.*,l.base_nightly_rate nightly_price,l.fee_amount cleaning_fee FROM listings l WHERE id=? AND deleted_at IS NULL');$s->execute([$id]);return $s->fetch()?:null;}
-    public function updateListing(int $id,int $adminId,array $data): void {$db=Database::connection();$db->prepare('UPDATE listings SET title=?,address=?,city=?,description=?,base_nightly_rate=?,fee_amount=?,max_guests=?,updated_at=NOW(6) WHERE id=? AND deleted_at IS NULL')->execute([$data['title'],$data['address'],$data['city'],$data['description'],$data['nightly_price'],$data['cleaning_fee'],$data['max_guests'],$id]);$this->audit($adminId,'update_listing','listing',$id,'Admin updated listing');}
-    public function setListingVisibility(int $id,int $adminId,bool $visible): void {Database::connection()->prepare('UPDATE listings SET is_visible=?,updated_at=NOW(6) WHERE id=? AND deleted_at IS NULL')->execute([$visible,$id]);$this->audit($adminId,$visible?'restore_listing':'hide_listing','listing',$id,'visibility='.(int)$visible);}
-    public function softDeleteListing(int $id,int $adminId): void {Database::connection()->prepare('UPDATE listings SET is_visible=0,deleted_at=NOW(6),updated_at=NOW(6) WHERE id=?')->execute([$id]);$this->audit($adminId,'delete_listing','listing',$id,'Soft delete');}
+    public function stats(): array {$db=Database::connection();return ['users'=>(int)$db->query('CALL `sp_admin_count_users`()')->fetchColumn(),'hosts'=>(int)$db->query('CALL `sp_admin_count_hosts`()')->fetchColumn(),'listings'=>(int)$db->query('CALL `sp_admin_count_listings`()')->fetchColumn(),'bookings'=>(int)$db->query('CALL `sp_admin_count_bookings`()')->fetchColumn(),'revenue'=>(float)$db->query('CALL `sp_admin_total_revenue`()')->fetchColumn()];}
+    public function listings(): array {return Database::connection()->query('CALL `sp_admin_listings`()')->fetchAll();}
+    public function moderate(int $listingId, int $adminId, string $action, string $note): void
+    {
+        $statement = Database::connection()->prepare('CALL sp_admin_listing_moderate(?,?,?,?)');
+        $statement->execute([$listingId, $adminId, $action, trim($note)]);
+    }
+
+    public function audit(int $adminId,string $action,string $type,?int $id,string $details=''): void {$summary=json_encode(['details'=>$details],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);Database::connection()->prepare('CALL `sp_admin_audit_add`(?,?,?,?,?)')->execute([$adminId,$action,$type,$id??0,$summary]);}
+    public function findListing(int $id): ?array {$s=Database::connection()->prepare('CALL `sp_admin_listing_find`(?)');$s->execute([$id]);return $s->fetch()?:null;}
+    public function updateListing(int $id,int $adminId,array $data): void {$db=Database::connection();$db->prepare('CALL sp_admin_listing_update(?,?,?,?,?,?,?,?,?)')->execute([$data['title'],$data['address'],$data['city'],$data['description'],$data['nightly_price'],$data['cleaning_fee'],$data['max_guests'],$id,$adminId]);}
+    public function setListingVisibility(int $id,int $adminId,bool $visible): void {Database::connection()->prepare('CALL sp_admin_listing_visibility(?,?,?)')->execute([$visible,$id,$adminId]);}
+    public function softDeleteListing(int $id,int $adminId): void {Database::connection()->prepare('CALL sp_admin_listing_soft_delete(?,?)')->execute([$id,$adminId]);}
 }
 
