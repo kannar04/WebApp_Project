@@ -63,14 +63,9 @@ Không dùng các tài khoản/mật khẩu này trên môi trường public.
 ## Test
 
 ```powershell
-C:\xampp\php\php.exe database\install_procedures.php --include-tests
-C:\xampp\php\php.exe tests\stored_procedure_audit_test.php
-C:\xampp\php\php.exe tests\schema_test.php
+C:\xampp\php\php.exe tests\fresh_setup_test.php --quality-regression
 C:\xampp\php\php.exe tests\schema_test.php --compare-live
-C:\xampp\php\php.exe tests\codebase_cleanup_test.php
-C:\xampp\php\php.exe tests\booking_flow_test.php
-C:\xampp\php\php.exe tests\procedure_flow_test.php
-powershell -ExecutionPolicy Bypass -File tests\http_smoke.ps1
+powershell -ExecutionPolicy Bypass -File tests\db_outage_audit.ps1
 ```
 
 Quote và tổng tiền được tính trong routines. Transaction booking lưu snapshot chính sách, giá từng đêm, event, notification và audit Admin; caller transaction được giữ bằng savepoint. Chi tiết tại [docs/stored-procedure-audit.md](docs/stored-procedure-audit.md).
@@ -79,10 +74,19 @@ Schema khởi tạo khớp cấu trúc MariaDB hiện hữu (22 bảng). Install
 
 ## Giới hạn hiện tại
 
-- Chưa có reset mật khẩu/email delivery, bản đồ, payment, messaging và optional features.
-- Admin user CRUD/status/roles, listing CRUD/moderation và booking transition đã kiểm thử local; dashboard dữ liệu lớn vẫn cần thêm pagination phù hợp.
-- Filter nâng cao/pagination, report workflow, notification inbox và Host reply review chưa hoàn chỉnh.
+- Khôi phục mật khẩu qua email **đang chờ cấu hình**, theo xác nhận của nhóm. Đổi mật khẩu, token hash dùng một lần/hết hạn và hủy phiên cũ đã được kiểm thử; không tuyên bố email delivery PASS. Form quên mật khẩu hiển thị rõ trạng thái này.
+- Filter nâng cao/phân trang, chi tiết booking/refund, lịch tháng, quản lý ảnh Host, inbox trong ứng dụng, phản hồi đánh giá, báo cáo và danh mục Admin đã triển khai và kiểm thử trên DB/server tạm riêng.
+- Bản đồ là liên kết Google Maps từ tọa độ/địa chỉ DB, không phải bản đồ tương tác; vị trí địa chỉ và dịch vụ share/clipboard bên ngoài còn NOT_VERIFIED. Chưa có VNPay/MoMo, chat, Instant Book, khuyến mãi, xác minh CCCD và phần lớn Nice-to-have.
+- Dashboard Admin giới hạn tập kết quả; dữ liệu quy mô lớn vẫn cần phân trang theo module và load test.
 - HTTP/DB integration và Chrome responsive/AJAX cho Guest/Host/Admin đã chạy; chưa có screenshot-diff regression, full screen reader/keyboard hoặc load testing production.
+
+Đối chiếu đầy đủ 94 nhóm: [requirements matrix](docs/quality/requirements-matrix.md). Kết quả, dataflow, evidence và giới hạn: [final verification](docs/quality/final-verification.md).
+
+### Cấu hình email khi nhóm có dịch vụ
+
+Hiện để `MAIL_ENABLED=false`. Chỉ sau khi cấu hình transport PHP/XAMPP sendmail/SMTP và kiểm tra gửi/nhận thật, mới điền `MAIL_FROM`, `PASSWORD_RESET_BASE_URL` (HTTPS khi public), `MAIL_ENABLED=true` trong `.env` **local**. Các biến này không tự cấu hình SMTP; `mail()` phụ thuộc transport của PHP. Mật khẩu/API key chỉ nằm trong cấu hình riêng, không gửi vào chat hoặc Git. `.env.example` chỉ chứa placeholder an toàn, không được điền secret thật.
+
+Chạy `fresh_setup_test.php --quality-regression` sẽ tạo DB ngẫu nhiên/server riêng, opt-in các test routines **chỉ tại đó**, chạy PHP/SQL/HTTP/Chrome và dọn DB của chính lượt chạy. Không chạy các mutation suite lẻ trên DB dùng chung. Installer production không seed, reset bảng hay cài test routines theo mặc định.
 
 ## Nhóm thực hiện
 

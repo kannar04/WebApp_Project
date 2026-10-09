@@ -1,5 +1,7 @@
 # Home2Home — User Test Matrix
 
+Latest Core follow-up (2026-10-09): the rows below are historical. Current 94-group implementation/verification, owned DB/server regression, new feature cases and blocked email delivery are in [requirements matrix](quality/requirements-matrix.md) and [final verification](quality/final-verification.md). No implicit PASS for old rows beyond the explicitly rerun suites.
+
 Môi trường: PHP 8.2.12, MySQL/XAMPP, `http://127.0.0.1:8090`, ngày 2026-10-09.
 
 | Persona | Kịch bản | Kỳ vọng | Kết quả |
@@ -101,3 +103,18 @@ Fixtures use exact generated markers/IDs. Uploaded test images are removed only 
 | CL-14 | Full keyboard/screen reader, load/deadlock stress, production grants/Oracle MySQL | Not executed/deployed | NOT_VERIFIED |
 
 These results apply to implemented workflows, not to every planned feature in Functions.txt. Existing runtime uploads and team assets were preserved; live record counts are allowed to change during normal app use.
+
+## Visual UX follow-up — 2026-10-09
+
+| ID | Executed evidence | Result |
+|---|---|---|
+| VUX-T01 | Chrome before/after; filter DOM alignment/44px/border/radius/labels/amenity overlap at 375/768/1024/1440 | PASS |
+| VUX-T02 | Real GET type/price/multiple amenities, invalid→correct, empty→reset, main-context reset, refresh/detail/Back/Enter; 13-row HTTP pagination | PASS |
+| VUX-T03 | Real Tab/Space/focus outline; keyboard Enter mobile navbar open/close; ArrowRight labelled Admin table scroll | PASS |
+| VUX-T04 | Invalid profile/report retains editable input and leaves DB unchanged; change/reset-password success visible after logout redirect | PASS |
+| VUX-T05 | 23 route/state × 4 = 92 extended responsive checks plus 76 basic page/viewport checks and related interactions; actual screenshots inspected | PASS within tested scope |
+| VUX-T06 | Chrome helper/footer computed contrast 5.12/5.53; controls have accessible labels; CSS/V8/PHP lint 86 | PASS for targeted checks |
+| VUX-T07 | Real recovery email delivery | BLOCKED — đang chờ cấu hình |
+| VUX-T08 | Full screen reader/zoom/Safari/touch/native dialogs/external Maps/share/CDN outage | NOT_VERIFIED |
+
+Full isolated regression `php tests/fresh_setup_test.php --quality-regression --visual-ux` exited 0. No shared database mutation, source deletion, commit or push. Evidence and repaired files: [Visual UX audit](quality/ui-ux-visual-audit.md). Historical entries above remain snapshots of their original scope.

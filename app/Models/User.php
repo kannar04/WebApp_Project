@@ -28,6 +28,7 @@ final class User
             return null;
         }
         $user['roles'] = $user['role_list'] ? explode(',', $user['role_list']) : [];
+        $user['auth_version']=hash('sha256',$user['password_hash']);
         unset($user['password_hash'], $user['role_list']);
         return $user;
     }
@@ -101,6 +102,16 @@ final class User
         $allowed = array_values(array_intersect(['guest', 'host', 'admin'], $roles));
         $statement = $this->db->prepare('CALL sp_user_roles_replace(?,?)');
         $statement->execute([$id, json_encode($allowed ?: ['guest'], JSON_THROW_ON_ERROR)]);
+    }
+
+    public function changePassword(int $id,string $email,string $current,string $new): void
+    {
+        $user=$this->findByEmail($email);
+        if (!$user || (int)$user['id']!==$id || $user['status']!=='active' || !password_verify($current,$user['password_hash'])) {
+            throw new \DomainException('Mật khẩu hiện tại không đúng.');
+        }
+        if (strlen($new)<8 || strlen($new)>72 || $current===$new) { throw new \DomainException('Mật khẩu mới phải khác mật khẩu cũ và dài 8–72 ký tự.'); }
+        $this->db->prepare('CALL sp_user_password_change(?,?,?)')->execute([$id,$user['password_hash'],password_hash($new,PASSWORD_DEFAULT)]);
     }
 
 }

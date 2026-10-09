@@ -93,3 +93,21 @@ Remaining NOT_VERIFIED: production least-privilege deployment, high-load/deadloc
 - PASS independent source-copy setup with separate DB/server and Guest/Host/Admin login/quote. No remote clone/teammate Apache deployment or full accessibility/load certification claimed.
 - Reports: codebase-cleanup-audit.md, codebase-cleanup-report.md, database-consistency-audit.md.
 
+## 2026-10-09 — Autonomous Core quality implementation
+
+- Branch `home2home/quality-core`, no commit/push. Preserved baseline/historical reports above.
+- 94-group implementation now 67 implemented / 2 partial / 25 absent; verification 65 PASS / 2 BLOCKED / 27 NOT_VERIFIED. Eight partial Must-have completed; do not interpret these as 94 independent unique features or production certification.
+- Added Host photo management/soft-delete/calendar, booking snapshots/refund/details, private Admin preview/search, advanced filters/page totals, reviews/reports/catalog/inbox/monthly stats and secure password change/recovery mechanics.
+- User confirmed email recovery **đang chờ cấu hình**; external Maps/native share still NOT_VERIFIED; 25 Optional groups deferred.
+- PASS isolated full regression, PHP lint (86), 22-table schema parity, 140 CALL sites/108 signatures, two-worker concurrency, real avatar/13-item pagination, Chrome 80 viewport checks plus interactions and safe outage. Screenshots generated from owned demo DB.
+- Installed 106 production routine definitions locally; all 22 shared-table row counts unchanged; no shared import/seed/reset/test routine installation. .env and user uploads preserved.
+- Current evidence/dataflow: [docs/quality/final-verification.md](quality/final-verification.md); full mapping: [requirements matrix](quality/requirements-matrix.md).
+
+## 2026-10-09 — Visual UX audit & repair
+
+- Repaired homepage Bootstrap 4.6.2 form structure, five labels/44px aligned controls, DB amenities, Lọc/Đặt lại, validation retention, summary/loading and Back restoration. No SP/schema changes for this UX pass.
+- Fixed password success/session redirect, invalid profile/report input retention, Admin/review/email labels, keyboard outline specificity, muted contrast and disabled button palette.
+- PASS final isolated `--quality-regression --visual-ux`: 92 extended page/viewport checks plus 76 basic checks and interactions, real filter journeys, keyboard navigation/navbar/table scroll; 86 PHP lint; CSS/V8/PowerShell parse and whitespace checks. Live existing server GET smoke returned HTTP 200 and repaired form.
+- 25 before/48 after Chrome images; targeted DOM measurements and actual transcript in [Visual UX report](quality/ui-ux-visual-audit.md). Shared DB/.env/uploads preserved; no commit/push.
+- Recovery delivery still **đang chờ cấu hình**; full accessibility/native dialog/external Maps/share coverage NOT_VERIFIED. No change to 94-group implementation counts.
+

@@ -1,5 +1,6 @@
+param([string]$BaseUrl = $(if ($env:HOME2HOME_TEST_URL) { $env:HOME2HOME_TEST_URL } else { 'http://127.0.0.1:8090' }))
 $ErrorActionPreference = 'Stop'
-$baseUrl = if ($env:HOME2HOME_TEST_URL) { $env:HOME2HOME_TEST_URL.TrimEnd('/') } else { 'http://127.0.0.1:8090' }
+$BaseUrl = $BaseUrl.TrimEnd('/')
 $webSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
 
 $indexResponse = Invoke-WebRequest -Uri "$baseUrl/" -WebSession $webSession -UseBasicParsing

@@ -22,13 +22,14 @@ try {
     $pdo->exec($schema); $created = true;
     $seed = str_replace('db_home2home', $testDatabase, file_get_contents($root.'/database/seed.sql'));
     $pdo->exec($seed); $pdo->exec($seed);
-    installHome2HomeProcedures($pdo);
-    echo "PASS independent workspace: schema/seed repeat and production-only routine installation\n";
+    $qualityRun = in_array('--quality-regression', $argv, true) || in_array('--quality-baseline', $argv, true);
+    installHome2HomeProcedures($pdo, $qualityRun);
+    echo 'PASS independent workspace: schema/seed repeat and '.($qualityRun?'explicit test-opt-in':'production-only')." routine installation\n";
     $listener = stream_socket_server('tcp://127.0.0.1:0');
     if ($listener === false) { throw new RuntimeException('Could not reserve test server port.'); }
     $address = stream_socket_get_name($listener, false); fclose($listener);
     $baseUrl = 'http://'.$address;
-    $environment = array_merge(getenv(), ['APP_ENV'=>'local','APP_DEBUG'=>'false','APP_URL'=>$baseUrl,
+    $environment = array_merge(getenv(), ['APP_ENV'=>'local','APP_DEBUG'=>in_array('--debug-http',$argv,true)?'true':'false','APP_URL'=>$baseUrl,'HOME2HOME_TEST_URL'=>$baseUrl,'MAIL_ENABLED'=>'false',
         'DB_HOST'=>$config['host'],'DB_PORT'=>(string)$config['port'],'DB_DATABASE'=>$testDatabase,
         'DB_USERNAME'=>$config['username'],'DB_PASSWORD'=>$config['password']]);
     $serverOutput = tmpfile();
@@ -63,6 +64,7 @@ try {
         $login = $request('/login');
         $expect((bool)preg_match('/name="_token" value="([^"]+)"/', $login['body'], $match), 'Fresh login CSRF missing.');
         $loggedIn = $request('/login', ['_token'=>$match[1],'email'=>$role.'@home2home.test','password'=>'Password123!']);
+        if ($loggedIn['status']!==200 && in_array('--debug-http',$argv,true)) { echo strip_tags($loggedIn['body'])."\n"; }
         $expect($loggedIn['status'] === 200, 'Fresh role login failed: '.$role);
         $page = $request($destination);
         $expect($page['status'] === 200, 'Fresh role page failed: '.$role);
@@ -71,6 +73,50 @@ try {
         $expect($request('/logout', ['_token'=>$match[1]])['status'] === 200, 'Fresh logout failed.');
     }
     echo "PASS fresh Guest/Host/Admin login, pages, Guest permission denial and logout\n";
+    if ($qualityRun || in_array('--visual-baseline',$argv,true)) {
+        $commands = [];
+        if (in_array('--visual-baseline',$argv,true)) {
+            $commands[]=['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',$root.'/tests/browser_audit.ps1','-BaseUrl',$baseUrl,
+                '-VisualBaseline','-ScreenshotDirectory',$root.'/docs/quality/visual/screenshots/before'];
+        } else {
+        foreach (['codebase_cleanup_test.php','stored_procedure_audit_test.php','booking_flow_test.php','source_audit_test.php','procedure_flow_test.php'] as $suite) {
+            $commands[] = [PHP_BINARY, $root.'/tests/'.$suite];
+        }
+        if (in_array('--quality-regression', $argv, true)) {
+            $commands[] = [PHP_BINARY, $root.'/tests/quality_core_test.php'];
+        }
+        foreach (['http_smoke.ps1','http_audit.ps1','browser_audit.ps1'] as $suite) {
+            $command = ['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',$root.'/tests/'.$suite,'-BaseUrl',$baseUrl];
+            if ($suite==='browser_audit.ps1' && in_array('--quality-regression',$argv,true)) {
+                $command[]='-ScreenshotDirectory'; $command[]=$root.'/docs/quality/screenshots';
+                if (in_array('--visual-ux',$argv,true)) { $command[]='-VisualUX'; }
+            }
+            $commands[]=$command;
+        }
+        }
+        foreach ($commands as $command) {
+            echo 'RUN '.basename($command[1] ?? '').' '.basename($command[5] ?? '')." against owned isolated database/server\n";
+            $child = proc_open($command, [0=>['pipe','r'],1=>STDOUT,2=>STDERR], $childPipes, $root, $environment, ['bypass_shell'=>true]);
+            if (!is_resource($child)) { throw new RuntimeException('Could not start regression suite.'); }
+            fclose($childPipes[0]);
+            if (proc_close($child) !== 0) {
+                if (in_array('--debug-http',$argv,true)) {
+                    $failedHome=$request('/');
+                    if ($failedHome['status']===500) { echo strip_tags($failedHome['body'])."\n"; }
+                }
+                throw new RuntimeException('Regression suite failed; see output above.');
+            }
+        }
+    }
+} catch (Throwable $exception) {
+    if (is_resource($serverOutput)) {
+        rewind($serverOutput);
+        $diagnostic=stream_get_contents($serverOutput);
+        // Server logs have no request bodies/credentials; redact any reset URLs defensively.
+        $diagnosticLines=explode("\n",$diagnostic);
+        echo preg_replace('/(token=)[a-zA-Z0-9_-]+/','$1[redacted]',implode("\n",array_slice($diagnosticLines,-20)));
+    }
+    throw $exception;
 } finally {
     if ($curl !== null) { curl_close($curl); }
     if (is_resource($process)) { proc_terminate($process); proc_close($process); }

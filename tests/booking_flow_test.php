@@ -51,7 +51,8 @@ try {
 
     $events = (int) fixtureRead($db, $bookingId, 'events');
     $notifications = (int) fixtureRead($db, $bookingId, 'notifications');
-    if ($events !== 3 || $notifications !== 3) {
+    // New inbox sends confirmation and cancellation to both participants.
+    if ($events !== 3 || $notifications !== 5) {
         throw new RuntimeException('Event/notification dataflow không đầy đủ.');
     }
     $adminBookingId = $service->create(1, 3, $start->format('Y-m-d'), $end->format('Y-m-d'), 1);

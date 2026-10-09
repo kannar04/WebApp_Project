@@ -28,7 +28,11 @@ BEGIN SELECT image_url FROM listing_photos WHERE image_url LIKE '/assets/images/
 CREATE OR REPLACE PROCEDURE sp_test_orphan_photos()
 BEGIN SELECT COUNT(*) FROM listing_photos p LEFT JOIN listings l ON l.id=p.listing_id WHERE l.id IS NULL; END$$
 CREATE OR REPLACE PROCEDURE sp_test_seed_counts()
-BEGIN SELECT (SELECT COUNT(*) FROM listing_photos) photos,(SELECT COUNT(*) FROM amenities WHERE is_active=1) amenities; END$$
+BEGIN SELECT (SELECT COUNT(*) FROM listing_photos) photos,(SELECT COUNT(*) FROM amenities WHERE is_active=1) amenities,
+    (SELECT COUNT(*) FROM admin_audit_logs) admin_audits,
+    (SELECT COUNT(*) FROM admin_audit_logs WHERE action='save_catalog') catalog_audits,
+    (SELECT COUNT(*) FROM admin_audit_logs WHERE action='resolve_report') report_audits,
+    (SELECT COUNT(*) FROM admin_audit_logs WHERE action='moderate_review') review_audits; END$$
 CREATE OR REPLACE PROCEDURE sp_test_listing_ids(IN p_title VARCHAR(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_city VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN SELECT id FROM listings WHERE title=p_title AND city=p_city AND city='Audit' AND title LIKE 'HTTP audit %'; END$$
 CREATE OR REPLACE PROCEDURE sp_test_user_id(IN p_email VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
@@ -99,6 +103,22 @@ BEGIN
     INSERT INTO booking_events(booking_id,actor_id,from_status,to_status,reason,created_at) VALUES(v_id,p_2,'confirmed','completed','Historical test fixture',NOW(6));
     SELECT v_id booking_id;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_test_historical_booking; END IF;
+END$$
+
+CREATE OR REPLACE PROCEDURE sp_test_historical_confirmed(IN p_booking BIGINT UNSIGNED)
+BEGIN
+    IF DATABASE() NOT REGEXP '^db_home2home_schema_test_[a-f0-9]{12}$'
+        OR NOT EXISTS(SELECT 1 FROM booking_events WHERE booking_id=p_booking AND reason='Historical test fixture') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Historical state fixture requires an owned isolated test booking.';
+    END IF;
+    UPDATE bookings SET status='confirmed' WHERE id=p_booking AND status='completed';
+    UPDATE booking_events SET from_status='pending',to_status='confirmed' WHERE booking_id=p_booking AND reason='Historical test fixture';
+END$$
+
+CREATE OR REPLACE PROCEDURE sp_test_expire_reset_token(IN p_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin)
+BEGIN
+    IF DATABASE() NOT REGEXP '^db_home2home_schema_test_[a-f0-9]{12}$' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Expiry fixtures require the owned isolated schema.'; END IF;
+    UPDATE password_reset_tokens SET created_at=NOW(6)-INTERVAL 2 HOUR,expires_at=NOW(6)-INTERVAL 1 HOUR WHERE token_hash=p_hash;
 END$$
 
 DELIMITER ;

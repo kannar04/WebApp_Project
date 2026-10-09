@@ -1,0 +1,333 @@
+Actual captured stdout/stderr, 2026-10-09. Exit code: 0
+Command: C:\xampp\php\php.exe tests/fresh_setup_test.php --quality-regression --visual-ux
+
+PASS independent workspace: schema/seed repeat and explicit test-opt-in routine installation
+PASS fresh HTTP home/detail/login/assets and server quote
+PASS fresh Guest/Host/Admin login, pages, Guest permission denial and logout
+RUN codebase_cleanup_test.php  against owned isolated database/server
+PASS installer: 106 production definitions, 16 opt-in test definitions; zero DROP
+PASS shared Admin role validation: valid/empty/scalar/nested/unknown/oversized
+PASS 22 unique schema tables; no runtime DDL/debug/mysqli or Controller/View queries
+PASS Git rules: 16 private / 26 shareable paths
+RUN stored_procedure_audit_test.php  against owned isolated database/server
+PASS PHP scan: zero direct business SQL literals; metadata exceptions reviewed
+PASS 140 CALL sites / 108 routine signatures against the live database
+PASS CALL-only guard and 100 sequential routines with partially consumed caller results
+PASS legacy city/notification read routines and repaired notification parameter
+RUN booking_flow_test.php  against owned isolated database/server
+PASS booking flow: quote -> pending -> confirmed -> cancelled; double-booking blocked; admin transition
+RUN source_audit_test.php  against owned isolated database/server
+PASS 61 route handlers/autoload
+PASS actual SQL moderation constraints/transaction rollback
+PASS pending refund and arrival-time snapshot
+PASS booking/calendar guards, future completion, ownership
+PASS role changes preserve caller transaction
+PASS 0 local image references and photo foreign keys
+RUN procedure_flow_test.php  against owned isolated database/server
+PASS reused wishlist routines save and remove
+PASS routine authorization, JSON validation, error cursor draining and rollback
+PASS routine savepoint preserves outer transaction and full booking rollback
+PASS two-process overlapping booking with stale snapshots: one created, one blocked
+PASS direct routine booking authorization and unchanged pending state
+PASS Admin listing update/visibility/soft-delete, role guards and unchanged price snapshots
+PASS user create/roles/profile/avatar preservation/status/soft-delete through routines
+RUN quality_core_test.php  against owned isolated database/server
+PASS QA calendar default/blocked/pending/confirmed/released; privacy; immutable detail/nights/events/refund; admin lookup; per-recipient inbox/read ownership
+PASS QA photo reorder/removal/foreign actor/duplicate/stale snapshot/caller rollback/re-moderation and private Admin preview
+PASS QA completed review uniqueness; Host replies; Admin soft moderation/authorization; monthly completed revenue; Guest role stats
+PASS QA authorized Host/Admin historical completion, Host counts and rejection notification to both participants
+PASS QA report submission/resolution/closure checks/scoping; catalog create/update/deactivate and Admin-only writes
+PASS QA advanced amenity/price filtering, stable sort, SQL pagination and total count
+PASS QA Host check-in/out and all rule flags; flexible/intermediate/strict snapshot refund preview equals recorded refund; caller rollback
+PASS QA real HTTP Guest/Host/Admin details/calendar/preview/filters/inbox/reports/reply/moderation with database persistence and denial/404/422 paths
+PASS QA real HTTP multipart avatar/name/phone, rendered image and preserve-on-no-upload; exact fixture file cleaned
+PASS QA real HTTP password change/current-password validation/hash/old-password rejection and invalidation of second session
+PASS QA recovery hashed token/one-use/expiry/issuance throttle/HTTP consume; mail delivery explicitly BLOCKED, not simulated
+PASS QA 13 approved fixtures: 12+1 HTTP results, page totals and navigation preserves location/sort/price/all amenities
+RUN -NoProfile http_smoke.ps1 against owned isolated database/server
+PASS HTTP smoke: home, detail, JSON quote
+RUN -NoProfile http_audit.ps1 against owned isolated database/server
+PASS HTTP authentication, role permissions and 404
+PASS HTTP registration validation, automatic login, profile update, Host role and logout
+PASS JSON 401/404/419 recovery
+PASS malformed search filter validation
+PASS Host validation, preserved input, relationships and upload rollback
+PASS Host valid JPEG upload/save through ownership-checked routines
+PASS HTTP Guest booking, duplicate-submit guard, Host confirmation and Guest cancellation
+PASS Admin invalid listing data preserves form and database
+PASS Admin nonexistent listing visibility/delete error recovery
+PASS Admin edit rejects scalar/unknown/nested roles and preserves non-secret input
+PASS Admin moderation, self-demotion guard and duplicate email recovery
+PASS HTTP Admin user status/roles/soft-delete through routines
+Fixture cleanup complete
+RUN -NoProfile browser_audit.ps1 against owned isolated database/server
+PASS browser aligned filter 375
+FILTER-after-375 [{"name":"type","top":923.8125,"bottom":967.8125,"left":36,"right":324,"height":44,"label":"Loại chỗ ở","labelTop":895.34375,"labelBottom":915.8125,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"sort","top":1012.28125,"bottom":1056.28125,"left":36,"right":324,"height":44,"label":"Sắp xếp","labelTop":983.8125,"labelBottom":1004.28125,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"min_price","top":1100.75,"bottom":1144.75,"left":36,"right":324,"height":44,"label":"Giá từ / đêm","labelTop":1072.28125,"labelBottom":1092.75,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"max_price","top":1189.21875,"bottom":1233.21875,"left":36,"right":324,"height":44,"label":"Giá đến / đêm","labelTop":1160.75,"labelBottom":1181.21875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"bedrooms","top":1277.6875,"bottom":1321.6875,"left":36,"right":324,"height":44,"label":"Phòng ngủ tối thiểu","labelTop":1249.21875,"labelBottom":1269.6875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"}]
+PASS browser aligned filter 768
+FILTER-after-768 [{"name":"type","top":737.515625,"bottom":781.515625,"left":60.5,"right":371.5,"height":44,"label":"Loại chỗ ở","labelTop":709.046875,"labelBottom":729.515625,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"sort","top":737.515625,"bottom":781.515625,"left":381.5,"right":692.5,"height":44,"label":"Sắp xếp","labelTop":709.046875,"labelBottom":729.515625,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"min_price","top":825.984375,"bottom":869.984375,"left":60.5,"right":371.5,"height":44,"label":"Giá từ / đêm","labelTop":797.515625,"labelBottom":817.984375,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"max_price","top":825.984375,"bottom":869.984375,"left":381.5,"right":692.5,"height":44,"label":"Giá đến / đêm","labelTop":797.515625,"labelBottom":817.984375,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"bedrooms","top":914.453125,"bottom":958.453125,"left":60.5,"right":371.5,"height":44,"label":"Phòng ngủ tối thiểu","labelTop":885.984375,"labelBottom":906.453125,"border":"1px solid rgb(234, 229, 202)","radius":"8px"}]
+PASS browser aligned filter 1024
+FILTER-after-1024 [{"name":"type","top":635.796875,"bottom":679.796875,"left":68.5,"right":234.890625,"height":44,"label":"Loại chỗ ở","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"sort","top":635.796875,"bottom":679.796875,"left":244.890625,"right":411.296875,"height":44,"label":"Sắp xếp","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"min_price","top":635.796875,"bottom":679.796875,"left":421.296875,"right":587.6875,"height":44,"label":"Giá từ / đêm","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"max_price","top":635.796875,"bottom":679.796875,"left":597.6875,"right":764.09375,"height":44,"label":"Giá đến / đêm","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"bedrooms","top":635.796875,"bottom":679.796875,"left":774.09375,"right":940.5,"height":44,"label":"Phòng ngủ tối thiểu","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"}]
+PASS browser aligned filter 1440
+FILTER-after-1440 [{"name":"type","top":635.796875,"bottom":679.796875,"left":186.5,"right":388.890625,"height":44,"label":"Loại chỗ ở","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"sort","top":635.796875,"bottom":679.796875,"left":398.890625,"right":601.296875,"height":44,"label":"Sắp xếp","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"min_price","top":635.796875,"bottom":679.796875,"left":611.296875,"right":813.6875,"height":44,"label":"Giá từ / đêm","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"max_price","top":635.796875,"bottom":679.796875,"left":823.6875,"right":1026.09375,"height":44,"label":"Giá đến / đêm","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"bedrooms","top":635.796875,"bottom":679.796875,"left":1036.09375,"right":1238.5,"height":44,"label":"Phòng ngủ tối thiểu","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"}]
+PASS browser only property type
+PASS visual filter journey: only property type
+PASS browser refresh type filter
+PASS visual filter journey: refresh type filter
+PASS browser only price range
+PASS visual filter journey: only price range
+PASS browser zero price upper bound preserves existing SP meaning
+PASS visual filter journey: zero price upper bound preserves existing SP meaning
+PASS visual invalid price range: native submit blocked, values retained, max price focused
+PASS browser correct invalid price and retry
+PASS visual filter journey: correct invalid price and retry
+PASS visual server validation: field error, entered filters retained, no unfiltered result fallback
+PASS browser all selected amenities
+PASS visual filter journey: all selected amenities
+PASS browser filtered result to detail
+PASS browser detail and browser Back
+PASS visual filter journey: detail and browser Back
+PASS browser empty and reset advanced filters
+PASS visual filter journey: empty and reset advanced filters
+PASS browser reset preserves location/dates/guests
+PASS visual filter journey: reset preserves location/dates/guests
+PASS browser real keyboard Enter submission
+PASS visual filter journey: real keyboard Enter submission
+PASS visual keyboard order and Space checkbox toggle
+PASS browser keyboard opened mobile navbar 375
+PASS browser keyboard opened mobile navbar 768
+PASS mobile navbar actual keyboard Enter/open/close
+PASS browser home 375
+PASS browser detail 375
+PASS browser home 768
+PASS browser detail 768
+PASS browser home 1024
+PASS browser detail 1024
+PASS browser home 1440
+PASS browser detail 1440
+PASS JavaScript syntax parsed by Chrome V8
+PASS CSS declarations supported by Chrome
+PASS browser live AJAX quote
+PASS browser slow-response ordering
+PASS quote error recovery and clearing stale totals
+PASS browser login
+PASS browser Guest /profile 375
+PASS browser Guest /bookings 375
+PASS browser Guest /wishlist 375
+PASS browser Guest /notifications 375
+PASS browser Guest /reports 375
+PASS browser Guest / 375
+PASS browser Guest /profile 768
+PASS browser Guest /bookings 768
+PASS browser Guest /wishlist 768
+PASS browser Guest /notifications 768
+PASS browser Guest /reports 768
+PASS browser Guest / 768
+PASS browser Guest /profile 1024
+PASS browser Guest /bookings 1024
+PASS browser Guest /wishlist 1024
+PASS browser Guest /notifications 1024
+PASS browser Guest /reports 1024
+PASS browser Guest / 1024
+PASS browser Guest /profile 1440
+PASS browser Guest /bookings 1440
+PASS browser Guest /wishlist 1440
+PASS browser Guest /notifications 1440
+PASS browser Guest /reports 1440
+PASS browser Guest / 1440
+PASS browser favorite toggle and restore
+PASS browser Guest booking-detail 375
+PASS browser Guest booking-detail 1440
+PASS browser calendar next-month /listings/1
+PASS browser Host /host 375
+PASS browser Host /host/reviews 375
+PASS browser Host /host/listings/1/edit 375
+PASS browser Host /host/listings/1/availability 375
+PASS browser Host /host 768
+PASS browser Host /host/reviews 768
+PASS browser Host /host/listings/1/edit 768
+PASS browser Host /host/listings/1/availability 768
+PASS browser Host /host 1024
+PASS browser Host /host/reviews 1024
+PASS browser Host /host/listings/1/edit 1024
+PASS browser Host /host/listings/1/availability 1024
+PASS browser Host /host 1440
+PASS browser Host /host/reviews 1440
+PASS browser Host /host/listings/1/edit 1440
+PASS browser Host /host/listings/1/availability 1440
+PASS browser calendar next-month /host/listings/1/availability
+PASS browser Admin /admin 375
+PASS mobile Admin table scrolling without page overflow
+PASS browser Admin /admin/users/3/edit 375
+PASS browser Admin /admin/listings/2/edit 375
+PASS browser Admin /admin/listings/1/preview 375
+PASS browser Admin /admin/catalog 375
+PASS browser Admin /admin/reviews 375
+PASS browser Admin /admin/reports 375
+PASS browser Admin /admin 768
+PASS browser Admin /admin/users/3/edit 768
+PASS browser Admin /admin/listings/2/edit 768
+PASS browser Admin /admin/listings/1/preview 768
+PASS browser Admin /admin/catalog 768
+PASS browser Admin /admin/reviews 768
+PASS browser Admin /admin/reports 768
+PASS browser Admin /admin 1024
+PASS browser Admin /admin/users/3/edit 1024
+PASS browser Admin /admin/listings/2/edit 1024
+PASS browser Admin /admin/listings/1/preview 1024
+PASS browser Admin /admin/catalog 1024
+PASS browser Admin /admin/reviews 1024
+PASS browser Admin /admin/reports 1024
+PASS browser Admin /admin 1440
+PASS browser Admin /admin/users/3/edit 1440
+PASS browser Admin /admin/listings/2/edit 1440
+PASS browser Admin /admin/listings/1/preview 1440
+PASS browser Admin /admin/catalog 1440
+PASS browser Admin /admin/reviews 1440
+PASS browser Admin /admin/reports 1440
+PASS browser calendar next-month /admin/listings/1/preview
+PASS browser visual-after public / 375
+FILTER-after-375 [{"name":"type","top":923.8125,"bottom":967.8125,"left":36,"right":324,"height":44,"label":"Loại chỗ ở","labelTop":895.34375,"labelBottom":915.8125,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"sort","top":1012.28125,"bottom":1056.28125,"left":36,"right":324,"height":44,"label":"Sắp xếp","labelTop":983.8125,"labelBottom":1004.28125,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"min_price","top":1100.75,"bottom":1144.75,"left":36,"right":324,"height":44,"label":"Giá từ / đêm","labelTop":1072.28125,"labelBottom":1092.75,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"max_price","top":1189.21875,"bottom":1233.21875,"left":36,"right":324,"height":44,"label":"Giá đến / đêm","labelTop":1160.75,"labelBottom":1181.21875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"bedrooms","top":1277.6875,"bottom":1321.6875,"left":36,"right":324,"height":44,"label":"Phòng ngủ tối thiểu","labelTop":1249.21875,"labelBottom":1269.6875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"}]
+PASS browser visual-after public /login 375
+PASS browser visual-after public /register 375
+PASS browser visual-after public /listings/1 375
+PASS browser visual-after public /forgot-password 375
+PASS browser visual-after public / 768
+FILTER-after-768 [{"name":"type","top":737.515625,"bottom":781.515625,"left":60.5,"right":371.5,"height":44,"label":"Loại chỗ ở","labelTop":709.046875,"labelBottom":729.515625,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"sort","top":737.515625,"bottom":781.515625,"left":381.5,"right":692.5,"height":44,"label":"Sắp xếp","labelTop":709.046875,"labelBottom":729.515625,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"min_price","top":825.984375,"bottom":869.984375,"left":60.5,"right":371.5,"height":44,"label":"Giá từ / đêm","labelTop":797.515625,"labelBottom":817.984375,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"max_price","top":825.984375,"bottom":869.984375,"left":381.5,"right":692.5,"height":44,"label":"Giá đến / đêm","labelTop":797.515625,"labelBottom":817.984375,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"bedrooms","top":914.453125,"bottom":958.453125,"left":60.5,"right":371.5,"height":44,"label":"Phòng ngủ tối thiểu","labelTop":885.984375,"labelBottom":906.453125,"border":"1px solid rgb(234, 229, 202)","radius":"8px"}]
+PASS browser visual-after public /login 768
+PASS browser visual-after public /register 768
+PASS browser visual-after public /listings/1 768
+PASS browser visual-after public /forgot-password 768
+PASS browser visual-after public / 1024
+FILTER-after-1024 [{"name":"type","top":635.796875,"bottom":679.796875,"left":68.5,"right":234.890625,"height":44,"label":"Loại chỗ ở","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"sort","top":635.796875,"bottom":679.796875,"left":244.890625,"right":411.296875,"height":44,"label":"Sắp xếp","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"min_price","top":635.796875,"bottom":679.796875,"left":421.296875,"right":587.6875,"height":44,"label":"Giá từ / đêm","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"max_price","top":635.796875,"bottom":679.796875,"left":597.6875,"right":764.09375,"height":44,"label":"Giá đến / đêm","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"bedrooms","top":635.796875,"bottom":679.796875,"left":774.09375,"right":940.5,"height":44,"label":"Phòng ngủ tối thiểu","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"}]
+PASS browser visual-after public /login 1024
+PASS browser visual-after public /register 1024
+PASS browser visual-after public /listings/1 1024
+PASS browser visual-after public /forgot-password 1024
+PASS browser visual-after public / 1440
+FILTER-after-1440 [{"name":"type","top":635.796875,"bottom":679.796875,"left":186.5,"right":388.890625,"height":44,"label":"Loại chỗ ở","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"sort","top":635.796875,"bottom":679.796875,"left":398.890625,"right":601.296875,"height":44,"label":"Sắp xếp","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"min_price","top":635.796875,"bottom":679.796875,"left":611.296875,"right":813.6875,"height":44,"label":"Giá từ / đêm","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"max_price","top":635.796875,"bottom":679.796875,"left":823.6875,"right":1026.09375,"height":44,"label":"Giá đến / đêm","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"},{"name":"bedrooms","top":635.796875,"bottom":679.796875,"left":1036.09375,"right":1238.5,"height":44,"label":"Phòng ngủ tối thiểu","labelTop":607.328125,"labelBottom":627.796875,"border":"1px solid rgb(234, 229, 202)","radius":"8px"}]
+LABELS-public-/ 
+CONTRAST-/ [{"selector":"filter-help","color":"rgb(98, 107, 98)","background":"rgb(255, 246, 217)","ratio":5.11644667713182},{"selector":"amenities-help","color":"rgb(98, 107, 98)","background":"rgb(255, 246, 217)","ratio":5.11644667713182}]
+PASS browser visual-after public /login 1440
+LABELS-public-/login 
+CONTRAST-/login {"selector":"auth-footer","color":"rgb(98, 107, 98)","background":"rgb(255, 255, 255)","ratio":5.528089918496318}
+PASS browser visual-after public /register 1440
+LABELS-public-/register 
+CONTRAST-/register {"selector":"auth-footer","color":"rgb(98, 107, 98)","background":"rgb(255, 255, 255)","ratio":5.528089918496318}
+PASS browser visual-after public /listings/1 1440
+LABELS-public-/listings/1 
+CONTRAST-/listings/1 
+PASS browser visual-after public /forgot-password 1440
+LABELS-public-/forgot-password 
+CONTRAST-/forgot-password {"selector":"auth-footer","color":"rgb(98, 107, 98)","background":"rgb(255, 255, 255)","ratio":5.528089918496318}
+PASS browser visual-after guest /profile 375
+PASS browser visual-after guest /bookings 375
+PASS browser visual-after guest /wishlist 375
+PASS browser visual-after guest /notifications 375
+PASS browser visual-after guest /reports 375
+PASS browser visual-after guest /reports?listing=1 375
+PASS browser visual-after guest /profile 768
+PASS browser visual-after guest /bookings 768
+PASS browser visual-after guest /wishlist 768
+PASS browser visual-after guest /notifications 768
+PASS browser visual-after guest /reports 768
+PASS browser visual-after guest /reports?listing=1 768
+PASS browser visual-after guest /profile 1024
+PASS browser visual-after guest /bookings 1024
+PASS browser visual-after guest /wishlist 1024
+PASS browser visual-after guest /notifications 1024
+PASS browser visual-after guest /reports 1024
+PASS browser visual-after guest /reports?listing=1 1024
+PASS browser visual-after guest /profile 1440
+LABELS-guest-/profile 
+CONTRAST-/profile 
+PASS browser visual-after guest /bookings 1440
+LABELS-guest-/bookings 
+CONTRAST-/bookings 
+PASS browser visual-after guest /wishlist 1440
+LABELS-guest-/wishlist 
+CONTRAST-/wishlist 
+PASS browser visual-after guest /notifications 1440
+LABELS-guest-/notifications 
+CONTRAST-/notifications 
+PASS browser visual-after guest /reports 1440
+LABELS-guest-/reports 
+CONTRAST-/reports 
+PASS browser visual-after guest /reports?listing=1 1440
+LABELS-guest-/reports?listing=1 
+CONTRAST-/reports?listing=1 
+PASS browser visual-after host /host 375
+PASS browser visual-after host /host/listings/create 375
+PASS browser visual-after host /host/listings/1/edit 375
+PASS browser visual-after host /host/listings/1/availability 375
+PASS browser visual-after host /host/reviews 375
+PASS browser visual-after host /host 768
+PASS browser visual-after host /host/listings/create 768
+PASS browser visual-after host /host/listings/1/edit 768
+PASS browser visual-after host /host/listings/1/availability 768
+PASS browser visual-after host /host/reviews 768
+PASS browser visual-after host /host 1024
+PASS browser visual-after host /host/listings/create 1024
+PASS browser visual-after host /host/listings/1/edit 1024
+PASS browser visual-after host /host/listings/1/availability 1024
+PASS browser visual-after host /host/reviews 1024
+PASS browser visual-after host /host 1440
+LABELS-host-/host 
+CONTRAST-/host 
+PASS browser visual-after host /host/listings/create 1440
+LABELS-host-/host/listings/create 
+CONTRAST-/host/listings/create 
+PASS browser visual-after host /host/listings/1/edit 1440
+LABELS-host-/host/listings/1/edit 
+CONTRAST-/host/listings/1/edit 
+PASS browser visual-after host /host/listings/1/availability 1440
+LABELS-host-/host/listings/1/availability 
+CONTRAST-/host/listings/1/availability 
+PASS browser visual-after host /host/reviews 1440
+LABELS-host-/host/reviews 
+CONTRAST-/host/reviews 
+PASS browser visual-after admin /admin 375
+PASS mobile Admin labelled table actual keyboard scrolling
+PASS browser visual-after admin /admin/users/3/edit 375
+PASS browser visual-after admin /admin/listings/2/edit 375
+PASS browser visual-after admin /admin/listings/1/preview 375
+PASS browser visual-after admin /admin/catalog 375
+PASS browser visual-after admin /admin/reviews 375
+PASS browser visual-after admin /admin/reports 375
+PASS browser visual-after admin /admin 768
+PASS browser visual-after admin /admin/users/3/edit 768
+PASS browser visual-after admin /admin/listings/2/edit 768
+PASS browser visual-after admin /admin/listings/1/preview 768
+PASS browser visual-after admin /admin/catalog 768
+PASS browser visual-after admin /admin/reviews 768
+PASS browser visual-after admin /admin/reports 768
+PASS browser visual-after admin /admin 1024
+PASS browser visual-after admin /admin/users/3/edit 1024
+PASS browser visual-after admin /admin/listings/2/edit 1024
+PASS browser visual-after admin /admin/listings/1/preview 1024
+PASS browser visual-after admin /admin/catalog 1024
+PASS browser visual-after admin /admin/reviews 1024
+PASS browser visual-after admin /admin/reports 1024
+PASS browser visual-after admin /admin 1440
+LABELS-admin-/admin 
+CONTRAST-/admin 
+PASS browser visual-after admin /admin/users/3/edit 1440
+LABELS-admin-/admin/users/3/edit 
+CONTRAST-/admin/users/3/edit 
+PASS browser visual-after admin /admin/listings/2/edit 1440
+LABELS-admin-/admin/listings/2/edit 
+CONTRAST-/admin/listings/2/edit 
+PASS browser visual-after admin /admin/listings/1/preview 1440
+LABELS-admin-/admin/listings/1/preview 
+CONTRAST-/admin/listings/1/preview 
+PASS browser visual-after admin /admin/catalog 1440
+LABELS-admin-/admin/catalog 
+CONTRAST-/admin/catalog 
+PASS browser visual-after admin /admin/reviews 1440
+LABELS-admin-/admin/reviews 
+CONTRAST-/admin/reviews 
+PASS browser visual-after admin /admin/reports 1440
+LABELS-admin-/admin/reports 
+CONTRAST-/admin/reports 
+PASS no browser JavaScript exceptions
+Browser profile retained for inspection: C:\Users\phong\AppData\Local\Temp\home2home-audit-429d50b8281c4b2abc3d5b9f9dcd6bcb
+PASS exact owned test database cleanup; shared database untouched

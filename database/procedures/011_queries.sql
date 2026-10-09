@@ -11,10 +11,25 @@ END$$
 
 CREATE OR REPLACE PROCEDURE sp_user_admin_update(IN p_email VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_name VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_phone VARCHAR(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_hash VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_id BIGINT UNSIGNED)
 BEGIN
+    DECLARE v_own BOOL DEFAULT FALSE;
+    DECLARE v_lock BIGINT UNSIGNED;
+    DECLARE v_affected INT;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF @@in_transaction THEN IF v_own THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT h2h_admin_profile; RELEASE SAVEPOINT h2h_admin_profile; END IF; END IF;
+        RESIGNAL;
+    END;
+    SET v_own=(@@in_transaction=0);
+    IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_admin_profile; END IF;
     IF TRIM(p_email)='' OR TRIM(p_name)='' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Email và họ tên là bắt buộc.'; END IF;
+    SELECT id INTO v_lock FROM users WHERE id=p_id AND deleted_at IS NULL FOR UPDATE;
+    IF v_lock IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản không tồn tại.'; END IF;
     UPDATE users SET email=LOWER(TRIM(p_email)),full_name=TRIM(p_name),phone=p_phone,
         password_hash=COALESCE(p_hash,password_hash),updated_at=NOW(6) WHERE id=p_id AND deleted_at IS NULL;
-    SELECT ROW_COUNT() __affected,LAST_INSERT_ID() __insert_id;
+    SET v_affected=ROW_COUNT();
+    IF p_hash IS NOT NULL THEN UPDATE password_reset_tokens SET used_at=NOW(6) WHERE user_id=p_id AND used_at IS NULL; END IF;
+    SELECT v_affected __affected,LAST_INSERT_ID() __insert_id;
+    IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_admin_profile; END IF;
 END$$
 
 CREATE OR REPLACE PROCEDURE sp_booking_find_for_user(IN p_id BIGINT UNSIGNED, IN p_user BIGINT UNSIGNED, IN p_admin BOOL)

@@ -108,7 +108,7 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `NTK_sp_get_host_bookings`(IN p_1 bigint unsigned)
 BEGIN
-    SELECT b.id,b.listing_id,b.guest_id,b.check_in,b.check_out,b.guest_count,b.status,b.currency,b.fee_amount,b.total_amount,b.policy_snapshot,b.created_at,b.updated_at,l.title,u.full_name guest_name,u.phone guest_phone FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id WHERE l.host_id=p_1 AND EXISTS(SELECT 1 FROM users WHERE id=l.host_id AND status='active') AND EXISTS(SELECT 1 FROM user_roles WHERE user_id=l.host_id AND role='host') ORDER BY b.created_at DESC;
+    SELECT b.id,b.listing_id,b.guest_id,b.check_in,b.check_out,b.guest_count,b.status,b.currency,b.fee_amount,b.total_amount,b.policy_snapshot,b.created_at,b.updated_at,l.title,u.full_name guest_name,CASE WHEN b.status IN ('confirmed','completed') THEN u.phone ELSE NULL END guest_phone FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id WHERE l.host_id=p_1 AND EXISTS(SELECT 1 FROM users WHERE id=l.host_id AND status='active') AND EXISTS(SELECT 1 FROM user_roles WHERE user_id=l.host_id AND role='host') ORDER BY b.created_at DESC;
 END$$
 
 CREATE OR REPLACE PROCEDURE `sp_booking_get_all`()
@@ -123,7 +123,7 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_admin_count_hosts`()
 BEGIN
-    SELECT COUNT(*) FROM user_roles WHERE role='host';
+    SELECT COUNT(*) FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='host' AND u.deleted_at IS NULL;
 END$$
 
 CREATE OR REPLACE PROCEDURE `sp_admin_count_listings`()
@@ -160,7 +160,7 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_host_stats`(IN p_1 bigint unsigned)
 BEGIN
-    SELECT COUNT(DISTINCT l.id) listings,COUNT(DISTINCT b.id) bookings,SUM(b.status='completed') completed,COALESCE(SUM(CASE WHEN b.status='completed' THEN b.total_amount ELSE 0 END),0) revenue FROM listings l LEFT JOIN bookings b ON b.listing_id=l.id WHERE l.host_id=p_1 AND l.deleted_at IS NULL;
+    SELECT COUNT(DISTINCT CASE WHEN l.deleted_at IS NULL THEN l.id END) listings,COUNT(DISTINCT b.id) bookings,COALESCE(SUM(b.status='completed'),0) completed,COALESCE(SUM(CASE WHEN b.status='completed' THEN b.total_amount ELSE 0 END),0) revenue FROM listings l LEFT JOIN bookings b ON b.listing_id=l.id WHERE l.host_id=p_1;
 END$$
 
 CREATE OR REPLACE PROCEDURE `sp_wishlist_contains`(IN p_1 bigint unsigned, IN p_2 bigint unsigned)
