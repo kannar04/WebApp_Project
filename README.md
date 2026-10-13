@@ -28,7 +28,7 @@ docs/         kiến trúc, traceability, tiến độ và test report
 - **Guest:** tìm kiếm theo địa điểm/ngày/số khách và bộ lọc nâng cao, xem chi tiết và bản đồ nhỏ, báo giá theo ngày, đặt chỗ, hủy theo chính sách, yêu thích, đánh giá sau lưu trú, báo cáo, hộp thông báo.
 - **Host:** đăng ký làm Host, tạo/sửa chỗ ở, quản lý ảnh, lịch trống, duyệt/từ chối/hoàn thành booking, phản hồi đánh giá, thống kê.
 - **Admin:** quản lý người dùng, vai trò, chỗ ở (duyệt/ẩn/gỡ), booking, đánh giá, báo cáo, danh mục, thống kê và nhật ký quản trị.
-- **Nice-to-have (2026-10-13):** giá cuối tuần/ngày lễ, giảm giá theo tuần/tháng, mã khuyến mãi, Đặt ngay (Instant Book), thanh toán khi nhận phòng (Host/Admin ghi nhận đã thu, Admin hoàn tiền); xác minh SĐT/CCCD và huy hiệu “Đã xác minh”, huy hiệu “Host uy tín”, hướng dẫn nhận phòng; tin nhắn theo booking, nút liên hệ Zalo, Admin quản lý tin nhắn, nhắc lịch trước ngày check-in; tìm chỗ ở trên bản đồ (`/map`), gợi ý theo lịch sử xem/tìm kiếm; cẩm nang/tin tức (`/articles`) và chế độ tối. Giao diện tiếng Việt/tiếng Anh đang được xây dựng.
+- **Nice-to-have (2026-10-13):** giá cuối tuần/ngày lễ, giảm giá theo tuần/tháng, mã khuyến mãi, Đặt ngay (Instant Book), thanh toán khi nhận phòng (Host/Admin ghi nhận đã thu, Admin hoàn tiền); xác minh SĐT/CCCD và huy hiệu “Đã xác minh”, huy hiệu “Host uy tín”, hướng dẫn nhận phòng; tin nhắn theo booking, nút liên hệ Zalo, Admin quản lý tin nhắn, nhắc lịch trước ngày check-in; tìm chỗ ở trên bản đồ (`/map`), gợi ý theo lịch sử xem/tìm kiếm; cẩm nang/tin tức (`/articles`), chế độ tối và giao diện tiếng Việt/tiếng Anh (nút EN/VI trên header).
 
 ## Cài đặt và chạy
 
@@ -89,6 +89,8 @@ Quote và tổng tiền được tính trong routines. Transaction booking lưu 
 
 Schema khởi tạo khớp cấu trúc MariaDB hiện hữu (35 bảng: 22 bảng gốc + 13 bảng Nice-to-have). `fresh_setup_test.php --quality-regression` tự chạy mọi `tests/feature_*_test.php` và `tests/feature_*_audit.ps1`; thêm `--no-screenshots` để không ghi đè ảnh trong `docs/quality/screenshots`. Installer không tự chạy migration DROP `040`; giữ script lịch sử để nhóm review riêng. Kiểm thử thiết lập độc lập: `tests/fresh_setup_test.php` tạo DB/server tạm riêng và dọn DB của chính nó, không dùng DB chia sẻ. Audit mới: [docs/codebase-cleanup-report.md](docs/codebase-cleanup-report.md).
 
+Giao diện tiếng Anh: khi thêm chữ mới, view viết câu tiếng Việt trong `__('...')` (JS: `h2hT('...')`), câu có phần thay đổi dùng chỗ trống `__('Cuộc trò chuyện booking #{id}', ['id' => $id])`; sau đó thêm cặp tiếng Việt → tiếng Anh vào tệp đúng khu vực trong `lang/en/` (chữ cho JS vào `lang/en/js.php`). `tests/feature_i18n_test.php` báo câu nào chưa qua `__()` hoặc chưa có bản dịch. Cách hoạt động: [docs/architecture.md](docs/architecture.md#giao-diện-tiếng-việttiếng-anh).
+
 ## Giới hạn hiện tại
 
 - Khôi phục mật khẩu qua email **đang chờ cấu hình**, theo xác nhận của nhóm. Đổi mật khẩu, token hash dùng một lần/hết hạn và hủy phiên cũ đã được kiểm thử; không tuyên bố email delivery PASS. Form quên mật khẩu hiển thị rõ trạng thái này.
@@ -98,7 +100,7 @@ Schema khởi tạo khớp cấu trúc MariaDB hiện hữu (35 bảng: 22 bản
 - Tin nhắn chỉ trong ứng dụng, không real-time, không email/SMS; Admin chỉ xem/ẩn/hiện, không gửi tin. Nhắc lịch cần tác vụ định kỳ hoặc lượt tải trang.
 - Xác minh danh tính do Admin kiểm tra thủ công dữ liệu nhập (không upload ảnh, OCR hay OTP). Hướng dẫn nhận phòng lưu theo chỗ ở, mã cửa không tự đổi.
 - Chưa có nhãn Đặt ngay trên thẻ kết quả trang chủ/tìm kiếm; đặt chỗ lỗi không giữ ngày đã chọn. Ngày lễ seed là dữ liệu mẫu, Admin cần xác nhận.
-- Đổi slug bài viết làm hỏng link cũ; ảnh bìa bị thay vẫn nằm trên đĩa. Chế độ tối lưu theo trình duyệt (không theo tài khoản) và cần JavaScript. Giao diện tiếng Việt/tiếng Anh đang được xây dựng.
+- Đổi slug bài viết làm hỏng link cũ; ảnh bìa bị thay vẫn nằm trên đĩa. Chế độ tối lưu theo trình duyệt (không theo tài khoản) và cần JavaScript. Ngôn ngữ cũng lưu theo trình duyệt (cookie `h2h_locale`); chỉ dịch giao diện, không dịch dữ liệu người dùng nhập; giá (`1.250.000đ`) và ngày (`d/m/Y`) giữ định dạng Việt Nam ở cả hai ngôn ngữ, riêng số thập phân (điểm đánh giá, phần trăm) dùng dấu chấm khi xem tiếng Anh.
 - Dashboard Admin giới hạn tập kết quả; dữ liệu quy mô lớn vẫn cần phân trang theo module và load test.
 - HTTP/DB integration và Chrome responsive/AJAX cho Guest/Host/Admin đã chạy; chưa có screenshot-diff regression, full screen reader/keyboard hoặc load testing production.
 

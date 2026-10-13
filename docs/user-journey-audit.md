@@ -102,6 +102,7 @@ Phạm vi: 5 nhánh Nice-to-have đã gộp (booking extras, trust, conversation
 | Gợi ý + lịch sử | Guest | Xem/tìm chỗ ở → trang chủ có “Gợi ý cho bạn”, “Đã xem gần đây” → hồ sơ xóa lịch sử | feature_discovery_test | VERIFIED |
 | Cẩm nang/tin tức | Public, Admin | Admin viết nháp → xem trước → xuất bản → `/articles`; ẩn/xóa mềm | feature_content_test | VERIFIED |
 | Chế độ tối | Tất cả | Nút trên header/menu mobile/trang đăng nhập → lưu theo trình duyệt | feature_content_audit.ps1 | VERIFIED |
+| Đổi ngôn ngữ | Tất cả | Nút EN/VI trên header hoặc trang đăng nhập → `POST /locale` → quay lại đúng trang, giao diện, thông báo flash và JSON đổi sang tiếng Anh; lưu bằng cookie | feature_i18n_test | VERIFIED |
 
 ### Luồng dữ liệu mới
 
@@ -115,4 +116,4 @@ Phạm vi: 5 nhánh Nice-to-have đã gộp (booking extras, trust, conversation
 
 - P3: Thẻ kết quả trang chủ/tìm kiếm chưa hiện nhãn Instant Book; trang xem trước listing của Admin chưa hiện quy tắc giá; POST đặt chỗ thất bại không giữ ngày đã chọn; cột “Quản lý” ở dashboard Host cao trên điện thoại.
 - P3: Không có mục “Bản đồ” trên menu chính (điểm vào: nút “Xem trên bản đồ” và URL `/map`); header xuống dòng ở 992–1199px; phân trang ở chế độ sáng còn màu xanh mặc định của Bootstrap.
-- Ngoài phạm vi: VNPay/MoMo; tin nhắn real-time/email/SMS; ảnh/OCR/OTP cho xác minh; geocoding và gom cụm marker; giao diện tiếng Việt/tiếng Anh đang được xây dựng.
+- Ngoài phạm vi: VNPay/MoMo; tin nhắn real-time/email/SMS; ảnh/OCR/OTP cho xác minh; geocoding và gom cụm marker; dịch nội dung do người dùng nhập (tên/mô tả chỗ ở, tin nhắn, bài viết).

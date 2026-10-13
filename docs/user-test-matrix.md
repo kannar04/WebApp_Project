@@ -152,4 +152,4 @@ Gate sau khi gộp 5 nhánh: `php tests/fresh_setup_test.php --quality-regressio
 | NTH-25 | Guest | Mở `/admin/articles` | 403 | feature_content_test (Guest 403) | PASS |
 | NTH-26 | Tất cả | Bấm nút mặt trăng trên header (mobile: trong menu); tải lại trang; xóa `h2h-theme` trong localStorage | Chuyển tối ngay, giữ sau khi tải lại; xóa lựa chọn thì theo cài đặt hệ điều hành | feature_content_audit.ps1 (theme trước lần vẽ đầu, nút trên desktop/mobile/đăng nhập, tương phản 88 lượt xem trang) | PASS |
 | NTH-27 | Guest / Admin | Thanh toán trực tuyến VNPay/MoMo | — | Chưa tích hợp (cần thông tin merchant) | NOT_APPLICABLE |
-| NTH-28 | Tất cả | Giao diện tiếng Việt/tiếng Anh | — | Đang được xây dựng | NOT_VERIFIED |
+| NTH-28 | Tất cả | Bấm nút “EN” trên header (trang đăng nhập: góc trên); đi qua trang chủ, chi tiết chỗ ở, đặt chỗ, trang Host/Admin; nhập sai mật khẩu; bấm “VI” | Quay lại đúng trang, giao diện và thông báo bằng tiếng Anh; dữ liệu người dùng nhập giữ nguyên; bấm “VI” trở về tiếng Việt | feature_i18n_test (đổi ngôn ngữ, 80 lượt xem trang tiếng Anh, flash/JSON) | PASS |

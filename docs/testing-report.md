@@ -73,15 +73,37 @@ Gate được chạy sau mỗi lần gộp: gộp 1 (trust + conversation) 176 d
 | `http_audit.ps1` | 12 | hành trình HTTP Core |
 | `browser_audit.ps1` | 158 | Chrome thật ở 375/768/1024/1440, gồm 17 trang mới × 4 độ rộng; không lỗi JavaScript |
 | `feature_content_audit.ps1` (mới) | 9 | theme áp dụng trước lần vẽ đầu, nút chế độ tối desktop/mobile/đăng nhập, tương phản WCAG trên 88 lượt xem trang (Guest 7, Host 8, Admin 19 trang) |
+| `feature_i18n_test.php` (mới, gộp sau cùng) | 7 | từ điển (1163 câu, 32 mẫu, 42 câu JS, không xung đột, chỗ trống khớp); bộ dịch; mọi chữ tiếng Việt trong view qua `__()` và JS qua `h2hT()` đều có bản dịch; 302 thông báo PHP + 248 thông báo routine có bản dịch/mẫu; `POST /locale` (CSRF, ngôn ngữ lạ, đường dẫn ngoài site); 80 lượt xem trang tiếng Anh cho 4 vai trò không còn câu chưa dịch |
 
-Test có sẵn đã sửa: `schema_test.php` và `codebase_cleanup_test.php` đổi số bảng 22 → 35; `browser_audit.ps1` chỉ thêm trang mới vào danh sách; `fresh_setup_test.php` tự tìm suite `feature_*` và thêm cờ `--no-screenshots`.
+Test có sẵn đã sửa: `schema_test.php` và `codebase_cleanup_test.php` đổi số bảng 22 → 35; `browser_audit.ps1` chỉ thêm trang mới vào danh sách; `fresh_setup_test.php` tự tìm suite `feature_*` và thêm cờ `--no-screenshots`; `stored_procedure_audit_test.php` bỏ qua thư mục `lang/` (từ điển là chữ hiển thị, không phải câu SQL).
+
+Sau khi gộp giao diện tiếng Việt/tiếng Anh, gate chạy lại: exit 0, 271 dòng PASS, không có dòng FAIL; chạy lại lần nữa sau khi sửa các lỗi từ kiểm thử hành trình (mục dưới): vẫn exit 0, 271 dòng PASS. Số dòng của các suite cũ giữ nguyên như bảng trên; 7 dòng mới là của `feature_i18n_test.php`. Khi đang làm dở một phần bản dịch, chạy riêng bằng biến môi trường `H2H_I18N_SCOPE=<tiền tố đường dẫn, cách nhau bằng dấu phẩy>`: lỗi ngoài phạm vi chỉ được ghi chú, không làm test thất bại. Chạy `feature_i18n_test.php --report-vietnamese` với `HOME2HOME_TEST_URL` để liệt kê chữ tiếng Việt còn lại trên từng trang tiếng Anh: lần chạy ngày 2026-10-13 chỉ còn dữ liệu mẫu (tên chỗ ở, tên người, bài viết, địa chỉ) và nhãn nút “Tiếng Việt”.
 
 Ngoài gate, ngày 2026-10-13 đã thử đường nâng cấp DB cũ (22 bảng) lên 35 bảng trên một DB riêng: dữ liệu 22 bảng cũ giữ nguyên số dòng và CHECKSUM, `tests\schema_test.php --compare-live` PASS 35 bảng, `database\checkin_reminders.php` tạo 2 nhắc lịch rồi 0 ở lần chạy lại. Chi tiết: [database-setup.md](database-setup.md).
+
+### Kiểm thử hành trình Guest/Host/Admin (2026-10-13)
+
+Sau khi gộp giao diện tiếng Việt/tiếng Anh, mỗi vai trò được kiểm thử bằng tay trên một bản sao DB và server riêng, ở cả hai ngôn ngữ (Chrome headless, 375 px và 1440 px, thêm 768–1200 px cho header). Kết quả: 37 lỗi, gồm 0 lỗi P1, 8 lỗi P2 và 29 lỗi P3. Đã sửa trong commit “Sửa lỗi phát hiện khi kiểm thử hành trình Guest/Host/Admin”:
+
+- Chức năng: giá cuối tuần/ngày lễ bằng 0 làm đêm đó miễn phí (nay phải lớn hơn 0 ở controller, routine và ô nhập); booking đã đánh giá vẫn hiện form đánh giá; Admin thấy nút duyệt yêu cầu xác minh của chính mình (luôn bị từ chối); bỏ chọn hết vai trò thì nhật ký ghi rỗng nhưng lưu `guest`; lỗi CSRF làm mất bộ lọc tìm kiếm.
+- Hiển thị: mã trạng thái trong CSDL (`pending`, `confirmed`, `visible`…) và mã loại báo cáo hiện thẳng ra giao diện; ngày giờ có micro giây; giờ nhận phòng có giây; booking đã hủy vẫn ghi “Thanh toán khi nhận phòng”; ★ 0.0 cho chỗ ở chưa có đánh giá; thông báo hủy ghi `2080000.00 (100.00%)`.
+- Tiếng Anh: nút thao tác trùng chữ trạng thái (“Paid”, “Confirmed”, “Completed”); số thập phân dùng dấu phẩy; tên phụ phí không thống nhất; lỗi mạng hiện chữ của trình duyệt; số ít/số nhiều; chữ bị ngắt giữa từ trong lịch ở 375 px.
+
+Kiểm tra lại sau khi sửa: `feature_i18n_test.php` PASS, gate exit 0 với 271 dòng PASS, và quét HTTP 16 trang của ba vai trò (8 Guest, 3 Host, 5 Admin) trên 3 DB kiểm thử, ở cả hai ngôn ngữ, không còn mã trạng thái thô, ngày ISO, giờ có giây, ★ 0.0, dấu phẩy thập phân trong tiếng Anh hay mã vai trò/loại báo cáo.
+
+Còn lại (có từ trước, chưa sửa):
+
+- Thông báo “Booking #… chuyển sang confirmed.” trong routine `020_booking.sql` vẫn ghi mã trạng thái.
+- Chặn ngày cho chỗ ở đã xóa/không tồn tại báo “không thể chặn ngày đã có booking xác nhận” thay vì “không tìm thấy”.
+- Booking của chỗ ở đã xóa mềm vẫn có liên kết “Xem chỗ ở công khai”/“Tạo hướng dẫn nhận phòng” dẫn tới trang 404.
+- Danh sách chính sách hủy sắp theo tên (Linh hoạt, Nghiêm ngặt, Trung bình); dòng số tiền hoàn ghi “VND” trong khi nơi khác ghi “đ”; giá trên ghim bản đồ tiếng Anh dạng `2,1M`.
+- Thông báo cũ đã lưu trước khi sửa vẫn giữ định dạng số cũ (không sửa dữ liệu đã có).
 
 ### Chưa xác minh (Nice-to-have)
 
 - Thao tác kéo bản đồ và bản đồ nhỏ ở trang chi tiết: chỉ kiểm tra thủ công bằng Chrome (CDP) trong báo cáo nhánh discovery, không có test tự động; tile cần Internet.
 - Lịch Windows Task Scheduler và cron chưa được tạo/chạy thử; cron chưa thử trên Linux.
 - Nâng cấp qua giao diện phpMyAdmin chưa chạy thử (đã thử bằng `mysql.exe ... source`).
-- VNPay/MoMo chưa tích hợp. Giao diện tiếng Việt/tiếng Anh đang được xây dựng (`tests/feature_i18n_test.php` thuộc phần này).
+- VNPay/MoMo chưa tích hợp.
+- Giao diện tiếng Anh: test tự động kiểm tra các trang GET và thông báo theo từ điển. Thao tác POST (đặt chỗ, hủy, duyệt, thu tiền/hoàn tiền, lưu form lỗi, tin nhắn, báo cáo, xác minh) được kiểm thử theo hành trình Guest, Host và Admin ở cả hai ngôn ngữ, mỗi vai trò trên một DB/server riêng, ở 375 px và 1440 px; không có test tự động riêng cho các thao tác này.
 - Các kịch bản click-through thủ công trong báo cáo từng nhánh chưa được chạy lại sau khi gộp; kết quả sau gộp dựa trên test tự động.

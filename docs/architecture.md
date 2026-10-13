@@ -25,8 +25,15 @@
 | Bản đồ, lịch sử, gợi ý | `DiscoveryController` (+ `HomeController`, `ListingController`, `ProfileController`) | `Discovery`, `DiscoveryService` | `discovery/map`, `components/discovery-*` | `map.js` | `085_discovery.sql` |
 | Bài viết/cẩm nang | `ArticleController`, `AdminArticleController` | `Article`, `ArticleText`, `UploadService` | `articles/*`, `admin/articles/*` | — | `090_content.sql` |
 | Chế độ tối | — (layout) | — | `layouts/main`, `layouts/auth` | `theme.js` (nạp trong `<head>`) | — |
+| Giao diện tiếng Việt/tiếng Anh | `LocaleController` (`POST /locale`) | `Core\I18n`, hàm `__()` trong `core/bootstrap.php` | `layouts/main`, `layouts/auth` (nút EN/VI); mọi view gọi `__()` | `h2hT()` trong `app.js` | — (không đổi routine; thông báo của routine dịch bằng mẫu) |
 
-Giao diện tiếng Việt/tiếng Anh (`core/I18n.php`, `LocaleController`) đang được xây dựng, chưa mô tả ở đây.
+### Giao diện tiếng Việt/tiếng Anh
+
+- Câu tiếng Việt trong code là khóa: view gọi `__('Đăng nhập')`, JS gọi `h2hT('Đang gửi…')`. Từ điển `lang/en/*.php` ánh xạ sang tiếng Anh, chia theo khu vực: `common` (layout, trang chủ, chi tiết chỗ ở, đăng nhập, bản đồ), `guest`, `host`, `admin`, `messages` (thông báo runtime của PHP), `procedures` (thông báo SIGNAL của routine), `catalog` (loại chỗ ở, chính sách hủy, tiện nghi, ngày lễ trong dữ liệu mẫu), `js`. Thiếu khóa thì hiện lại câu tiếng Việt gốc.
+- Câu có phần thay đổi (mã booking, tên chỗ ở, ngày) dùng mẫu `{chỗ trống}` trong `lang/en/patterns_messages.php` và `patterns_procedures.php`; `I18n::matchPattern` khớp mẫu và dịch tiếp giá trị bắt được nếu đó cũng là câu trong từ điển (ví dụ nhãn trạng thái).
+- Ngôn ngữ lưu trong cookie `h2h_locale` (1 năm, HttpOnly, SameSite=Lax), mặc định `vi`, không lưu vào tài khoản nên không cần bảng mới. `POST /locale` kiểm tra CSRF và chỉ quay lại đường dẫn tương đối cùng site (`I18n::safeReturnPath`).
+- Flash message được dịch khi layout in ra; `Controller::json` và `Csrf` dịch message/lỗi trong JSON. Layout in từ điển `js.php` thành `<script type="application/json" id="h2h-i18n">` cho `h2hT()`; `theme.js` chạy trước `app.js` nên nút chế độ tối mang sẵn nhãn theo ngôn ngữ trong `data-label-dark-on`/`data-label-dark-off`.
+- Không dịch dữ liệu người dùng nhập: tên/mô tả/địa chỉ chỗ ở, đánh giá, tin nhắn, bài viết, tên người. Giá vẫn dạng `1.250.000đ`, ngày dạng `d/m/Y` ở cả hai ngôn ngữ. Hàm dùng chung trong `core/bootstrap.php`: `status_label()` đổi mã trạng thái trong CSDL (`pending`, `confirmed`, `visible`…) thành nhãn đã dịch, `display_date()` in ngày `d/m/Y` (thêm `H:i` khi cần giờ, bỏ micro giây), `display_decimal()` in số thập phân (điểm, phần trăm) với dấu phẩy khi xem tiếng Việt và dấu chấm khi xem tiếng Anh.
 
 Dataflow dữ liệu: `Browser → Router → Controller (Auth/CSRF/validation) → Model/Service → ProcedureConnection → PDO CALL → routine → tables → result sets drained/closed → View/JSON`. Migration `040` giữ lại nhưng không chạy mặc định; chỉ review/executed riêng khi có xác nhận.
 
