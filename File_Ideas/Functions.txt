@@ -1,7 +1,200 @@
-Các chức năng nên chia ra thành 3 phần:
-Must-have: bắt buộc phải có. Core
-Ví dụ: Chức năng cho phép cho thuê (là quan trọng vì không có nó thì ứng dụng sẽ không hoạt động/ hoặc không có thì ứng dụng không có ý nghĩa)
-Important: Chức năng hỗ trợ
-Ví dụ: Chức năng cho phép chia sẻ thông tin nơi cho thuê (để hỗ trợ là chính). 
-Nice-to-have: Chức năng bên lề
-Ví dụ: Chức năng nhắn tin trao đổi giữa bên thuê và bên cho thuê (Có thể đính thông tin liên lạc và liên hệ trực tiếp qua các nền tảng khá. Ví dụ: Zalo)
+﻿HOME 2 HOME - TỔNG HỢP CHỨC NĂNG DỰ KIẾN
+Ứng dụng chia sẻ và cho thuê chỗ ở
+
+QUY ƯỚC
+- Host: chủ nhà. Guest (Customer): khách thuê. Admin: quản trị viên.
+- Một tài khoản có thể vừa là Guest vừa là Host.
+- Must-have: chức năng cốt lõi, bắt buộc để ứng dụng hoạt động.
+- Important: chức năng hỗ trợ sử dụng và quản lý.
+- Nice-to-have: chức năng mở rộng, có thể triển khai sau.
+- Các chức năng trùng nhau đã được gộp. Mức ưu tiên là đề xuất tổng hợp
+  vì bốn file nguồn chưa thống nhất hoàn toàn về mức độ cần thiết.
+- Yêu cầu hệ thống dùng chung nằm trong nhóm Admin để giữ bố cục ba nhóm;
+  đây là xử lý tự động của hệ thống, không phải thao tác riêng của Admin.
+
+======================================================================
+I. HOST - CHỦ NHÀ
+======================================================================
+
+1. MUST-HAVE - CHỨC NĂNG CỐT LÕI
+
+1.1. Tài khoản và hồ sơ
+- Đăng ký, đăng nhập, đăng xuất.
+- Đăng ký vai trò Host từ tài khoản người dùng.
+- Xem và cập nhật họ tên, ảnh đại diện, số điện thoại.
+
+1.2. Quản lý chỗ ở
+- Tạo bài đăng với các thông tin:
+  + Tên, danh mục/loại chỗ ở: nguyên căn, phòng riêng, phòng chung.
+  + Địa chỉ, mô tả, giá mỗi đêm, phụ phí, số khách tối đa.
+  + Số phòng, số phòng ngủ, số giường, tiện nghi và hình ảnh.
+- Tải lên và quản lý hình ảnh chỗ ở.
+- Chỉnh sửa, xóa, ẩn/hiện bài đăng theo trạng thái duyệt của hệ thống.
+
+1.3. Quản lý lịch khả dụng
+- Xem lịch phòng và các ngày còn trống.
+- Thiết lập ngày cho thuê; chặn/mở ngày chưa có đơn xác nhận.
+
+1.4. Quản lý booking
+- Xem yêu cầu đặt chỗ và chi tiết từng đơn.
+- Chấp nhận hoặc từ chối yêu cầu đặt chỗ.
+- Xem danh sách, lịch sử và trạng thái booking.
+- Cập nhật trạng thái booking trong phạm vi được phân quyền.
+
+2. IMPORTANT - CHỨC NĂNG HỖ TRỢ
+
+2.1. Tài khoản, nội quy và chính sách
+- Quên mật khẩu, đổi mật khẩu.
+- Thiết lập giờ check-in/check-out và quy định hút thuốc, thú cưng, tổ chức tiệc.
+- Thiết lập chính sách hủy linh hoạt/trung bình/nghiêm ngặt và số tiền
+  hoàn lại tương ứng.
+
+2.2. Đánh giá và thông báo
+- Xem và phản hồi đánh giá, nhận xét của Guest.
+- Nhận thông báo email/trong ứng dụng khi có booking mới, booking được
+  xác nhận, bị từ chối hoặc bị hủy.
+
+2.3. Thống kê
+- Xem số chỗ ở đã đăng, số booking và số booking hoàn thành.
+- Theo dõi doanh thu theo tháng từ các đơn hoàn thành.
+
+3. NICE-TO-HAVE - CHỨC NĂNG MỞ RỘNG
+
+- Nhắn tin trực tiếp với Guest; phương án đơn giản là cung cấp số điện thoại
+  hoặc nút liên hệ Zalo sau khi booking được xác nhận.
+- Thiết lập giá cuối tuần/ngày lễ và giảm giá khi ở theo tuần/tháng.
+- Bật đặt ngay (Instant Book), không cần duyệt từng yêu cầu.
+- Xác minh danh tính bằng số điện thoại/CCCD; hiển thị huy hiệu đã xác minh.
+- Hiển thị huy hiệu Host uy tín dựa trên đánh giá cao và ít hủy booking.
+- Cung cấp hướng dẫn nhận phòng, mật khẩu cửa và wifi cho khách đã booking.
+- Sử dụng giao diện tiếng Việt/tiếng Anh và chế độ tối (dark mode).
+
+======================================================================
+II. GUEST - KHÁCH THUÊ
+======================================================================
+
+1. MUST-HAVE - CHỨC NĂNG CỐT LÕI
+
+1.1. Tài khoản và hồ sơ
+- Đăng ký, đăng nhập, đăng xuất.
+- Xem và chỉnh sửa họ tên, ảnh đại diện, số điện thoại.
+
+1.2. Tìm và xem chỗ ở
+- Xem danh sách chỗ ở đã duyệt và đang hiển thị.
+- Tìm theo địa điểm, ngày check-in/check-out và số khách.
+- Xem chi tiết: hình ảnh, mô tả, địa chỉ, loại chỗ ở, giá mỗi đêm, phụ phí,
+  sức chứa, số phòng/giường, tiện nghi, lịch trống và thông tin Host.
+
+1.3. Đặt chỗ và quản lý booking
+- Chọn ngày check-in/check-out và số khách.
+- Xem tổng tiền tự động tính theo giá từng đêm, số đêm và phụ phí.
+- Gửi yêu cầu đặt chỗ.
+- Xem danh sách, lịch sử, chi tiết và trạng thái booking của mình.
+- Hủy booking theo chính sách áp dụng.
+
+2. IMPORTANT - CHỨC NĂNG HỖ TRỢ
+
+2.1. Tài khoản và tìm kiếm nâng cao
+- Quên mật khẩu, đổi mật khẩu.
+- Lọc theo khoảng giá, loại chỗ ở, số phòng ngủ và tiện nghi: wifi, bếp,
+  máy lạnh, chỗ đậu xe, hồ bơi, cho phép thú cưng...
+- Sắp xếp theo giá tăng/giảm, đánh giá cao nhất hoặc mới nhất.
+- Phân trang kết quả.
+- Xem vị trí chỗ ở trên bản đồ (Google Maps/OpenStreetMap).
+
+2.2. Thông tin và tiện ích
+- Xem nội quy, giờ nhận/trả phòng, chính sách hủy và số tiền hoàn lại.
+- Xem đánh giá, nhận xét và phản hồi của Host.
+- Lưu/bỏ lưu và xem danh sách chỗ ở yêu thích (Wishlist).
+- Chia sẻ chỗ ở bằng liên kết, Facebook hoặc Zalo.
+
+2.3. Đánh giá, báo cáo và thông báo
+- Đánh giá 1-5 sao và viết nhận xét sau khi hoàn thành lưu trú;
+  chỉ khách đã ở được đánh giá, mỗi booking có một đánh giá.
+- Báo cáo bài đăng sai sự thật/lừa đảo hoặc gửi khiếu nại để Admin xử lý.
+- Nhận thông báo email/trong ứng dụng khi booking được xác nhận,
+  bị từ chối hoặc bị hủy.
+
+3. NICE-TO-HAVE - CHỨC NĂNG MỞ RỘNG
+
+- Nhắn tin trực tiếp với Host; phương án đơn giản là liên hệ qua số điện thoại
+  hoặc Zalo sau khi booking được xác nhận.
+- Thanh toán trực tuyến qua VNPay/MoMo; bản đơn giản có thể thanh toán
+  khi nhận phòng.
+- Sử dụng mã giảm giá/khuyến mãi khi đặt chỗ.
+- Đặt ngay tại chỗ ở có bật Instant Book.
+- Tìm kiếm bằng cách kéo bản đồ để xem chỗ ở trong khu vực.
+- Nhận gợi ý chỗ ở dựa trên lịch sử tìm kiếm/lượt xem.
+- Xác minh danh tính bằng số điện thoại/CCCD; hiển thị huy hiệu đã xác minh.
+- Xem hướng dẫn nhận phòng, mật khẩu cửa và wifi dành cho khách đã booking.
+- Nhận nhắc lịch trước ngày check-in.
+- Sử dụng giao diện tiếng Việt/tiếng Anh và chế độ tối (dark mode).
+
+======================================================================
+III. ADMIN - QUẢN TRỊ VIÊN
+======================================================================
+
+1. MUST-HAVE - CHỨC NĂNG CỐT LÕI
+
+1.1. Tài khoản quản trị và người dùng
+- Đăng nhập, đăng xuất trang quản trị với quyền Admin.
+- Tìm kiếm, xem, thêm, sửa, xóa tài khoản người dùng.
+- Khóa/mở khóa tài khoản; quản lý vai trò Guest/Host/Admin.
+
+1.2. Quản lý bài đăng
+- Xem danh sách và chi tiết bài đăng chỗ ở.
+- Duyệt/từ chối bài đăng kèm lý do.
+- Chỉnh sửa, ẩn hoặc gỡ/xóa bài đăng vi phạm.
+
+1.3. Quản lý booking
+- Tra cứu danh sách và thông tin chi tiết booking.
+- Theo dõi, cập nhật trạng thái booking theo quyền quản trị.
+
+1.4. Yêu cầu hệ thống dùng chung - Xác thực và dữ liệu
+- Xác thực tài khoản, quản lý phiên đăng nhập.
+- Phân quyền theo vai trò và quyền sở hữu dữ liệu.
+- Hỗ trợ tạo/xem/sửa/xóa chỗ ở, tải ảnh và tìm kiếm tin đã duyệt.
+- Kiểm tra dữ liệu: ngày trả sau ngày nhận, không đặt ngày quá khứ,
+  số khách không vượt sức chứa và ngày đặt phải khả dụng.
+
+1.5. Yêu cầu hệ thống dùng chung - Đặt chỗ
+- Kiểm tra lịch trống; ngăn xác nhận hai booking trùng ngày trên cùng chỗ ở.
+- Tính tổng tiền trên server và lưu giá tại thời điểm đặt.
+- Quản lý vòng đời booking:
+  + Chờ duyệt -> Đã xác nhận / Bị từ chối / Đã hủy.
+  + Đã xác nhận -> Hoàn thành / Đã hủy theo chính sách.
+- Đồng bộ lịch khả dụng với trạng thái booking.
+
+2. IMPORTANT - CHỨC NĂNG HỖ TRỢ
+
+2.1. Danh mục và nội dung người dùng
+- Thêm, sửa, xóa danh mục/loại chỗ ở và danh mục tiện nghi.
+- Quản lý đánh giá/nhận xét; xóa nội dung không phù hợp.
+- Tiếp nhận và xử lý báo cáo bài đăng, báo cáo lừa đảo và khiếu nại.
+
+2.2. Dashboard và thống kê
+- Xem số người dùng, số Host/Guest, số chỗ ở và số booking.
+- Xem thống kê doanh thu.
+
+2.3. Yêu cầu hệ thống dùng chung - Hỗ trợ và giám sát
+- Hỗ trợ lọc, sắp xếp, phân trang danh sách chỗ ở.
+- Quản lý đánh giá và kiểm tra điều kiện đánh giá sau lưu trú.
+- Gửi thông báo email/trong ứng dụng theo sự kiện booking.
+- Áp dụng chính sách hủy và tính số tiền hoàn lại tương ứng.
+- Ghi nhật ký thao tác quản trị.
+
+3. NICE-TO-HAVE - CHỨC NĂNG MỞ RỘNG
+
+3.1. Bài viết/tin tức
+- Xem, thêm, sửa, xóa bài viết, tin tức và cẩm nang du lịch.
+
+3.2. Yêu cầu hệ thống dùng chung - Tính năng mở rộng
+- Quản lý thanh toán và trạng thái thanh toán; tích hợp VNPay/MoMo.
+- Hỗ trợ mã giảm giá/khuyến mãi và tính giá linh hoạt.
+- Xử lý Instant Book, vẫn kiểm tra lịch trống và chống đặt trùng.
+- Quản lý tin nhắn giữa Guest và Host.
+- Hỗ trợ xác minh danh tính, huy hiệu đã xác minh và huy hiệu Host uy tín.
+- Hỗ trợ tìm kiếm trên bản đồ và gợi ý theo lịch sử tìm kiếm/lượt xem.
+- Chỉ cung cấp hướng dẫn nhận phòng cho khách có booking tương ứng.
+- Tự động nhắc lịch trước ngày check-in.
+- Hỗ trợ tiếng Việt/tiếng Anh và chế độ tối (dark mode).

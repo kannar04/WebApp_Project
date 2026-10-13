@@ -93,3 +93,6 @@ database.local.php
 # =========================
 dist/
 build/
+
+# Sơ đồ phân tích cục bộ
+graph/
