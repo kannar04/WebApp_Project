@@ -390,3 +390,28 @@ CREATE TABLE IF NOT EXISTS `account_status_events` (
 -- Nice-to-have discovery: map search, recommendations
 
 -- Nice-to-have content: articles and travel guides
+CREATE TABLE IF NOT EXISTS `articles` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Article identifier',
+  `author_id` bigint(20) unsigned NOT NULL COMMENT 'Administrator who created the article',
+  `category` varchar(10) NOT NULL COMMENT 'news = Tin tức, guide = Cẩm nang du lịch',
+  `title` varchar(200) NOT NULL COMMENT 'Public headline',
+  `slug` varchar(200) NOT NULL COMMENT 'Unique ASCII URL segment derived from the title',
+  `excerpt` varchar(500) NOT NULL COMMENT 'Short plain-text summary for cards',
+  `body` mediumtext NOT NULL COMMENT 'Plain-text body; blank lines separate paragraphs, never rendered as HTML',
+  `cover_image_url` text DEFAULT NULL COMMENT 'Local cover image path, optional',
+  `cover_alt` varchar(255) DEFAULT NULL COMMENT 'Alternative text for the cover image',
+  `status` varchar(10) NOT NULL DEFAULT 'draft' COMMENT 'draft or published',
+  `published_at` datetime(6) DEFAULT NULL COMMENT 'First publication time; kept when unpublished',
+  `created_at` datetime(6) NOT NULL COMMENT 'Creation time',
+  `updated_at` datetime(6) NOT NULL COMMENT 'Last update time',
+  `deleted_at` datetime(6) DEFAULT NULL COMMENT 'Soft delete time',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_articles_slug` (`slug`),
+  KEY `idx_articles_public` (`status`,`category`,`published_at`),
+  KEY `idx_articles_author_id` (`author_id`),
+  CONSTRAINT `fk_articles_author_id` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `chk_articles_category` CHECK (`category` in ('news','guide')),
+  CONSTRAINT `chk_articles_status` CHECK (`status` in ('draft','published')),
+  CONSTRAINT `chk_articles_slug` CHECK (`slug` collate utf8mb4_bin regexp '^[a-z0-9]+(-[a-z0-9]+)*$'),
+  CONSTRAINT `chk_articles_published_at` CHECK (`status` = 'draft' or `published_at` is not null)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

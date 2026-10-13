@@ -50,6 +50,16 @@ $router->get('/admin',[AdminController::class,'dashboard']);$router->post('/admi
 // Nice-to-have discovery: map search, recommendations
 
 // Nice-to-have content: articles and travel guides
+$router->get('/articles',[\App\Controllers\ArticleController::class,'index']);
+$router->get('/articles/{slug}',[\App\Controllers\ArticleController::class,'show']);
+$router->get('/admin/articles',[\App\Controllers\AdminArticleController::class,'index']);
+$router->get('/admin/articles/create',[\App\Controllers\AdminArticleController::class,'createForm']);
+$router->post('/admin/articles',[\App\Controllers\AdminArticleController::class,'store']);
+$router->get('/admin/articles/{id}/edit',[\App\Controllers\AdminArticleController::class,'editForm']);
+$router->get('/admin/articles/{id}/preview',[\App\Controllers\AdminArticleController::class,'preview']);
+$router->post('/admin/articles/{id}',[\App\Controllers\AdminArticleController::class,'update']);
+$router->post('/admin/articles/{id}/status',[\App\Controllers\AdminArticleController::class,'status']);
+$router->post('/admin/articles/{id}/delete',[\App\Controllers\AdminArticleController::class,'delete']);
 
 return $router;
 
