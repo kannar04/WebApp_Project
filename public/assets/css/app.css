@@ -283,7 +283,8 @@ html:not([data-theme]) .theme-toggle { display: none; }
 .theme-icon-sun, html[data-theme="dark"] .theme-icon-moon { display: none; }
 html[data-theme="dark"] .theme-icon-sun { display: inline; }
 .auth-panel { position: relative; }
-.auth-theme-toggle { position: absolute; top: 16px; right: 16px; }
+.auth-tools { position: absolute; top: 16px; right: 16px; display: flex; align-items: center; gap: 8px; }
+.auth-tools .auth-theme-toggle { position: static; }
 @media (min-width: 992px) {
     .site-header .navbar-actions .theme-toggle { padding: .5rem .55rem; vertical-align: middle; }
     .navbar-actions .theme-toggle-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -456,3 +457,9 @@ html[data-theme="dark"] .discovery-map { background: #1e2721; }
 html[data-theme="dark"] .h2h-map-controls button { background: var(--card); border-color: #3c4b42; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.45); }
 html[data-theme="dark"] .h2h-map-popup { background: var(--card); color: var(--text); box-shadow: 0 10px 30px rgba(0,0,0,.55); }
 html[data-theme="dark"] .h2h-map-popup-close { background: rgba(28,36,31,.92); color: var(--text); }
+
+/* Nice-to-have i18n: Vietnamese/English switch beside the theme toggle */
+.locale-toggle { font-size: .8rem; font-weight: 700; letter-spacing: .04em; min-width: 2.75rem; }
+@media (min-width: 992px) {
+    .site-header .navbar-actions .locale-toggle { padding: .5rem .55rem; vertical-align: middle; }
+}

@@ -32,6 +32,8 @@ $router->get('/admin/listings/{id}/preview',[AdminController::class,'listingPrev
 $router->get('/notifications',[\App\Controllers\NotificationController::class,'index']);
 $router->post('/notifications/{id}/read',[\App\Controllers\NotificationController::class,'read']);
 $router->get('/',[HomeController::class,'index']);
+// Nice-to-have i18n: Vietnamese/English interface switch (cookie h2h_locale)
+$router->post('/locale',[\App\Controllers\LocaleController::class,'change']);
 $router->get('/api/listings',[HomeController::class,'search']);
 $router->get('/login',[AuthController::class,'loginForm']);$router->post('/login',[AuthController::class,'login']);
 $router->get('/register',[AuthController::class,'registerForm']);$router->post('/register',[AuthController::class,'register']);$router->post('/logout',[AuthController::class,'logout']);

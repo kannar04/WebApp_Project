@@ -30,6 +30,11 @@ class Controller
     {
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
+        // Controllers pass Vietnamese source text; API clients get it in the visitor's interface language.
+        $message = I18n::translate($message);
+        foreach ($errors as $field => $error) {
+            if (is_string($error)) { $errors[$field] = I18n::translate($error); }
+        }
         echo json_encode(compact('success', 'message', 'data', 'errors'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }

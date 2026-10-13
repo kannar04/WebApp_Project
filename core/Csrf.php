@@ -29,7 +29,7 @@ final class Csrf
             if ($isAjax) {
                 http_response_code(419);
                 header('Content-Type: application/json; charset=utf-8');
-                echo json_encode(['success' => false, 'message' => $message, 'data' => null, 'errors' => []], JSON_UNESCAPED_UNICODE);
+                echo json_encode(['success' => false, 'message' => I18n::translate($message), 'data' => null, 'errors' => []], JSON_UNESCAPED_UNICODE);
                 exit;
             }
             Session::flash('error', $message);

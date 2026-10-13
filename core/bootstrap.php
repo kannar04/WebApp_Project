@@ -54,6 +54,8 @@ function url(string $path = ''): string
 function asset(string $path): string { return url('/assets/' . ltrim($path, '/')); }
 function old(string $key, mixed $default = ''): mixed { return $GLOBALS['old'][$key] ?? $default; }
 function csrf_field(): string { return '<input type="hidden" name="_token" value="' . e(\Core\Csrf::token()) . '">'; }
+/** Interface text: Vietnamese source in, current-locale text out (see core/I18n.php). */
+function __(string $text, array $params = []): string { return \Core\I18n::translate($text, $params); }
 
 /** Resolve database image paths under the configured app base, preserving remote URLs. */
 function image_url(?string $path): string

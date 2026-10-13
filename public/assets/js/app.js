@@ -1,6 +1,27 @@
 (function () {
     'use strict';
 
+    // Nice-to-have i18n: Vietnamese source text is the key; the layout emits English strings as JSON (empty in Vietnamese).
+    let scriptDictionary = null;
+    function h2hT(text, params) {
+        if (scriptDictionary === null) {
+            const source = document.getElementById('h2h-i18n');
+            try {
+                scriptDictionary = source ? JSON.parse(source.textContent) : {};
+            } catch (error) {
+                scriptDictionary = {};
+            }
+        }
+        let result = Object.prototype.hasOwnProperty.call(scriptDictionary, text) ? scriptDictionary[text] : text;
+        if (params) {
+            for (const name of Object.keys(params)) {
+                result = result.split('{' + name + '}').join(String(params[name]));
+            }
+        }
+        return result;
+    }
+    window.h2hT = h2hT;
+
     function initialize() {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const baseUrl = document.querySelector('meta[name="app-base-url"]')?.content.replace(/\/$/, '') || '';
