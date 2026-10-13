@@ -152,6 +152,7 @@ try {
     trustExpect((int) $stored['audit_count'] === 1 && !str_contains((string) $stored['audit_summary'], '079012345678') && str_contains((string) $stored['audit_summary'], 'rejected'), 'Admin audit entry missing or leaked the CCCD.');
     trustExpect((int) $stored['notification_count'] === 1, 'Rejected user was not notified in-app.');
     trustRejects([$trust, 'decideVerification'], [$firstRequest, $adminId, 'approved', ''], 'A decided verification was decided again.');
+    trustExpect((string) $users->findWithRoles($guestId)['phone'] === '', 'Rejected verification changed the contact phone.');
     $rejectedView = $trust->verificationStatus($guestId);
     trustExpect($rejectedView['status'] === 'rejected' && str_contains((string) $rejectedView['decision_reason'], 'không khớp'), 'Owner cannot see the rejection reason.');
     $history = $trust->adminVerifications($adminId, 'rejected', sprintf($emailFor, 'guest'));
@@ -160,10 +161,11 @@ try {
     $trust->decideVerification($secondRequest, $adminId, 'approved', '');
     trustExpect($trust->verificationStatus($guestId)['status'] === 'approved', 'Approved status missing.');
     trustExpect((int) trustBadge($trust, $guestId, null)['is_verified'] === 1, 'Verified badge missing after approval.');
+    trustExpect($users->findWithRoles($guestId)['phone'] === '0912345678', 'Approved phone did not become the contact phone.');
     trustRejects([$trust, 'submitVerification'], [$guestId, 'Nguyễn Văn Tín', '0912345678', '079012345678'], 'Verified account submitted again.');
     $approved = trustCall('CALL sp_test_trust_verification_inspect(?)', [$secondRequest])[0];
     trustExpect($approved['id_number'] === '********5678' && (int) $approved['notification_count'] === 2 && str_contains((string) $approved['audit_summary'], 'approved'), 'Approval masking/audit/notification failed.');
-    echo "PASS trust Admin review: role/decision/reason/self-review guards, CCCD masked on decision, audit without CCCD, notifications, resubmit after rejection only\n";
+    echo "PASS trust Admin review: role/decision/reason/self-review guards, CCCD masked on decision, audit without CCCD, notifications, approved phone becomes contact phone, resubmit after rejection only\n";
 
     // F. Trusted Host badge: reviews (visible only), average, host-side cancellation ratio with the minimum-decided rule.
     trustExpect(!trustIsTrusted($trust, $hostId) && (int) trustBadge($trust, $hostId, null)['review_count'] === 0, 'New Host is already trusted.');

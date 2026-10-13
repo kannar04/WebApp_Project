@@ -190,6 +190,7 @@ return [
     'Họ và tên đúng như trên CCCD' => 'Full name exactly as on your ID card',
     'Số điện thoại di động' => 'Mobile phone number',
     '10 chữ số, ví dụ 0912 345 678 hoặc +84 912 345 678.' => '10 digits, e.g. 0912 345 678 or +84 912 345 678.',
+    'Khi được duyệt, số này thay cho số điện thoại liên hệ trong hồ sơ và booking.' => 'Once approved, this number replaces the contact phone on your profile and bookings.',
     'Số CCCD (12 chữ số)' => 'ID card number (12 digits)',
     'Chỉ Admin xem số đầy đủ khi duyệt; sau khi có kết quả, hệ thống chỉ giữ 4 số cuối.' => 'Only an Admin sees the full number during review; after the decision, only the last 4 digits are kept.',
     'Gửi lại yêu cầu xác minh' => 'Resubmit verification request',

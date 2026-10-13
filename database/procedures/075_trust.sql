@@ -78,6 +78,7 @@ BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_user BIGINT UNSIGNED;
     DECLARE v_status VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_phone VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_reason TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -95,13 +96,15 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Vui lòng nhập lý do từ chối (ít nhất 5 ký tự).';
     END IF;
     IF CHAR_LENGTH(v_reason)>1000 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Ghi chú quyết định tối đa 1000 ký tự.'; END IF;
-    SELECT user_id,status INTO v_user,v_status FROM identity_verifications WHERE id=p_id FOR UPDATE;
+    SELECT user_id,status,phone INTO v_user,v_status,v_phone FROM identity_verifications WHERE id=p_id FOR UPDATE;
     IF v_user IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Yêu cầu xác minh không tồn tại.'; END IF;
     IF v_status<>'pending' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Yêu cầu xác minh này đã được xử lý.'; END IF;
     IF v_user=p_admin THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Admin không thể tự duyệt yêu cầu xác minh của chính mình.'; END IF;
     UPDATE identity_verifications SET status=p_decision,decision_reason=v_reason,reviewed_by=p_admin,reviewed_at=NOW(6),updated_at=NOW(6),
         id_number=CONCAT('********',RIGHT(id_number,4))
     WHERE id=p_id;
+    -- The phone Admin just verified becomes the contact phone shown on bookings.
+    IF p_decision='approved' THEN UPDATE users SET phone=v_phone,updated_at=NOW(6) WHERE id=v_user; END IF;
     -- The audit trail never stores the CCCD number.
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
         VALUES(p_admin,IF(p_decision='approved','approve_identity','reject_identity'),'identity_verification',p_id,
