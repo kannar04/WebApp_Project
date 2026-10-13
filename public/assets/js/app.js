@@ -94,12 +94,15 @@
                     });
                     const result = await response.json();
                     if (!response.ok || !result.success) {
-                        throw new Error(result.message || h2hT('Không thể cập nhật yêu thích.'));
+                        const failure = new Error(result.message || h2hT('Không thể cập nhật yêu thích.'));
+                        failure.fromServer = true;
+                        throw failure;
                     }
                     this.classList.toggle('is-saved', result.data.saved);
                     this.setAttribute('aria-pressed', String(result.data.saved));
                 } catch (error) {
-                    alert(error.message || h2hT('Không thể cập nhật yêu thích. Vui lòng thử lại.'));
+                    // Network and JSON errors carry the browser's own (untranslated) text, so show the fallback instead.
+                    alert(error.fromServer ? error.message : h2hT('Không thể cập nhật yêu thích. Vui lòng thử lại.'));
                 } finally {
                     this.disabled = false;
                 }
@@ -145,7 +148,9 @@
                         // A slow earlier response must never replace the latest dates.
                         if (currentRevision !== revision) { return; }
                         if (!response.ok || !result.success) {
-                            throw new Error(result.message || h2hT('Không thể tính giá.'));
+                            const failure = new Error(result.message || h2hT('Không thể tính giá.'));
+                            failure.fromServer = true;
+                            throw failure;
                         }
                         const rows = [
                             h2hT('{nights} đêm × {price}', {nights: result.data.nights, price: money(result.data.nightly_price)}),
@@ -160,9 +165,9 @@
                         bookingForm.dispatchEvent(new CustomEvent('h2h:quote', {detail: result.data}));
                     } catch (error) {
                         if (error.name === 'AbortError' || currentRevision !== revision) { return; }
-                        quotePanel.textContent = error.message || h2hT('Không thể tính giá. Vui lòng thử lại.');
+                        quotePanel.textContent = error.fromServer ? error.message : h2hT('Không thể tính giá. Vui lòng thử lại.');
                         quotePanel.classList.add('text-danger');
-                        bookingForm.dispatchEvent(new CustomEvent('h2h:quote-failed'));
+                        bookingForm.dispatchEvent(new CustomEvent('h2h:quote-failed', {detail: {fromServer: Boolean(error.fromServer)}}));
                     }
                 }, 250);
             }

@@ -252,7 +252,7 @@ BEGIN
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
         VALUES(v_host,p_booking,'in_app','booking_cancelled','Cập nhật booking','Khách đã hủy booking.','sent',1,NOW(6));
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
-        VALUES(v_guest,p_booking,'in_app','booking_cancelled','Đã hủy booking',CONCAT('Booking #',p_booking,' đã hủy. Mức hoàn: ',v_refund,' (',v_percent,'%).'),'sent',1,NOW(6));
+        VALUES(v_guest,p_booking,'in_app','booking_cancelled','Đã hủy booking',CONCAT('Booking #',p_booking,' đã hủy. Mức hoàn: ',REPLACE(FORMAT(v_refund,0),',','.'),'đ (',TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM v_percent)),'%).'),'sent',1,NOW(6));
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_booking_cancel; END IF;
     SELECT v_percent refund_percent,v_refund refund_amount;
 END$$

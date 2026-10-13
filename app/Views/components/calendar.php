@@ -2,7 +2,7 @@
 <section class="mt-4" aria-label="<?= e(__('Lịch khả dụng')) ?>">
     <div class="d-flex align-items-center justify-content-between mb-3">
         <a class="btn btn-ghost" href="<?= e(url($calendarPath.'?month='.$calendar['previous'].'#availability-calendar')) ?>" aria-label="<?= e(__('Tháng trước')) ?>">←</a>
-        <h2 class="h5 mb-0"><?= e(__('Lịch tháng {month}',['month'=>$calendar['month']])) ?></h2>
+        <h2 class="h5 mb-0"><?= e(__('Lịch tháng {month}',['month'=>date('m/Y', strtotime($calendar['month'].'-01'))])) ?></h2>
         <a class="btn btn-ghost" href="<?= e(url($calendarPath.'?month='.$calendar['next'].'#availability-calendar')) ?>" aria-label="<?= e(__('Tháng sau')) ?>">→</a>
     </div>
     <p class="text-muted small"><?= e(__('Mỗi ô là một đêm lưu trú; ngày trả phòng không chiếm đêm đó. Chờ duyệt cũng tạm giữ lịch. Lịch có thể thay đổi đến lúc đặt/xác nhận.')) ?></p>

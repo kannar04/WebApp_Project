@@ -169,7 +169,8 @@ try {
 
     // ---- Host pricing rules.
     bxRejects([$extras,'saveHostSettings'],[$listingId,$guestId,'150000',null,null,null,false],'quyền','Guest changed booking settings');
-    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,'-1',null,null,null,false],'từ 0','Negative weekend price accepted');
+    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,'-1',null,null,null,false],'lớn hơn 0','Negative weekend price accepted');
+    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,null,'0',null,null,false],'lớn hơn 0','Free holiday nights accepted');
     bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,null,null,'95',null,false],'0 đến 90','Discount above 90% accepted');
     bxRejects([$extras,'hostSettings'],[$listingId,$guestId],'quyền','Guest read Host booking settings');
     $extras->saveHostSettings($listingId,$hostId,'150000','300000','10','20',false);

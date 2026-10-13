@@ -161,8 +161,9 @@ BEGIN
     -- Same first lock as sp_booking_create, so a booking never prices with half-saved rules.
     SELECT id INTO v_lock FROM listings WHERE id=p_listing FOR UPDATE;
     CALL sp_quality_assert_host(p_listing,p_actor);
-    IF (p_weekend IS NOT NULL AND (p_weekend<0 OR p_weekend>9999999999.99)) OR (p_holiday IS NOT NULL AND (p_holiday<0 OR p_holiday>9999999999.99)) THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giá cuối tuần/ngày lễ phải từ 0 trở lên.';
+    -- A 0 rate would make those nights free; leave the field empty to keep the base price.
+    IF (p_weekend IS NOT NULL AND (p_weekend<=0 OR p_weekend>9999999999.99)) OR (p_holiday IS NOT NULL AND (p_holiday<=0 OR p_holiday>9999999999.99)) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giá cuối tuần/ngày lễ phải lớn hơn 0.';
     END IF;
     IF (p_weekly IS NOT NULL AND (p_weekly<0 OR p_weekly>90)) OR (p_monthly IS NOT NULL AND (p_monthly<0 OR p_monthly>90)) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Phần trăm giảm giá phải từ 0 đến 90.';

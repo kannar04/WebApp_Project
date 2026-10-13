@@ -64,7 +64,7 @@ return [
     'Giảm ở từ 28 đêm ({percent})' => 'Discount for 28+ nights ({percent})',
     'Giảm ở từ 7 đêm ({percent})' => 'Discount for 7+ nights ({percent})',
     'Mã {code}' => 'Promo code {code}',
-    'Phụ phí' => 'Extra fee',
+    'Phụ phí' => 'Cleaning fee',
     'Tổng' => 'Total',
 
     // ---- Shared generic messages
@@ -120,7 +120,7 @@ return [
     'Từ chối bài đăng phải có lý do.' => 'Rejecting a listing requires a reason.',
     'Đã cập nhật kiểm duyệt bài đăng.' => 'Listing moderation updated.',
     'Không thể kiểm duyệt bài đăng. Vui lòng thử lại.' => 'Could not moderate the listing. Please try again.',
-    'Giá phải lớn hơn 0, phụ phí không được âm và sức chứa phải hợp lệ.' => 'Price must be greater than 0, the extra fee cannot be negative and capacity must be valid.',
+    'Giá phải lớn hơn 0, phụ phí không được âm và sức chứa phải hợp lệ.' => 'Price must be greater than 0, the cleaning fee cannot be negative and capacity must be valid.',
     'Đã cập nhật chỗ ở.' => 'Listing updated.',
     'Đã cập nhật hiển thị listing.' => 'Listing visibility updated.',
     'Đã gỡ listing (soft delete).' => 'Listing removed (soft delete).',
@@ -129,7 +129,7 @@ return [
 
     // ---- Host listings, photos, availability (HostController)
     'Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.' => 'Please fill in all fields within the length limits.',
-    'Giá phải lớn hơn 0 và phụ phí không được âm.' => 'Price must be greater than 0 and the extra fee cannot be negative.',
+    'Giá phải lớn hơn 0 và phụ phí không được âm.' => 'Price must be greater than 0 and the cleaning fee cannot be negative.',
     'Sức chứa, số phòng và số giường phải từ 1 đến 65535.' => 'Capacity, rooms and beds must be between 1 and 65535.',
     'Giờ nhận hoặc trả phòng không hợp lệ.' => 'Invalid check-in or check-out time.',
     'Loại chỗ ở hoặc chính sách hủy không hợp lệ.' => 'Invalid property type or cancellation policy.',
@@ -138,7 +138,7 @@ return [
     'Vui lòng nhập cả vĩ độ và kinh độ, hoặc để trống cả hai.' => 'Please enter both latitude and longitude, or leave both blank.',
     'Vĩ độ phải từ -90 đến 90 và kinh độ từ -180 đến 180.' => 'Latitude must be -90 to 90 and longitude -180 to 180.',
     'Không có quyền sửa chỗ ở.' => 'You do not have permission to edit this listing.',
-    'Đã lưu chỗ ở và chuyển về trạng thái chờ duyệt.' => 'Listing saved and sent back for review.',
+    'Đã lưu chỗ ở và chuyển về trạng thái chờ duyệt.' => 'Listing saved and is now pending review.',
     'Không thể lưu chỗ ở. Vui lòng thử lại.' => 'Could not save the listing. Please try again.',
     'Đã xóa mềm tin. Lịch sử booking và ảnh gốc được giữ nguyên.' => 'Listing soft-deleted. Booking history and original photos are kept.',
     'Không có quyền quản lý ảnh.' => 'You do not have permission to manage these photos.',
@@ -168,8 +168,8 @@ return [
     'Chỉ booking đã hoàn thành và chưa đánh giá mới được thực hiện.' => 'Only completed bookings that have not been reviewed yet can be reviewed.',
 
     // ---- Pricing, holidays, promotions, payments (BookingExtrasController)
-    'Giá cuối tuần phải là số từ 0 trở lên.' => 'Weekend price must be a number of 0 or more.',
-    'Giá ngày lễ phải là số từ 0 trở lên.' => 'Holiday price must be a number of 0 or more.',
+    'Giá cuối tuần phải là số lớn hơn 0.' => 'Weekend price must be a number greater than 0.',
+    'Giá ngày lễ phải là số lớn hơn 0.' => 'Holiday price must be a number greater than 0.',
     'Giảm giá theo tuần phải từ 0 đến 90%.' => 'Weekly discount must be between 0 and 90%.',
     'Giảm giá theo tháng phải từ 0 đến 90%.' => 'Monthly discount must be between 0 and 90%.',
     'Đã lưu giá & tùy chọn đặt chỗ. Thay đổi áp dụng cho báo giá mới, không cần Admin duyệt lại tin.' => 'Pricing and booking options saved. Changes apply to new quotes; no Admin re-approval needed.',

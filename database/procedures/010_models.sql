@@ -109,7 +109,7 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `NTK_sp_get_guest_bookings`(IN p_1 bigint unsigned)
 BEGIN
-    SELECT b.id,b.listing_id,b.guest_id,b.check_in,b.check_out,b.guest_count,b.status,b.currency,b.fee_amount,b.total_amount,b.policy_snapshot,b.created_at,b.updated_at,l.title,l.city,(SELECT image_url FROM listing_photos WHERE listing_id=l.id AND EXISTS(SELECT 1 FROM users WHERE id=b.guest_id AND status='active') ORDER BY sort_order,id LIMIT 1) image_url FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.guest_id=p_1 AND EXISTS(SELECT 1 FROM users WHERE id=b.guest_id AND status='active') ORDER BY b.created_at DESC;
+    SELECT b.id,b.listing_id,b.guest_id,b.check_in,b.check_out,b.guest_count,b.status,b.currency,b.fee_amount,b.total_amount,b.policy_snapshot,b.created_at,b.updated_at,l.title,l.city,EXISTS(SELECT 1 FROM reviews r WHERE r.booking_id=b.id) has_review,(SELECT image_url FROM listing_photos WHERE listing_id=l.id AND EXISTS(SELECT 1 FROM users WHERE id=b.guest_id AND status='active') ORDER BY sort_order,id LIMIT 1) image_url FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.guest_id=p_1 AND EXISTS(SELECT 1 FROM users WHERE id=b.guest_id AND status='active') ORDER BY b.created_at DESC;
 END$$
 
 CREATE OR REPLACE PROCEDURE `NTK_sp_get_host_bookings`(IN p_1 bigint unsigned)

@@ -45,6 +45,7 @@ return [
     'Bị từ chối' => 'Rejected',
     'Đã hủy' => 'Cancelled',
     'Hoàn thành' => 'Completed',
+    'Hoàn tất' => 'Mark completed',
     'Đã duyệt' => 'Approved',
     'Chưa thanh toán' => 'Unpaid',
     'Đã thanh toán' => 'Paid',
@@ -113,7 +114,7 @@ return [
     'Địa chỉ' => 'Address',
     'Thành phố' => 'City',
     'Giá / đêm' => 'Price / night',
-    'Phụ phí' => 'Extra fee',
+    'Phụ phí' => 'Cleaning fee',
     'Sức chứa' => 'Capacity',
 
     // Catalog (page chrome only; item names are data)
@@ -190,7 +191,7 @@ return [
     'Xóa vĩnh viễn mã {code}? Mã chưa được dùng cho booking nào.' => 'Permanently delete code {code}? It has not been used in any booking.',
 
     // Payments
-    'Khách thanh toán trực tiếp khi nhận phòng. Host hoặc Admin ghi nhận “Đã thu tiền” từ ngày nhận phòng; hoàn tiền cần ghi chú và được lưu nhật ký.' => 'Guests pay in person at check-in. The Host or Admin records “Paid” from the check-in date; refunds need a note and are logged.',
+    'Khách thanh toán trực tiếp khi nhận phòng. Host hoặc Admin ghi nhận “Đã thu tiền” từ ngày nhận phòng; hoàn tiền cần ghi chú và được lưu nhật ký.' => 'Guests pay in person at check-in. From the check-in date the Host or Admin presses “Mark as paid”; refunds need a note and are logged.',
     'Đã thu' => 'Collected',
     '{count} booking' => '{count} booking(s)',
     'Chờ thu (đã xác nhận)' => 'To collect (confirmed)',
@@ -207,7 +208,7 @@ return [
     'Thu: {time}' => 'Collected: {time}',
     'Hoàn: {time}' => 'Refunded: {time}',
     'Xác nhận đã thu {amount}đ của booking #{id}?' => 'Confirm that you received {amount}đ for booking #{id}?',
-    'Đã thu tiền' => 'Paid',
+    'Đã thu tiền' => 'Mark as paid',
     'Lý do hoàn tiền booking #{id}' => 'Refund reason for booking #{id}',
     'Lý do hoàn tiền' => 'Refund reason',
     'Ghi nhận đã hoàn tiền booking #{id}? Thao tác được lưu nhật ký.' => 'Record booking #{id} as refunded? This action is logged.',
@@ -217,6 +218,7 @@ return [
     // Identity verification
     'Số CCCD đầy đủ chỉ hiển thị khi yêu cầu đang chờ duyệt; sau khi duyệt hoặc từ chối, hệ thống chỉ giữ 4 số cuối.' => 'The full ID card number is shown only while a request is pending; after approval or rejection, only the last 4 digits are kept.',
     'Lọc yêu cầu xác minh' => 'Filter verification requests',
+    'Đây là yêu cầu của chính bạn; một Admin khác cần duyệt.' => 'This is your own request; another Admin needs to review it.',
     'Email, họ tên tài khoản hoặc họ tên trên CCCD' => 'Email, account name or name on the ID card',
     '{count} yêu cầu' => '{count} request(s)',
     'Chỉ hiển thị 200 yêu cầu đầu tiên, hãy lọc thêm.' => 'Only the first 200 requests are shown; filter further.',

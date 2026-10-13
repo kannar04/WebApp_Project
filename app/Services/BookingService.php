@@ -52,7 +52,7 @@ final class BookingService
 
     public static function percent(float $value): string
     {
-        return rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',').'%';
+        return display_decimal($value, 2, true).'%';
     }
 
     /** Display rows for the price panel; amounts are signed (discounts negative) and add up to the total. */

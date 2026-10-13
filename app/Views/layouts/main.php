@@ -9,7 +9,7 @@
 <li class="nav-item"><a class="nav-link" href="<?= e(url('/wishlist')) ?>"><?= e(__('Yêu thích')) ?></a></li>
 <li class="nav-item"><a class="nav-link" href="<?= e(url('/bookings')) ?>"><?= e(__('Đặt chỗ')) ?></a></li>
 <?php $messageUnread=\App\Services\ConversationService::navigation((int)$currentUser['id']); ?>
-<li class="nav-item"><a class="nav-link" href="<?= e(url('/messages')) ?>"><?= e(__('Tin nhắn')) ?><?php if($messageUnread>0): ?> <span class="nav-unread-badge"><?= $messageUnread>99?'99+':(int)$messageUnread ?><span class="sr-only"> <?= e(__('tin nhắn chưa đọc')) ?></span></span><?php endif; ?></a></li>
+<li class="nav-item"><a class="nav-link" href="<?= e(url('/messages')) ?>"><?= e(__('Tin nhắn')) ?><?php if($messageUnread>0): ?> <span class="nav-unread-badge"><span aria-hidden="true"><?= $messageUnread>99?'99+':(int)$messageUnread ?></span><span class="sr-only"> <?= e($messageUnread===1?__('1 tin nhắn chưa đọc'):__('{count} tin nhắn chưa đọc', ['count'=>(int)$messageUnread])) ?></span></span><?php endif; ?></a></li>
 <?php endif; ?>
 </ul>
 <div class="navbar-actions">

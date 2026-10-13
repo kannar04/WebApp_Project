@@ -12,7 +12,7 @@ return [
     'Không thể tính giá.' => 'Could not calculate the price.',
     'Không thể tính giá. Vui lòng thử lại.' => 'Could not calculate the price. Please try again.',
     '{nights} đêm × {price}' => '{nights} night(s) × {price}',
-    'Phụ phí: {amount}' => 'Fees: {amount}',
+    'Phụ phí: {amount}' => 'Cleaning fee: {amount}',
     'Tổng: {amount}' => 'Total: {amount}',
     'Đang gửi yêu cầu…' => 'Sending request…',
     'Đã sao chép liên kết.' => 'Link copied.',
@@ -23,6 +23,7 @@ return [
     // booking-extras.js: promo code feedback
     'Đã áp dụng mã {code}: giảm {amount}.' => 'Code {code} applied: {amount} off.',
     'Chưa kiểm tra được mã: hãy chọn ngày và số khách hợp lệ.' => 'The code could not be checked yet: choose valid dates and number of guests.',
+    'Chưa kiểm tra được mã. Vui lòng thử lại.' => 'The code could not be checked. Please try again.',
     'Chọn ngày nhận và trả phòng để kiểm tra mã.' => 'Select check-in and check-out dates to check the code.',
     'Đang kiểm tra mã…' => 'Checking code…',
 

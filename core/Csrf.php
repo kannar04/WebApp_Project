@@ -35,12 +35,15 @@ final class Csrf
             Session::flash('error', $message);
             $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
             $path = (string) (parse_url($referer, PHP_URL_PATH) ?? '/');
+            $query = (string) (parse_url($referer, PHP_URL_QUERY) ?? '');
             $refererHost = (string) (parse_url($referer, PHP_URL_HOST) ?? '');
             $requestHost = explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0];
             if ($refererHost !== $requestHost || !str_starts_with($path, '/') || str_starts_with($path, '//')) {
                 $path = '/';
+                $query = '';
             }
-            header('Location: ' . url($path));
+            // Keep the query so a filtered search or ?tab=messages survives the retry.
+            header('Location: ' . url($path) . ($query !== '' ? '?' . $query : ''));
             exit;
         }
     }

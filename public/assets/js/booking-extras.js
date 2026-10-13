@@ -55,9 +55,11 @@
             panel.replaceChildren(...data.breakdown.map(buildRow));
         }
 
-        function quoteFailed() {
+        function quoteFailed(event) {
             if (promo && promo.value.trim() !== '') {
-                showFeedback(window.h2hT('Chưa kiểm tra được mã: hãy chọn ngày và số khách hợp lệ.'), '');
+                // Only a server rejection means the dates or guests are invalid; otherwise the request itself failed.
+                const fromServer = Boolean(event.detail && event.detail.fromServer);
+                showFeedback(fromServer ? window.h2hT('Chưa kiểm tra được mã: hãy chọn ngày và số khách hợp lệ.') : window.h2hT('Chưa kiểm tra được mã. Vui lòng thử lại.'), '');
             }
         }
 

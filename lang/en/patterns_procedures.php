@@ -19,7 +19,8 @@ return [
     'Booking #{id} chuyển sang completed.' => 'Booking #{id} is now completed.',
     'Booking #{id} chuyển sang {status}.' => 'Booking #{id} changed to {status}.',
 
-    // ---- 020_booking.sql: sp_booking_cancel Guest notification (amount and percent are DECIMAL text, e.g. 1500000.00 / 100.00)
+    // ---- 020_booking.sql: sp_booking_cancel Guest notification (now e.g. 1.500.000đ / 100; the second entry keeps older rows stored as 1500000.00 / 100.00)
+    'Booking #{id} đã hủy. Mức hoàn: {amount}đ ({percent}%).' => 'Booking #{id} was cancelled. Refund: {amount}đ ({percent}%).',
     'Booking #{id} đã hủy. Mức hoàn: {amount} ({percent}%).' => 'Booking #{id} was cancelled. Refund: {amount} ({percent}%).',
 
     // ---- 070_booking_extras.sql: promo code messages (quote message and strict SIGNAL)

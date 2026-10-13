@@ -57,6 +57,32 @@ function csrf_field(): string { return '<input type="hidden" name="_token" value
 /** Interface text: Vietnamese source in, current-locale text out (see core/I18n.php). */
 function __(string $text, array $params = []): string { return \Core\I18n::translate($text, $params); }
 
+/** Display label for a stored status code (booking, listing, user, review); unknown codes are shown as stored. */
+function status_label(?string $code): string
+{
+    $labels = [
+        'draft' => __('Bản nháp'), 'pending' => __('Chờ duyệt'), 'approved' => __('Đã duyệt'), 'rejected' => __('Bị từ chối'),
+        'confirmed' => __('Đã xác nhận'), 'cancelled' => __('Đã hủy'), 'completed' => __('Hoàn thành'),
+        'active' => __('Đang hoạt động'), 'suspended' => __('Tạm khóa'), 'deleted' => __('Đã xóa'),
+        'visible' => __('Đang hiển thị'), 'hidden' => __('Đã ẩn'),
+    ];
+    return $labels[(string) $code] ?? (string) $code;
+}
+
+/** "2026-10-13" -> "13/10/2026"; with $withTime, "2026-10-13 14:25:58.624797" -> "13/10/2026 14:25". */
+function display_date(?string $value, bool $withTime = false): string
+{
+    return $withTime ? \App\Services\ConversationService::displayTime($value) : \App\Services\ConversationService::displayDate($value);
+}
+
+/** Decimal fraction in the current locale: 4,5 in Vietnamese, 4.5 in English; $trim drops trailing zeros. */
+function display_decimal(float $value, int $decimals = 1, bool $trim = false): string
+{
+    $point = \Core\I18n::locale() === 'en' ? '.' : ',';
+    $text = number_format($value, $decimals, $point, $point === '.' ? ',' : '.');
+    return $trim && $decimals > 0 ? rtrim(rtrim($text, '0'), $point) : $text;
+}
+
 /** Resolve database image paths under the configured app base, preserving remote URLs. */
 function image_url(?string $path): string
 {

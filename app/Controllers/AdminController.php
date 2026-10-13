@@ -47,6 +47,7 @@ final class AdminController extends Controller
         if (!$this->rolesAreValid($roles)) {
             Session::flash('error','Vai trò không hợp lệ.'); $this->redirect('/admin');
         }
+        if ($roles === []) { $roles = ['guest']; } // User::replaceRoles saves guest when nothing is ticked; audit the same value.
         $this->managedUserChange((int)$id,(int)$admin['id'],'set_user_roles',implode(',',$roles),
             fn()=>(new User())->replaceRoles((int)$id,$roles),'Đã cập nhật vai trò.');
     }

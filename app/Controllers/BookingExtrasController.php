@@ -30,8 +30,8 @@ final class BookingExtrasController extends Controller
             'weekly_discount_pct'=>$this->text('weekly_discount_pct', 10), 'monthly_discount_pct'=>$this->text('monthly_discount_pct', 10),
             'instant_book'=>($_POST['instant_book'] ?? '') === '1'];
         try {
-            $weekend = $this->optionalNumber($input['weekend_nightly_rate'], 0, 9999999999.99, 'Giá cuối tuần phải là số từ 0 trở lên.');
-            $holiday = $this->optionalNumber($input['holiday_nightly_rate'], 0, 9999999999.99, 'Giá ngày lễ phải là số từ 0 trở lên.');
+            $weekend = $this->optionalNumber($input['weekend_nightly_rate'], 0.01, 9999999999.99, 'Giá cuối tuần phải là số lớn hơn 0.');
+            $holiday = $this->optionalNumber($input['holiday_nightly_rate'], 0.01, 9999999999.99, 'Giá ngày lễ phải là số lớn hơn 0.');
             $weekly = $this->optionalNumber($input['weekly_discount_pct'], 0, 90, 'Giảm giá theo tuần phải từ 0 đến 90%.');
             $monthly = $this->optionalNumber($input['monthly_discount_pct'], 0, 90, 'Giảm giá theo tháng phải từ 0 đến 90%.');
             (new BookingExtras())->saveHostSettings((int) $id, (int) $user['id'], $weekend, $holiday, $weekly, $monthly, $input['instant_book']);
