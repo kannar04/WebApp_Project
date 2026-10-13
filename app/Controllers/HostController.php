@@ -11,7 +11,7 @@ use Core\Csrf;
 use Core\Session;
 final class HostController extends Controller
 {
-    public function dashboard(): void {$u=$this->requireRole('host');$this->render('host/dashboard',['title'=>'Không gian Host','stats'=>(new HostRepository())->stats((int)$u['id']),'monthlyRevenue'=>(new HostRepository())->monthlyRevenue((int)$u['id']),'listings'=>(new Listing())->hostListings((int)$u['id']),'bookings'=>(new Booking())->forHost((int)$u['id'])]);}
+    public function dashboard(): void {$u=$this->requireRole('host');$this->render('host/dashboard',['title'=>'Không gian Host','stats'=>(new HostRepository())->stats((int)$u['id']),'monthlyRevenue'=>(new HostRepository())->monthlyRevenue((int)$u['id']),'listings'=>(new Listing())->hostListings((int)$u['id']),'bookings'=>(new Booking())->forHost((int)$u['id']),'payments'=>(new \App\Models\BookingExtras())->paymentMap((int)$u['id'],'host')]);}
     public function createForm(): void {$this->requireRole('host');$m=new Listing();$this->render('host/listing-form',['title'=>'Đăng chỗ ở','listing'=>null,'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>[],'old'=>Session::pullOld()]);}
     public function editForm(string $id): void {$u=$this->requireRole('host');$m=new Listing();$listing=$m->findOwned((int)$id,(int)$u['id']);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('host/listing-form',['title'=>'Chỉnh sửa chỗ ở','listing'=>$listing,'photos'=>$m->photos((int)$id,(int)$u['id']),'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>$m->amenityIds((int)$id),'old'=>Session::pullOld()]);}
     public function availabilityPage(string $id): void

@@ -382,6 +382,128 @@ CREATE TABLE IF NOT EXISTS `account_status_events` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
+CREATE TABLE IF NOT EXISTS `listing_booking_settings` (
+  `listing_id` bigint(20) unsigned NOT NULL COMMENT 'Listing owning these optional booking rules (1:1)',
+  `weekend_nightly_rate` decimal(12,2) DEFAULT NULL COMMENT 'Friday/Saturday night price; NULL keeps the base rate',
+  `holiday_nightly_rate` decimal(12,2) DEFAULT NULL COMMENT 'Public-holiday night price; NULL falls back to weekend/base rate',
+  `weekly_discount_pct` decimal(5,2) DEFAULT NULL COMMENT 'Nights-subtotal discount for stays of 7+ nights',
+  `monthly_discount_pct` decimal(5,2) DEFAULT NULL COMMENT 'Discount for 28+ nights; replaces weekly, never stacked',
+  `instant_book` tinyint(1) NOT NULL COMMENT 'Valid requests are confirmed automatically',
+  `created_at` datetime(6) NOT NULL COMMENT 'First save time',
+  `updated_at` datetime(6) NOT NULL COMMENT 'Last Host change',
+  PRIMARY KEY (`listing_id`),
+  CONSTRAINT `fk_listing_booking_settings_listing_id` FOREIGN KEY (`listing_id`) REFERENCES `listings` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `chk_listing_booking_settings_rates` CHECK ((`weekend_nightly_rate` is null or `weekend_nightly_rate` >= 0) and (`holiday_nightly_rate` is null or `holiday_nightly_rate` >= 0)),
+  CONSTRAINT `chk_listing_booking_settings_discounts` CHECK ((`weekly_discount_pct` is null or `weekly_discount_pct` between 0 and 90) and (`monthly_discount_pct` is null or `monthly_discount_pct` between 0 and 90)),
+  CONSTRAINT `chk_listing_booking_settings_instant_book` CHECK (`instant_book` in (0,1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `public_holidays` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Holiday ID',
+  `holiday_date` date NOT NULL COMMENT 'Night priced with the holiday rate',
+  `name` varchar(120) NOT NULL COMMENT 'Holiday name shown to Admin and Guests',
+  `is_demo` tinyint(1) NOT NULL COMMENT 'Seeded demo date that an Admin has not confirmed yet',
+  `created_by` bigint(20) unsigned DEFAULT NULL COMMENT 'Admin who added or confirmed it; NULL for seed data',
+  `created_at` datetime(6) NOT NULL COMMENT 'Creation time',
+  `updated_at` datetime(6) NOT NULL COMMENT 'Last Admin change',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_public_holidays_holiday_date` (`holiday_date`),
+  KEY `idx_public_holidays_created_by` (`created_by`),
+  CONSTRAINT `fk_public_holidays_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `chk_public_holidays_is_demo` CHECK (`is_demo` in (0,1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `promotions` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Promotion ID',
+  `code` varchar(20) NOT NULL COMMENT 'Uppercase A-Z/0-9 code, 4-20 characters',
+  `description` varchar(255) NOT NULL COMMENT 'Guest-facing description',
+  `discount_type` varchar(10) NOT NULL COMMENT 'percent | fixed',
+  `discount_value` decimal(12,2) NOT NULL COMMENT 'Percent (0-100] or fixed amount in VND',
+  `max_discount_amount` decimal(12,2) DEFAULT NULL COMMENT 'Cap for percent codes; NULL means no cap',
+  `min_nights` smallint(5) unsigned DEFAULT NULL COMMENT 'Minimum nights; NULL means none',
+  `min_subtotal` decimal(12,2) DEFAULT NULL COMMENT 'Minimum nights subtotal after stay-length discount',
+  `valid_from` date NOT NULL COMMENT 'First booking date the code is accepted (Vietnam time)',
+  `valid_to` date NOT NULL COMMENT 'Last booking date the code is accepted (inclusive)',
+  `usage_limit` int(10) unsigned DEFAULT NULL COMMENT 'Maximum pending/confirmed/completed bookings; NULL means unlimited',
+  `is_active` tinyint(1) NOT NULL COMMENT 'Admin on/off switch; used codes are deactivated, not deleted',
+  `created_by` bigint(20) unsigned DEFAULT NULL COMMENT 'Creating Admin; NULL for seed data',
+  `created_at` datetime(6) NOT NULL COMMENT 'Creation time',
+  `updated_at` datetime(6) NOT NULL COMMENT 'Last Admin change',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_promotions_code` (`code`),
+  KEY `idx_promotions_created_by` (`created_by`),
+  CONSTRAINT `fk_promotions_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `chk_promotions_code` CHECK (cast(`code` as binary) regexp '^[A-Z0-9]{4,20}$'),
+  CONSTRAINT `chk_promotions_discount_type` CHECK (`discount_type` in ('percent','fixed')),
+  CONSTRAINT `chk_promotions_discount_value` CHECK (`discount_value` > 0 and (`discount_type` = 'fixed' or `discount_value` <= 100)),
+  CONSTRAINT `chk_promotions_conditions` CHECK ((`max_discount_amount` is null or `max_discount_amount` > 0) and (`min_nights` is null or `min_nights` >= 1) and (`min_subtotal` is null or `min_subtotal` >= 0) and (`usage_limit` is null or `usage_limit` >= 1)),
+  CONSTRAINT `chk_promotions_dates` CHECK (`valid_to` >= `valid_from`),
+  CONSTRAINT `chk_promotions_is_active` CHECK (`is_active` in (0,1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `booking_price_breakdowns` (
+  `booking_id` bigint(20) unsigned NOT NULL COMMENT 'Priced booking (1:1)',
+  `nights_subtotal` decimal(12,2) NOT NULL COMMENT 'Sum of booking_nights.nightly_amount',
+  `length_discount_type` varchar(10) NOT NULL COMMENT 'none | weekly | monthly',
+  `length_discount_pct` decimal(5,2) NOT NULL COMMENT 'Applied stay-length percent',
+  `length_discount_amount` decimal(12,2) NOT NULL COMMENT 'Stay-length discount amount',
+  `promotion_id` bigint(20) unsigned DEFAULT NULL COMMENT 'Applied promo; one use while the booking is pending/confirmed/completed',
+  `promotion_code` varchar(20) DEFAULT NULL COMMENT 'Promo code snapshot',
+  `promotion_discount_amount` decimal(12,2) NOT NULL COMMENT 'Promo discount amount',
+  `fee_amount` decimal(12,2) NOT NULL COMMENT 'Undiscounted per-stay fee snapshot',
+  `total_amount` decimal(12,2) NOT NULL COMMENT 'Equals bookings.total_amount at creation',
+  `is_instant_book` tinyint(1) NOT NULL COMMENT 'Confirmed automatically by Instant Book',
+  `created_at` datetime(6) NOT NULL COMMENT 'Snapshot time',
+  PRIMARY KEY (`booking_id`),
+  KEY `idx_booking_price_breakdowns_promotion_id` (`promotion_id`),
+  CONSTRAINT `fk_booking_price_breakdowns_booking_id` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_booking_price_breakdowns_promotion_id` FOREIGN KEY (`promotion_id`) REFERENCES `promotions` (`id`),
+  CONSTRAINT `chk_booking_price_breakdowns_length` CHECK (`length_discount_type` in ('none','weekly','monthly')),
+  CONSTRAINT `chk_booking_price_breakdowns_amounts` CHECK (`nights_subtotal` >= 0 and `length_discount_amount` >= 0 and `promotion_discount_amount` >= 0 and `fee_amount` >= 0 and `total_amount` >= 0),
+  CONSTRAINT `chk_booking_price_breakdowns_promotion` CHECK (`promotion_id` is null and `promotion_code` is null and `promotion_discount_amount` = 0 or `promotion_id` is not null and `promotion_code` is not null),
+  CONSTRAINT `chk_booking_price_breakdowns_instant` CHECK (`is_instant_book` in (0,1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `booking_payments` (
+  `booking_id` bigint(20) unsigned NOT NULL COMMENT 'Booking being paid (1:1)',
+  `method` varchar(20) NOT NULL COMMENT 'pay_at_checkin; online gateways are not integrated',
+  `amount_due` decimal(12,2) NOT NULL COMMENT 'Booking total at creation',
+  `status` varchar(10) NOT NULL COMMENT 'unpaid | paid | refunded',
+  `paid_at` datetime(6) DEFAULT NULL COMMENT 'Collection time',
+  `paid_by` bigint(20) unsigned DEFAULT NULL COMMENT 'Host or Admin who recorded the collection',
+  `refunded_at` datetime(6) DEFAULT NULL COMMENT 'Refund record time',
+  `refunded_by` bigint(20) unsigned DEFAULT NULL COMMENT 'Admin who recorded the refund',
+  `note` varchar(500) DEFAULT NULL COMMENT 'Latest Host/Admin payment note',
+  `created_at` datetime(6) NOT NULL COMMENT 'Record creation time',
+  `updated_at` datetime(6) NOT NULL COMMENT 'Last status change',
+  PRIMARY KEY (`booking_id`),
+  KEY `idx_booking_payments_status` (`status`),
+  KEY `idx_booking_payments_paid_by` (`paid_by`),
+  KEY `idx_booking_payments_refunded_by` (`refunded_by`),
+  CONSTRAINT `fk_booking_payments_booking_id` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_booking_payments_paid_by` FOREIGN KEY (`paid_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_booking_payments_refunded_by` FOREIGN KEY (`refunded_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `chk_booking_payments_method` CHECK (`method` in ('pay_at_checkin')),
+  CONSTRAINT `chk_booking_payments_status` CHECK (`status` in ('unpaid','paid','refunded')),
+  CONSTRAINT `chk_booking_payments_amount` CHECK (`amount_due` >= 0),
+  CONSTRAINT `chk_booking_payments_state` CHECK (`status` = 'unpaid' and `paid_at` is null and `refunded_at` is null or `status` = 'paid' and `paid_at` is not null and `refunded_at` is null or `status` = 'refunded' and `paid_at` is not null and `refunded_at` is not null)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `booking_payment_events` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Payment event ID',
+  `booking_id` bigint(20) unsigned NOT NULL COMMENT 'Booking whose payment changed',
+  `actor_id` bigint(20) unsigned NOT NULL COMMENT 'Host or Admin performing the change',
+  `from_status` varchar(10) NOT NULL COMMENT 'Previous payment status',
+  `to_status` varchar(10) NOT NULL COMMENT 'New payment status',
+  `note` varchar(500) DEFAULT NULL COMMENT 'Reason or receipt note',
+  `created_at` datetime(6) NOT NULL COMMENT 'Change time',
+  PRIMARY KEY (`id`),
+  KEY `idx_booking_payment_events_booking_id` (`booking_id`),
+  KEY `idx_booking_payment_events_actor_id` (`actor_id`),
+  CONSTRAINT `fk_booking_payment_events_booking_id` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_booking_payment_events_actor_id` FOREIGN KEY (`actor_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `chk_booking_payment_events_transition` CHECK (`from_status` = 'unpaid' and `to_status` = 'paid' or `from_status` = 'paid' and `to_status` = 'refunded')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Nice-to-have trust: identity verification, trusted Host badge, check-in guide
 

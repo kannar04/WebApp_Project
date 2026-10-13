@@ -43,6 +43,28 @@ INSERT IGNORE INTO listing_amenities (listing_id, amenity_id) VALUES
 (1,1),(1,2),(1,3),(1,4),(2,1),(2,2),(2,3),(2,4),(2,5),(3,1),(3,3),(3,6);
 
 -- Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
+-- Listing 1 deliberately has no rules: fresh/booking tests assert its 2-night total of 2.650.000đ.
+-- Listing 2 only gets stay-length discounts so short-stay browser quotes stay at 4.400.000đ.
+INSERT IGNORE INTO listing_booking_settings (listing_id, weekend_nightly_rate, holiday_nightly_rate, weekly_discount_pct, monthly_discount_pct, instant_book, created_at, updated_at) VALUES
+(2, NULL, NULL, 8, 15, 0, NOW(6), NOW(6)),
+(3, 1090000, 1290000, 10, 20, 1, NOW(6), NOW(6));
+
+-- Demo Vietnamese public holidays for the next ~12 months; an Admin must confirm them before relying on them.
+INSERT IGNORE INTO public_holidays (id, holiday_date, name, is_demo, created_by, created_at, updated_at) VALUES
+(1, '2027-01-01', 'Tết Dương lịch', 1, NULL, NOW(6), NOW(6)),
+(2, '2027-02-05', 'Tết Nguyên Đán (29 Tết)', 1, NULL, NOW(6), NOW(6)),
+(3, '2027-02-06', 'Tết Nguyên Đán (Mùng 1)', 1, NULL, NOW(6), NOW(6)),
+(4, '2027-02-07', 'Tết Nguyên Đán (Mùng 2)', 1, NULL, NOW(6), NOW(6)),
+(5, '2027-02-08', 'Tết Nguyên Đán (Mùng 3)', 1, NULL, NOW(6), NOW(6)),
+(6, '2027-02-09', 'Tết Nguyên Đán (Mùng 4)', 1, NULL, NOW(6), NOW(6)),
+(7, '2027-04-16', 'Giỗ Tổ Hùng Vương', 1, NULL, NOW(6), NOW(6)),
+(8, '2027-04-30', 'Ngày Giải phóng miền Nam', 1, NULL, NOW(6), NOW(6)),
+(9, '2027-05-01', 'Quốc tế Lao động', 1, NULL, NOW(6), NOW(6)),
+(10, '2027-09-01', 'Quốc khánh (nghỉ liền kề)', 1, NULL, NOW(6), NOW(6)),
+(11, '2027-09-02', 'Quốc khánh', 1, NULL, NOW(6), NOW(6));
+
+INSERT IGNORE INTO promotions (id, code, description, discount_type, discount_value, max_discount_amount, min_nights, min_subtotal, valid_from, valid_to, usage_limit, is_active, created_by, created_at, updated_at) VALUES
+(1, 'CHAOHE10', 'Chào hè: giảm 10% tiền phòng, tối đa 500.000đ.', 'percent', 10, 500000, NULL, NULL, '2026-10-01', '2027-12-31', 500, 1, NULL, NOW(6), NOW(6));
 
 -- Nice-to-have trust: identity verification, trusted Host badge, check-in guide
 

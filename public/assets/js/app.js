@@ -104,6 +104,9 @@
                     check_out: fields[1].value,
                     guests: fields[2].value
                 });
+                for (const extra of bookingForm.querySelectorAll('[data-quote-extra]')) {
+                    if (extra.value.trim() !== '') { parameters.set(extra.name, extra.value.trim()); }
+                }
                 if (!parameters.get('check_in') || !parameters.get('check_out')) {
                     quotePanel.textContent = 'Chọn ngày để xem tổng tiền';
                     return;
@@ -132,10 +135,12 @@
                             element.textContent = message;
                             return element;
                         }));
+                        bookingForm.dispatchEvent(new CustomEvent('h2h:quote', {detail: result.data}));
                     } catch (error) {
                         if (error.name === 'AbortError' || currentRevision !== revision) { return; }
                         quotePanel.textContent = error.message || 'Không thể tính giá. Vui lòng thử lại.';
                         quotePanel.classList.add('text-danger');
+                        bookingForm.dispatchEvent(new CustomEvent('h2h:quote-failed'));
                     }
                 }, 250);
             }

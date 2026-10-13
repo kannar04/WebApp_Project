@@ -42,6 +42,19 @@ $router->get('/wishlist',[WishlistController::class,'index']);$router->post('/ap
 $router->get('/host',[HostController::class,'dashboard']);$router->get('/host/listings/create',[HostController::class,'createForm']);$router->post('/host/listings',[HostController::class,'store']);$router->get('/host/listings/{id}/edit',[HostController::class,'editForm']);$router->get('/host/listings/{id}/availability',[HostController::class,'availabilityPage']);$router->post('/host/listings/{id}',[HostController::class,'update']);$router->post('/host/listings/{id}/visibility',[HostController::class,'visibility']);$router->post('/api/host/listings/{id}/availability',[HostController::class,'availability']);$router->post('/host/bookings/{id}/transition',[HostController::class,'transition']);
 $router->get('/admin',[AdminController::class,'dashboard']);$router->post('/admin/users',[AdminController::class,'userCreate']);$router->get('/admin/users/{id}/edit',[AdminController::class,'userEdit']);$router->post('/admin/users/{id}',[AdminController::class,'userUpdate']);$router->post('/admin/users/{id}/delete',[AdminController::class,'userDelete']);$router->post('/admin/users/{id}/status',[AdminController::class,'userStatus']);$router->post('/admin/users/{id}/roles',[AdminController::class,'userRoles']);$router->post('/admin/listings/{id}/moderate',[AdminController::class,'moderate']);$router->get('/admin/listings/{id}/edit',[AdminController::class,'listingEdit']);$router->post('/admin/listings/{id}',[AdminController::class,'listingUpdate']);$router->post('/admin/listings/{id}/visibility',[AdminController::class,'listingVisibility']);$router->post('/admin/listings/{id}/delete',[AdminController::class,'listingDelete']);$router->post('/admin/bookings/{id}/transition',[AdminController::class,'bookingTransition']);
 // Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
+$router->get('/host/listings/{id}/pricing',[\App\Controllers\BookingExtrasController::class,'hostPricing']);
+$router->post('/host/listings/{id}/pricing',[\App\Controllers\BookingExtrasController::class,'hostPricingSave']);
+$router->post('/host/bookings/{id}/payment',[\App\Controllers\BookingExtrasController::class,'hostMarkPaid']);
+$router->get('/admin/holidays',[\App\Controllers\BookingExtrasController::class,'adminHolidays']);
+$router->post('/admin/holidays',[\App\Controllers\BookingExtrasController::class,'adminHolidaySave']);
+$router->post('/admin/holidays/{id}/delete',[\App\Controllers\BookingExtrasController::class,'adminHolidayDelete']);
+$router->get('/admin/promotions',[\App\Controllers\BookingExtrasController::class,'adminPromotions']);
+$router->post('/admin/promotions',[\App\Controllers\BookingExtrasController::class,'adminPromotionSave']);
+$router->post('/admin/promotions/{id}/toggle',[\App\Controllers\BookingExtrasController::class,'adminPromotionToggle']);
+$router->post('/admin/promotions/{id}/delete',[\App\Controllers\BookingExtrasController::class,'adminPromotionDelete']);
+$router->get('/admin/payments',[\App\Controllers\BookingExtrasController::class,'adminPayments']);
+$router->post('/admin/payments/{id}/paid',[\App\Controllers\BookingExtrasController::class,'adminPaymentPaid']);
+$router->post('/admin/payments/{id}/refund',[\App\Controllers\BookingExtrasController::class,'adminPaymentRefund']);
 
 // Nice-to-have trust: identity verification, trusted Host badge, check-in guide
 
