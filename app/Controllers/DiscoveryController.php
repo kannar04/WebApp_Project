@@ -93,13 +93,13 @@ final class DiscoveryController extends Controller
         return [$normalized,[]];
     }
 
-    /** Public JSON/view shape: only what a marker, popup and list item need. */
+    /** Public JSON/view shape: only what a marker, popup and list item need. The property type is a catalog label. */
     public static function mapItems(array $rows): array
     {
         $items=[];
         foreach ($rows as $row) {
             $items[]=['id'=>(int)$row['id'],'title'=>(string)$row['title'],'city'=>(string)$row['city'],
-                'property_type'=>(string)$row['property_type'],'max_guests'=>(int)$row['max_guests'],
+                'property_type'=>__((string)$row['property_type']),'max_guests'=>(int)$row['max_guests'],
                 'price'=>(float)$row['nightly_price'],'price_label'=>number_format((float)$row['nightly_price'],0,',','.').'đ',
                 'rating'=>round((float)$row['rating'],1),'review_count'=>(int)$row['review_count'],
                 'latitude'=>(float)$row['latitude'],'longitude'=>(float)$row['longitude'],

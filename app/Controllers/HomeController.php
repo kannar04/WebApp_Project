@@ -102,7 +102,8 @@ final class HomeController extends Controller
                 $errors['dates']='Vui lòng chọn đủ ngày và bảo đảm ngày trả phòng sau ngày nhận phòng.';
             }
         }
-        return [$filters,$errors?implode(' ',array_unique(array_values($errors))):null,$errors];
+        // The combined search error is translated sentence by sentence; per-field $errors stay as source text.
+        return [$filters,$errors?implode(' ',array_map('__',array_unique(array_values($errors)))):null,$errors];
     }
 }
 
