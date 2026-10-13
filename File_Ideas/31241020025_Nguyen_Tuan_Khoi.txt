@@ -1,0 +1,76 @@
+Tên đồ án: Ứng dụng home 2 home chia sẻ chỗ ở, airBnB
+Người thực hiện: 31241020025 - Nguyễn Tuấn Khôi
+
+Tham khảo: Airbnb, Booking.com, Agoda, Vrbo, Couchsurfing
+Vai trò: Guest (khách thuê) - Host (chủ nhà) - Admin
+
+==================================================
+I. MUST-HAVE (Bắt buộc - Core)
+Không có thì ứng dụng không hoạt động / không có ý nghĩa
+==================================================
+Chung
+- Đăng ký / đăng nhập / đăng xuất, phân quyền Guest - Host - Admin
+- Hồ sơ cá nhân cơ bản (họ tên, ảnh đại diện, số điện thoại)
+
+Host
+- Đăng chỗ ở mới: tên, loại chỗ ở (nguyên căn / phòng riêng / phòng chung),
+  địa chỉ, mô tả, giá/đêm, số khách tối đa, số phòng ngủ, số giường, tiện nghi, hình ảnh
+- Sửa / xóa / ẩn - hiện chỗ ở
+- Quản lý lịch trống (chặn những ngày không cho thuê)
+- Xem yêu cầu đặt chỗ, chấp nhận / từ chối booking
+
+Guest
+- Xem danh sách chỗ ở
+- Tìm kiếm theo địa điểm + ngày check-in / check-out + số khách
+- Xem chi tiết chỗ ở (ảnh, mô tả, giá, tiện nghi, lịch trống, thông tin Host)
+- Đặt chỗ: chọn ngày, hệ thống tự tính tổng tiền (giá/đêm x số đêm + phí)
+- Xem danh sách booking của mình và trạng thái
+- Hủy booking
+
+Hệ thống
+- Chống đặt trùng (double-booking): không cho 2 booking trùng ngày trên cùng 1 chỗ ở
+- Vòng đời booking: Chờ duyệt -> Đã xác nhận -> Hoàn thành / Đã hủy / Bị từ chối
+- Kiểm tra dữ liệu đầu vào (ngày check-out phải sau check-in, không đặt ngày quá khứ,
+  không vượt số khách tối đa)
+
+Admin
+- Quản lý tài khoản (khóa / mở khóa)
+- Quản lý / gỡ bài đăng chỗ ở vi phạm
+
+==================================================
+II. IMPORTANT (Chức năng hỗ trợ)
+==================================================
+- Bộ lọc nâng cao: khoảng giá, loại chỗ ở, tiện nghi (wifi, bếp, máy lạnh, chỗ đậu xe,
+  hồ bơi, cho phép thú cưng...), số phòng ngủ
+- Sắp xếp kết quả: giá tăng / giảm, đánh giá cao nhất, mới nhất
+- Đánh giá + nhận xét sau khi hoàn thành chuyến ở (chỉ người đã ở mới được đánh giá)
+- Host phản hồi đánh giá
+- Lưu chỗ ở yêu thích (Wishlist)
+- Chia sẻ chỗ ở (copy link, Facebook, Zalo)
+- Hiển thị vị trí chỗ ở trên bản đồ (Google Maps / OpenStreetMap)
+- Nội quy chỗ ở: giờ check-in / check-out, có hút thuốc / thú cưng / tổ chức tiệc không
+- Chính sách hủy (linh hoạt / trung bình / nghiêm ngặt) và số tiền hoàn lại tương ứng
+- Thông báo (email hoặc trong app): có booking mới, booking được duyệt / bị từ chối / bị hủy
+- Báo cáo bài đăng sai sự thật / lừa đảo; Admin xử lý báo cáo
+- Admin quản lý danh mục chỗ ở và xóa đánh giá không phù hợp
+- Thống kê cơ bản
+  + Host: số chỗ ở, số booking, doanh thu theo tháng
+  + Admin: số người dùng, số chỗ ở, số booking, số Host / Guest
+
+==================================================
+III. NICE-TO-HAVE (Chức năng bên lề)
+==================================================
+- Nhắn tin trực tiếp giữa Guest và Host
+  (Có thể thay bằng: hiện số điện thoại / nút liên hệ qua Zalo sau khi booking được xác nhận)
+- Thanh toán online (VNPay, MoMo) - bản đơn giản có thể thanh toán khi nhận phòng
+- Giá linh hoạt: giá cuối tuần / ngày lễ cao hơn, giảm giá khi ở theo tuần / tháng
+- Đặt ngay (Instant Book): không cần Host duyệt
+- Xác minh danh tính Host / Guest (số điện thoại, CCCD), huy hiệu "Đã xác minh"
+- Huy hiệu Host uy tín (giống Superhost): đánh giá cao, ít hủy booking
+- Mã giảm giá / khuyến mãi
+- Tìm kiếm trên bản đồ (kéo bản đồ để xem chỗ ở trong khu vực)
+- Gợi ý chỗ ở dựa trên lịch sử tìm kiếm / lượt xem
+- Hướng dẫn nhận phòng (mật khẩu cửa, wifi) chỉ hiện cho khách đã booking
+- Nhắc lịch trước ngày check-in
+- Đa ngôn ngữ (Tiếng Việt / English), dark mode
+- Admin quản lý bài viết / tin tức (cẩm nang du lịch)
