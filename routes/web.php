@@ -46,6 +46,10 @@ $router->get('/admin',[AdminController::class,'dashboard']);$router->post('/admi
 // Nice-to-have trust: identity verification, trusted Host badge, check-in guide
 
 // Nice-to-have conversation: booking messages, check-in reminders
+$router->get('/messages',[\App\Controllers\MessageController::class,'index']);
+$router->post('/bookings/{id}/messages',[\App\Controllers\MessageController::class,'send']);
+$router->get('/admin/messages',[\App\Controllers\MessageController::class,'admin']);
+$router->post('/admin/messages/{id}/moderate',[\App\Controllers\MessageController::class,'moderate']);
 
 // Nice-to-have discovery: map search, recommendations
 

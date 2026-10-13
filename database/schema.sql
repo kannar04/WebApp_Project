@@ -386,6 +386,45 @@ CREATE TABLE IF NOT EXISTS `account_status_events` (
 -- Nice-to-have trust: identity verification, trusted Host badge, check-in guide
 
 -- Nice-to-have conversation: booking messages, check-in reminders
+CREATE TABLE IF NOT EXISTS `booking_messages` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Message ID',
+  `booking_id` bigint(20) unsigned NOT NULL COMMENT 'Booking whose Guest and Host converse',
+  `sender_id` bigint(20) unsigned NOT NULL COMMENT 'Participant who wrote the message',
+  `recipient_id` bigint(20) unsigned NOT NULL COMMENT 'Other booking participant',
+  `body` text NOT NULL COMMENT 'Plain-text content, 1-2000 characters',
+  `created_at` datetime(6) NOT NULL COMMENT 'Send time',
+  `read_at` datetime(6) DEFAULT NULL COMMENT 'Time the recipient opened the thread',
+  `hidden_at` datetime(6) DEFAULT NULL COMMENT 'Admin moderation hide time',
+  `hidden_by` bigint(20) unsigned DEFAULT NULL COMMENT 'Administrator who hid the message',
+  `hidden_reason` varchar(500) DEFAULT NULL COMMENT 'Moderation reason while hidden',
+  PRIMARY KEY (`id`),
+  KEY `idx_booking_messages_booking_id_created_at` (`booking_id`,`created_at`),
+  KEY `idx_booking_messages_recipient_id_read_at` (`recipient_id`,`read_at`),
+  KEY `idx_booking_messages_sender_id` (`sender_id`),
+  KEY `idx_booking_messages_hidden_by` (`hidden_by`),
+  CONSTRAINT `fk_booking_messages_booking_id` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_booking_messages_sender_id` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_booking_messages_recipient_id` FOREIGN KEY (`recipient_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_booking_messages_hidden_by` FOREIGN KEY (`hidden_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `chk_booking_messages_body` CHECK (char_length(`body`) between 1 and 2000),
+  CONSTRAINT `chk_booking_messages_participants` CHECK (`sender_id` <> `recipient_id`),
+  CONSTRAINT `chk_booking_messages_hidden` CHECK (`hidden_at` is null and `hidden_by` is null and `hidden_reason` is null or `hidden_at` is not null and `hidden_by` is not null and `hidden_reason` is not null)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `booking_reminders` (
+  `booking_id` bigint(20) unsigned NOT NULL COMMENT 'Confirmed booking being reminded',
+  `user_id` bigint(20) unsigned NOT NULL COMMENT 'Reminded participant',
+  `kind` varchar(20) NOT NULL COMMENT 'guest_check_in | host_check_in',
+  `notification_id` bigint(20) unsigned DEFAULT NULL COMMENT 'In-app notification created for this reminder',
+  `created_at` datetime(6) NOT NULL COMMENT 'Reminder creation time',
+  PRIMARY KEY (`booking_id`,`user_id`,`kind`),
+  KEY `idx_booking_reminders_user_id` (`user_id`),
+  KEY `idx_booking_reminders_notification_id` (`notification_id`),
+  CONSTRAINT `fk_booking_reminders_booking_id` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_booking_reminders_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_booking_reminders_notification_id` FOREIGN KEY (`notification_id`) REFERENCES `notifications` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `chk_booking_reminders_kind` CHECK (`kind` in ('guest_check_in','host_check_in'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Nice-to-have discovery: map search, recommendations
 
