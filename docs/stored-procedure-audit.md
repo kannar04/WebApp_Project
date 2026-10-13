@@ -2,6 +2,8 @@
 
 Ngày kiểm tra: 2026-10-09. Trạng thái: **COMPLIANT trong phạm vi SQL nghiệp vụ PHP**, đã kiểm thử runtime; không phải chứng nhận production.
 
+Cập nhật 2026-10-13: routine của 5 chức năng Nice-to-have (53 mới, 4 đổi tham số) ở mục [Nice-to-have routines — 2026-10-13](#nice-to-have-routines--2026-10-13).
+
 Cleanup follow-up: [codebase-cleanup-report.md](codebase-cleanup-report.md). Số liệu refactor bên dưới là lịch sử; installer hiện không chạy migration DROP `040` tự động, schema khởi tạo đã khớp DDL 22 bảng, và các số đếm dữ liệu cũ không phải invariant của app đang sử dụng.
 
 ## Kết quả
@@ -238,6 +240,73 @@ No reproduced P0–P2 remains in the tested implemented journeys. This is a loca
 - Configure a separate production web DB user with EXECUTE on runtime routines only. Do **not** grant it test/seed/migration access or use root. No shared grants were changed here.
 - Test-only routines are opt-in. Historical fixture creation additionally requires the exact isolated schema-test database naming pattern.
 - Reset-password/email delivery/payments/maps and other features without current routes are not implemented by this task. High-load testing and full accessibility remain NOT_VERIFIED.
+
+## Nice-to-have routines — 2026-10-13
+
+Sau khi gộp 5 nhánh Nice-to-have, quy tắc “SQL nghiệp vụ chỉ qua routine” vẫn giữ nguyên. Gate sau gộp (`tests/stored_procedure_audit_test.php` trong `fresh_setup_test.php --quality-regression`) ghi nhận: installer **159 production definitions, 38 opt-in test definitions, zero DROP**; **236 CALL sites / 179 routine signatures** khớp với database (trước đó 106/16 và 140/108). Trên DB nâng cấp thử: 151 tên routine production khác nhau (trước 98), tức **53 routine mới**; không có `sp_test_*`.
+
+Quy ước chung cho mọi routine ghi dữ liệu mới: tự `START TRANSACTION` nếu caller chưa mở transaction, ngược lại dùng SAVEPOINT có tên; `EXIT HANDLER` rollback phần việc của chính routine rồi `RESIGNAL`; lỗi nghiệp vụ là `SIGNAL SQLSTATE '45000'` với thông báo tiếng Việt. Quyền được kiểm tra trong routine (không chỉ ở controller), tái sử dụng `sp_admin_assert_role`, `sp_admin_audit_add`, `sp_quality_assert_host`, `sp_quality_assert_booking`, `sp_booking_validate` (không đổi). Ngày theo giờ Việt Nam (UTC+7).
+
+### Routine đã có bị thay đổi
+
+| Routine | File | Thay đổi | Test |
+|---|---|---|---|
+| `sp_booking_quote` | `020_booking.sql` | Thêm `p_promo` (5 tham số); giá tính bằng `sp_booking_extras_price` chế độ không khóa, mã sai trả về thông báo thay vì lỗi | feature_booking_extras_test, booking_flow_test |
+| `sp_booking_create` | `020_booking.sql` | Thêm `p_promo` (6 tham số); giữ khóa listing `FOR UPDATE` + kiểm tra trùng lịch như cũ, sau đó gọi `sp_booking_extras_price` chế độ strict; ghi `booking_nights` theo giá từng đêm, `booking_price_breakdowns`, dòng `booking_payments` chưa thu; Instant Book → `confirmed` ngay, event hệ thống (actor NULL), thông báo `booking_confirmed` cho Guest và `booking_instant` cho Host; trả về `booking_id`, `booking_status` | feature_booking_extras_test (gồm hai process tranh chấp), booking_flow_test, procedure_flow_test |
+| `sp_listing_create` | `010_models.sql` | Thêm `p_19`/`p_20` vĩ độ/kinh độ (20 tham số): phải có cả hai hoặc bỏ trống cả hai, vĩ độ −90..90, kinh độ −180..180 | feature_discovery_test |
+| `sp_listing_update` | `010_models.sql` | Thêm `p_20`/`p_21` (21 tham số), cùng quy tắc tọa độ | feature_discovery_test |
+
+### Routine mới
+
+| Routine | File | Mục đích | Transaction / khóa / quyền | Test |
+|---|---|---|---|---|
+| `sp_booking_extras_night_rate` | `070_booking_extras.sql` | Giá một đêm: ngày lễ > cuối tuần (đêm thứ Sáu/thứ Bảy) > giá gốc | Thuần tính toán | feature_booking_extras_test (qua quote/create) |
+| `sp_booking_extras_price` | `070` | Tổng giá: giá từng đêm, giảm tuần/tháng (không cộng dồn), mã khuyến mãi, phí; làm tròn đến đồng | Strict (khi tạo booking): listing `FOR UPDATE`, cài đặt `LOCK IN SHARE MODE`, mã khuyến mãi `FOR UPDATE`, đếm lượt dùng `LOCK IN SHARE MODE`, mã sai → SIGNAL | feature_booking_extras_test |
+| `sp_listing_booking_rules` | `070` | Tóm tắt quy tắc giá công khai cho trang chi tiết | Chỉ đọc, không dữ liệu riêng tư | feature_booking_extras_test |
+| `sp_public_holidays_upcoming` | `070` | Ngày lễ sắp tới | Chỉ đọc; giới hạn 1..50 | feature_booking_extras_test |
+| `sp_host_booking_settings_get` / `_save` | `070` | Đọc/lưu giá cuối tuần, ngày lễ, % giảm, Instant Book | `sp_quality_assert_host` (chủ chỗ ở); save khóa listing `FOR UPDATE`, % giảm 0–90; không gửi duyệt lại | feature_booking_extras_test |
+| `sp_admin_holidays` / `sp_admin_holiday_save` / `sp_admin_holiday_delete` | `070` | Quản lý ngày lễ; lưu ngày đã có sẽ đổi tên và bỏ cờ demo | `sp_admin_assert_role`; `FOR UPDATE`; audit `save_holiday`/`delete_holiday` | feature_booking_extras_test |
+| `sp_admin_promotions` / `sp_admin_promotion_save` / `_toggle` / `_delete` | `070` | Quản lý mã khuyến mãi; mã đã có booking không đổi tên/xóa được, chỉ tắt | `sp_admin_assert_role`; `FOR UPDATE`; audit `save_promotion`/`toggle_promotion`/`delete_promotion` | feature_booking_extras_test |
+| `sp_booking_extras_detail` | `070` | Bảng giá chi tiết và trạng thái thanh toán của một booking | `sp_quality_assert_booking` | feature_booking_extras_test |
+| `sp_booking_payment_list` | `070` | Trạng thái thanh toán theo phạm vi `guest` (booking của mình) hoặc `host` (booking chỗ ở của mình) | Chỉ đọc, lọc theo actor | feature_booking_extras_test |
+| `sp_booking_payment_mark_paid` | `070` | Ghi nhận đã thu tiền khi nhận phòng | Host chủ chỗ ở hoặc Admin; booking `confirmed`/`completed`; từ ngày nhận phòng (giờ VN); chỉ một lần; khóa listing + booking + payment; tạo dòng payment nếu booking cũ chưa có; event + thông báo `payment_paid`; audit `mark_payment_paid` khi Admin | feature_booking_extras_test |
+| `sp_booking_payment_refund` | `070` | Hoàn tiền | Chỉ Admin; ghi chú bắt buộc; `paid` → `refunded`; thông báo `payment_refunded`; audit `refund_payment` | feature_booking_extras_test |
+| `sp_admin_payments` / `sp_admin_payment_totals` | `070` | Danh sách thanh toán (lọc trạng thái/từ khóa, tối đa 200) và tổng tiền | `sp_admin_assert_role` | feature_booking_extras_test |
+| `sp_identity_verification_submit` | `075_trust.sql` | Gửi xác minh họ tên, SĐT, CCCD | Khóa dòng user; SĐT `^0[35789]\d{8}`; CCCD 12 số; một yêu cầu chờ; không gửi lại sau khi đã duyệt | feature_trust_test |
+| `sp_identity_verification_status` | `075` | Trạng thái của chính mình (CCCD đã che) | Chỉ actor | feature_trust_test |
+| `sp_admin_identity_verifications` | `075` | Danh sách yêu cầu (tối đa 200); CCCD đầy đủ chỉ khi đang chờ | `sp_admin_assert_role` | feature_trust_test |
+| `sp_admin_identity_verification_decide` | `075` | Duyệt/từ chối | Admin; `FOR UPDATE`; không tự duyệt chính mình; lý do từ chối ≥5 ký tự; che CCCD thành `********NNNN`; audit `approve_identity`/`reject_identity` không chứa CCCD; thông báo | feature_trust_test |
+| `sp_trust_badges` | `075` | Huy hiệu “Đã xác minh” và “Host uy tín” (≥3 đánh giá hiển thị, TB ≥4,5, tỷ lệ Host từ chối/hủy ≤10% trong 12 tháng, chỉ xét từ 3 yêu cầu đã quyết định) | Chỉ đọc; số liệu chi tiết chỉ trả cho chính người đó hoặc Admin | feature_trust_test |
+| `sp_trust_review_badges` | `075` | Đánh dấu người viết đánh giá đã xác minh | Chỉ đọc, chỉ đánh giá đang hiển thị | feature_trust_test |
+| `sp_checkin_guide_for_host` / `sp_checkin_guide_save` | `075` | Đọc/lưu hướng dẫn nhận phòng của chỗ ở | Chủ chỗ ở; save `FOR UPDATE` | feature_trust_test |
+| `sp_checkin_guide_for_booking` | `075` | Hướng dẫn hiển thị trên booking | Booking `confirmed`/`completed` và actor là Guest của booking, Host chủ chỗ ở hoặc Admin | feature_trust_test |
+| `sp_booking_message_assert` / `sp_booking_message_state` | `080_conversation.sql` | Kiểm tra người tham gia (Guest, Host còn vai trò host) và trạng thái được gửi: `pending`/`confirmed` mở; `completed` mở đến 14 ngày sau trả phòng; `rejected`/`cancelled` chỉ xem | Chỉ đọc; SIGNAL nếu không tham gia | feature_conversation_test |
+| `sp_booking_message_send` | `080` | Gửi tin 1–2000 ký tự | Booking `FOR UPDATE`; chống dồn: mỗi người nhận tối đa một thông báo tin nhắn chưa đọc/booking (`FOR UPDATE` trên notifications) | feature_conversation_test |
+| `sp_booking_messages_thread` | `080` | Hội thoại (500 tin gần nhất), đánh dấu đã đọc | Người tham gia; tin bị ẩn trả nội dung NULL | feature_conversation_test |
+| `sp_message_inbox` / `sp_message_unread_count` | `080` | Inbox (tối đa 200) và số tin chưa đọc | Chỉ của actor | feature_conversation_test |
+| `sp_admin_messages_search` / `sp_admin_message_thread` | `080` | Admin tìm tin nhắn (LIKE theo chữ, tối đa 200) và xem hội thoại | `sp_admin_assert_role` | feature_conversation_test |
+| `sp_admin_message_moderate` | `080` | Ẩn/hiện tin nhắn | Admin; `FOR UPDATE`; lý do 5–500 ký tự; audit `hide_message`/`unhide_message` | feature_conversation_test |
+| `sp_checkin_reminders_run` | `080` | Tạo thông báo nhắc lịch cho booking `confirmed` nhận phòng trong `p_days` ngày (0..30); `p_user` NULL = mọi người (CLI), có giá trị = chỉ người đó (lượt tải trang) | Idempotent bằng `INSERT IGNORE` vào `booking_reminders` (khóa chính booking + người nhận + loại); trả về `created_count` | feature_conversation_test |
+| `sp_discovery_map_search` | `085_discovery.sql` | Chỗ ở công khai trong khung bản đồ, hỗ trợ vượt kinh tuyến 180; trả `__total` | Chỉ đọc; limit 1–100 | feature_discovery_test |
+| `sp_discovery_view_record` | `085` | Ghi lượt xem (một dòng/tài khoản/chỗ ở) | Bỏ qua chỗ ở của chính mình hoặc không công khai | feature_discovery_test |
+| `sp_discovery_search_record` | `085` | Ghi lịch sử tìm kiếm, giữ 20 lần gần nhất | Khóa dòng user | feature_discovery_test |
+| `sp_discovery_recommendations` | `085` | Gợi ý theo luật (thành phố đã xem, nơi đã tìm, loại chỗ ở, mức giá, đánh giá); có cờ `personalized` và lý do | Chỉ đọc; limit 1–24; không gợi ý chỗ ở của chính mình | feature_discovery_test |
+| `sp_discovery_recent_views` / `sp_discovery_history_summary` | `085` | Đã xem gần đây (1–20) và tóm tắt lịch sử | Chỉ lịch sử của actor | feature_discovery_test |
+| `sp_discovery_history_clear` | `085` | Xóa lịch sử xem + tìm kiếm | Khóa dòng user; chỉ xóa của actor | feature_discovery_test |
+| `sp_article_public_list` / `sp_article_public_get` / `sp_article_public_related` | `090_content.sql` | Bài viết công khai, chi tiết theo slug, bài liên quan | Chỉ đọc, chỉ bài `published` chưa xóa | feature_content_test |
+| `sp_admin_articles` / `sp_admin_article_find` | `090` | Danh sách/tìm bài cho Admin | `sp_admin_assert_role` | feature_content_test |
+| `sp_admin_article_save` | `090` | Tạo/sửa bài; kiểm tra chuyên mục, tiêu đề 5–200, slug, tóm tắt, nội dung 20–50000; slug tự sinh thêm `-2`, `-3`… | Admin; `FOR UPDATE`; audit `create_article`/`update_article` | feature_content_test |
+| `sp_admin_article_set_status` / `sp_admin_article_delete` | `090` | Xuất bản/ẩn, xóa mềm | Admin; `FOR UPDATE`; audit `publish_article`/`unpublish_article`/`delete_article` | feature_content_test |
+
+Test fixture routines mới (22, chỉ cài bằng `--include-tests` trong DB test riêng): 8 `testing_booking_extras.sql`, 4 `testing_trust.sql`, 4 `testing_conversation.sql`, 4 `testing_discovery.sql`, 2 `testing_content.sql`.
+
+Giới hạn giữ nguyên từ báo cáo các nhánh: VNPay/MoMo chưa tích hợp (điểm tích hợp dự kiến: `booking_payments.method` + `sp_booking_payment_mark_paid`); booking tạo trước tính năng chưa có dòng thanh toán cho đến khi được đánh dấu đã thu; gợi ý tính trực tiếp mỗi lần, không cache; huy hiệu Host uy tín tính trong SQL mỗi lần tải trang.
+
+```powershell
+C:\xampp\php\php.exe tests\fresh_setup_test.php --quality-regression --no-screenshots
+```
+
+Lệnh trên tự chạy mọi `tests/feature_*_test.php` và `tests/feature_*_audit.ps1` trong DB/server tạm riêng.
 
 ## Run / reproduce
 
