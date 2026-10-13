@@ -31,7 +31,7 @@
             const minimum = filterForm.elements.min_price;
             const maximum = filterForm.elements.max_price;
             const feedback = filterForm.querySelector('[data-price-error]');
-            const rangeMessage = 'Giá đến phải lớn hơn hoặc bằng giá từ.';
+            const rangeMessage = h2hT('Giá đến phải lớn hơn hoặc bằng giá từ.');
             function validatePriceRange() {
                 const min = Number(minimum.value);
                 const max = Number(maximum.value);
@@ -62,7 +62,7 @@
                 if (button) {
                     button.dataset.idleLabel = button.textContent;
                     button.disabled = true;
-                    button.textContent = 'Đang tìm…';
+                    button.textContent = h2hT('Đang tìm…');
                 }
             });
         });
@@ -94,12 +94,12 @@
                     });
                     const result = await response.json();
                     if (!response.ok || !result.success) {
-                        throw new Error(result.message || 'Không thể cập nhật yêu thích.');
+                        throw new Error(result.message || h2hT('Không thể cập nhật yêu thích.'));
                     }
                     this.classList.toggle('is-saved', result.data.saved);
                     this.setAttribute('aria-pressed', String(result.data.saved));
                 } catch (error) {
-                    alert(error.message || 'Không thể cập nhật yêu thích. Vui lòng thử lại.');
+                    alert(error.message || h2hT('Không thể cập nhật yêu thích. Vui lòng thử lại.'));
                 } finally {
                     this.disabled = false;
                 }
@@ -113,7 +113,8 @@
             let timer;
             let requestController;
             let revision = 0;
-            const money = value => new Intl.NumberFormat('vi-VN').format(value) + 'đ';
+            // Money keeps the Vietnamese format (dong sign) in both languages.
+            const money = value => new Intl.NumberFormat('vi-VN').format(value) + '\u0111';
 
             function updateQuote() {
                 clearTimeout(timer);
@@ -129,10 +130,10 @@
                     if (extra.value.trim() !== '') { parameters.set(extra.name, extra.value.trim()); }
                 }
                 if (!parameters.get('check_in') || !parameters.get('check_out')) {
-                    quotePanel.textContent = 'Chọn ngày để xem tổng tiền';
+                    quotePanel.textContent = h2hT('Chọn ngày để xem tổng tiền');
                     return;
                 }
-                quotePanel.textContent = 'Đang kiểm tra lịch và tính giá…';
+                quotePanel.textContent = h2hT('Đang kiểm tra lịch và tính giá…');
                 timer = setTimeout(async () => {
                     requestController = new AbortController();
                     try {
@@ -144,12 +145,12 @@
                         // A slow earlier response must never replace the latest dates.
                         if (currentRevision !== revision) { return; }
                         if (!response.ok || !result.success) {
-                            throw new Error(result.message || 'Không thể tính giá.');
+                            throw new Error(result.message || h2hT('Không thể tính giá.'));
                         }
                         const rows = [
-                            `${result.data.nights} đêm × ${money(result.data.nightly_price)}`,
-                            `Phụ phí: ${money(result.data.fee)}`,
-                            `Tổng: ${money(result.data.total)}`
+                            h2hT('{nights} đêm × {price}', {nights: result.data.nights, price: money(result.data.nightly_price)}),
+                            h2hT('Phụ phí: {amount}', {amount: money(result.data.fee)}),
+                            h2hT('Tổng: {amount}', {amount: money(result.data.total)})
                         ];
                         quotePanel.replaceChildren(...rows.map((message, index) => {
                             const element = document.createElement(index === 2 ? 'strong' : 'div');
@@ -159,7 +160,7 @@
                         bookingForm.dispatchEvent(new CustomEvent('h2h:quote', {detail: result.data}));
                     } catch (error) {
                         if (error.name === 'AbortError' || currentRevision !== revision) { return; }
-                        quotePanel.textContent = error.message || 'Không thể tính giá. Vui lòng thử lại.';
+                        quotePanel.textContent = error.message || h2hT('Không thể tính giá. Vui lòng thử lại.');
                         quotePanel.classList.add('text-danger');
                         bookingForm.dispatchEvent(new CustomEvent('h2h:quote-failed'));
                     }
@@ -173,7 +174,7 @@
                 if (submitButton) {
                     submitButton.dataset.idleLabel = submitButton.textContent;
                     submitButton.disabled = true;
-                    submitButton.textContent = 'Đang gửi yêu cầu…';
+                    submitButton.textContent = h2hT('Đang gửi yêu cầu…');
                 }
             });
         }
@@ -190,10 +191,10 @@
                     await navigator.share({title: document.title, url: location.href});
                 } else {
                     await navigator.clipboard.writeText(location.href);
-                    alert('Đã sao chép liên kết.');
+                    alert(h2hT('Đã sao chép liên kết.'));
                 }
             } catch (error) {
-                if (error.name !== 'AbortError') { alert('Không thể chia sẻ. Bạn có thể sao chép liên kết trên thanh địa chỉ.'); }
+                if (error.name !== 'AbortError') { alert(h2hT('Không thể chia sẻ. Bạn có thể sao chép liên kết trên thanh địa chỉ.')); }
             }
         });
 
@@ -208,7 +209,7 @@
             if (secret.dataset.trustSecret === undefined) { secret.dataset.trustSecret = secret.textContent; }
             secret.textContent = visible ? secret.dataset.trustSecret : '••••••';
             button.setAttribute('aria-pressed', String(visible));
-            label.textContent = visible ? 'Ẩn' : 'Hiện';
+            label.textContent = visible ? h2hT('Ẩn') : h2hT('Hiện');
         }
         function toggleTrustSecret(event) {
             const button = event.currentTarget;

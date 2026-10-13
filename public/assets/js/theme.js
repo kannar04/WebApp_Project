@@ -21,10 +21,13 @@
 
     function syncButtons(theme) {
         var dark = theme === 'dark';
-        var label = dark ? 'Tắt chế độ tối' : 'Bật chế độ tối';
+        // Runs before app.js (no h2hT yet): each button carries both labels in the interface language.
+        var labelAttribute = dark ? 'data-label-dark-off' : 'data-label-dark-on';
         var buttons = document.querySelectorAll('[data-theme-toggle]');
         for (var i = 0; i < buttons.length; i++) {
             buttons[i].setAttribute('aria-pressed', dark ? 'true' : 'false');
+            var label = buttons[i].getAttribute(labelAttribute);
+            if (!label) { continue; }
             buttons[i].setAttribute('title', label);
             var text = buttons[i].querySelector('[data-theme-label]');
             if (text) { text.textContent = label; }

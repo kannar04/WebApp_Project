@@ -136,7 +136,8 @@ final class AdminArticleController extends Controller
         $excerpt = $input['excerpt'] !== '' ? (string) preg_replace('/\s+/u', ' ', $input['excerpt']) : ArticleText::excerptFrom($input['body']);
         if (mb_strlen($excerpt) > 500) { $errors[] = 'Tóm tắt tối đa 500 ký tự.'; }
         if (mb_strlen($input['cover_alt']) > 255) { $errors[] = 'Mô tả ảnh bìa tối đa 255 ký tự.'; }
-        if ($errors) { $this->back($back, $input, implode(' ', $errors)); }
+        // Each sentence is translated before joining; the layout can only translate whole known sentences.
+        if ($errors) { $this->back($back, $input, implode(' ', array_map('__', $errors))); }
 
         $cover = null;
         try {

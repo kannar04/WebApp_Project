@@ -18,7 +18,7 @@
         var button = event.target.querySelector('button[type="submit"]');
         if (button) {
             button.disabled = true;
-            button.textContent = 'Đang gửi…';
+            button.textContent = window.h2hT('Đang gửi…');
         }
     }
 
@@ -26,7 +26,7 @@
         var button = document.querySelector('[data-message-form] button[type="submit"]');
         if (button) {
             button.disabled = false;
-            button.textContent = 'Gửi tin nhắn';
+            button.textContent = window.h2hT('Gửi tin nhắn');
         }
     }
 

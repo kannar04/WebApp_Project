@@ -57,9 +57,11 @@
     }
 
     function compactPrice(price) {
-        if (price >= 1000000) { return (Math.round(price / 100000) / 10).toLocaleString('vi-VN') + 'tr'; }
+        // Number format stays Vietnamese; only the million abbreviation ("tr") is a word, so it goes through h2hT.
+        if (price >= 1000000) { return window.h2hT('{amount}tr', {amount: (Math.round(price / 100000) / 10).toLocaleString('vi-VN')}); }
         if (price >= 1000) { return Math.round(price / 1000).toLocaleString('vi-VN') + 'k'; }
-        return Math.round(price).toLocaleString('vi-VN') + 'đ';
+        // Money keeps the Vietnamese format (dong sign) in both languages.
+        return Math.round(price).toLocaleString('vi-VN') + '\u0111';
     }
 
     function parseJson(text, fallback) {
@@ -94,9 +96,9 @@
         build() {
             const viewport = element('div', 'h2h-map-viewport' + (this.interactive ? '' : ' is-static'));
             viewport.setAttribute('role', 'region');
-            viewport.setAttribute('aria-roledescription', 'bản đồ');
-            viewport.setAttribute('aria-label', (this.options.label || 'Bản đồ') + (this.interactive
-                ? '. Dùng phím mũi tên để di chuyển, phím + và − để phóng to hoặc thu nhỏ.' : ''));
+            viewport.setAttribute('aria-roledescription', window.h2hT('bản đồ'));
+            viewport.setAttribute('aria-label', (this.options.label || window.h2hT('Bản đồ')) + (this.interactive
+                ? window.h2hT('. Dùng phím mũi tên để di chuyển, phím + và − để phóng to hoặc thu nhỏ.') : ''));
             if (this.interactive) { viewport.tabIndex = 0; }
             this.tilePane = element('div', 'h2h-map-tiles');
             this.tilePane.setAttribute('aria-hidden', 'true');
@@ -116,8 +118,8 @@
             this.zoomOutButton = element('button', '', '−');
             this.zoomInButton.type = 'button';
             this.zoomOutButton.type = 'button';
-            this.zoomInButton.setAttribute('aria-label', 'Phóng to bản đồ');
-            this.zoomOutButton.setAttribute('aria-label', 'Thu nhỏ bản đồ');
+            this.zoomInButton.setAttribute('aria-label', window.h2hT('Phóng to bản đồ'));
+            this.zoomOutButton.setAttribute('aria-label', window.h2hT('Thu nhỏ bản đồ'));
             controls.append(this.zoomInButton, this.zoomOutButton);
             const attribution = element('div', 'h2h-map-attribution', '© ');
             const link = element('a', '', 'OpenStreetMap contributors');
@@ -308,7 +310,7 @@
                 const node = element('button', 'h2h-map-marker', compactPrice(item.price));
                 node.type = 'button';
                 node.dataset.listingId = String(item.id);
-                node.setAttribute('aria-label', item.title + ', ' + item.price_label + ' mỗi đêm');
+                node.setAttribute('aria-label', window.h2hT('{title}, {price} mỗi đêm', {title: item.title, price: item.price_label}));
                 node.setAttribute('aria-expanded', 'false');
                 node.setAttribute('aria-controls', this.popup.id);
                 this.markerPane.append(node);
@@ -342,7 +344,7 @@
             const item = marker.item;
             const close = element('button', 'h2h-map-popup-close', '×');
             close.type = 'button';
-            close.setAttribute('aria-label', 'Đóng thông tin chỗ ở');
+            close.setAttribute('aria-label', window.h2hT('Đóng thông tin chỗ ở'));
             close.dataset.popupClose = 'true';
             const image = element('img');
             image.src = item.photo;
@@ -350,8 +352,8 @@
             const body = element('div', 'h2h-map-popup-body');
             const title = element('a', '', item.title);
             title.href = item.url;
-            const meta = element('p', 'h2h-map-popup-meta', item.city + ' · ' + item.property_type + ' · ' + item.max_guests + ' khách');
-            const price = element('p', 'h2h-map-popup-price', item.price_label + ' / đêm' + (item.review_count > 0 ? ' · ★ ' + item.rating.toFixed(1) : ''));
+            const meta = element('p', 'h2h-map-popup-meta', item.city + ' · ' + item.property_type + ' · ' + window.h2hT('{count} khách', {count: item.max_guests}));
+            const price = element('p', 'h2h-map-popup-price', item.price_label + ' ' + window.h2hT('/ đêm') + (item.review_count > 0 ? ' · ★ ' + item.rating.toFixed(1) : ''));
             body.append(title, meta, price);
             this.popup.replaceChildren(close, image, body);
             this.popup.setAttribute('aria-label', item.title);
@@ -496,7 +498,8 @@
             this.request = 0;
             this.abort = null;
             this.runQuery = this.query.bind(this);
-            const items = parseJson(container.dataset.initial, []);
+            this.typeLabels = parseJson(container.dataset.typeLabels, {});
+            const items = this.localize(parseJson(container.dataset.initial, []));
             this.map = new SlippyMap(container, {center: VIETNAM, zoom: VIETNAM.zoom, label: container.dataset.label,
                 onMove: this.onMove.bind(this), onMarkerSelect: this.onMarkerSelect.bind(this)});
             this.map.setMarkers(items);
@@ -506,6 +509,14 @@
             this.list.addEventListener('focusin', this);
             this.list.addEventListener('mouseleave', this);
             this.list.addEventListener('focusout', this);
+        }
+
+        /** The map API sends property type names in Vietnamese; the page supplies them in the interface language. */
+        localize(items) {
+            for (const item of items) {
+                if (Object.prototype.hasOwnProperty.call(this.typeLabels, item.property_type)) { item.property_type = this.typeLabels[item.property_type]; }
+            }
+            return items;
         }
 
         handleEvent(event) {
@@ -556,19 +567,20 @@
             if (request !== this.request) { return; }
             this.results.removeAttribute('aria-busy');
             if (!result.body || !result.body.success) {
-                this.showError(result.body && result.body.message ? result.body.message : 'Không tải được chỗ ở trong khu vực này.');
+                this.showError(result.body && result.body.message ? result.body.message : window.h2hT('Không tải được chỗ ở trong khu vực này.'));
                 return;
             }
             this.showError('');
             const data = result.body.data;
-            this.map.setMarkers(data.listings);
-            this.renderList(data.listings, data.total);
+            const listings = this.localize(data.listings);
+            this.map.setMarkers(listings);
+            this.renderList(listings, data.total);
         }
 
         fail(request, error) {
             if (request !== this.request || (error && error.name === 'AbortError')) { return; }
             this.results.removeAttribute('aria-busy');
-            this.showError('Không tải được chỗ ở trong khu vực này. Vui lòng kiểm tra kết nối và thử lại.');
+            this.showError(window.h2hT('Không tải được chỗ ở trong khu vực này. Vui lòng kiểm tra kết nối và thử lại.'));
         }
 
         showError(message) {
@@ -591,18 +603,18 @@
                 image.height = 72;
                 const body = element('span', 'discovery-map-item-body');
                 const price = element('span', 'discovery-map-item-price', item.price_label + ' ');
-                price.append(element('span', '', '/ đêm'));
+                price.append(element('span', '', window.h2hT('/ đêm')));
                 if (item.review_count > 0) { price.append(' · ★ ' + item.rating.toFixed(1)); }
                 body.append(element('strong', '', item.title),
-                    element('span', 'discovery-map-item-meta', item.city + ' · ' + item.property_type + ' · ' + item.max_guests + ' khách'), price);
+                    element('span', 'discovery-map-item-meta', item.city + ' · ' + item.property_type + ' · ' + window.h2hT('{count} khách', {count: item.max_guests})), price);
                 link.append(image, body);
                 row.append(link);
                 rows.push(row);
             }
             this.list.replaceChildren.apply(this.list, rows);
             const label = total > items.length
-                ? 'Hiển thị ' + items.length + '/' + total + ' chỗ ở trong khu vực này — phóng to để xem thêm'
-                : total + ' chỗ ở trong khu vực này';
+                ? window.h2hT('Hiển thị {shown}/{total} chỗ ở trong khu vực này — phóng to để xem thêm', {shown: items.length, total: total})
+                : window.h2hT('{total} chỗ ở trong khu vực này', {total: total});
             this.count.replaceChildren(element('strong', '', label));
             this.empty.hidden = items.length > 0;
         }
@@ -649,11 +661,11 @@
             let latMessage = '';
             let lngMessage = '';
             if ((lat === null) !== (lng === null)) {
-                const message = 'Vui lòng nhập cả vĩ độ và kinh độ, hoặc để trống cả hai.';
+                const message = window.h2hT('Vui lòng nhập cả vĩ độ và kinh độ, hoặc để trống cả hai.');
                 if (lat === null) { latMessage = message; } else { lngMessage = message; }
             }
-            if (lat !== null && !(Math.abs(lat) <= 90)) { latMessage = 'Vĩ độ phải từ -90 đến 90.'; }
-            if (lng !== null && !(Math.abs(lng) <= 180)) { lngMessage = 'Kinh độ phải từ -180 đến 180.'; }
+            if (lat !== null && !(Math.abs(lat) <= 90)) { latMessage = window.h2hT('Vĩ độ phải từ -90 đến 90.'); }
+            if (lng !== null && !(Math.abs(lng) <= 180)) { lngMessage = window.h2hT('Kinh độ phải từ -180 đến 180.'); }
             this.latitude.setCustomValidity(latMessage);
             this.longitude.setCustomValidity(lngMessage);
             return latMessage === '' && lngMessage === '' && lat !== null && lng !== null ? {lat: lat, lng: lng} : null;
@@ -679,7 +691,7 @@
             this.longitude.value = lng.toFixed(6);
             this.validate();
             this.syncPin();
-            this.status.textContent = 'Đã chọn vị trí: ' + this.latitude.value + ', ' + this.longitude.value + '.';
+            this.status.textContent = window.h2hT('Đã chọn vị trí: {lat}, {lng}.', {lat: this.latitude.value, lng: this.longitude.value});
         }
 
         clear() {
@@ -687,7 +699,7 @@
             this.longitude.value = '';
             this.validate();
             this.syncPin();
-            this.status.textContent = 'Đã xóa tọa độ; chỗ ở sẽ không hiện trên bản đồ.';
+            this.status.textContent = window.h2hT('Đã xóa tọa độ; chỗ ở sẽ không hiện trên bản đồ.');
         }
 
         syncPin() {

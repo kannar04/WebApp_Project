@@ -8,9 +8,16 @@ final class ArticleText
     public const CATEGORIES = ['news' => 'Tin tức', 'guide' => 'Cẩm nang du lịch'];
     public const SLUG_PATTERN = '/^[a-z0-9]+(?:-[a-z0-9]+)*$/D';
     private const SLUG_MAX = 180;
+    // Lowercase letters folded to ASCII, written as escapes so the i18n scan does not read slug data as interface text:
+    // a àáạảãâầấậẩẫăằắặẳẵ · e èéẹẻẽêềếệểễ · i ìíịỉĩ · o òóọỏõôồốộổỗơờớợởỡ · u ùúụủũưừứựửữ · y ỳýỵỷỹ · d đ
     private const FOLD = [
-        'a' => 'àáạảãâầấậẩẫăằắặẳẵ', 'e' => 'èéẹẻẽêềếệểễ', 'i' => 'ìíịỉĩ', 'o' => 'òóọỏõôồốộổỗơờớợởỡ',
-        'u' => 'ùúụủũưừứựửữ', 'y' => 'ỳýỵỷỹ', 'd' => 'đ',
+        'a' => "\u{e0}\u{e1}\u{1ea1}\u{1ea3}\u{e3}\u{e2}\u{1ea7}\u{1ea5}\u{1ead}\u{1ea9}\u{1eab}\u{103}\u{1eb1}\u{1eaf}\u{1eb7}\u{1eb3}\u{1eb5}",
+        'e' => "\u{e8}\u{e9}\u{1eb9}\u{1ebb}\u{1ebd}\u{ea}\u{1ec1}\u{1ebf}\u{1ec7}\u{1ec3}\u{1ec5}",
+        'i' => "\u{ec}\u{ed}\u{1ecb}\u{1ec9}\u{129}",
+        'o' => "\u{f2}\u{f3}\u{1ecd}\u{1ecf}\u{f5}\u{f4}\u{1ed3}\u{1ed1}\u{1ed9}\u{1ed5}\u{1ed7}\u{1a1}\u{1edd}\u{1edb}\u{1ee3}\u{1edf}\u{1ee1}",
+        'u' => "\u{f9}\u{fa}\u{1ee5}\u{1ee7}\u{169}\u{1b0}\u{1eeb}\u{1ee9}\u{1ef1}\u{1eed}\u{1eef}",
+        'y' => "\u{1ef3}\u{fd}\u{1ef5}\u{1ef7}\u{1ef9}",
+        'd' => "\u{111}",
     ];
 
     /** Lowercase ASCII slug without Vietnamese diacritics; empty string when nothing usable remains. */

@@ -80,3 +80,39 @@ Observed and repaired homepage filter misalignment (32.39px desktop delta), miss
 
 Real browser filter GETs, Enter/refresh/detail/Back, Tab/Space, mobile navbar and keyboard Admin scrolling passed. Fresh isolated PHP/SQL/HTTP/Chrome regression exited 0; 92 extended page/viewport checks, actual before/after screenshots and limitations recorded in [ui-ux-visual-audit.md](quality/ui-ux-visual-audit.md). Native-dialog visuals, full assistive-technology testing and external Maps/share remain NOT_VERIFIED; email delivery still BLOCKED, đang chờ cấu hình.
 
+## Nice-to-have journeys — 2026-10-13
+
+Phạm vi: 5 nhánh Nice-to-have đã gộp (booking extras, trust, conversation, discovery, content). Mỗi nhánh có báo cáo riêng với kịch bản click-through và ảnh Chrome; sau khi gộp, gate `fresh_setup_test.php --quality-regression --no-screenshots` chạy lại toàn bộ (exit 0, 264 PASS, không FAIL). Ca kiểm thử chi tiết: [user-test-matrix.md](user-test-matrix.md) (NTH-01…NTH-28).
+
+### Hành trình mới
+
+| Hành trình | Vai trò | Luồng | Kiểm chứng tự động | Trạng thái |
+|---|---|---|---|---|
+| Giá linh hoạt + mã khuyến mãi | Guest | Trang chi tiết → chọn ngày → báo giá từng đêm (lễ > cuối tuần > gốc), giảm tuần/tháng → nhập mã → đặt chỗ; giá trên booking khớp báo giá | feature_booking_extras_test | VERIFIED |
+| Đặt ngay (Instant Book) | Guest → Host | Host bật “Đặt ngay” → Guest đặt → booking `confirmed` ngay, Guest và Host nhận thông báo; đặt trùng bị chặn | feature_booking_extras_test (gồm hai process tranh chấp) | VERIFIED |
+| Thanh toán khi nhận phòng | Guest → Host → Admin | Booking có trạng thái “chưa thanh toán” → từ ngày nhận phòng Host (hoặc Admin) đánh dấu đã thu → Admin hoàn tiền có ghi chú | feature_booking_extras_test | VERIFIED |
+| Quản lý ngày lễ, mã khuyến mãi, thanh toán | Admin | `/admin/holidays`, `/admin/promotions`, `/admin/payments`, mọi thay đổi có audit | feature_booking_extras_test, browser_audit | VERIFIED |
+| Xác minh danh tính | Guest/Host → Admin | Hồ sơ → gửi SĐT + CCCD → Admin duyệt/từ chối (lý do) → huy hiệu “✓ Đã xác minh”; CCCD bị che sau quyết định | feature_trust_test | VERIFIED |
+| Huy hiệu Host uy tín | Host / Guest | Host xem tiến độ 3 tiêu chí ở `/host`; huy hiệu hiện trên trang chủ, chi tiết chỗ ở, booking và danh sách user của Admin | feature_trust_test | VERIFIED |
+| Hướng dẫn nhận phòng | Host → Guest | Host lưu hướng dẫn/mã cửa/Wi-Fi → Guest chỉ thấy sau khi booking được xác nhận; người ngoài nhận 404 | feature_trust_test | VERIFIED |
+| Tin nhắn theo booking + Zalo | Guest ↔ Host | Chi tiết booking → gửi tin → thông báo/huy hiệu chưa đọc → inbox `/messages` → trả lời; booking bị hủy/từ chối chỉ còn xem | feature_conversation_test | VERIFIED |
+| Nhắc lịch check-in | Hệ thống → Guest/Host | Tác vụ `database/checkin_reminders.php` hoặc lượt tải trang → thông báo “NHẮC LỊCH”, không trùng | feature_conversation_test | VERIFIED |
+| Quản lý tin nhắn | Admin | `/admin/messages` → tìm → ẩn/hiện có lý do → audit | feature_conversation_test | VERIFIED |
+| Tìm trên bản đồ | Public/Guest | Trang chủ → “Xem trên bản đồ” hoặc `/map` → kéo/thu phóng → danh sách theo khung | feature_discovery_test (API), browser_audit (tải trang) | VERIFIED (API); kéo chuột chỉ kiểm tra thủ công |
+| Gợi ý + lịch sử | Guest | Xem/tìm chỗ ở → trang chủ có “Gợi ý cho bạn”, “Đã xem gần đây” → hồ sơ xóa lịch sử | feature_discovery_test | VERIFIED |
+| Cẩm nang/tin tức | Public, Admin | Admin viết nháp → xem trước → xuất bản → `/articles`; ẩn/xóa mềm | feature_content_test | VERIFIED |
+| Chế độ tối | Tất cả | Nút trên header/menu mobile/trang đăng nhập → lưu theo trình duyệt | feature_content_audit.ps1 | VERIFIED |
+
+### Luồng dữ liệu mới
+
+- Báo giá/booking: form → `BookingController`/`ListingController` → `BookingService` → `sp_booking_quote`/`sp_booking_create` → `sp_booking_extras_price` → `booking_nights`, `booking_price_breakdowns`, `booking_payments`.
+- Tin nhắn: form → CSRF → `MessageController` → `BookingMessage` → `sp_booking_message_send` (khóa booking) → `booking_messages` + một thông báo chưa đọc/booking.
+- Nhắc lịch: CLI hoặc `ConversationService::remindOpportunistically` (giới hạn mỗi 30 phút) → `CheckInReminder` → `sp_checkin_reminders_run` → `booking_reminders` + `notifications`.
+- Bản đồ: `map.js` → `GET /api/listings/map` → `DiscoveryController` → `sp_discovery_map_search` → JSON; khung sai trả 422.
+- Bài viết: Admin form/upload → CSRF → `AdminArticleController` → `Article` → `sp_admin_article_*` + audit.
+
+### Tồn đọng không chặn chạy (theo báo cáo các nhánh)
+
+- P3: Thẻ kết quả trang chủ/tìm kiếm chưa hiện nhãn Instant Book; trang xem trước listing của Admin chưa hiện quy tắc giá; POST đặt chỗ thất bại không giữ ngày đã chọn; cột “Quản lý” ở dashboard Host cao trên điện thoại.
+- P3: Không có mục “Bản đồ” trên menu chính (điểm vào: nút “Xem trên bản đồ” và URL `/map`); header xuống dòng ở 992–1199px; phân trang ở chế độ sáng còn màu xanh mặc định của Bootstrap.
+- Ngoài phạm vi: VNPay/MoMo; tin nhắn real-time/email/SMS; ảnh/OCR/OTP cho xác minh; geocoding và gom cụm marker; giao diện tiếng Việt/tiếng Anh đang được xây dựng.

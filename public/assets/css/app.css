@@ -463,3 +463,7 @@ html[data-theme="dark"] .h2h-map-popup-close { background: rgba(28,36,31,.92); c
 @media (min-width: 992px) {
     .site-header .navbar-actions .locale-toggle { padding: .5rem .55rem; vertical-align: middle; }
 }
+/* English labels ("Turn on dark mode") make the auth tools wider: on phones they sit above the brand instead of over it. */
+@media (max-width: 767.98px) {
+    html[lang="en"] .auth-tools { position: static; align-self: flex-end; margin: -19px -6px 10px 0; }
+}

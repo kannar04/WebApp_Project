@@ -18,7 +18,8 @@ final class AdminController extends Controller
         $status=is_string($_GET['booking_status']??null)?$_GET['booking_status']:'';
         if (!in_array($status,['','pending','confirmed','rejected','cancelled','completed'],true)) { $status=''; Session::flash('error','Trạng thái lọc booking không hợp lệ.'); }
         $users=(new User())->all(is_string($_GET['q']??null)?$_GET['q']:'');
-        $this->render('admin/dashboard',['title'=>'Quản trị Home2Home','stats'=>$repo->stats(),
+        // Translated here with a {brand} slot (same key as the dashboard h1): the plain text "Quản trị Home2Home" is also the seeded Admin's display name.
+        $this->render('admin/dashboard',['title'=>__('Quản trị {brand}',['brand'=>'Home2Home']),'stats'=>$repo->stats(),
             'users'=>$users,'listings'=>$repo->listings(),
             'bookings'=>(new Booking())->adminSearch((int)$admin['id'],$query,$status),'bookingQuery'=>$query,'bookingStatus'=>$status,
             'trustBadges'=>(new \App\Models\Trust())->badges(array_column($users,'id'),(int)$admin['id'])]);

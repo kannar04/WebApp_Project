@@ -24,8 +24,9 @@ final class BookingService
             'subtotal'=>(float) $quote['subtotal'], 'fee'=>(float) $quote['fee'], 'total'=>(float) $quote['total'],
             'length_discount'=>['type'=>(string) $quote['length_discount_type'], 'percent'=>(float) $quote['length_discount_pct'],
                 'amount'=>(float) $quote['length_discount_amount']],
+            // promo.message and the breakdown labels are shown as-is by the booking form, so they arrive in the interface language.
             'promo'=>['requested'=>$promoCode, 'code'=>$quote['promo_code'] === null ? null : (string) $quote['promo_code'],
-                'discount'=>(float) $quote['promo_discount'], 'message'=>$quote['promo_message'] === null ? null : (string) $quote['promo_message']],
+                'discount'=>(float) $quote['promo_discount'], 'message'=>$quote['promo_message'] === null ? null : __((string) $quote['promo_message'])],
             'instant_book'=>(bool) $quote['instant_book'], 'breakdown'=>$this->breakdown($quote)];
     }
 
@@ -63,26 +64,29 @@ final class BookingService
         $holidayNights = (int) $quote['holiday_nights'];
         $regularNights = (int) $quote['nights'] - $weekendNights - $holidayNights;
         if ($regularNights > 0) {
-            $rows[] = ['kind'=>'night', 'label'=>$regularNights.' đêm thường × '.self::money($base), 'amount'=>$regularNights * $base];
+            $rows[] = ['kind'=>'night', 'label'=>__('{count} đêm thường × {price}', ['count'=>$regularNights, 'price'=>self::money($base)]),
+                'amount'=>$regularNights * $base];
         }
         if ($weekendNights > 0) {
             $rate = (float) $quote['weekend_rate'];
-            $rows[] = ['kind'=>'night', 'label'=>$weekendNights.' đêm cuối tuần × '.self::money($rate), 'amount'=>$weekendNights * $rate];
+            $rows[] = ['kind'=>'night', 'label'=>__('{count} đêm cuối tuần × {price}', ['count'=>$weekendNights, 'price'=>self::money($rate)]),
+                'amount'=>$weekendNights * $rate];
         }
         if ($holidayNights > 0) {
             $rate = (float) $quote['holiday_rate'];
-            $rows[] = ['kind'=>'night', 'label'=>$holidayNights.' đêm ngày lễ × '.self::money($rate), 'amount'=>$holidayNights * $rate];
+            $rows[] = ['kind'=>'night', 'label'=>__('{count} đêm ngày lễ × {price}', ['count'=>$holidayNights, 'price'=>self::money($rate)]),
+                'amount'=>$holidayNights * $rate];
         }
         if ((float) $quote['length_discount_amount'] > 0) {
-            $label = $quote['length_discount_type'] === 'monthly' ? 'Giảm ở từ 28 đêm' : 'Giảm ở từ 7 đêm';
-            $rows[] = ['kind'=>'discount', 'label'=>$label.' ('.self::percent((float) $quote['length_discount_pct']).')',
-                'amount'=>-(float) $quote['length_discount_amount']];
+            $percent = ['percent'=>self::percent((float) $quote['length_discount_pct'])];
+            $label = $quote['length_discount_type'] === 'monthly' ? __('Giảm ở từ 28 đêm ({percent})', $percent) : __('Giảm ở từ 7 đêm ({percent})', $percent);
+            $rows[] = ['kind'=>'discount', 'label'=>$label, 'amount'=>-(float) $quote['length_discount_amount']];
         }
         if ($quote['promo_code'] !== null) {
-            $rows[] = ['kind'=>'discount', 'label'=>'Mã '.$quote['promo_code'], 'amount'=>-(float) $quote['promo_discount']];
+            $rows[] = ['kind'=>'discount', 'label'=>__('Mã {code}', ['code'=>$quote['promo_code']]), 'amount'=>-(float) $quote['promo_discount']];
         }
-        $rows[] = ['kind'=>'fee', 'label'=>'Phụ phí', 'amount'=>(float) $quote['fee']];
-        $rows[] = ['kind'=>'total', 'label'=>'Tổng', 'amount'=>(float) $quote['total']];
+        $rows[] = ['kind'=>'fee', 'label'=>__('Phụ phí'), 'amount'=>(float) $quote['fee']];
+        $rows[] = ['kind'=>'total', 'label'=>__('Tổng'), 'amount'=>(float) $quote['total']];
         return $rows;
     }
 
