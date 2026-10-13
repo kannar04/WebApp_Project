@@ -22,15 +22,22 @@ foreach ($recording->definitions as $definition) {
     cleanupExpect(!preg_match('/\bDROP\s+(TABLE|DATABASE|PROCEDURE)\b/i', $definition), 'Installer unexpectedly executes DROP.');
     cleanupExpect(!preg_match('/\bPROCEDURE\s+`?sp_test_/i', $definition), 'Test routines installed without opt-in.');
 }
+// Files before 050 hold 75 historical definitions; every later migration is counted from its source.
 $expectedProduction=75;
-foreach (['050_quality_core.sql','055_quality_search.sql','060_quality_community.sql','065_password_recovery.sql'] as $migration) {
-    $source=file_get_contents(dirname(__DIR__).'/database/procedures/'.$migration);
-    $expectedProduction+=preg_match_all('/CREATE OR REPLACE PROCEDURE/',$source);
+foreach (glob(dirname(__DIR__).'/database/procedures/[0-9]*.sql') as $migration) {
+    if ((int) basename($migration) < 50) { continue; }
+    $expectedProduction+=preg_match_all('/CREATE OR REPLACE PROCEDURE/',file_get_contents($migration));
 }
 cleanupExpect($productionCount === $expectedProduction, 'Unexpected production definition count.');
+$expectedTesting=0;
+foreach (glob(dirname(__DIR__).'/database/procedures/testing*.sql') as $fixture) {
+    $source=file_get_contents($fixture);
+    cleanupExpect(preg_match_all('/CREATE OR REPLACE PROCEDURE\s+`?sp_test_/',$source) === preg_match_all('/CREATE OR REPLACE PROCEDURE/',$source), 'Test fixture routine without sp_test_ prefix.');
+    $expectedTesting+=preg_match_all('/CREATE OR REPLACE PROCEDURE/',$source);
+}
 $withTests = new RecordingInstallerPDO();
-cleanupExpect(installHome2HomeProcedures($withTests, true) === $expectedProduction+16, 'Test routine opt-in changed.');
-echo "PASS installer: $productionCount production definitions, 16 opt-in test definitions; zero DROP\n";
+cleanupExpect(installHome2HomeProcedures($withTests, true) === $expectedProduction+$expectedTesting, 'Test routine opt-in changed.');
+echo "PASS installer: $productionCount production definitions, $expectedTesting opt-in test definitions; zero DROP\n";
 
 $controller = new App\Controllers\AdminController();
 $rolesValidator = new ReflectionMethod($controller, 'rolesAreValid');

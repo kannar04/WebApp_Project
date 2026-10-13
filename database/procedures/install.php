@@ -6,7 +6,8 @@ function installHome2HomeProcedures(PDO $pdo, bool $testing = false): int
 {
     if (PHP_SAPI !== 'cli') { throw new RuntimeException('Procedure installation is CLI only.'); }
     $files = glob(__DIR__.'/[0-9]*.sql');
-    if ($testing) { $files[] = __DIR__.'/testing.sql'; }
+    // testing.sql sorts before feature fixtures such as testing_messages.sql.
+    if ($testing) { $files = array_merge($files, glob(__DIR__.'/testing*.sql')); }
     $count = 0;
     foreach ($files as $file) {
         // Retain the historical cleanup migration, but require separate reviewed execution.

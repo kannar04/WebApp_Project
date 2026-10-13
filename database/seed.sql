@@ -42,3 +42,12 @@ ON DUPLICATE KEY UPDATE image_url = VALUES(image_url), alt_text = VALUES(alt_tex
 INSERT IGNORE INTO listing_amenities (listing_id, amenity_id) VALUES
 (1,1),(1,2),(1,3),(1,4),(2,1),(2,2),(2,3),(2,4),(2,5),(3,1),(3,3),(3,6);
 
+-- Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
+
+-- Nice-to-have trust: identity verification, trusted Host badge, check-in guide
+
+-- Nice-to-have conversation: booking messages, check-in reminders
+
+-- Nice-to-have discovery: map search, recommendations
+
+-- Nice-to-have content: articles and travel guides

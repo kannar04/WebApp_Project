@@ -85,13 +85,21 @@ try {
         if (in_array('--quality-regression', $argv, true)) {
             $commands[] = [PHP_BINARY, $root.'/tests/quality_core_test.php'];
         }
+        // Nice-to-have suites: tests/feature_<name>_test.php (CLI) and tests/feature_<name>_audit.ps1 (HTTP/browser).
+        foreach (glob($root.'/tests/feature_*_test.php') as $suite) {
+            $commands[] = [PHP_BINARY, $suite];
+        }
         foreach (['http_smoke.ps1','http_audit.ps1','browser_audit.ps1'] as $suite) {
             $command = ['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',$root.'/tests/'.$suite,'-BaseUrl',$baseUrl];
-            if ($suite==='browser_audit.ps1' && in_array('--quality-regression',$argv,true)) {
+            // --no-screenshots runs the regression suites without rewriting the tracked docs/quality screenshots.
+            if ($suite==='browser_audit.ps1' && in_array('--quality-regression',$argv,true) && !in_array('--no-screenshots',$argv,true)) {
                 $command[]='-ScreenshotDirectory'; $command[]=$root.'/docs/quality/screenshots';
                 if (in_array('--visual-ux',$argv,true)) { $command[]='-VisualUX'; }
             }
             $commands[]=$command;
+        }
+        foreach (glob($root.'/tests/feature_*_audit.ps1') as $suite) {
+            $commands[] = ['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',$suite,'-BaseUrl',$baseUrl];
         }
         }
         foreach ($commands as $command) {

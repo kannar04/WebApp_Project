@@ -40,3 +40,15 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 575.98px) { .filter-panel { padding: 20px; } .filter-actions .btn { flex: 1; } }
 .text-muted { color: var(--muted) !important; }
 .btn-primary.disabled, .btn-primary:disabled { background-color: var(--primary); border-color: var(--primary); }
+
+/* Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status */
+
+/* Nice-to-have trust: identity verification, trusted Host badge, check-in guide */
+
+/* Nice-to-have conversation: booking messages, check-in reminders */
+
+/* Nice-to-have discovery: map search, recommendations */
+
+/* Nice-to-have content: articles and travel guides */
+
+/* Nice-to-have dark mode */

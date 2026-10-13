@@ -170,6 +170,19 @@
                 if (error.name !== 'AbortError') { alert('Không thể chia sẻ. Bạn có thể sao chép liên kết trên thanh địa chỉ.'); }
             }
         });
+
+        // Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
+
+        // Nice-to-have trust: identity verification, trusted Host badge, check-in guide
+
+        // Nice-to-have conversation: booking messages, check-in reminders
+
+        // Nice-to-have discovery: map search, recommendations
+
+        // Nice-to-have content: articles and travel guides
+
+        // Nice-to-have dark mode
+
     }
 
     if (document.readyState === 'loading') {

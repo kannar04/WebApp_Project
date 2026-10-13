@@ -381,3 +381,12 @@ CREATE TABLE IF NOT EXISTS `account_status_events` (
   CONSTRAINT `chk_account_status_events_to_status` CHECK (`to_status` in ('active','suspended','deleted'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
+
+-- Nice-to-have trust: identity verification, trusted Host badge, check-in guide
+
+-- Nice-to-have conversation: booking messages, check-in reminders
+
+-- Nice-to-have discovery: map search, recommendations
+
+-- Nice-to-have content: articles and travel guides

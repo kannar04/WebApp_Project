@@ -41,5 +41,15 @@ $router->get('/bookings',[BookingController::class,'index']);$router->post('/boo
 $router->get('/wishlist',[WishlistController::class,'index']);$router->post('/api/wishlist/{id}',[WishlistController::class,'toggle']);
 $router->get('/host',[HostController::class,'dashboard']);$router->get('/host/listings/create',[HostController::class,'createForm']);$router->post('/host/listings',[HostController::class,'store']);$router->get('/host/listings/{id}/edit',[HostController::class,'editForm']);$router->get('/host/listings/{id}/availability',[HostController::class,'availabilityPage']);$router->post('/host/listings/{id}',[HostController::class,'update']);$router->post('/host/listings/{id}/visibility',[HostController::class,'visibility']);$router->post('/api/host/listings/{id}/availability',[HostController::class,'availability']);$router->post('/host/bookings/{id}/transition',[HostController::class,'transition']);
 $router->get('/admin',[AdminController::class,'dashboard']);$router->post('/admin/users',[AdminController::class,'userCreate']);$router->get('/admin/users/{id}/edit',[AdminController::class,'userEdit']);$router->post('/admin/users/{id}',[AdminController::class,'userUpdate']);$router->post('/admin/users/{id}/delete',[AdminController::class,'userDelete']);$router->post('/admin/users/{id}/status',[AdminController::class,'userStatus']);$router->post('/admin/users/{id}/roles',[AdminController::class,'userRoles']);$router->post('/admin/listings/{id}/moderate',[AdminController::class,'moderate']);$router->get('/admin/listings/{id}/edit',[AdminController::class,'listingEdit']);$router->post('/admin/listings/{id}',[AdminController::class,'listingUpdate']);$router->post('/admin/listings/{id}/visibility',[AdminController::class,'listingVisibility']);$router->post('/admin/listings/{id}/delete',[AdminController::class,'listingDelete']);$router->post('/admin/bookings/{id}/transition',[AdminController::class,'bookingTransition']);
+// Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
+
+// Nice-to-have trust: identity verification, trusted Host badge, check-in guide
+
+// Nice-to-have conversation: booking messages, check-in reminders
+
+// Nice-to-have discovery: map search, recommendations
+
+// Nice-to-have content: articles and travel guides
+
 return $router;
 
