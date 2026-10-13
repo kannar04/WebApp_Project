@@ -289,6 +289,8 @@ function i18nCovered(string $text, array $dictionary, array $coverageTexts): boo
     if (isset($dictionary[$text])) { return true; }
     $fragment = trim($text, " \t\n\r:,.;-–—()#");
     if ($fragment === '' || !i18nIsVietnamese($fragment)) { return true; }
+    // Only accented letters, no ASCII letter or space: a character table (e.g. slug folding), not a sentence.
+    if (!preg_match('/[A-Za-z\s]/', $fragment)) { return true; }
     foreach ($coverageTexts as $candidate) {
         if (str_contains($candidate, $fragment)) { return true; }
     }

@@ -23,5 +23,5 @@ $base=(float)$settings['base_nightly_rate'];
 <div class="action-row"><button class="btn btn-primary" type="submit"><?= e(__('Lưu giá & tùy chọn')) ?></button><a class="btn btn-ghost" href="<?= e(url('/host/listings/'.(int)$settings['listing_id'].'/edit')) ?>"><?= e(__('Chỉnh sửa tin')) ?></a></div>
 </form>
 <section class="surface-card mt-4"><h2><?= e(__('Ngày lễ sắp tới')) ?></h2><p class="text-muted"><?= e(__('Admin quản lý danh sách ngày lễ. Giá ngày lễ chỉ áp dụng khi bạn đặt giá ở trên.')) ?></p>
-<?php if(!$holidays): ?><p><?= e(__('Chưa có ngày lễ sắp tới.')) ?></p><?php else: ?><ul class="holiday-chips"><?php foreach($holidays as $holiday): ?><li><strong><?= e(date('d/m/Y',strtotime($holiday['holiday_date']))) ?></strong> <?= e($holiday['name']) ?></li><?php endforeach; ?></ul><?php endif; ?></section>
+<?php if(!$holidays): ?><p><?= e(__('Chưa có ngày lễ sắp tới.')) ?></p><?php else: ?><ul class="holiday-chips"><?php foreach($holidays as $holiday): ?><li><strong><?= e(date('d/m/Y',strtotime($holiday['holiday_date']))) ?></strong> <?= e(__($holiday['name'])) ?></li><?php endforeach; ?></ul><?php endif; ?></section>
 </div></section>

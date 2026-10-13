@@ -42,9 +42,8 @@ return [
     'Quản lý' => 'Manage',
     'Lịch khả dụng' => 'Availability calendar',
     'Giá & đặt chỗ' => 'Pricing & booking',
-    // Values must not start with "Delete/Update/Select/Insert/Replace <word>": tests/stored_procedure_audit_test.php reads that as raw SQL.
-    'Xóa mềm tin này? Lịch sử booking sẽ được giữ.' => 'Soft-delete this listing? Its booking history will be kept.',
-    'Xóa tin' => 'Delete',
+    'Xóa mềm tin này? Lịch sử booking sẽ được giữ.' => 'Delete this listing? Its booking history will be kept.',
+    'Xóa tin' => 'Delete listing',
     'Xem tin' => 'View listing',
     'Yêu cầu đặt chỗ' => 'Booking requests',
     'Chưa có yêu cầu đặt chỗ' => 'No booking requests yet',
