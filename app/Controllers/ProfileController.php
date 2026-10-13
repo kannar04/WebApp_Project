@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 use App\Models\Booking;
 use App\Models\User;
+use App\Services\DiscoveryService;
 use App\Services\UploadService;
 use Core\Auth;
 use Core\Controller;
@@ -14,7 +15,7 @@ final class ProfileController extends Controller
     {
         $user = $this->requireAuth();
         $upcoming = array_filter((new Booking())->forGuest((int)$user['id']), fn($b) => in_array($b['status'], ['pending', 'confirmed'], true));
-        $this->render('profile/show', ['title' => 'Tài khoản', 'user' => $user, 'upcoming' => $upcoming, 'old' => Session::pull('_profile_old', [])]);
+        $this->render('profile/show', ['title' => 'Tài khoản', 'user' => $user, 'upcoming' => $upcoming, 'old' => Session::pull('_profile_old', []), 'discoveryHistory' => DiscoveryService::summary((int)$user['id'])]);
     }
 
     public function update(): never

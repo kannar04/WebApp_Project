@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\Listing;
 use App\Models\Wishlist;
+use App\Services\DiscoveryService;
 use Core\Auth;
 use Core\Controller;
 
@@ -26,10 +27,13 @@ final class HomeController extends Controller
             if ($name!=='page' && ($name==='amenities'?count($value)>0:trim((string)$value)!=='')) { $hasFilters=true; }
         }
         $favorites=Auth::check()?(new Wishlist())->ids((int)Auth::id()):[];
+        if ($searchError===null && $hasFilters) { DiscoveryService::recordSearch('home',$filters); }
+        $discovery=Auth::check() && !$hasFilters && $page===1 ? DiscoveryService::homeShelf((int)Auth::id()) : null;
         $this->render('home',[
             'title'=>'Tìm chỗ ở ấm áp','listings'=>$result['listings'],'total'=>$result['total'],
             'types'=>$model->types(),'amenities'=>$model->allAmenities(),'filters'=>$filters,'favorites'=>$favorites,
-            'searchError'=>$searchError,'filterErrors'=>$filterErrors,'hasFilters'=>$hasFilters,'page'=>$page,'pages'=>$pages
+            'searchError'=>$searchError,'filterErrors'=>$filterErrors,'hasFilters'=>$hasFilters,'page'=>$page,'pages'=>$pages,
+            'discovery'=>$discovery
         ]);
     }
 
@@ -42,7 +46,7 @@ final class HomeController extends Controller
         $this->json(true,'Đã tải kết quả.',$result+['page'=>$page,'per_page'=>12,'pages'=>(int)ceil($result['total']/12)]);
     }
 
-    private function validatedFilters(array $input): array
+    public static function validatedFilters(array $input): array
     {
         $filters=[]; $errors=[];
         $fields=['location','check_in','check_out','guests','type','min_price','max_price','bedrooms','sort','page'];

@@ -48,6 +48,9 @@ $router->get('/admin',[AdminController::class,'dashboard']);$router->post('/admi
 // Nice-to-have conversation: booking messages, check-in reminders
 
 // Nice-to-have discovery: map search, recommendations
+$router->get('/map',[\App\Controllers\DiscoveryController::class,'map']);
+$router->get('/api/listings/map',[\App\Controllers\DiscoveryController::class,'search']);
+$router->post('/profile/history/clear',[\App\Controllers\DiscoveryController::class,'clearHistory']);
 
 // Nice-to-have content: articles and travel guides
 

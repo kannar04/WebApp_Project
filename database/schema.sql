@@ -388,5 +388,42 @@ CREATE TABLE IF NOT EXISTS `account_status_events` (
 -- Nice-to-have conversation: booking messages, check-in reminders
 
 -- Nice-to-have discovery: map search, recommendations
+CREATE TABLE IF NOT EXISTS `listing_views` (
+  `user_id` bigint(20) unsigned NOT NULL COMMENT 'Signed-in account that opened the listing',
+  `listing_id` bigint(20) unsigned NOT NULL COMMENT 'Viewed accommodation',
+  `view_count` int(11) NOT NULL COMMENT 'Number of detail-page visits by this account',
+  `first_viewed_at` datetime(6) NOT NULL COMMENT 'First recorded visit',
+  `last_viewed_at` datetime(6) NOT NULL COMMENT 'Most recent recorded visit',
+  PRIMARY KEY (`user_id`,`listing_id`),
+  KEY `idx_listing_views_user_last_viewed` (`user_id`,`last_viewed_at`),
+  KEY `idx_listing_views_listing_id` (`listing_id`),
+  CONSTRAINT `fk_listing_views_listing_id` FOREIGN KEY (`listing_id`) REFERENCES `listings` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_listing_views_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `chk_listing_views_view_count` CHECK (`view_count` > 0),
+  CONSTRAINT `chk_listing_views_times` CHECK (`last_viewed_at` >= `first_viewed_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `search_history` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Search history entry ID',
+  `user_id` bigint(20) unsigned NOT NULL COMMENT 'Signed-in account that searched',
+  `source` varchar(10) NOT NULL COMMENT 'home | map',
+  `location` varchar(150) DEFAULT NULL COMMENT 'Searched city or address text',
+  `check_in` date DEFAULT NULL COMMENT 'Requested check-in date',
+  `check_out` date DEFAULT NULL COMMENT 'Requested check-out date',
+  `guest_count` int(11) DEFAULT NULL COMMENT 'Requested guest count',
+  `property_type_id` bigint(20) unsigned DEFAULT NULL COMMENT 'Requested accommodation type',
+  `min_price` decimal(12,2) DEFAULT NULL COMMENT 'Lowest nightly price filter',
+  `max_price` decimal(12,2) DEFAULT NULL COMMENT 'Highest nightly price filter',
+  `searched_at` datetime(6) NOT NULL COMMENT 'Search time',
+  PRIMARY KEY (`id`),
+  KEY `idx_search_history_user_searched_at` (`user_id`,`searched_at`),
+  KEY `idx_search_history_property_type_id` (`property_type_id`),
+  CONSTRAINT `fk_search_history_property_type_id` FOREIGN KEY (`property_type_id`) REFERENCES `property_types` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_search_history_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `chk_search_history_source` CHECK (`source` in ('home','map')),
+  CONSTRAINT `chk_search_history_dates` CHECK (`check_in` is null and `check_out` is null or `check_in` is not null and `check_out` is not null and `check_out` > `check_in`),
+  CONSTRAINT `chk_search_history_guest_count` CHECK (`guest_count` is null or `guest_count` > 0),
+  CONSTRAINT `chk_search_history_prices` CHECK ((`min_price` is null or `min_price` >= 0) and (`max_price` is null or `max_price` >= 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Nice-to-have content: articles and travel guides

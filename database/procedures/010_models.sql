@@ -51,7 +51,7 @@ BEGIN
     SELECT l.id,l.host_id,l.property_type_id,l.cancellation_policy_id,l.title,l.description,l.address,l.city,l.country_code,l.latitude,l.longitude,l.time_zone,l.base_nightly_rate,l.fee_amount,l.currency,l.max_guests,l.room_count,l.bedroom_count,l.bed_count,l.check_in_time,l.check_out_time,l.smoking_allowed,l.pets_allowed,l.parties_allowed,l.house_rules,l.moderation_status,l.moderation_reason,l.reviewed_by,l.reviewed_at,l.is_visible,l.created_at,l.updated_at,l.deleted_at, l.base_nightly_rate nightly_price, l.fee_amount cleaning_fee, pt.name property_type, (SELECT image_url FROM listing_photos WHERE listing_id=l.id ORDER BY sort_order,id LIMIT 1) image_url FROM listings l JOIN property_types pt ON pt.id=l.property_type_id WHERE l.host_id=p_1 AND l.deleted_at IS NULL ORDER BY l.created_at DESC;
 END$$
 
-CREATE OR REPLACE PROCEDURE `sp_listing_create`(IN p_1 bigint unsigned, IN p_2 bigint unsigned, IN p_3 bigint unsigned, IN p_4 varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_5 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_6 varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_7 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_8 decimal(12,2), IN p_9 decimal(12,2), IN p_10 int, IN p_11 int, IN p_12 int, IN p_13 int, IN p_14 time, IN p_15 time, IN p_16 bool, IN p_17 bool, IN p_18 bool)
+CREATE OR REPLACE PROCEDURE `sp_listing_create`(IN p_1 bigint unsigned, IN p_2 bigint unsigned, IN p_3 bigint unsigned, IN p_4 varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_5 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_6 varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_7 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_8 decimal(12,2), IN p_9 decimal(12,2), IN p_10 int, IN p_11 int, IN p_12 int, IN p_13 int, IN p_14 time, IN p_15 time, IN p_16 bool, IN p_17 bool, IN p_18 bool, IN p_19 decimal(10,6), IN p_20 decimal(10,6))
 BEGIN
     IF p_8 IS NULL OR p_8<=0 OR p_9 IS NULL OR p_9<0 OR p_10<1 OR p_11<1 OR p_12<1 OR p_13<1
         OR p_4 IS NULL OR TRIM(p_4)='' OR p_5 IS NULL OR TRIM(p_5)='' OR p_6 IS NULL OR TRIM(p_6)='' OR p_7 IS NULL OR TRIM(p_7)=''
@@ -60,11 +60,14 @@ BEGIN
         OR NOT EXISTS(SELECT 1 FROM cancellation_policies WHERE id=p_3 AND is_active=1) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Thông tin hoặc quyền tạo chỗ ở không hợp lệ.';
     END IF;
-    INSERT INTO listings (host_id, property_type_id, cancellation_policy_id, title, address, city, country_code, time_zone, description, base_nightly_rate, fee_amount, currency, max_guests, room_count, bedroom_count, bed_count, check_in_time, check_out_time, smoking_allowed, pets_allowed, parties_allowed, moderation_status, is_visible, created_at, updated_at) VALUES (p_1,p_2,p_3,p_4,p_5,p_6,'VN','Asia/Ho_Chi_Minh',p_7,p_8,p_9,'VND',p_10,p_11,p_12,p_13,p_14,p_15,p_16,p_17,p_18,'pending',1,NOW(6),NOW(6));
+    IF (p_19 IS NULL)<>(p_20 IS NULL) OR p_19 NOT BETWEEN -90 AND 90 OR p_20 NOT BETWEEN -180 AND 180 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tọa độ cần có cả vĩ độ (-90 đến 90) và kinh độ (-180 đến 180), hoặc để trống cả hai.';
+    END IF;
+    INSERT INTO listings (host_id, property_type_id, cancellation_policy_id, title, address, city, country_code, latitude, longitude, time_zone, description, base_nightly_rate, fee_amount, currency, max_guests, room_count, bedroom_count, bed_count, check_in_time, check_out_time, smoking_allowed, pets_allowed, parties_allowed, moderation_status, is_visible, created_at, updated_at) VALUES (p_1,p_2,p_3,p_4,p_5,p_6,'VN',p_19,p_20,'Asia/Ho_Chi_Minh',p_7,p_8,p_9,'VND',p_10,p_11,p_12,p_13,p_14,p_15,p_16,p_17,p_18,'pending',1,NOW(6),NOW(6));
     SELECT ROW_COUNT() __affected,LAST_INSERT_ID() __insert_id;
 END$$
 
-CREATE OR REPLACE PROCEDURE `sp_listing_update`(IN p_1 bigint unsigned, IN p_2 bigint unsigned, IN p_3 varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_4 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_5 varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_6 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_7 decimal(12,2), IN p_8 decimal(12,2), IN p_9 int, IN p_10 int, IN p_11 int, IN p_12 int, IN p_13 time, IN p_14 time, IN p_15 bool, IN p_16 bool, IN p_17 bool, IN p_18 bigint unsigned, IN p_19 bigint unsigned)
+CREATE OR REPLACE PROCEDURE `sp_listing_update`(IN p_1 bigint unsigned, IN p_2 bigint unsigned, IN p_3 varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_4 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_5 varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_6 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_7 decimal(12,2), IN p_8 decimal(12,2), IN p_9 int, IN p_10 int, IN p_11 int, IN p_12 int, IN p_13 time, IN p_14 time, IN p_15 bool, IN p_16 bool, IN p_17 bool, IN p_18 bigint unsigned, IN p_19 bigint unsigned, IN p_20 decimal(10,6), IN p_21 decimal(10,6))
 BEGIN
     IF p_7 IS NULL OR p_7<=0 OR p_8 IS NULL OR p_8<0 OR p_9<1 OR p_10<1 OR p_11<1 OR p_12<1
         OR p_3 IS NULL OR TRIM(p_3)='' OR p_4 IS NULL OR TRIM(p_4)='' OR p_5 IS NULL OR TRIM(p_5)='' OR p_6 IS NULL OR TRIM(p_6)=''
@@ -73,7 +76,10 @@ BEGIN
         OR NOT EXISTS(SELECT 1 FROM cancellation_policies WHERE id=p_2 AND is_active=1) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Thông tin hoặc quyền sửa chỗ ở không hợp lệ.';
     END IF;
-    UPDATE listings SET property_type_id=p_1, cancellation_policy_id=p_2, title=p_3, address=p_4, city=p_5, description=p_6, base_nightly_rate=p_7, fee_amount=p_8, max_guests=p_9, room_count=p_10, bedroom_count=p_11, bed_count=p_12, check_in_time=p_13, check_out_time=p_14, smoking_allowed=p_15, pets_allowed=p_16, parties_allowed=p_17, moderation_status='pending', updated_at=NOW(6) WHERE id=p_18 AND host_id=p_19 AND deleted_at IS NULL;
+    IF (p_20 IS NULL)<>(p_21 IS NULL) OR p_20 NOT BETWEEN -90 AND 90 OR p_21 NOT BETWEEN -180 AND 180 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tọa độ cần có cả vĩ độ (-90 đến 90) và kinh độ (-180 đến 180), hoặc để trống cả hai.';
+    END IF;
+    UPDATE listings SET property_type_id=p_1, cancellation_policy_id=p_2, title=p_3, address=p_4, city=p_5, description=p_6, base_nightly_rate=p_7, fee_amount=p_8, max_guests=p_9, room_count=p_10, bedroom_count=p_11, bed_count=p_12, check_in_time=p_13, check_out_time=p_14, smoking_allowed=p_15, pets_allowed=p_16, parties_allowed=p_17, latitude=p_20, longitude=p_21, moderation_status='pending', updated_at=NOW(6) WHERE id=p_18 AND host_id=p_19 AND deleted_at IS NULL;
     SELECT ROW_COUNT() __affected,LAST_INSERT_ID() __insert_id;
 END$$
 
