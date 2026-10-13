@@ -20,15 +20,38 @@ BEGIN
     END IF;
 END$$
 
-CREATE OR REPLACE PROCEDURE sp_booking_quote(IN p_listing BIGINT UNSIGNED, IN p_start DATE, IN p_end DATE, IN p_guests INT)
+-- Pricing (weekend/holiday nights, stay-length discount, promo code) lives in sp_booking_extras_price (070) and is shared with sp_booking_create.
+CREATE OR REPLACE PROCEDURE sp_booking_quote(IN p_listing BIGINT UNSIGNED, IN p_start DATE, IN p_end DATE, IN p_guests INT,
+    IN p_promo VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
+    DECLARE v_nights INT;
+    DECLARE v_base DECIMAL(12,2);
+    DECLARE v_weekend_nights INT;
+    DECLARE v_weekend_rate DECIMAL(12,2);
+    DECLARE v_holiday_nights INT;
+    DECLARE v_holiday_rate DECIMAL(12,2);
+    DECLARE v_subtotal DECIMAL(12,2);
+    DECLARE v_length_type VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_length_pct DECIMAL(5,2);
+    DECLARE v_length_amount DECIMAL(12,2);
+    DECLARE v_promo_id BIGINT UNSIGNED;
+    DECLARE v_promo_code VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_promo_amount DECIMAL(12,2);
+    DECLARE v_promo_message VARCHAR(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_fee DECIMAL(12,2);
+    DECLARE v_total DECIMAL(12,2);
+    DECLARE v_instant BOOL;
     CALL sp_booking_validate(p_listing,p_start,p_end,p_guests);
-    SELECT DATEDIFF(p_end,p_start) nights,base_nightly_rate nightly_price,
-        base_nightly_rate*DATEDIFF(p_end,p_start) subtotal,fee_amount fee,
-        base_nightly_rate*DATEDIFF(p_end,p_start)+fee_amount total FROM listings WHERE id=p_listing;
+    CALL sp_booking_extras_price(p_listing,p_start,p_end,p_promo,FALSE,v_nights,v_base,v_weekend_nights,v_weekend_rate,v_holiday_nights,v_holiday_rate,
+        v_subtotal,v_length_type,v_length_pct,v_length_amount,v_promo_id,v_promo_code,v_promo_amount,v_promo_message,v_fee,v_total,v_instant);
+    SELECT v_nights nights,v_base nightly_price,v_subtotal subtotal,v_fee fee,v_total total,
+        v_weekend_nights weekend_nights,v_weekend_rate weekend_rate,v_holiday_nights holiday_nights,v_holiday_rate holiday_rate,
+        v_length_type length_discount_type,v_length_pct length_discount_pct,v_length_amount length_discount_amount,
+        v_promo_code promo_code,v_promo_amount promo_discount,v_promo_message promo_message,v_instant instant_book;
 END$$
 
-CREATE OR REPLACE PROCEDURE sp_booking_create(IN p_listing BIGINT UNSIGNED, IN p_guest BIGINT UNSIGNED, IN p_start DATE, IN p_end DATE, IN p_guests INT)
+CREATE OR REPLACE PROCEDURE sp_booking_create(IN p_listing BIGINT UNSIGNED, IN p_guest BIGINT UNSIGNED, IN p_start DATE, IN p_end DATE, IN p_guests INT,
+    IN p_promo VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_host BIGINT UNSIGNED;
@@ -40,6 +63,25 @@ BEGIN
     DECLARE v_policy LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_day DATE;
     DECLARE v_conflicts INT DEFAULT 0;
+    DECLARE v_nights INT;
+    DECLARE v_base DECIMAL(12,2);
+    DECLARE v_weekend_nights INT;
+    DECLARE v_weekend_rate DECIMAL(12,2);
+    DECLARE v_holiday_nights INT;
+    DECLARE v_holiday_rate DECIMAL(12,2);
+    DECLARE v_subtotal DECIMAL(12,2);
+    DECLARE v_length_type VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_length_pct DECIMAL(5,2);
+    DECLARE v_length_amount DECIMAL(12,2);
+    DECLARE v_promo_id BIGINT UNSIGNED;
+    DECLARE v_promo_code VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_promo_amount DECIMAL(12,2);
+    DECLARE v_promo_message VARCHAR(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_total DECIMAL(12,2);
+    DECLARE v_instant BOOL;
+    DECLARE v_night DECIMAL(12,2);
+    DECLARE v_kind VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -63,21 +105,41 @@ BEGIN
     SELECT COUNT(*) INTO v_conflicts FROM listing_availability WHERE listing_id=p_listing AND is_open=0 AND stay_date>=p_start AND stay_date<p_end FOR UPDATE;
     IF v_conflicts>0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Khoảng ngày đã chọn có ngày không cho thuê.'; END IF;
     CALL sp_booking_validate(p_listing,p_start,p_end,p_guests);
+    -- Same pricing routine as the quote; strict mode re-validates the promo code under a row lock.
+    CALL sp_booking_extras_price(p_listing,p_start,p_end,p_promo,TRUE,v_nights,v_base,v_weekend_nights,v_weekend_rate,v_holiday_nights,v_holiday_rate,
+        v_subtotal,v_length_type,v_length_pct,v_length_amount,v_promo_id,v_promo_code,v_promo_amount,v_promo_message,v_fee,v_total,v_instant);
+    -- Instant Book confirms inside this transaction: overlaps and closed dates were already checked under the listing lock.
+    SET v_status=IF(v_instant,'confirmed','pending');
     SELECT JSON_OBJECT('name',cp.name,'cutoff_hours',cp.cutoff_hours,'early_refund_pct',cp.early_refund_pct,
         'late_refund_pct',cp.late_refund_pct,'refund_fees',cp.refund_fees,'check_in_time',CAST(l.check_in_time AS CHAR),'time_zone',l.time_zone)
         INTO v_policy FROM listings l JOIN cancellation_policies cp ON cp.id=l.cancellation_policy_id WHERE l.id=p_listing;
     INSERT INTO bookings(listing_id,guest_id,check_in,check_out,guest_count,status,currency,fee_amount,total_amount,policy_snapshot,created_at,updated_at)
-        VALUES(p_listing,p_guest,p_start,p_end,p_guests,'pending',v_currency,v_fee,v_rate*DATEDIFF(p_end,p_start)+v_fee,v_policy,NOW(6),NOW(6));
+        VALUES(p_listing,p_guest,p_start,p_end,p_guests,v_status,v_currency,v_fee,v_total,v_policy,NOW(6),NOW(6));
     SET v_id=LAST_INSERT_ID(); SET v_day=p_start;
     WHILE v_day<p_end DO
-        INSERT INTO booking_nights(booking_id,stay_date,nightly_amount) VALUES(v_id,v_day,v_rate);
+        CALL sp_booking_extras_night_rate(v_day,v_rate,v_weekend_rate,v_holiday_rate,v_night,v_kind);
+        INSERT INTO booking_nights(booking_id,stay_date,nightly_amount) VALUES(v_id,v_day,v_night);
         SET v_day=DATE_ADD(v_day,INTERVAL 1 DAY);
     END WHILE;
+    INSERT INTO booking_price_breakdowns(booking_id,nights_subtotal,length_discount_type,length_discount_pct,length_discount_amount,promotion_id,promotion_code,
+        promotion_discount_amount,fee_amount,total_amount,is_instant_book,created_at)
+        VALUES(v_id,v_subtotal,v_length_type,v_length_pct,v_length_amount,v_promo_id,v_promo_code,v_promo_amount,v_fee,v_total,v_instant,NOW(6));
+    INSERT INTO booking_payments(booking_id,method,amount_due,status,paid_at,paid_by,refunded_at,refunded_by,note,created_at,updated_at)
+        VALUES(v_id,'pay_at_checkin',v_total,'unpaid',NULL,NULL,NULL,NULL,NULL,NOW(6),NOW(6));
     INSERT INTO booking_events(booking_id,actor_id,from_status,to_status,reason,created_at) VALUES(v_id,p_guest,NULL,'pending','Khách gửi yêu cầu đặt chỗ.',NOW(6));
-    INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
-        VALUES(v_host,v_id,'in_app','booking_created','Cập nhật booking',CONCAT('Bạn có yêu cầu đặt chỗ mới cho “',v_title,'”.'),'sent',1,NOW(6));
+    IF v_instant THEN
+        INSERT INTO booking_events(booking_id,actor_id,from_status,to_status,reason,created_at)
+            VALUES(v_id,NULL,'pending','confirmed','Đặt ngay (Instant Book): hệ thống tự xác nhận.',NOW(6));
+        INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+            VALUES(p_guest,v_id,'in_app','booking_confirmed','Cập nhật booking',CONCAT('Đặt ngay thành công: booking #',v_id,' đã được tự động xác nhận.'),'sent',1,NOW(6));
+        INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+            VALUES(v_host,v_id,'in_app','booking_instant','Cập nhật booking',CONCAT('Bạn có booking Đặt ngay mới cho “',v_title,'” (#',v_id,'), đã được tự động xác nhận.'),'sent',1,NOW(6));
+    ELSE
+        INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+            VALUES(v_host,v_id,'in_app','booking_created','Cập nhật booking',CONCAT('Bạn có yêu cầu đặt chỗ mới cho “',v_title,'”.'),'sent',1,NOW(6));
+    END IF;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_booking_create; END IF;
-    SELECT v_id booking_id;
+    SELECT v_id booking_id,v_status booking_status;
 END$$
 
 CREATE OR REPLACE PROCEDURE sp_booking_transition(IN p_booking BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED, IN p_target VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_admin BOOL)

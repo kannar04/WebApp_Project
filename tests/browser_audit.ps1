@@ -177,7 +177,7 @@ try {
     if ((Login-Role 'host') -ne '/host') { throw 'Host login redirect failed' }
     foreach ($width in @(375,768,1024,1440)) {
         Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
-        foreach ($path in @('/host','/host/reviews','/host/listings/1/edit','/host/listings/1/checkin-guide','/messages','/host/listings/1/availability')) { Navigate $path; Check-Page "Host $path $width" }
+        foreach ($path in @('/host','/host/reviews','/host/listings/1/edit','/host/listings/1/checkin-guide','/messages','/host/listings/1/pricing','/host/listings/1/availability')) { Navigate $path; Check-Page "Host $path $width" }
         if ($width -eq 375 -or $width -eq 1440) { Capture-Page "host-calendar-$width" }
     }
     Check-CalendarNavigation '/host/listings/1/availability'
@@ -185,7 +185,7 @@ try {
     if ((Login-Role 'admin') -ne '/admin') { throw 'Admin login redirect failed' }
     foreach ($width in @(375,768,1024,1440)) {
         Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
-        foreach ($path in @('/admin','/admin/users/3/edit','/admin/listings/2/edit','/admin/listings/1/preview','/admin/catalog','/admin/reviews','/admin/reports','/admin/verifications','/admin/messages')) {
+        foreach ($path in @('/admin','/admin/users/3/edit','/admin/listings/2/edit','/admin/listings/1/preview','/admin/catalog','/admin/reviews','/admin/reports','/admin/holidays','/admin/promotions','/admin/payments','/admin/verifications','/admin/messages')) {
             Navigate $path; Check-Page "Admin $path $width"
             if ($path -eq '/admin' -and $width -eq 375) {
                 $scrollable=Evaluate 'Array.from(document.querySelectorAll(''.table-responsive'')).filter(e=>e.scrollWidth>e.clientWidth).every(e=>{e.scrollLeft=50;const ok=e.scrollLeft>0;e.scrollLeft=0;return ok})'

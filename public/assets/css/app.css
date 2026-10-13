@@ -42,6 +42,42 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .btn-primary.disabled, .btn-primary:disabled { background-color: var(--primary); border-color: var(--primary); }
 
 /* Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status */
+.status-unpaid { background: #fff0c4; color: #7a5a0a; }
+.status-paid { background: #dff2e6; color: #226442; }
+.status-refunded { background: #e2ebf6; color: #2b4c74; }
+.status-not_required { background: #eeeae0; color: #555046; }
+.instant-badge { display: flex; gap: 6px; align-items: flex-start; background: #fff3cd; color: #5f4500; border-radius: 9px; padding: 8px 10px; margin: 10px 0 0; font-size: .82rem; font-weight: 600; }
+.instant-tag { display: inline-flex; border-radius: 999px; padding: 3px 8px; background: #fff3cd; color: #5f4500; font-size: .68rem; font-weight: 700; white-space: nowrap; }
+.price-rules { list-style: none; padding: 0; margin: 12px 0 0; font-size: .82rem; color: var(--text); }
+.price-rules li { position: relative; padding-left: 14px; margin-bottom: 3px; }
+.price-rules li::before { content: ""; position: absolute; left: 2px; top: .55em; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+.holiday-list { font-size: .8rem; margin-top: 6px; }
+.holiday-list summary { color: var(--primary-dark); cursor: pointer; }
+.holiday-list ul { padding-left: 18px; margin: 6px 0 0; }
+.booking-box .promo-feedback { text-align: left; margin-top: 4px; min-height: 1em; }
+.promo-feedback.is-valid { color: var(--primary-dark); font-weight: 600; }
+.promo-feedback.is-invalid { color: var(--danger); }
+.promo-input { text-transform: uppercase; letter-spacing: .04em; }
+.promo-code { font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace; letter-spacing: .04em; }
+.quote-row { display: flex; justify-content: space-between; gap: 12px; }
+.quote-row span:last-child { white-space: nowrap; }
+.quote-row.is-discount { color: var(--primary-dark); }
+.quote-row.is-total { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; font-size: .95rem; }
+.discount-row td { color: var(--primary-dark); }
+.payment-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 0; }
+.payment-panel { border-top: 1px solid var(--border); margin: 8px 0 20px; padding-top: 16px; }
+.payment-totals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.payment-totals small { display: block; color: var(--muted); }
+.refund-form { min-width: 180px; }
+.holiday-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; }
+.holiday-chips li { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 6px 10px; font-size: .85rem; }
+.pricing-form .custom-control-input:checked ~ .custom-control-label::before, .promo-admin-form .custom-control-input:checked ~ .custom-control-label::before { background-color: var(--primary); border-color: var(--primary); }
+.pricing-form .custom-control-input:focus ~ .custom-control-label::before, .promo-admin-form .custom-control-input:focus ~ .custom-control-label::before { box-shadow: 0 0 0 3px rgba(64,124,91,.3); }
+.promo-table, .payment-table { min-width: 760px; }
+.holiday-table { min-width: 520px; }
+.holiday-table .status, .payment-table .status { white-space: nowrap; }
+.promo-table td:first-child { min-width: 180px; }
+@media (max-width: 575.98px) { .payment-totals { grid-template-columns: 1fr; } }
 
 /* Nice-to-have trust: identity verification, trusted Host badge, check-in guide */
 .trust-badge-row { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 6px; vertical-align: middle; max-width: 100%; }

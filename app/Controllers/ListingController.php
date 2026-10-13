@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controllers;
+use App\Models\BookingExtras;
 use App\Models\Listing;
 use App\Services\BookingService;
 use Core\Controller;
@@ -14,8 +15,9 @@ final class ListingController extends Controller
         catch (\DomainException $exception) { \Core\Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
         $this->render('listings/show',['title'=>$listing['title'],'listing'=>$listing,'calendar'=>$calendar,
             'calendarDays'=>$model->calendar((int)$id,0,$calendar['start'],$calendar['end']),'calendarPath'=>'/listings/'.$id,'preview'=>false,
-            'trustBadges'=>(new \App\Models\Trust())->badges([(int)$listing['host_id']],\Core\Auth::id()),'reviewBadges'=>(new \App\Models\Trust())->reviewBadges((int)$id)]);
+            'trustBadges'=>(new \App\Models\Trust())->badges([(int)$listing['host_id']],\Core\Auth::id()),'reviewBadges'=>(new \App\Models\Trust())->reviewBadges((int)$id),
+            'bookingRules'=>(new BookingExtras())->listingRules((int)$id),'upcomingHolidays'=>(new BookingExtras())->upcomingHolidays(6)]);
     }
-    public function quote(string $id): never {try{$quote=(new BookingService())->quote((int)$id,(is_string($_GET['check_in']??null)?$_GET['check_in']:''),(is_string($_GET['check_out']??null)?$_GET['check_out']:''),(int)filter_var($_GET['guests']??null,FILTER_VALIDATE_INT));$this->json(true,'Giá đã được tính lại trên server.',$quote);}catch(\DomainException $e){$this->json(false,$e->getMessage(),null,[],422);}}
+    public function quote(string $id): never {try{$quote=(new BookingService())->quote((int)$id,(is_string($_GET['check_in']??null)?$_GET['check_in']:''),(is_string($_GET['check_out']??null)?$_GET['check_out']:''),(int)filter_var($_GET['guests']??null,FILTER_VALIDATE_INT),(is_string($_GET['promo_code']??null)?$_GET['promo_code']:''));$this->json(true,'Giá đã được tính lại trên server.',$quote);}catch(\DomainException $e){$this->json(false,$e->getMessage(),null,[],422);}}
 }
 
