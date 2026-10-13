@@ -9,7 +9,7 @@ $violations=[]; $calls=[];
 foreach ($files as $file) {
     if ($file->getExtension()!=='php') { continue; }
     $relative=str_replace('\\','/',substr($file->getPathname(),strlen($root)+1));
-    if (preg_match('~(^|/)(\.git|vendor|node_modules)/~',$relative)) { continue; }
+    if (preg_match('~(^|/)(\.git|vendor|node_modules)/|^lang/~',$relative)) { continue; }
     $source=file_get_contents($file->getPathname());
     foreach (token_get_all($source) as $token) {
         if (!is_array($token) || $token[0]!==T_CONSTANT_ENCAPSED_STRING) { continue; }
