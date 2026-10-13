@@ -18,7 +18,8 @@ final class BookingController extends Controller
             http_response_code(404); $this->render('errors/404',['title'=>'Không tìm thấy booking']); return;
         }
         $back=\Core\Auth::hasRole('admin') ? '/admin' : ((int)$booking['host_id']===(int)$user['id'] ? '/host' : '/bookings');
-        $this->render('bookings/show',['title'=>'Booking #'.$id,'booking'=>$booking,'back'=>$back,'actorId'=>(int)$user['id'],
+        $conversation=\App\Services\ConversationService::bookingPanel((int)$booking['id'],(int)$user['id'],$booking);
+        $this->render('bookings/show',['title'=>'Booking #'.$id,'booking'=>$booking,'back'=>$back,'actorId'=>(int)$user['id'],'conversation'=>$conversation,
             'trustBadges'=>(new \App\Models\Trust())->badges([(int)$booking['guest_id'],(int)$booking['host_id']],(int)$user['id']),
             'checkinGuide'=>(new \App\Models\Trust())->guideForBooking((int)$booking['id'],(int)$user['id'])]);
     }

@@ -66,6 +66,48 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 575.98px) { .trust-facts { grid-template-columns: minmax(0, 1fr); } .trust-facts dd { margin-bottom: 6px; } .trust-badge-row { margin: 4px 0; } }
 
 /* Nice-to-have conversation: booking messages, check-in reminders */
+.nav-unread-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 1.3rem; height: 1.3rem; padding: 0 .35rem; margin-left: .25rem; border-radius: 999px; background: var(--danger); color: #fff; font-size: .68rem; font-weight: 700; line-height: 1; }
+.zalo-link { white-space: nowrap; }
+.booking-thread .section-title { margin-bottom: 16px; }
+.message-list { list-style: none; margin: 0 0 18px; padding: 4px; display: flex; flex-direction: column; gap: 10px; max-height: 460px; overflow-y: auto; overscroll-behavior: contain; border-radius: 10px; }
+.message-list:focus-visible { outline: 2px solid var(--primary-dark); outline-offset: 3px; }
+.message-item { display: flex; min-width: 0; }
+.message-item.is-mine { justify-content: flex-end; }
+.message-bubble { max-width: min(85%, 560px); min-width: 0; padding: 10px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
+.message-item.is-mine .message-bubble { background: #e9f5ef; border-color: #cfe6d9; }
+.message-meta { margin: 0 0 4px; font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+.message-body { margin: 0; overflow-wrap: anywhere; }
+.message-hidden, .thread-empty { margin: 0 0 14px; color: var(--muted); font-style: italic; }
+.message-bubble .message-hidden { margin: 0; }
+.message-receipt { margin: 4px 0 0; font-size: .72rem; color: var(--muted); text-align: right; }
+.message-form-footer { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-top: 10px; }
+.thread-closed { margin: 8px 0 0; padding: 12px 14px; border-radius: 10px; background: var(--surface); color: var(--muted); }
+.conversation-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.conversation-item { display: block; padding: 18px 20px; border: 1px solid var(--border); border-radius: 14px; background: #fff; color: var(--text); box-shadow: 0 8px 25px rgba(37,53,42,.04); }
+.conversation-item:hover { color: var(--text); text-decoration: none; border-color: var(--primary); }
+.conversation-item:focus-visible { outline: 2px solid var(--primary-dark); outline-offset: 3px; }
+.conversation-item.is-unread { border-left: 4px solid var(--primary); }
+.conversation-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; }
+.conversation-head h2 { margin: 0; min-width: 0; font-size: 1.05rem; font-weight: 700; overflow-wrap: anywhere; }
+.conversation-head time, .conversation-meta { font-size: .8rem; color: var(--muted); }
+.conversation-meta { margin-top: 4px; overflow-wrap: anywhere; }
+.conversation-snippet { margin-top: 6px; overflow-wrap: anywhere; }
+.conversation-unread { display: inline-block; margin-top: 8px; padding: 2px 9px; border-radius: 999px; background: var(--primary-dark); color: #fff; font-size: .72rem; font-weight: 700; }
+.notification-kind { display: inline-block; margin-right: 6px; padding: 2px 9px; border-radius: 999px; background: #e9f5ef; color: var(--primary-dark); font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; vertical-align: middle; }
+.notification-checkin-reminder { border-left: 4px solid #d9a521; }
+.notification-checkin-reminder .notification-kind { background: #fff0c4; color: #86630b; }
+.notification-booking-message { border-left: 4px solid var(--primary); }
+.admin-message.is-hidden { background: #fff8f7; border-color: #f2c9c5; }
+.admin-message .message-body { margin-bottom: 10px; }
+.message-hidden-note { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+.message-moderation label { margin-bottom: 4px; font-size: .8rem; }
+.message-moderation-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.message-moderation-row .form-control { flex: 1 1 220px; width: auto; min-width: 0; }
+/* The extra "Tin nhắn" item must not push the desktop header onto two rows: tighten header spacing only. */
+@media (min-width: 992px) {
+    .site-header .navbar-nav .nav-link { margin: 0 .3rem; }
+    .site-header .navbar-actions .btn { padding-left: .75rem; padding-right: .75rem; }
+}
 
 /* Nice-to-have discovery: map search, recommendations */
 

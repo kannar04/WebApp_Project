@@ -7,6 +7,8 @@
 <?php if($currentUser): ?>
 <li class="nav-item"><a class="nav-link" href="<?= e(url('/wishlist')) ?>">Yêu thích</a></li>
 <li class="nav-item"><a class="nav-link" href="<?= e(url('/bookings')) ?>">Đặt chỗ</a></li>
+<?php $messageUnread=\App\Services\ConversationService::navigation((int)$currentUser['id']); ?>
+<li class="nav-item"><a class="nav-link" href="<?= e(url('/messages')) ?>">Tin nhắn<?php if($messageUnread>0): ?> <span class="nav-unread-badge"><?= $messageUnread>99?'99+':(int)$messageUnread ?><span class="sr-only"> tin nhắn chưa đọc</span></span><?php endif; ?></a></li>
 <?php endif; ?>
 </ul>
 <div class="navbar-actions">

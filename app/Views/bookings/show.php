@@ -9,8 +9,8 @@ $policy=$booking['policy'];
         <p class="mt-3"><?= e($booking['address']) ?> · <?= e($booking['city']) ?></p>
         <p><?= e($booking['check_in']) ?> → <?= e($booking['check_out']) ?> · <?= (int)$booking['guest_count'] ?> khách</p>
         <p>Guest: <?= e($booking['guest_name']) ?><?php $badge=($trustBadges??[])[(int)$booking['guest_id']]??null; require dirname(__DIR__).'/components/trust-badges.php'; ?> · Host: <?= e($booking['host_name']) ?><?php $badge=($trustBadges??[])[(int)$booking['host_id']]??null; $badgeShowHost=true; require dirname(__DIR__).'/components/trust-badges.php'; ?></p>
-        <?php if($actorId===(int)$booking['guest_id'] && $booking['host_phone']): ?><p>Liên hệ Host: <a href="tel:<?= e($booking['host_phone']) ?>"><?= e($booking['host_phone']) ?></a></p>
-        <?php elseif($actorId===(int)$booking['host_id'] && $booking['guest_phone']): ?><p>Liên hệ Guest: <a href="tel:<?= e($booking['guest_phone']) ?>"><?= e($booking['guest_phone']) ?></a></p>
+        <?php if($actorId===(int)$booking['guest_id'] && $booking['host_phone']): ?><p>Liên hệ Host: <a href="tel:<?= e($booking['host_phone']) ?>"><?= e($booking['host_phone']) ?></a><?php if($zaloUrl=\App\Services\ZaloLink::url($booking['host_phone'])): ?> <a class="btn btn-sm btn-soft zalo-link" href="<?= e($zaloUrl) ?>" target="_blank" rel="noopener noreferrer">Liên hệ qua Zalo<span class="sr-only"> với Host (mở tab mới)</span></a><?php endif; ?></p>
+        <?php elseif($actorId===(int)$booking['host_id'] && $booking['guest_phone']): ?><p>Liên hệ Guest: <a href="tel:<?= e($booking['guest_phone']) ?>"><?= e($booking['guest_phone']) ?></a><?php if($zaloUrl=\App\Services\ZaloLink::url($booking['guest_phone'])): ?> <a class="btn btn-sm btn-soft zalo-link" href="<?= e($zaloUrl) ?>" target="_blank" rel="noopener noreferrer">Liên hệ qua Zalo<span class="sr-only"> với Guest (mở tab mới)</span></a><?php endif; ?></p>
         <?php else: ?><p class="text-muted">Thông tin liên hệ của hai bên chỉ mở sau khi booking được xác nhận.</p><?php endif; ?>
         <?php require __DIR__.'/checkin-guide.php'; ?>
         <h2 class="h4">Giá đã lưu khi đặt</h2>
@@ -35,4 +35,5 @@ $policy=$booking['policy'];
         <ol><?php foreach($booking['events'] as $event): ?><li><?= e($event['created_at']) ?> — <?= e($labels[$event['to_status']]??$event['to_status']) ?>: <?= e($event['reason']) ?></li><?php endforeach; ?></ol>
         <a class="btn btn-ghost" href="<?= e(url('/listings/'.$booking['listing_id'])) ?>">Xem chỗ ở công khai</a>
     </article>
+    <?php require __DIR__.'/../messages/thread.php'; ?>
 </div></section>

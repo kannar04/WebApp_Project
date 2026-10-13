@@ -51,6 +51,10 @@ $router->get('/host/listings/{id}/checkin-guide',[\App\Controllers\TrustControll
 $router->post('/host/listings/{id}/checkin-guide',[\App\Controllers\TrustController::class,'guideSave']);
 
 // Nice-to-have conversation: booking messages, check-in reminders
+$router->get('/messages',[\App\Controllers\MessageController::class,'index']);
+$router->post('/bookings/{id}/messages',[\App\Controllers\MessageController::class,'send']);
+$router->get('/admin/messages',[\App\Controllers\MessageController::class,'admin']);
+$router->post('/admin/messages/{id}/moderate',[\App\Controllers\MessageController::class,'moderate']);
 
 // Nice-to-have discovery: map search, recommendations
 
