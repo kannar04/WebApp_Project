@@ -5,7 +5,8 @@
     function formatMoney(value) {
         const amount = Number(value);
         const sign = amount < 0 ? '−' : '';
-        return sign + new Intl.NumberFormat('vi-VN').format(Math.abs(amount)) + 'đ';
+        // Money keeps the Vietnamese format (dong sign) in both languages.
+        return sign + new Intl.NumberFormat('vi-VN').format(Math.abs(amount)) + '\u0111';
     }
 
     function buildRow(row) {
@@ -48,7 +49,7 @@
             } else if (promoInfo && promoInfo.message) {
                 showFeedback(promoInfo.message, 'invalid');
             } else if (promoInfo && promoInfo.code) {
-                showFeedback('Đã áp dụng mã ' + promoInfo.code + ': giảm ' + formatMoney(promoInfo.discount) + '.', 'valid');
+                showFeedback(window.h2hT('Đã áp dụng mã {code}: giảm {amount}.', {code: promoInfo.code, amount: formatMoney(promoInfo.discount)}), 'valid');
             }
             if (!panel || !Array.isArray(data.breakdown) || data.breakdown.length === 0) { return; }
             panel.replaceChildren(...data.breakdown.map(buildRow));
@@ -56,7 +57,7 @@
 
         function quoteFailed() {
             if (promo && promo.value.trim() !== '') {
-                showFeedback('Chưa kiểm tra được mã: hãy chọn ngày và số khách hợp lệ.', '');
+                showFeedback(window.h2hT('Chưa kiểm tra được mã: hãy chọn ngày và số khách hợp lệ.'), '');
             }
         }
 
@@ -64,9 +65,9 @@
             if (promo.value.trim() === '') {
                 showFeedback('', '');
             } else if (!checkIn.value || !checkOut.value) {
-                showFeedback('Chọn ngày nhận và trả phòng để kiểm tra mã.', '');
+                showFeedback(window.h2hT('Chọn ngày nhận và trả phòng để kiểm tra mã.'), '');
             } else {
-                showFeedback('Đang kiểm tra mã…', '');
+                showFeedback(window.h2hT('Đang kiểm tra mã…'), '');
             }
             // Re-run the shared quote request (debounced in app.js) with the new code.
             checkOut.dispatchEvent(new Event('input', {bubbles: true}));
