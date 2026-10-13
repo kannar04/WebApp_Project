@@ -78,3 +78,71 @@ UPDATE listings SET latitude=15.884500, longitude=108.350200 WHERE id=2 AND lati
 UPDATE listings SET latitude=15.913600, longitude=108.340200 WHERE id=3 AND latitude IS NULL AND longitude IS NULL;
 
 -- Nice-to-have content: articles and travel guides
+INSERT INTO articles (id, author_id, category, title, slug, excerpt, body, cover_image_url, cover_alt, status, published_at, created_at, updated_at, deleted_at) VALUES
+(1, 1, 'guide', 'Cẩm nang 2 ngày ở Đà Lạt', 'cam-nang-2-ngay-o-da-lat',
+'Lịch trình gợi ý cho hai ngày thong thả ở Đà Lạt: sáng săn mây, chiều dạo rừng thông và tối thưởng thức đặc sản chợ đêm.',
+'Đà Lạt hợp với những chuyến đi ngắn: khí hậu mát quanh năm, khoảng cách giữa các điểm tham quan không quá xa và có rất nhiều homestay ấm cúng ven rừng thông.
+
+## Ngày 1: phố núi và rừng thông
+
+Buổi sáng, hãy dạo quanh hồ Xuân Hương và ghé chợ Đà Lạt để thử bánh căn, sữa đậu nành nóng. Sau bữa trưa, bạn có thể đi bộ nhẹ ở đồi thông hoặc ghé một quán cà phê nhìn ra thung lũng.
+
+Buổi tối, chợ đêm có nhiều món nướng và đồ len. Nhiệt độ có thể xuống dưới 15 độ C, nên mang theo áo khoác mỏng và khăn quàng.
+
+## Ngày 2: săn mây và vườn hoa
+
+Nếu muốn ngắm mây, hãy dậy từ khoảng 4 giờ 30 và di chuyển sớm tới các đồi ngoại ô. Buổi chiều phù hợp để thăm vườn hoa, làng hoa Vạn Thành hoặc một trang trại dâu.
+
+## Gợi ý chọn chỗ ở
+
+Chọn chỗ ở cách trung tâm 10 đến 15 phút để vừa yên tĩnh vừa thuận tiện di chuyển. Kiểm tra giờ nhận phòng, chỗ đậu xe và chính sách hủy trước khi gửi yêu cầu đặt chỗ.',
+'/assets/images/demo/1449158743715-0a90ebb6d2d8.jpg', 'Ngôi nhà gỗ giữa rừng thông ở Đà Lạt', 'published', '2026-09-05 08:00:00.000000', '2026-09-04 20:00:00.000000', '2026-09-05 08:00:00.000000', NULL),
+(2, 1, 'guide', 'Đi Hội An mùa nào đẹp?', 'di-hoi-an-mua-nao-dep',
+'Từ mùa khô nắng đẹp đến mùa mưa yên ả, đây là cách chọn thời điểm phù hợp để khám phá phố cổ và biển An Bàng.',
+'Hội An đẹp quanh năm, nhưng mỗi mùa mang một trải nghiệm khác nhau. Biết trước thời tiết giúp bạn chọn lịch trình và chỗ ở phù hợp hơn.
+
+## Tháng 2 đến tháng 4: dễ chịu nhất
+
+Trời ít mưa, nắng nhẹ và không quá nóng. Đây là thời điểm lý tưởng để đạp xe qua làng rau Trà Quế, dạo phố cổ và ngắm đèn lồng buổi tối.
+
+## Tháng 5 đến tháng 8: mùa biển
+
+Nắng nhiều, rất hợp để tắm biển An Bàng hay Cửa Đại. Nên đi phố cổ vào sáng sớm hoặc chiều muộn và chọn chỗ ở có máy lạnh.
+
+## Tháng 9 đến tháng 12: mùa mưa
+
+Có thể có mưa lớn và ngập cục bộ ở khu phố cổ. Bù lại, giá phòng thường mềm hơn và phố xá yên tĩnh. Hãy theo dõi dự báo thời tiết và ưu tiên chính sách hủy linh hoạt.',
+'/assets/images/demo/1499793983690-e29da59ef1c2.jpg', 'Bãi biển cát trắng gần Hội An', 'published', '2026-09-18 09:30:00.000000', '2026-09-17 21:00:00.000000', '2026-09-18 09:30:00.000000', NULL),
+(3, 1, 'guide', 'Mẹo đặt homestay an toàn trên Home2Home', 'meo-dat-homestay-an-toan-tren-home2home',
+'Những bước đơn giản giúp bạn kiểm tra thông tin chỗ ở, hiểu rõ chính sách hủy và báo cáo nội dung đáng ngờ trước khi đặt.',
+'Một chuyến đi suôn sẻ bắt đầu từ việc chọn đúng chỗ ở. Dưới đây là vài thói quen nhỏ giúp bạn đặt homestay an tâm hơn.
+
+## Đọc kỹ trang chỗ ở
+
+Xem hết ảnh, mô tả, tiện nghi và nội quy. Kiểm tra số khách tối đa, giờ nhận phòng và trả phòng để tránh phát sinh ngoài ý muốn.
+
+## Tham khảo đánh giá thật
+
+Đánh giá trên Home2Home chỉ đến từ khách đã hoàn thành kỳ nghỉ. Hãy đọc cả phản hồi của Host để hiểu cách họ xử lý vấn đề.
+
+## Hiểu chính sách hủy
+
+Mỗi chỗ ở có chính sách hủy riêng: Linh hoạt, Trung bình hoặc Nghiêm ngặt. Tổng tiền và mức hoàn tiền được máy chủ tính lại khi bạn gửi yêu cầu.
+
+## Cảnh giác với yêu cầu bất thường
+
+Không chia sẻ mật khẩu tài khoản và không chuyển tiền qua kênh riêng khi được người lạ yêu cầu. Nếu thấy thông tin sai sự thật hoặc dấu hiệu lừa đảo, hãy dùng nút Báo cáo trên trang chỗ ở.',
+'/assets/images/demo/1600566753086-00f18fb6b3ea.jpg', 'Phòng khách homestay nhiều ánh sáng', 'published', '2026-09-28 10:00:00.000000', '2026-09-27 16:00:00.000000', '2026-09-28 10:00:00.000000', NULL),
+(4, 1, 'news', 'Home2Home ra mắt mục Cẩm nang', 'home2home-ra-mat-muc-cam-nang',
+'Mục Cẩm nang mới tổng hợp tin tức nền tảng và kinh nghiệm du lịch giúp bạn lên kế hoạch cho chuyến đi tiếp theo.',
+'Home2Home chính thức ra mắt mục Cẩm nang, nơi đội ngũ vận hành chia sẻ tin tức về nền tảng cùng các bài hướng dẫn du lịch thực tế.
+
+## Có gì trong Cẩm nang?
+
+Tin tức giúp bạn cập nhật thay đổi mới trên Home2Home. Cẩm nang du lịch gợi ý lịch trình, thời điểm đẹp và kinh nghiệm chọn chỗ ở tại các điểm đến quen thuộc.
+
+## Cùng nhau hoàn thiện
+
+Nếu bạn muốn đọc thêm về một điểm đến nào đó, hãy cho chúng tôi biết. Các bài viết mới sẽ được cập nhật thường xuyên.',
+'/assets/images/demo/1600585154340-be6161a56a0c.jpg', 'Không gian bên ngoài một ngôi nhà nghỉ dưỡng', 'published', '2026-10-06 08:00:00.000000', '2026-10-05 18:00:00.000000', '2026-10-06 08:00:00.000000', NULL)
+ON DUPLICATE KEY UPDATE category=VALUES(category), title=VALUES(title), excerpt=VALUES(excerpt), body=VALUES(body), cover_image_url=VALUES(cover_image_url), cover_alt=VALUES(cover_alt);
