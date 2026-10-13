@@ -65,6 +65,7 @@ final class HostController extends Controller
     private function persist(?int $listingId, int $hostId): never
     {
         $data = $this->listingInput();
+        $data += self::coordinateInput($_POST);
         $listingModel = new Listing();
         $returnPath = $listingId ? '/host/listings/'.$listingId.'/edit' : '/host/listings/create';
         $database = \Core\Database::connection();
@@ -91,6 +92,7 @@ final class HostController extends Controller
                     throw new \DomainException('Giờ nhận hoặc trả phòng không hợp lệ.');
                 }
             }
+            self::assertCoordinates($data);
             if (!in_array($data['property_type_id'], array_map('intval', array_column($listingModel->types(), 'id')), true)
                 || !in_array($data['cancellation_policy_id'], array_map('intval', array_column($listingModel->policies(), 'id')), true)) {
                 throw new \DomainException('Loại chỗ ở hoặc chính sách hủy không hợp lệ.');
@@ -121,6 +123,29 @@ final class HostController extends Controller
             Session::flash('error', $exception instanceof \DomainException
                 ? $exception->getMessage() : 'Không thể lưu chỗ ở. Vui lòng thử lại.');
             $this->redirect($returnPath);
+        }
+    }
+    /** Optional map position; blank inputs stay blank so the form can redisplay them. */
+    private static function coordinateInput(array $input): array
+    {
+        $coordinates = [];
+        foreach (['latitude', 'longitude'] as $field) {
+            $value = $input[$field] ?? '';
+            $coordinates[$field] = is_string($value) ? str_replace(',', '.', trim($value)) : '?';
+        }
+        return $coordinates;
+    }
+
+    private static function assertCoordinates(array $data): void
+    {
+        if (($data['latitude'] === '') !== ($data['longitude'] === '')) {
+            throw new \DomainException('Vui lòng nhập cả vĩ độ và kinh độ, hoặc để trống cả hai.');
+        }
+        if ($data['latitude'] === '') { return; }
+        foreach (['latitude' => 90, 'longitude' => 180] as $field => $limit) {
+            if (!preg_match('/^-?\d{1,3}(?:\.\d{1,12})?$/D', $data[$field]) || abs((float) $data[$field]) > $limit) {
+                throw new \DomainException('Vĩ độ phải từ -90 đến 90 và kinh độ từ -180 đến 180.');
+            }
         }
     }
     private function listingInput(): array {return ['property_type_id'=>(int)($_POST['property_type_id']??0),'cancellation_policy_id'=>(int)($_POST['cancellation_policy_id']??0),'title'=>trim((string)($_POST['title']??'')),'address'=>trim((string)($_POST['address']??'')),'city'=>trim((string)($_POST['city']??'')),'description'=>trim((string)($_POST['description']??'')),'nightly_price'=>(float)($_POST['nightly_price']??0),'cleaning_fee'=>(float)($_POST['cleaning_fee']??0),'max_guests'=>(int)($_POST['max_guests']??0),'room_count'=>(int)($_POST['room_count']??1),'bedroom_count'=>(int)($_POST['bedroom_count']??1),'bed_count'=>(int)($_POST['bed_count']??1),'check_in_time'=>(string)($_POST['check_in_time']??'14:00'),'check_out_time'=>(string)($_POST['check_out_time']??'11:00'),'allows_smoking'=>isset($_POST['allows_smoking']),'allows_pets'=>isset($_POST['allows_pets']),'allows_parties'=>isset($_POST['allows_parties'])];}

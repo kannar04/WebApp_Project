@@ -19,6 +19,7 @@ $resetUrl=url('/'.($resetFilters?'?'.http_build_query($resetFilters):'').'#listi
         <div class="hero-copy"><p class="eyebrow">ĐẬU ĐỖ · THƯ GIÃN · KẾT NỐI</p><h1>Tìm nơi bạn muốn đến.</h1><p>Từ căn hộ tiện nghi đến ngôi nhà bình yên — luôn có một chỗ dành cho bạn.</p></div>
     </div>
 </section>
+<?php require __DIR__.'/components/discovery-home.php'; ?>
 <section class="listing-section" id="listing-results" aria-labelledby="listing-results-title">
     <div class="container">
         <div class="section-title"><div><h2 id="listing-results-title">Chỗ ở nổi bật</h2><p class="text-muted">Những chỗ ở được duyệt và đang sẵn sàng đón bạn.</p></div></div>
@@ -78,6 +79,7 @@ $resetUrl=url('/'.($resetFilters?'?'.http_build_query($resetFilters):'').'#listi
             <div class="empty-state" data-search-invalid><h3>Hãy sửa điều kiện tìm kiếm</h3><p>Chưa hiển thị kết quả vì bộ lọc không hợp lệ.</p><a class="btn btn-outline-primary" href="<?= e(url('/#listing-results')) ?>">Xóa tất cả điều kiện</a></div>
         <?php else: ?>
             <p class="results-summary" role="status" data-results-summary><strong><?= (int)$total ?> kết quả</strong> · Trang <?= (int)$page ?>/<?= (int)$pages ?> · <?= $hasFilters?'Đã áp dụng điều kiện tìm kiếm.':'Đang hiển thị tất cả chỗ ở.' ?></p>
+            <?php require __DIR__.'/components/discovery-map-link.php'; ?>
             <?php if(!$listings): ?>
                 <div class="empty-state"><h3>Chưa tìm thấy chỗ ở phù hợp</h3><p>Hãy thử bỏ bớt tiện nghi hoặc đổi địa điểm, ngày và số khách.</p><a class="btn btn-primary" href="<?= e(url('/#listing-results')) ?>">Xóa tất cả điều kiện</a></div>
             <?php else: ?>

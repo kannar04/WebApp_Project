@@ -39,7 +39,7 @@ try {
         throw new RuntimeException('Seed lặp lại không đúng hoặc danh mục bị inactive.');
     }
     $count = (int) $pdo->query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='{$testDatabase}'")->fetchColumn();
-    if ($count !== 32) {
+    if ($count !== 34) {
         throw new RuntimeException('Schema thiếu bảng: chỉ tạo được ' . $count);
     }
     echo "PASS schema: {$count} tables created; SQL seed repeat safe" . PHP_EOL;
@@ -54,8 +54,7 @@ try {
             $normalize = static fn(string $ddl): string => preg_replace('/ AUTO_INCREMENT=\d+/', '', $ddl);
             if ($normalize($actual) !== $normalize($baseline)) { throw new RuntimeException('Schema parity failed: '.$table); }
         }
-        echo "PASS exact SHOW CREATE TABLE parity for 32 tables (excluding generated sequence counters)
-";
+        echo "PASS exact SHOW CREATE TABLE parity for 34 tables (excluding generated sequence counters)\n";
     }
     $guestStatement=$pdo->prepare('CALL sp_user_get_by_email(?)');
     $guestStatement->execute(['guest@home2home.test']);

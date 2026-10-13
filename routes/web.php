@@ -70,6 +70,9 @@ $router->get('/admin/messages',[\App\Controllers\MessageController::class,'admin
 $router->post('/admin/messages/{id}/moderate',[\App\Controllers\MessageController::class,'moderate']);
 
 // Nice-to-have discovery: map search, recommendations
+$router->get('/map',[\App\Controllers\DiscoveryController::class,'map']);
+$router->get('/api/listings/map',[\App\Controllers\DiscoveryController::class,'search']);
+$router->post('/profile/history/clear',[\App\Controllers\DiscoveryController::class,'clearHistory']);
 
 // Nice-to-have content: articles and travel guides
 

@@ -11,6 +11,7 @@ final class ListingController extends Controller
     {
         $model=new Listing(); $listing=$model->findPublic((int)$id);
         if (!$listing) { http_response_code(404); $this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']); return; }
+        \App\Services\DiscoveryService::recordView($listing);
         try { $calendar=\Core\Calendar::month($_GET['month']??date('Y-m')); }
         catch (\DomainException $exception) { \Core\Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
         $this->render('listings/show',['title'=>$listing['title'],'listing'=>$listing,'calendar'=>$calendar,

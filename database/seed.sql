@@ -73,5 +73,8 @@ INSERT IGNORE INTO listing_checkin_guides (listing_id, arrival_instructions, doo
 -- Nice-to-have conversation: booking messages, check-in reminders
 
 -- Nice-to-have discovery: map search, recommendations
+UPDATE listings SET latitude=11.958300, longitude=108.445100 WHERE id=1 AND latitude IS NULL AND longitude IS NULL;
+UPDATE listings SET latitude=15.884500, longitude=108.350200 WHERE id=2 AND latitude IS NULL AND longitude IS NULL;
+UPDATE listings SET latitude=15.913600, longitude=108.340200 WHERE id=3 AND latitude IS NULL AND longitude IS NULL;
 
 -- Nice-to-have content: articles and travel guides
