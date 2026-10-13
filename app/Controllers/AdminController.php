@@ -17,9 +17,11 @@ final class AdminController extends Controller
         $query=is_string($_GET['booking_q']??null)?mb_substr(trim($_GET['booking_q']),0,254):'';
         $status=is_string($_GET['booking_status']??null)?$_GET['booking_status']:'';
         if (!in_array($status,['','pending','confirmed','rejected','cancelled','completed'],true)) { $status=''; Session::flash('error','Trạng thái lọc booking không hợp lệ.'); }
+        $users=(new User())->all(is_string($_GET['q']??null)?$_GET['q']:'');
         $this->render('admin/dashboard',['title'=>'Quản trị Home2Home','stats'=>$repo->stats(),
-            'users'=>(new User())->all(is_string($_GET['q']??null)?$_GET['q']:''),'listings'=>$repo->listings(),
-            'bookings'=>(new Booking())->adminSearch((int)$admin['id'],$query,$status),'bookingQuery'=>$query,'bookingStatus'=>$status]);
+            'users'=>$users,'listings'=>$repo->listings(),
+            'bookings'=>(new Booking())->adminSearch((int)$admin['id'],$query,$status),'bookingQuery'=>$query,'bookingStatus'=>$status,
+            'trustBadges'=>(new \App\Models\Trust())->badges(array_column($users,'id'),(int)$admin['id'])]);
     }
     public function listingPreview(string $id): void
     {
@@ -69,7 +71,7 @@ final class AdminController extends Controller
         }
         $this->redirect('/admin');
     }
-    public function userEdit(string $id): void {$this->requireRole('admin');$user=(new User())->findForAdmin((int)$id);if(!$user){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy tài khoản']);return;}$this->render('admin/user-edit',['title'=>'Sửa tài khoản','managedUser'=>$user,'old'=>Session::pullOld()]);}
+    public function userEdit(string $id): void {$this->requireRole('admin');$user=(new User())->findForAdmin((int)$id);if(!$user){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy tài khoản']);return;}$this->render('admin/user-edit',['title'=>'Sửa tài khoản','managedUser'=>$user,'old'=>Session::pullOld(),'trustBadges'=>(new \App\Models\Trust())->badges([(int)$id],(int)\Core\Auth::id())]);}
     public function userUpdate(string $id): never
     {
         Csrf::ensure();

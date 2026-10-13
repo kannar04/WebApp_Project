@@ -384,6 +384,43 @@ CREATE TABLE IF NOT EXISTS `account_status_events` (
 -- Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
 
 -- Nice-to-have trust: identity verification, trusted Host badge, check-in guide
+CREATE TABLE IF NOT EXISTS `identity_verifications` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Verification request ID',
+  `user_id` bigint(20) unsigned NOT NULL COMMENT 'Account asking to be verified',
+  `full_name_on_card` varchar(150) NOT NULL COMMENT 'Full name exactly as printed on the CCCD',
+  `phone` varchar(10) NOT NULL COMMENT 'Normalized Vietnamese mobile number (10 digits)',
+  `id_number` varchar(12) NOT NULL COMMENT 'Full 12-digit CCCD only while pending; masked ********NNNN after the decision',
+  `status` varchar(10) NOT NULL COMMENT 'pending | approved | rejected',
+  `decision_reason` text DEFAULT NULL COMMENT 'Admin note; required when rejected',
+  `reviewed_by` bigint(20) unsigned DEFAULT NULL COMMENT 'Deciding administrator',
+  `reviewed_at` datetime(6) DEFAULT NULL COMMENT 'Decision time',
+  `created_at` datetime(6) NOT NULL COMMENT 'Submission time',
+  `updated_at` datetime(6) NOT NULL COMMENT 'Last status change',
+  PRIMARY KEY (`id`),
+  KEY `idx_identity_verifications_user_id_status` (`user_id`,`status`),
+  KEY `idx_identity_verifications_status_created_at` (`status`,`created_at`),
+  KEY `idx_identity_verifications_reviewed_by` (`reviewed_by`),
+  CONSTRAINT `fk_identity_verifications_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_identity_verifications_reviewed_by` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `chk_identity_verifications_status` CHECK (`status` in ('pending','approved','rejected')),
+  CONSTRAINT `chk_identity_verifications_phone` CHECK (`phone` regexp '^0[35789][0-9]{8}$'),
+  CONSTRAINT `chk_identity_verifications_id_number` CHECK (`status` = 'pending' and `id_number` regexp '^[0-9]{12}$' or `status` <> 'pending' and `id_number` regexp '^[*]{8}[0-9]{4}$'),
+  CONSTRAINT `chk_identity_verifications_decision` CHECK (`status` = 'pending' and `reviewed_by` is null and `reviewed_at` is null or `status` <> 'pending' and `reviewed_by` is not null and `reviewed_at` is not null),
+  CONSTRAINT `chk_identity_verifications_reason` CHECK (`status` <> 'rejected' or `decision_reason` is not null)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `listing_checkin_guides` (
+  `listing_id` bigint(20) unsigned NOT NULL COMMENT 'Accommodation owning the guide (1:1)',
+  `arrival_instructions` text NOT NULL COMMENT 'How to reach and enter the property',
+  `door_code` varchar(60) DEFAULT NULL COMMENT 'Door or lockbox code; private to entitled booking participants',
+  `wifi_name` varchar(100) DEFAULT NULL COMMENT 'Wi-Fi network name',
+  `wifi_password` varchar(100) DEFAULT NULL COMMENT 'Wi-Fi password; private to entitled booking participants',
+  `note` text DEFAULT NULL COMMENT 'Optional extra Host note',
+  `updated_at` datetime(6) NOT NULL COMMENT 'Last Host edit',
+  PRIMARY KEY (`listing_id`),
+  CONSTRAINT `fk_listing_checkin_guides_listing_id` FOREIGN KEY (`listing_id`) REFERENCES `listings` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `chk_listing_checkin_guides_arrival` CHECK (char_length(`arrival_instructions`) between 10 and 3000)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Nice-to-have conversation: booking messages, check-in reminders
 

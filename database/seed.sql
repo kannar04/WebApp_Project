@@ -45,6 +45,8 @@ INSERT IGNORE INTO listing_amenities (listing_id, amenity_id) VALUES
 -- Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
 
 -- Nice-to-have trust: identity verification, trusted Host badge, check-in guide
+INSERT IGNORE INTO listing_checkin_guides (listing_id, arrival_instructions, door_code, wifi_name, wifi_password, note, updated_at) VALUES
+(1, 'Đi theo đường Hoàng Hoa Thám, rẽ vào hẻm có biển "Ngôi nhà thông". Chìa khóa nằm trong hộp khóa màu xám cạnh cổng gỗ, đỗ xe trong sân bên trái.', '2468', 'NhaThong_5G', 'dalat2468', 'Vui lòng giữ yên lặng sau 22:00 và tắt lò sưởi khi ra ngoài.', NOW(6));
 
 -- Nice-to-have conversation: booking messages, check-in reminders
 

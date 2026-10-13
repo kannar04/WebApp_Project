@@ -44,6 +44,26 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 /* Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status */
 
 /* Nice-to-have trust: identity verification, trusted Host badge, check-in guide */
+.trust-badge-row { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 6px; vertical-align: middle; max-width: 100%; }
+.trust-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 10px; font-size: .72rem; font-weight: 700; line-height: 1.5; white-space: nowrap; }
+.trust-badge-verified { background: #e3eefa; color: #1c4a73; }
+.trust-badge-host { background: #fbecc0; color: #5f4500; }
+.trust-badge-row small { flex-basis: 100%; }
+.trust-facts { display: grid; grid-template-columns: minmax(130px, max-content) minmax(0, 1fr); gap: 6px 18px; margin: 0; }
+.trust-facts dt { font-weight: 600; color: var(--muted); }
+.trust-facts dd { margin: 0; overflow-wrap: anywhere; }
+.trust-masked, .trust-secret { font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace; letter-spacing: .04em; }
+.trust-progress { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.trust-progress li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 14px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; }
+.trust-progress li.is-met { background: #eef7f1; }
+.trust-progress li.is-met strong { color: #226442; }
+.trust-progress li.is-unmet strong { color: #8a3a2f; }
+.checkin-guide { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 18px 0; }
+#verification, #trusted-host { scroll-margin-top: 100px; }
+#verification .section-title.compact, #trusted-host .section-title.compact, .verification-item .section-title.compact { gap: 12px; }
+#verification .section-title .status, #trusted-host .section-title .trust-badge, #trusted-host .section-title .status, .verification-item .section-title .status { white-space: nowrap; flex-shrink: 0; }
+@media (max-width: 767.98px) { #verification .section-title.compact, #trusted-host .section-title.compact, .verification-item .section-title.compact { align-items: flex-start; } }
+@media (max-width: 575.98px) { .trust-facts { grid-template-columns: minmax(0, 1fr); } .trust-facts dd { margin-bottom: 6px; } .trust-badge-row { margin: 4px 0; } }
 
 /* Nice-to-have conversation: booking messages, check-in reminders */
 

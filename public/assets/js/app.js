@@ -174,6 +174,26 @@
         // Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
 
         // Nice-to-have trust: identity verification, trusted Host badge, check-in guide
+        // Check-in secrets stay readable without JavaScript; with it they start masked behind a Hiện/Ẩn toggle.
+        function setTrustSecretVisible(button, visible) {
+            const secret = document.getElementById(button.getAttribute('aria-controls'));
+            const label = button.querySelector('[data-trust-secret-label]');
+            if (!secret || !label) { return; }
+            if (secret.dataset.trustSecret === undefined) { secret.dataset.trustSecret = secret.textContent; }
+            secret.textContent = visible ? secret.dataset.trustSecret : '••••••';
+            button.setAttribute('aria-pressed', String(visible));
+            label.textContent = visible ? 'Ẩn' : 'Hiện';
+        }
+        function toggleTrustSecret(event) {
+            const button = event.currentTarget;
+            setTrustSecretVisible(button, button.getAttribute('aria-pressed') !== 'true');
+        }
+        function bindTrustSecret(button) {
+            button.hidden = false;
+            setTrustSecretVisible(button, false);
+            button.addEventListener('click', toggleTrustSecret);
+        }
+        document.querySelectorAll('[data-trust-secret-toggle]').forEach(bindTrustSecret);
 
         // Nice-to-have conversation: booking messages, check-in reminders
 

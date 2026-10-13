@@ -8,10 +8,11 @@ $policy=$booking['policy'];
         <span class="status status-<?= e($booking['status']) ?>"><?= e($labels[$booking['status']]) ?></span>
         <p class="mt-3"><?= e($booking['address']) ?> · <?= e($booking['city']) ?></p>
         <p><?= e($booking['check_in']) ?> → <?= e($booking['check_out']) ?> · <?= (int)$booking['guest_count'] ?> khách</p>
-        <p>Guest: <?= e($booking['guest_name']) ?> · Host: <?= e($booking['host_name']) ?></p>
+        <p>Guest: <?= e($booking['guest_name']) ?><?php $badge=($trustBadges??[])[(int)$booking['guest_id']]??null; require dirname(__DIR__).'/components/trust-badges.php'; ?> · Host: <?= e($booking['host_name']) ?><?php $badge=($trustBadges??[])[(int)$booking['host_id']]??null; $badgeShowHost=true; require dirname(__DIR__).'/components/trust-badges.php'; ?></p>
         <?php if($actorId===(int)$booking['guest_id'] && $booking['host_phone']): ?><p>Liên hệ Host: <a href="tel:<?= e($booking['host_phone']) ?>"><?= e($booking['host_phone']) ?></a></p>
         <?php elseif($actorId===(int)$booking['host_id'] && $booking['guest_phone']): ?><p>Liên hệ Guest: <a href="tel:<?= e($booking['guest_phone']) ?>"><?= e($booking['guest_phone']) ?></a></p>
         <?php else: ?><p class="text-muted">Thông tin liên hệ của hai bên chỉ mở sau khi booking được xác nhận.</p><?php endif; ?>
+        <?php require __DIR__.'/checkin-guide.php'; ?>
         <h2 class="h4">Giá đã lưu khi đặt</h2>
         <div class="table-responsive"><table class="table"><thead><tr><th>Đêm lưu trú</th><th>Giá / đêm (<?= e($booking['currency']) ?>)</th></tr></thead><tbody>
         <?php foreach($booking['nights'] as $night): ?><tr><td><?= e($night['stay_date']) ?></td><td><?= number_format((float)$night['nightly_amount'],0,',','.') ?></td></tr><?php endforeach; ?>

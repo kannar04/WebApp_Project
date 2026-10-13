@@ -44,6 +44,11 @@ $router->get('/admin',[AdminController::class,'dashboard']);$router->post('/admi
 // Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
 
 // Nice-to-have trust: identity verification, trusted Host badge, check-in guide
+$router->post('/profile/verification',[\App\Controllers\TrustController::class,'submitVerification']);
+$router->get('/admin/verifications',[\App\Controllers\TrustController::class,'adminIndex']);
+$router->post('/admin/verifications/{id}/decide',[\App\Controllers\TrustController::class,'adminDecide']);
+$router->get('/host/listings/{id}/checkin-guide',[\App\Controllers\TrustController::class,'guideForm']);
+$router->post('/host/listings/{id}/checkin-guide',[\App\Controllers\TrustController::class,'guideSave']);
 
 // Nice-to-have conversation: booking messages, check-in reminders
 

@@ -18,7 +18,9 @@ final class BookingController extends Controller
             http_response_code(404); $this->render('errors/404',['title'=>'Không tìm thấy booking']); return;
         }
         $back=\Core\Auth::hasRole('admin') ? '/admin' : ((int)$booking['host_id']===(int)$user['id'] ? '/host' : '/bookings');
-        $this->render('bookings/show',['title'=>'Booking #'.$id,'booking'=>$booking,'back'=>$back,'actorId'=>(int)$user['id']]);
+        $this->render('bookings/show',['title'=>'Booking #'.$id,'booking'=>$booking,'back'=>$back,'actorId'=>(int)$user['id'],
+            'trustBadges'=>(new \App\Models\Trust())->badges([(int)$booking['guest_id'],(int)$booking['host_id']],(int)$user['id']),
+            'checkinGuide'=>(new \App\Models\Trust())->guideForBooking((int)$booking['id'],(int)$user['id'])]);
     }
     public function create(string $id): never {Csrf::ensure();$user=$this->requireAuth();try{$bookingId=(new BookingService())->create((int)$id,(int)$user['id'],(is_string($_POST['check_in']??null)?$_POST['check_in']:''),(is_string($_POST['check_out']??null)?$_POST['check_out']:''),(int)filter_var($_POST['guests']??null,FILTER_VALIDATE_INT));Session::flash('success','Yêu cầu đặt chỗ #'.$bookingId.' đã được gửi tới Host.');$this->redirect('/bookings');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');$this->redirect('/listings/'.$id);}}
     public function cancel(string $id): never {Csrf::ensure();$user=$this->requireAuth();try{$result=(new BookingService())->cancelByGuest((int)$id,(int)$user['id'],(string)($_POST['reason']??''));Session::flash('success','Đã hủy booking. Mức hoàn dự kiến: '.$result['refund_percent'].'%.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/bookings');}
