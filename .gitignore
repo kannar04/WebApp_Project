@@ -96,3 +96,5 @@ build/
 
 # Sơ đồ phân tích cục bộ
 graph/
+tests
+.kilo/
