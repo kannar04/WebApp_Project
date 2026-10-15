@@ -104,6 +104,29 @@ Còn lại (có từ trước, chưa sửa):
 - Thao tác kéo bản đồ và bản đồ nhỏ ở trang chi tiết: chỉ kiểm tra thủ công bằng Chrome (CDP) trong báo cáo nhánh discovery, không có test tự động; tile cần Internet.
 - Lịch Windows Task Scheduler và cron chưa được tạo/chạy thử; cron chưa thử trên Linux.
 - Nâng cấp qua giao diện phpMyAdmin chưa chạy thử (đã thử bằng `mysql.exe ... source`).
-- VNPay/MoMo chưa tích hợp.
+- VNPay/MoMo chưa tích hợp (đã bổ sung VietQR + VNPay sandbox ngày 2026-10-15; phần chưa xác minh của thanh toán online ở mục dưới).
 - Giao diện tiếng Anh: test tự động kiểm tra các trang GET và thông báo theo từ điển. Thao tác POST (đặt chỗ, hủy, duyệt, thu tiền/hoàn tiền, lưu form lỗi, tin nhắn, báo cáo, xác minh) được kiểm thử theo hành trình Guest, Host và Admin ở cả hai ngôn ngữ, mỗi vai trò trên một DB/server riêng, ở 375 px và 1440 px; không có test tự động riêng cho các thao tác này.
 - Các kịch bản click-through thủ công trong báo cáo từng nhánh chưa được chạy lại sau khi gộp; kết quả sau gộp dựa trên test tự động.
+
+## Thanh toán online (VietQR + VNPay sandbox) — 2026-10-15
+
+Lệnh như trên: `C:\xampp\php\php.exe tests\fresh_setup_test.php --quality-regression --no-screenshots`. Kết quả: exit 0, **277 dòng PASS** (271 cũ + 6 của suite mới), không có dòng FAIL hay SKIP, dòng cuối `PASS exact owned test database cleanup; shared database untouched`. `fresh_setup_test.php` truyền cho server tạm một tài khoản nhận tiền giả và một `VNPAY_HASH_SECRET` sinh ngẫu nhiên mỗi lần chạy, nên gate không đọc thông tin ngân hàng hay khóa VNPay trong `.env` của máy chạy.
+
+| Suite | Dòng PASS | Nội dung chính |
+|---|---|---|
+| `codebase_cleanup_test.php` | 4 | installer 167 định nghĩa production / 41 test opt-in, zero DROP; 36 bảng schema |
+| `stored_procedure_audit_test.php` | 4 | 0 SQL nghiệp vụ trực tiếp; 248 CALL sites / 190 routine signatures |
+| `feature_payment_test.php` (mới) | 6 | quyền (chỉ Guest, chỉ booking confirmed, chỉ VietQR/VNPay); VietQR (một mã cho mỗi số tiền, khách báo đã chuyển + thông báo Admin, từ chối có lý do, trả lại, Admin xác nhận, audit); kết quả VNPay (mã lạ, sai số tiền, booking đã hủy, thành công một lần, gọi lại an toàn, tiền về trùng hoặc sau khi hủy thì báo Admin hoàn tiền); ký VNPay (giờ GMT+7, số tiền ×100, HMAC-SHA512, chặn sửa tham số/giả chữ ký/sai merchant) và link ảnh VietQR; HTTP (trang chỉ cho Guest, CSRF, trang QR có số tài khoản và mã, báo chuyển khoản, hàng chờ Admin/403/xác nhận, chữ ký link chuyển sang VNPay, return/IPN giả trả 97, return hợp lệ, IPN 02/01/04); dọn fixture |
+| `feature_i18n_test.php` | 7 | thêm câu tiếng Anh cho trang thanh toán và thông báo mới; 332 thông báo PHP + 291 thông báo routine có bản dịch/mẫu; 89 trang tiếng Anh không còn câu chưa dịch |
+
+Test có sẵn đã sửa: `schema_test.php` và `codebase_cleanup_test.php` đổi số bảng 35 → 36; `fresh_setup_test.php` thêm biến môi trường thanh toán giả cho server tạm. Số dòng của các suite còn lại giữ nguyên.
+
+Kiểm thử thủ công 2026-10-17 trên `db_home2home` máy phát triển, với merchant VNPay sandbox đăng ký riêng (mã TMN và secret chỉ nằm trong `.env`): một booking trả qua VNPay bằng thẻ test NCB, VNPay trả mã `00` kèm mã giao dịch và booking chuyển “Đã thanh toán” (VNPay) qua return URL; một booking khác khách báo chuyển khoản VietQR, Admin xác nhận ở `/admin/payments`, booking chuyển “Đã thanh toán” (VietQR). Ở cả hai booking, lần thanh toán còn mở bằng cách kia tự đóng. Booking VietQR sau đó được khách hủy trong vòng 24 giờ trước giờ nhận phòng: chính sách Linh hoạt hoàn 0đ nên không cần hoàn tiền.
+
+Chưa xác minh và giới hạn:
+
+- Test tự động chỉ giả lập kết quả VNPay có chữ ký đúng theo tài liệu tích hợp, không gọi tới máy chủ VNPay; vòng thanh toán thật chỉ được chạy thủ công (đoạn trên).
+- Khách hủy booking đã thanh toán online khi chính sách còn hoàn tiền: số tiền hoàn được tính và lưu như mọi lần hủy, nhưng Admin không nhận thông báo riêng; Admin hoàn tiền thủ công ở `/admin/payments` (ghi nhận toàn bộ số đã thu).
+- IPN cần địa chỉ công khai; trên localhost kết quả chỉ được ghi qua return URL có chữ ký.
+- Chưa quét mã VietQR bằng app ngân hàng thật; test kiểm tra link ảnh `img.vietqr.io` và nội dung trang, không tải ảnh (ảnh cần Internet).
+- MoMo/ZaloPay không có cổng riêng; khách dùng các app này để quét mã VietQR.

@@ -158,7 +158,8 @@ final class BookingExtrasController extends Controller
         $query = is_string($_GET['q'] ?? null) ? mb_substr(trim($_GET['q']), 0, 254) : '';
         $model = new BookingExtras();
         $this->render('admin/payments', ['title'=>'Thanh toán', 'payments'=>$model->adminPayments((int) $user['id'], $status, $query),
-            'totals'=>$model->adminPaymentTotals((int) $user['id']), 'status'=>$status, 'query'=>$query]);
+            'totals'=>$model->adminPaymentTotals((int) $user['id']), 'status'=>$status, 'query'=>$query,
+            'transfers'=>(new \App\Models\Payment())->adminTransfers((int) $user['id'])]);
     }
 
     public function adminPaymentPaid(string $id): never

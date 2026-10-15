@@ -79,6 +79,22 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .promo-table td:first-child { min-width: 180px; }
 @media (max-width: 575.98px) { .payment-totals { grid-template-columns: 1fr; } }
 
+/* Nice-to-have online payment: VietQR bank transfer (Admin confirms), VNPay */
+.status-submitted { background: #fff0c4; color: #7a5a0a; }
+.status-succeeded { background: #dff2e6; color: #226442; }
+.status-failed { background: #fde1df; color: #96372f; }
+.pay-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.pay-option { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.pay-option p { flex: 1; color: var(--muted); font-size: .85rem; }
+.payment-qr { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.payment-qr > div:only-child { grid-column: 1 / -1; }
+/* The QR keeps a white backdrop in both themes so banking apps can scan it. */
+.payment-qr img { width: 100%; height: auto; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 8px; }
+.payment-attempts { min-width: 620px; }
+.payment-attempts .status, .transfer-decide .btn { white-space: nowrap; }
+.transfer-decide { min-width: 210px; }
+@media (max-width: 767.98px) { .pay-options, .payment-qr { grid-template-columns: 1fr; } .payment-qr img { max-width: 300px; } }
+
 /* Nice-to-have trust: identity verification, trusted Host badge, check-in guide */
 .trust-badge-row { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 6px; vertical-align: middle; max-width: 100%; }
 .trust-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 10px; font-size: .72rem; font-weight: 700; line-height: 1.5; white-space: nowrap; }
@@ -438,6 +454,9 @@ html[data-theme="dark"] .status-unpaid { background: #3d3312; color: #f2d58a; }
 html[data-theme="dark"] .status-paid { background: #1d3a2a; color: #a6e3be; }
 html[data-theme="dark"] .status-refunded, html[data-theme="dark"] .trust-badge-verified { background: #1a2d42; color: #b7d3f1; }
 html[data-theme="dark"] .status-not_required { background: #2f3330; color: #d6dcd7; }
+html[data-theme="dark"] .status-submitted { background: #3d3312; color: #f2d58a; }
+html[data-theme="dark"] .status-succeeded { background: #1d3a2a; color: #a6e3be; }
+html[data-theme="dark"] .status-failed { background: #43201d; color: #ffb8b0; }
 html[data-theme="dark"] .instant-badge, html[data-theme="dark"] .instant-tag, html[data-theme="dark"] .trust-badge-host { background: #3a3012; color: #f6dfa2; }
 html[data-theme="dark"] .holiday-list summary, html[data-theme="dark"] .promo-feedback.is-valid, html[data-theme="dark"] .quote-row.is-discount,
 html[data-theme="dark"] .discount-row td { color: var(--accent); }

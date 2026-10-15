@@ -300,13 +300,39 @@ Quy ước chung cho mọi routine ghi dữ liệu mới: tự `START TRANSACTIO
 
 Test fixture routines mới (22, chỉ cài bằng `--include-tests` trong DB test riêng): 8 `testing_booking_extras.sql`, 4 `testing_trust.sql`, 4 `testing_conversation.sql`, 4 `testing_discovery.sql`, 2 `testing_content.sql`.
 
-Giới hạn giữ nguyên từ báo cáo các nhánh: VNPay/MoMo chưa tích hợp (điểm tích hợp dự kiến: `booking_payments.method` + `sp_booking_payment_mark_paid`); booking tạo trước tính năng chưa có dòng thanh toán cho đến khi được đánh dấu đã thu; gợi ý tính trực tiếp mỗi lần, không cache; huy hiệu Host uy tín tính trong SQL mỗi lần tải trang.
+Giới hạn giữ nguyên từ báo cáo các nhánh: VNPay/MoMo chưa tích hợp (đã bổ sung VietQR + VNPay ngày 2026-10-15, xem mục dưới); booking tạo trước tính năng chưa có dòng thanh toán cho đến khi được đánh dấu đã thu; gợi ý tính trực tiếp mỗi lần, không cache; huy hiệu Host uy tín tính trong SQL mỗi lần tải trang.
 
 ```powershell
 C:\xampp\php\php.exe tests\fresh_setup_test.php --quality-regression --no-screenshots
 ```
 
 Lệnh trên tự chạy mọi `tests/feature_*_test.php` và `tests/feature_*_audit.ps1` trong DB/server tạm riêng.
+
+## Online payment routines — 2026-10-15
+
+Thanh toán online (VietQR chuyển khoản do Admin xác nhận, VNPay sandbox) thêm bảng `payment_transactions` (36 bảng) và file `095_online_payment.sql`. Gate (`fresh_setup_test.php --quality-regression --no-screenshots`): installer **167 production definitions, 41 opt-in test definitions, zero DROP**; **248 CALL sites / 190 routine signatures** khớp database; 277 dòng PASS, không có FAIL. Khóa bí mật VNPay chỉ nằm trong `.env`: PHP (`VnpayGateway::verify`) kiểm tra chữ ký HMAC-SHA512 và mã merchant **trước** khi gọi routine, routine chỉ nhận dữ liệu đã xác thực. Thứ tự khóa trong mọi routine ghi: listing → booking → `booking_payments` → `payment_transactions`, giống `sp_booking_payment_mark_paid`.
+
+### Routine đã có bị thay đổi
+
+| Routine | File | Thay đổi | Test |
+|---|---|---|---|
+| `sp_booking_extras_detail` | `070_booking_extras.sql` | Trả thêm `can_pay_online` (chỉ Guest của booking confirmed, chưa thu, VND) và giao dịch VietQR đang mở (`open_transfer_*`) | feature_payment_test |
+| `sp_booking_payment_list` | `070` | Trả thêm `can_pay_online`, `transfer_submitted` cho trang Chuyến đi | feature_payment_test (HTTP) |
+
+### Routine mới
+
+| Routine | File | Mục đích | Transaction / khóa / quyền | Test |
+|---|---|---|---|---|
+| `sp_payment_checkout` | `095_online_payment.sql` | Dữ liệu trang chọn phương thức: số tiền, được thanh toán online không, chuyển khoản đang mở | Chỉ đọc; chỉ Guest của booking, tài khoản active | feature_payment_test |
+| `sp_payment_start` | `095` | Tạo lần thanh toán `vietqr`/`vnpay`, mã `H2H<booking>X<5 hex>`; VietQR cùng số tiền thì dùng lại mã đang mở | Transaction/savepoint; khóa listing → booking → payment; booking confirmed, chưa thu, VND; chặn khi đã báo chuyển khoản | feature_payment_test |
+| `sp_payment_transaction_get` | `095` | Một lần thanh toán cho trang chuyển khoản | Chỉ đọc; Guest của booking hoặc Admin | feature_payment_test |
+| `sp_payment_transfer_submit` | `095` | Khách báo đã chuyển khoản → `submitted`, thông báo mọi Admin | Transaction; khóa như trên; chỉ Guest, chỉ VietQR `pending`, booking confirmed chưa thu | feature_payment_test |
+| `sp_admin_payment_transfer_decide` | `095` | Admin `confirm` (booking_payments `paid`/`vietqr`, event, thông báo khách, đóng các lần mở khác) hoặc `reject` (lý do ≥ 5 ký tự, thông báo khách) | Admin (`sp_admin_assert_role`); khóa như trên; một lần; audit `confirm_bank_transfer`/`reject_bank_transfer` | feature_payment_test |
+| `sp_payment_vnpay_result` | `095` | Ghi kết quả VNPay đã kiểm chữ ký: `ok` / `not_found` / `invalid_amount` / `already` (IPN trả 00/01/04/02) | Transaction; khóa như trên; đối chiếu số tiền; gọi lại an toàn; tiền về sau khi đã thanh toán (`payment_duplicate`) hoặc sau khi khách hủy (`payment_refund_needed`) thì báo Admin hoàn tiền | feature_payment_test |
+| `sp_payment_booking_transactions` | `095` | Lịch sử thanh toán online của một booking (20 lần gần nhất) | Chỉ đọc; `sp_quality_assert_booking` (Guest, Host chủ chỗ ở, Admin) | feature_payment_test |
+| `sp_admin_payment_transfers` | `095` | Hàng chờ Admin: chuyển khoản khách đã báo, rồi mã QR đang mở của booking chưa thu | Chỉ đọc; Admin | feature_payment_test |
+
+Test fixture routines mới (3, chỉ cài trong DB test riêng): `testing_payment.sql` (`sp_test_payment_inspect`, `sp_test_payment_attempt`, `sp_test_payment_cleanup` — chỉ xóa listing `Audit fixture PAY %` ở thành phố `Audit`).
 
 ## Run / reproduce
 

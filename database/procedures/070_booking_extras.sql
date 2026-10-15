@@ -361,9 +361,14 @@ BEGIN
         COALESCE(pay.method,'pay_at_checkin') payment_method,COALESCE(pay.amount_due,b.total_amount) amount_due,COALESCE(pay.status,'unpaid') payment_status,
         CASE WHEN COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('rejected','cancelled') THEN 'not_required' ELSE COALESCE(pay.status,'unpaid') END payment_state,
         (COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('confirmed','completed') AND b.check_in<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) can_mark_paid,
+        -- Online payment (095_online_payment.sql): only the Guest of a confirmed, unpaid VND booking may pay online.
+        (b.guest_id=p_actor AND COALESCE(pay.status,'unpaid')='unpaid' AND b.status='confirmed' AND b.currency='VND' AND COALESCE(pay.amount_due,b.total_amount)>0) can_pay_online,
+        t.id open_transfer_id,t.status open_transfer_status,t.reference open_transfer_reference,t.amount open_transfer_amount,
         pay.paid_at,pay.refunded_at,pay.note payment_note,payer.full_name paid_by_name,refunder.full_name refunded_by_name
     FROM bookings b LEFT JOIN booking_price_breakdowns bp ON bp.booking_id=b.id LEFT JOIN booking_payments pay ON pay.booking_id=b.id
         LEFT JOIN users payer ON payer.id=pay.paid_by LEFT JOIN users refunder ON refunder.id=pay.refunded_by
+        LEFT JOIN payment_transactions t ON t.id=(SELECT x.id FROM payment_transactions x
+            WHERE x.booking_id=b.id AND x.provider='vietqr' AND x.status IN ('pending','submitted') ORDER BY x.id DESC LIMIT 1)
     WHERE b.id=p_booking;
 END$$
 
@@ -378,6 +383,8 @@ BEGIN
     SELECT b.id booking_id,COALESCE(pay.method,'pay_at_checkin') payment_method,COALESCE(pay.amount_due,b.total_amount) amount_due,COALESCE(pay.status,'unpaid') payment_status,
         CASE WHEN COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('rejected','cancelled') THEN 'not_required' ELSE COALESCE(pay.status,'unpaid') END payment_state,
         (COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('confirmed','completed') AND b.check_in<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) can_mark_paid,
+        (p_scope='guest' AND COALESCE(pay.status,'unpaid')='unpaid' AND b.status='confirmed' AND b.currency='VND' AND COALESCE(pay.amount_due,b.total_amount)>0) can_pay_online,
+        EXISTS(SELECT 1 FROM payment_transactions x WHERE x.booking_id=b.id AND x.status='submitted') transfer_submitted,
         COALESCE(bp.is_instant_book,0) is_instant_book,COALESCE(bp.promotion_discount_amount,0)+COALESCE(bp.length_discount_amount,0) discount_amount
     FROM bookings b JOIN listings l ON l.id=b.listing_id LEFT JOIN booking_payments pay ON pay.booking_id=b.id LEFT JOIN booking_price_breakdowns bp ON bp.booking_id=b.id
     WHERE (p_scope='guest' AND b.guest_id=p_actor) OR (p_scope='host' AND l.host_id=p_actor)

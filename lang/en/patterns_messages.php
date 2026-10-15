@@ -13,6 +13,7 @@ return [
     'Đã lưu mã khuyến mãi {code}.' => 'Promo code {code} saved.',
     'Đã ghi nhận hoàn tiền cho booking #{id}.' => 'Refund recorded for booking #{id}.',
     'Đã ghi nhận thanh toán khi nhận phòng cho booking #{id}.' => 'Payment at check-in recorded for booking #{id}.',
+    'Thanh toán VNPay thành công cho booking #{id}.' => 'VNPay payment succeeded for booking #{id}.',
 
     // MessageController::send (limit = BookingMessage::MAX_LENGTH)
     'Tin nhắn cần từ 1 đến {max} ký tự.' => 'Messages must be 1 to {max} characters.',

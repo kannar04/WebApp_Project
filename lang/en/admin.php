@@ -191,7 +191,7 @@ return [
     'Xóa vĩnh viễn mã {code}? Mã chưa được dùng cho booking nào.' => 'Permanently delete code {code}? It has not been used in any booking.',
 
     // Payments
-    'Khách thanh toán trực tiếp khi nhận phòng. Host hoặc Admin ghi nhận “Đã thu tiền” từ ngày nhận phòng; hoàn tiền cần ghi chú và được lưu nhật ký.' => 'Guests pay in person at check-in. From the check-in date the Host or Admin presses “Mark as paid”; refunds need a note and are logged.',
+    'Khách thanh toán online (VNPay tự ghi nhận, chuyển khoản VietQR do Admin xác nhận) hoặc trả trực tiếp khi nhận phòng; Host hoặc Admin ghi nhận “Đã thu tiền” từ ngày nhận phòng. Hoàn tiền cần ghi chú và được lưu nhật ký.' => 'Guests pay online (VNPay is recorded automatically, VietQR transfers are confirmed by an Admin) or in person at check-in, where from the check-in date the Host or Admin presses “Mark as paid”. Refunds need a note and are logged.',
     'Đã thu' => 'Collected',
     '{count} booking' => '{count} booking(s)',
     'Chờ thu (đã xác nhận)' => 'To collect (confirmed)',
@@ -316,4 +316,19 @@ return [
     'Mô tả ảnh bìa' => 'Cover image description',
     'Giúp người dùng trình đọc màn hình hiểu nội dung ảnh. Để trống sẽ dùng tiêu đề bài viết.' => 'Helps screen reader users understand the image. Leave blank to use the article title.',
     'Lưu nháp' => 'Save draft',
+
+    // ---- Online payment: bank transfer queue and decision form (admin/payments.php, payments/decide-form.php, bookings/show.php)
+    'Chuyển khoản chờ xác nhận' => 'Transfers awaiting confirmation',
+    'Đối chiếu số tiền và nội dung trong sao kê tài khoản nhận trước khi xác nhận.' => 'Match the amount and reference against the receiving account statement before confirming.',
+    'Không có chuyển khoản nào đang chờ.' => 'No transfers are waiting.',
+    'Báo chuyển: {time}' => 'Reported: {time}',
+    'Tạo mã: {time}' => 'Code created: {time}',
+    'Ghi chú giao dịch {reference}' => 'Note for transaction {reference}',
+    'Ghi chú (bắt buộc khi chưa nhận tiền)' => 'Note (required if the money has not arrived)',
+    'Tài khoản đã nhận {amount}đ với nội dung {reference}?' => 'Has the account received {amount}đ with reference {reference}?',
+    'Đã nhận tiền' => 'Money received',
+    'Báo khách là chưa nhận được khoản chuyển này?' => 'Tell the guest this transfer has not arrived?',
+    'Chưa nhận được' => 'Not received',
+    'Khách báo đã chuyển khoản với nội dung {reference}. Kiểm tra tài khoản nhận rồi xác nhận:' => 'The guest reported a transfer with reference {reference}. Check the receiving account, then decide:',
+    'Khách đã lấy mã QR với nội dung {reference} nhưng chưa báo chuyển khoản.' => 'The guest got a QR code with reference {reference} but has not reported a transfer yet.',
 ];

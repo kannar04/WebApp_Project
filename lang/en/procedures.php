@@ -223,4 +223,27 @@ return [
     'Bài viết không tồn tại hoặc đã bị xóa.' => 'The article does not exist or has been deleted.',
     'Không thể tạo đường dẫn duy nhất. Hãy nhập đường dẫn khác.' => 'Could not create a unique URL slug. Please enter a different one.',
     'Đường dẫn đã được dùng cho bài viết khác.' => 'This URL slug is already used by another article.',
+
+    // ---- 095_online_payment.sql
+    'Không có quyền thanh toán booking này.' => 'You are not allowed to pay for this booking.',
+    'Phương thức thanh toán không hợp lệ.' => 'Invalid payment method.',
+    'Chỉ thanh toán online cho booking đã được xác nhận.' => 'Only confirmed bookings can be paid online.',
+    'Booking này không hỗ trợ thanh toán online.' => 'This booking does not support online payment.',
+    'Bạn đã báo chuyển khoản cho booking này; vui lòng chờ Admin xác nhận.' => 'You already reported a transfer for this booking; please wait for an Admin to confirm it.',
+    'Không tìm thấy giao dịch thanh toán.' => 'Payment transaction not found.',
+    'Chỉ giao dịch chuyển khoản mới cần báo đã chuyển.' => 'Only bank transfers need to be reported as sent.',
+    'Bạn đã báo chuyển khoản rồi; vui lòng chờ Admin xác nhận.' => 'You have already reported this transfer; please wait for an Admin to confirm it.',
+    'Giao dịch này đã đóng; vui lòng tải lại trang thanh toán.' => 'This transaction is closed; please reload the payment page.',
+    'Quyết định chuyển khoản không hợp lệ.' => 'Invalid transfer decision.',
+    'Vui lòng nhập lý do chưa nhận được tiền (ít nhất 5 ký tự).' => 'Please enter why the money was not received (at least 5 characters).',
+    'Chỉ xác nhận giao dịch chuyển khoản VietQR.' => 'Only VietQR bank transfers can be confirmed here.',
+    'Giao dịch chuyển khoản này đã được xử lý.' => 'This bank transfer has already been handled.',
+    'Booking này đã được ghi nhận thanh toán; hãy từ chối giao dịch trùng và hoàn tiền cho khách.' => 'A payment is already recorded for this booking; reject the duplicate transfer and refund the guest.',
+    'Booking đã được thanh toán bằng giao dịch khác.' => 'The booking was paid by another transaction.',
+    'Thanh toán trùng: booking đã được thanh toán trước đó, cần hoàn tiền cho khách.' => 'Duplicate payment: the booking was already paid, so the guest needs a refund.',
+    // Notification titles
+    'Khách báo đã chuyển khoản' => 'Guest reported a bank transfer',
+    'Chưa xác nhận được chuyển khoản' => 'Bank transfer not confirmed',
+    'Cần hoàn tiền' => 'Refund needed',
+    'Thanh toán trùng' => 'Duplicate payment',
 ];

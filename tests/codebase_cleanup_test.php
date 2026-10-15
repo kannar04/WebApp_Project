@@ -50,7 +50,7 @@ echo "PASS shared Admin role validation: valid/empty/scalar/nested/unknown/overs
 $root = dirname(__DIR__);
 $schema = file_get_contents($root.'/database/schema.sql');
 preg_match_all('/CREATE TABLE IF NOT EXISTS `([^`]+)`/', $schema, $tables);
-cleanupExpect(count($tables[1]) === 35 && count(array_unique($tables[1])) === 35, 'Duplicate/missing schema definitions.');
+cleanupExpect(count($tables[1]) === 36 && count(array_unique($tables[1])) === 36, 'Duplicate/missing schema definitions.');
 foreach (['app','core','public','routes'] as $directory) {
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/'.$directory, FilesystemIterator::SKIP_DOTS));
     foreach ($iterator as $file) {
@@ -63,7 +63,7 @@ foreach (['app','core','public','routes'] as $directory) {
         }
     }
 }
-echo "PASS 35 unique schema tables; no runtime DDL/debug/mysqli or Controller/View queries\n";
+echo "PASS 36 unique schema tables; no runtime DDL/debug/mysqli or Controller/View queries\n";
 
 function ignoredByGit(string $path): bool
 {

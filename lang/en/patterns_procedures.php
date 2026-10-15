@@ -44,4 +44,12 @@ return [
     'Vì bạn đã xem chỗ ở tại {city}' => 'Because you viewed places in {city}',
     'Vì bạn đã tìm kiếm “{query}”' => 'Because you searched for “{query}”',
     'Cùng loại “{type}” bạn quan tâm' => 'Same property type you like: “{type}”',
+
+    // ---- 095_online_payment.sql: payment notifications (amount e.g. 1.500.000, reference e.g. H2H12XAB3CD)
+    'Booking #{id}: khách báo đã chuyển {amount}đ với nội dung {reference}. Vui lòng kiểm tra tài khoản và xác nhận.' => 'Booking #{id}: the guest reported transferring {amount}đ with reference {reference}. Please check the account and confirm.',
+    'Booking #{id} đã được xác nhận thanh toán chuyển khoản {amount}đ (mã {reference}).' => 'Bank transfer payment of {amount}đ confirmed for booking #{id} (reference {reference}).',
+    'Chưa xác nhận được chuyển khoản cho booking #{id} (mã {reference}). Lý do: {reason}' => 'The bank transfer for booking #{id} (reference {reference}) could not be confirmed. Reason: {reason}',
+    'Booking #{id} đã thanh toán thành công qua VNPay {amount}đ.' => 'Booking #{id} was paid via VNPay: {amount}đ.',
+    'Booking #{id} đã hủy nhưng vẫn nhận {amount}đ qua VNPay (mã {reference}). Vui lòng hoàn tiền cho khách.' => 'Booking #{id} was cancelled but still received {amount}đ via VNPay (reference {reference}). Please refund the guest.',
+    'Booking #{id} nhận thêm {amount}đ qua VNPay (mã {reference}) sau khi đã thanh toán. Vui lòng hoàn tiền cho khách.' => 'Booking #{id} received another {amount}đ via VNPay (reference {reference}) after it was already paid. Please refund the guest.',
 ];

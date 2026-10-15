@@ -132,9 +132,26 @@ Installer chỉ chạy khi `.env` trỏ tới `db_home2home` local/loopback; kh�
 C:\xampp\php\php.exe tests\schema_test.php --compare-live
 ```
 
-Sau khi nâng cấp, lệnh này phải PASS với 35 bảng (DDL khớp chính xác `schema.sql`).
+Sau khi nâng cấp, lệnh này phải PASS với 36 bảng, DDL khớp chính xác `schema.sql` (35 bảng của bản này cộng `payment_transactions` của bản thanh toán online bên dưới).
 
 Đã thử toàn bộ đường nâng cấp ngày 2026-10-13 trên một DB riêng dựng lại từ schema/seed/routine **trước** khi gộp (22 bảng, 106 định nghĩa routine), bằng `mysql.exe ... source` và cùng các lệnh trên (đổi tên DB): 22 bảng cũ giữ nguyên số dòng và CHECKSUM; 13 bảng mới được tạo; seed Nice-to-have chạy hai lần không nhân đôi dữ liệu và giữ chữ tiếng Việt; installer cài 159 định nghĩa, không có `sp_test_*`, không đổi dữ liệu bảng; `schema_test.php --compare-live` PASS 35 bảng. Báo giá thử listing 3, 14–21/04/2027, mã `CHAOHE10` ra 5.747.000đ (không mã 6.247.000đ), listing 1 hai đêm vẫn 2.650.000đ. Cách qua giao diện phpMyAdmin chưa được chạy thử.
+
+## Nâng cấp cho thanh toán online (2026-10-15)
+
+Dùng khi `db_home2home` đã có 35 bảng (đã làm phần nâng cấp ở trên) và vừa lấy code có thanh toán VietQR/VNPay. Không xóa hay sửa dữ liệu cũ:
+
+- Thêm bảng thứ 36 `payment_transactions` (mỗi lần thanh toán online: mã nội dung chuyển khoản, số tiền, trạng thái, mã giao dịch VNPay, Admin xác nhận).
+- Cho phép `booking_payments.method` nhận thêm `vietqr`, `vnpay` (thay CHECK `chk_booking_payments_method`) và cập nhật comment cột `paid_by`, `booking_payment_events.actor_id`. Các lệnh `ALTER TABLE` cuối `schema.sql` chạy lại nhiều lần vẫn an toàn.
+
+**Bước 1:** chạy lại `database/schema.sql` như Bước 1 ở trên (phpMyAdmin Import hoặc `mysql.exe ... -e "source database/schema.sql"`).
+
+**Bước 2:** cài routine (8 routine mới trong `095_online_payment.sql`; `sp_booking_extras_detail`, `sp_booking_payment_list` trả thêm cột thanh toán online; `sp_payment_vnpay_result` không bao giờ nhận khóa bí mật VNPay, PHP kiểm tra chữ ký trước khi gọi):
+
+```powershell
+C:\xampp\php\php.exe database\install_procedures.php
+```
+
+**Bước 3:** điền phần thanh toán trong `.env` local (xem README › Cấu hình thanh toán online), rồi kiểm tra bằng `tests\schema_test.php --compare-live` (36 bảng).
 
 ## Nhắc lịch check-in tự động
 

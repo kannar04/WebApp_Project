@@ -13,7 +13,7 @@
 - `app/Models/`: PDO CALL qua ProcedureConnection và mapping dữ liệu; không SQL nghiệp vụ trực tiếp.
 - `app/Services/`: kiểm tra request/điều phối CALL booking và lưu upload; transaction nghiệp vụ nằm trong routines.
 - `app/Views/`: HTML/Bootstrap, không truy vấn SQL. View có thể khai báo `$pageScripts[]='js/…'` để layout chỉ nạp JS riêng của trang đó.
-- `database/`: schema chuẩn 35 bảng (22 bảng gốc + 13 bảng Nice-to-have), seed UTF-8, routines/migrations, importer CLI và job CLI `checkin_reminders.php`; không DDL trong request.
+- `database/`: schema chuẩn 36 bảng (22 bảng gốc + 13 bảng Nice-to-have + `payment_transactions` của thanh toán online), seed UTF-8, routines/migrations, importer CLI và job CLI `checkin_reminders.php`; không DDL trong request.
 
 ### Thành phần Nice-to-have (2026-10-13)
 
@@ -24,6 +24,7 @@
 | Tin nhắn, Zalo, quản lý tin nhắn, nhắc lịch | `MessageController`, `NotificationController` | `BookingMessage`, `CheckInReminder`, `ConversationService`, `ZaloLink` | `messages/index`, `messages/thread`, `admin/messages` | `messages.js` | `080_conversation.sql` |
 | Bản đồ, lịch sử, gợi ý | `DiscoveryController` (+ `HomeController`, `ListingController`, `ProfileController`) | `Discovery`, `DiscoveryService` | `discovery/map`, `components/discovery-*` | `map.js` | `085_discovery.sql` |
 | Bài viết/cẩm nang | `ArticleController`, `AdminArticleController` | `Article`, `ArticleText`, `UploadService` | `articles/*`, `admin/articles/*` | — | `090_content.sql` |
+| Thanh toán online: VietQR (Admin xác nhận), VNPay sandbox (2026-10-15) | `PaymentController` (+ `BookingController`, `BookingExtrasController`) | `Payment`, `VietQr`, `VnpayGateway`, `config/payment.php` (chỉ đọc `.env`) | `payments/checkout`, `payments/transfer`, `payments/decide-form`, `bookings/show`, `bookings/index`, `admin/payments` | — | `095_online_payment.sql` |
 | Chế độ tối | — (layout) | — | `layouts/main`, `layouts/auth` | `theme.js` (nạp trong `<head>`) | — |
 | Giao diện tiếng Việt/tiếng Anh | `LocaleController` (`POST /locale`) | `Core\I18n`, hàm `__()` trong `core/bootstrap.php` | `layouts/main`, `layouts/auth` (nút EN/VI); mọi view gọi `__()` | `h2hT()` trong `app.js` | — (không đổi routine; thông báo của routine dịch bằng mẫu) |
 
@@ -80,7 +81,12 @@ Giá một đêm: ngày lễ > cuối tuần (đêm thứ Sáu/thứ Bảy) > gi
 
 ### Thanh toán khi nhận phòng
 
-`Host POST /host/bookings/{id}/payment hoặc Admin POST /admin/payments/{id}/paid → sp_booking_payment_mark_paid (chủ chỗ ở/Admin, từ ngày nhận phòng, một lần) → booking_payments + booking_payment_events + notification`; `Admin POST refund + ghi chú → sp_booking_payment_refund → refunded + notification + audit`. Chưa có cổng VNPay/MoMo.
+`Host POST /host/bookings/{id}/payment hoặc Admin POST /admin/payments/{id}/paid → sp_booking_payment_mark_paid (chủ chỗ ở/Admin, từ ngày nhận phòng, một lần) → booking_payments + booking_payment_events + notification`; `Admin POST refund + ghi chú → sp_booking_payment_refund → refunded + notification + audit`. Booking đã thanh toán online ghi `method` = `vietqr`/`vnpay` trên cùng dòng `booking_payments`.
+
+### Thanh toán online
+
+- **VietQR:** `Guest GET /bookings/{id}/pay → POST /bookings/{id}/pay/vietqr → sp_payment_start (khóa listing → booking → payment; booking confirmed, chưa thu, VND; dùng lại mã đang mở cùng số tiền) → GET /payments/{id}` hiển thị ảnh QR `img.vietqr.io` theo tài khoản trong `.env` và nội dung `H2H<booking>X<5 hex>`. `POST /payments/{id}/transferred → sp_payment_transfer_submit → submitted + thông báo mọi Admin`. `Admin POST /admin/payments/transfers/{id} (confirm | reject + lý do ≥ 5 ký tự) → sp_admin_payment_transfer_decide → booking_payments paid/vietqr + booking_payment_events + thông báo khách + audit`; từ chối thì khách lấy mã mới.
+- **VNPay:** `POST /bookings/{id}/pay/vnpay → sp_payment_start → VnpayGateway::paymentUrl` (v2.1.0, số tiền ×100, giờ GMT+7, hết hạn 15 phút, HMAC-SHA512) `→ redirect cổng VNPay`. Kết quả về `GET /payments/vnpay/return` (trình duyệt) và `GET /payments/vnpay/ipn` (máy chủ VNPay, trả JSON `RspCode`): PHP kiểm tra chữ ký + mã merchant trước, rồi `sp_payment_vnpay_result` đối chiếu mã tham chiếu và số tiền, ghi một lần (gọi lại trả `already`), tiền về sau khi booking đã thanh toán hoặc đã hủy thì báo Admin hoàn tiền. Khóa bí mật chỉ nằm trong `.env`, không vào DB.
 
 ### Xác minh, huy hiệu và hướng dẫn nhận phòng
 
@@ -115,6 +121,6 @@ Giá một đêm: ngày lễ > cuối tuần (đêm thứ Sáu/thứ Bảy) > gi
 
 - Dùng schema hiện hữu trong ERD (`base_nightly_rate`, `policy_snapshot`, event tables) làm nguồn đúng.
 - BookingService là facade; routine booking giữ atomicity/locking/snapshot và dùng savepoint để không commit transaction của caller.
-- Không tích hợp payment/map/email khi chưa có credential và yêu cầu nghiệp vụ đủ chi tiết. Cập nhật 2026-10-13: thanh toán chỉ là “thanh toán khi nhận phòng”, VNPay/MoMo chờ thông tin merchant (điểm tích hợp: `booking_payments.method`, `sp_booking_payment_mark_paid`); bản đồ dùng tile OpenStreetMap công khai, không cần credential nhưng cần Internet; nhắc lịch và tin nhắn chỉ trong ứng dụng, chưa gửi email.
+- Không tích hợp payment/map/email khi chưa có credential và yêu cầu nghiệp vụ đủ chi tiết. Cập nhật 2026-10-13: thanh toán chỉ là “thanh toán khi nhận phòng”, VNPay/MoMo chờ thông tin merchant (điểm tích hợp: `booking_payments.method`, `sp_booking_payment_mark_paid`). Cập nhật 2026-10-15: thêm chuyển khoản VietQR và VNPay sandbox (mục “Thanh toán online” ở trên); thông tin tài khoản nhận tiền và khóa VNPay nằm trong `.env`, chưa có merchant VNPay thật; bản đồ dùng tile OpenStreetMap công khai, không cần credential nhưng cần Internet; nhắc lịch và tin nhắn chỉ trong ứng dụng, chưa gửi email.
 - Tọa độ được thêm bằng cách sửa trực tiếp `sp_listing_create/update` (một đường ghi duy nhất) thay vì tạo routine song song.
 

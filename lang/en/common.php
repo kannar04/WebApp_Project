@@ -146,7 +146,7 @@ return [
     'Gửi yêu cầu đặt chỗ' => 'Request to book',
     'Đăng nhập để đặt chỗ' => 'Log in to book',
     'Bạn chưa bị tính phí. Tổng tiền được xác nhận lại trên máy chủ.' => 'You won\'t be charged yet. The total is confirmed again by the server.',
-    'Thanh toán trực tiếp khi nhận phòng.' => 'Pay directly at check-in.',
+    'Thanh toán khi nhận phòng, hoặc thanh toán online sau khi booking được xác nhận.' => 'Pay at check-in, or online once your booking is confirmed.',
     'Xem tất cả {count} ảnh' => 'View all {count} photos',
 
     // Availability calendar component

@@ -31,7 +31,11 @@ try {
     $baseUrl = 'http://'.$address;
     $environment = array_merge(getenv(), ['APP_ENV'=>'local','APP_DEBUG'=>in_array('--debug-http',$argv,true)?'true':'false','APP_URL'=>$baseUrl,'HOME2HOME_TEST_URL'=>$baseUrl,'MAIL_ENABLED'=>'false',
         'DB_HOST'=>$config['host'],'DB_PORT'=>(string)$config['port'],'DB_DATABASE'=>$testDatabase,
-        'DB_USERNAME'=>$config['username'],'DB_PASSWORD'=>$config['password']]);
+        'DB_USERNAME'=>$config['username'],'DB_PASSWORD'=>$config['password'],
+        // Online payment: a fake receiving account and a per-run VNPay secret, so the developer's real .env values are never used.
+        'PAYMENT_BANK_ID'=>'970436','PAYMENT_BANK_NAME'=>'Test Bank','PAYMENT_ACCOUNT_NO'=>'0001234567','PAYMENT_ACCOUNT_NAME'=>'HOME2HOME TEST',
+        'VNPAY_TMN_CODE'=>'H2HTEST1','VNPAY_HASH_SECRET'=>bin2hex(random_bytes(16)),
+        'VNPAY_PAY_URL'=>'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html','VNPAY_RETURN_URL'=>$baseUrl.'/payments/vnpay/return']);
     $serverOutput = tmpfile();
     $process = proc_open([PHP_BINARY,'-S',$address,'-t',$root.'/public',$root.'/public/router.php'],
         [0=>['pipe','r'],1=>$serverOutput,2=>$serverOutput], $pipes, $root, $environment, ['bypass_shell'=>true]);

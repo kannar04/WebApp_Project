@@ -58,6 +58,16 @@ $router->get('/admin/payments',[\App\Controllers\BookingExtrasController::class,
 $router->post('/admin/payments/{id}/paid',[\App\Controllers\BookingExtrasController::class,'adminPaymentPaid']);
 $router->post('/admin/payments/{id}/refund',[\App\Controllers\BookingExtrasController::class,'adminPaymentRefund']);
 
+// Nice-to-have online payment: VietQR bank transfer (Admin confirms) and VNPay
+$router->get('/bookings/{id}/pay',[\App\Controllers\PaymentController::class,'checkout']);
+$router->post('/bookings/{id}/pay/vietqr',[\App\Controllers\PaymentController::class,'startTransfer']);
+$router->post('/bookings/{id}/pay/vnpay',[\App\Controllers\PaymentController::class,'startVnpay']);
+$router->get('/payments/vnpay/return',[\App\Controllers\PaymentController::class,'vnpayReturn']);
+$router->get('/payments/vnpay/ipn',[\App\Controllers\PaymentController::class,'vnpayIpn']);
+$router->get('/payments/{id}',[\App\Controllers\PaymentController::class,'transfer']);
+$router->post('/payments/{id}/transferred',[\App\Controllers\PaymentController::class,'submitTransfer']);
+$router->post('/admin/payments/transfers/{id}',[\App\Controllers\PaymentController::class,'adminDecideTransfer']);
+
 // Nice-to-have trust: identity verification, trusted Host badge, check-in guide
 $router->post('/profile/verification',[\App\Controllers\TrustController::class,'submitVerification']);
 $router->get('/admin/verifications',[\App\Controllers\TrustController::class,'adminIndex']);

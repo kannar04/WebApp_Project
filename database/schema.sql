@@ -466,11 +466,11 @@ CREATE TABLE IF NOT EXISTS `booking_price_breakdowns` (
 
 CREATE TABLE IF NOT EXISTS `booking_payments` (
   `booking_id` bigint(20) unsigned NOT NULL COMMENT 'Booking being paid (1:1)',
-  `method` varchar(20) NOT NULL COMMENT 'pay_at_checkin; online gateways are not integrated',
+  `method` varchar(20) NOT NULL COMMENT 'pay_at_checkin | vietqr (bank transfer QR) | vnpay',
   `amount_due` decimal(12,2) NOT NULL COMMENT 'Booking total at creation',
   `status` varchar(10) NOT NULL COMMENT 'unpaid | paid | refunded',
   `paid_at` datetime(6) DEFAULT NULL COMMENT 'Collection time',
-  `paid_by` bigint(20) unsigned DEFAULT NULL COMMENT 'Host or Admin who recorded the collection',
+  `paid_by` bigint(20) unsigned DEFAULT NULL COMMENT 'Host/Admin who recorded the collection or confirmed the transfer; the Guest for VNPay',
   `refunded_at` datetime(6) DEFAULT NULL COMMENT 'Refund record time',
   `refunded_by` bigint(20) unsigned DEFAULT NULL COMMENT 'Admin who recorded the refund',
   `note` varchar(500) DEFAULT NULL COMMENT 'Latest Host/Admin payment note',
@@ -483,16 +483,16 @@ CREATE TABLE IF NOT EXISTS `booking_payments` (
   CONSTRAINT `fk_booking_payments_booking_id` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_booking_payments_paid_by` FOREIGN KEY (`paid_by`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_booking_payments_refunded_by` FOREIGN KEY (`refunded_by`) REFERENCES `users` (`id`),
-  CONSTRAINT `chk_booking_payments_method` CHECK (`method` in ('pay_at_checkin')),
   CONSTRAINT `chk_booking_payments_status` CHECK (`status` in ('unpaid','paid','refunded')),
   CONSTRAINT `chk_booking_payments_amount` CHECK (`amount_due` >= 0),
-  CONSTRAINT `chk_booking_payments_state` CHECK (`status` = 'unpaid' and `paid_at` is null and `refunded_at` is null or `status` = 'paid' and `paid_at` is not null and `refunded_at` is null or `status` = 'refunded' and `paid_at` is not null and `refunded_at` is not null)
+  CONSTRAINT `chk_booking_payments_state` CHECK (`status` = 'unpaid' and `paid_at` is null and `refunded_at` is null or `status` = 'paid' and `paid_at` is not null and `refunded_at` is null or `status` = 'refunded' and `paid_at` is not null and `refunded_at` is not null),
+  CONSTRAINT `chk_booking_payments_method` CHECK (`method` in ('pay_at_checkin','vietqr','vnpay'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `booking_payment_events` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Payment event ID',
   `booking_id` bigint(20) unsigned NOT NULL COMMENT 'Booking whose payment changed',
-  `actor_id` bigint(20) unsigned NOT NULL COMMENT 'Host or Admin performing the change',
+  `actor_id` bigint(20) unsigned NOT NULL COMMENT 'Host or Admin performing the change; the Guest for VNPay',
   `from_status` varchar(10) NOT NULL COMMENT 'Previous payment status',
   `to_status` varchar(10) NOT NULL COMMENT 'New payment status',
   `note` varchar(500) DEFAULT NULL COMMENT 'Reason or receipt note',
@@ -504,6 +504,43 @@ CREATE TABLE IF NOT EXISTS `booking_payment_events` (
   CONSTRAINT `fk_booking_payment_events_actor_id` FOREIGN KEY (`actor_id`) REFERENCES `users` (`id`),
   CONSTRAINT `chk_booking_payment_events_transition` CHECK (`from_status` = 'unpaid' and `to_status` = 'paid' or `from_status` = 'paid' and `to_status` = 'refunded')
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Nice-to-have online payment: VietQR bank transfer (Admin confirms) and VNPay (signed gateway result)
+CREATE TABLE IF NOT EXISTS `payment_transactions` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Online payment attempt ID',
+  `booking_id` bigint(20) unsigned NOT NULL COMMENT 'Booking being paid',
+  `provider` varchar(10) NOT NULL COMMENT 'vietqr (bank transfer QR) | vnpay',
+  `reference` varchar(32) NOT NULL COMMENT 'Transfer content / vnp_TxnRef sent to the gateway',
+  `amount` decimal(12,2) NOT NULL COMMENT 'Amount due when the attempt started',
+  `status` varchar(10) NOT NULL COMMENT 'pending | submitted | succeeded | failed | cancelled',
+  `gateway_transaction_no` varchar(40) DEFAULT NULL COMMENT 'VNPay vnp_TransactionNo',
+  `gateway_response_code` varchar(4) DEFAULT NULL COMMENT 'VNPay vnp_ResponseCode',
+  `bank_code` varchar(20) DEFAULT NULL COMMENT 'VNPay vnp_BankCode',
+  `submitted_at` datetime(6) DEFAULT NULL COMMENT 'Guest reported the bank transfer',
+  `decided_by` bigint(20) unsigned DEFAULT NULL COMMENT 'Admin who confirmed or rejected a bank transfer',
+  `decided_at` datetime(6) DEFAULT NULL COMMENT 'Confirmation, rejection, gateway result or cancellation time',
+  `note` varchar(500) DEFAULT NULL COMMENT 'Rejection reason, cancellation or duplicate-payment note',
+  `created_at` datetime(6) NOT NULL COMMENT 'Attempt start time',
+  `updated_at` datetime(6) NOT NULL COMMENT 'Last status change',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_payment_transactions_reference` (`reference`),
+  KEY `idx_payment_transactions_booking_status` (`booking_id`,`status`),
+  KEY `idx_payment_transactions_status` (`status`),
+  KEY `idx_payment_transactions_decided_by` (`decided_by`),
+  CONSTRAINT `fk_payment_transactions_booking_id` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_payment_transactions_decided_by` FOREIGN KEY (`decided_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `chk_payment_transactions_provider` CHECK (`provider` in ('vietqr','vnpay')),
+  CONSTRAINT `chk_payment_transactions_status` CHECK (`status` in ('pending','submitted','succeeded','failed','cancelled')),
+  CONSTRAINT `chk_payment_transactions_amount` CHECK (`amount` > 0),
+  CONSTRAINT `chk_payment_transactions_submitted` CHECK (`status` <> 'submitted' or `provider` = 'vietqr' and `submitted_at` is not null)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Databases created before online payment: widen the payment method and refresh the comments (safe to run again).
+ALTER TABLE `booking_payments` MODIFY COLUMN `method` varchar(20) NOT NULL COMMENT 'pay_at_checkin | vietqr (bank transfer QR) | vnpay',
+  MODIFY COLUMN `paid_by` bigint(20) unsigned DEFAULT NULL COMMENT 'Host/Admin who recorded the collection or confirmed the transfer; the Guest for VNPay';
+ALTER TABLE `booking_payments` DROP CONSTRAINT IF EXISTS `chk_booking_payments_method`;
+ALTER TABLE `booking_payments` ADD CONSTRAINT `chk_booking_payments_method` CHECK (`method` in ('pay_at_checkin','vietqr','vnpay'));
+ALTER TABLE `booking_payment_events` MODIFY COLUMN `actor_id` bigint(20) unsigned NOT NULL COMMENT 'Host or Admin performing the change; the Guest for VNPay';
 
 -- Nice-to-have trust: identity verification, trusted Host badge, check-in guide
 CREATE TABLE IF NOT EXISTS `identity_verifications` (
