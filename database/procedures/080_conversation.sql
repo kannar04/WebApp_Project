@@ -223,10 +223,11 @@ BEGIN
     DECLARE v_user BIGINT UNSIGNED;
     DECLARE v_kind VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_body TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    -- Reminders quote the listing's current check-in time; only the refund deadline keeps the booked one.
     DECLARE v_candidates CURSOR FOR
         SELECT b.id,b.guest_id,'guest_check_in',
             CONCAT('Nhắc lịch: bạn nhận phòng “',l.title,'” vào ',DATE_FORMAT(b.check_in,'%d/%m/%Y'),' từ ',
-                TIME_FORMAT(COALESCE(CAST(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(b.policy_snapshot,'$.check_in_time')),'null') AS TIME),l.check_in_time),'%H:%i'),
+                TIME_FORMAT(l.check_in_time,'%H:%i'),
                 '. Mở booking #',b.id,' để xem địa chỉ và liên hệ Host.')
         FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users g ON g.id=b.guest_id
         WHERE b.status='confirmed' AND b.check_in BETWEEN v_today AND v_today+INTERVAL p_days DAY
@@ -234,7 +235,7 @@ BEGIN
         UNION ALL
         SELECT b.id,l.host_id,'host_check_in',
             CONCAT('Khách ',g.full_name,' sẽ nhận phòng “',l.title,'” vào ',DATE_FORMAT(b.check_in,'%d/%m/%Y'),' từ ',
-                TIME_FORMAT(COALESCE(CAST(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(b.policy_snapshot,'$.check_in_time')),'null') AS TIME),l.check_in_time),'%H:%i'),
+                TIME_FORMAT(l.check_in_time,'%H:%i'),
                 ' (booking #',b.id,', ',b.guest_count,' khách).')
         FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users g ON g.id=b.guest_id JOIN users h ON h.id=l.host_id
         WHERE b.status='confirmed' AND b.check_in BETWEEN v_today AND v_today+INTERVAL p_days DAY

@@ -149,3 +149,11 @@ Remaining NOT_VERIFIED: production least-privilege deployment, high-load/deadloc
 - Nâng cấp DB đang dùng: chạy lại `database/schema.sql` rồi `php database/install_procedures.php` ([database-setup.md](database-setup.md)). `db_home2home` trên máy phát triển đã được nâng cấp.
 - Ngày 2026-10-17 chạy thử thủ công với VNPay sandbox thật (thẻ test NCB, mã 00) và chuyển khoản VietQR do Admin xác nhận: cả hai PASS; A28 chuyển PASS (ma trận 90 PASS / 2 BLOCKED / 2 NOT_VERIFIED). Ghi chú dưới nút đặt chỗ ở trang chi tiết chỗ ở đổi thành “Thanh toán khi nhận phòng, hoặc thanh toán online sau khi booking được xác nhận.”
 - Chưa xác minh: IPN (cần địa chỉ công khai), chuyển tiền thật qua mã VietQR. Giới hạn: khách hủy booking đã thanh toán online khi chính sách còn hoàn tiền thì Admin không nhận thông báo riêng, phải hoàn tiền thủ công ở `/admin/payments`.
+
+## 2026-10-17 — Đồng bộ giờ nhận phòng, huy hiệu xác minh và họ tên
+
+- Giờ nhận phòng: trang chi tiết booking và tin nhắc lịch lấy giờ nhận phòng hiện tại của chỗ ở thay cho giờ chép lúc đặt. Khi Host đã đổi giờ, trang booking ghi thêm “Mốc hoàn tiền vẫn tính theo giờ nhận phòng lúc đặt (…)”; hạn hoàn tiền giữ theo giờ lúc đặt.
+- Huy hiệu “Đã xác minh”: chỉ hiện khi số điện thoại trong hồ sơ vẫn là số Admin đã duyệt. Guest tự đổi số hoặc Admin đổi số thì huy hiệu ẩn; trang Tài khoản hiện “Cần xác minh lại” và cho gửi yêu cầu mới. Đổi lại số cũ thì huy hiệu hiện lại.
+- Họ tên: khi Admin duyệt xác minh, họ tên trên CCCD thành họ tên tài khoản (cùng với số điện thoại).
+- Routine đổi: [stored-procedure-audit.md](stored-procedure-audit.md#đồng-bộ-giờ-nhận-phòng-huy-hiệu-xác-minh-và-họ-tên--2026-10-17). Gate: exit 0, 278 dòng PASS, không có FAIL ([testing-report.md](testing-report.md#đồng-bộ-giờ-nhận-phòng-huy-hiệu-xác-minh-và-họ-tên--2026-10-17)).
+- DB đang dùng chỉ cần chạy lại `php database/install_procedures.php`; không đổi bảng. `db_home2home` trên máy phát triển đã cài.

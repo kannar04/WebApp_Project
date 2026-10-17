@@ -117,7 +117,9 @@ END$$
 CREATE OR REPLACE PROCEDURE sp_booking_detail(IN p_booking BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED)
 BEGIN
     CALL sp_quality_assert_booking(p_booking,p_actor);
+    -- current_*: the listing's check-in time now; the refund deadline keeps the time stored in policy_snapshot.
     SELECT b.*,l.title,l.address,l.city,l.host_id,u.full_name guest_name,h.full_name host_name,
+        TIME_FORMAT(l.check_in_time,'%H:%i') current_check_in_time,l.time_zone current_time_zone,
         CASE WHEN b.status IN ('confirmed','completed') OR EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='admin') THEN h.phone END host_phone,
         CASE WHEN b.status IN ('confirmed','completed') OR EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='admin') THEN u.phone END guest_phone
     FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id JOIN users h ON h.id=l.host_id WHERE b.id=p_booking;

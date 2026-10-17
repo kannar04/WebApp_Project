@@ -1,5 +1,6 @@
 -- Nice-to-have trust: identity verification, trusted Host badge, check-in guide.
 -- Authorization lives in every routine; CCCD numbers are masked as soon as an Admin decides.
+-- An approval shows the badge only while the profile phone, with spaces/dots/dashes/brackets removed and +84/84 read as 0, is still the phone it verified.
 DELIMITER $$
 
 CREATE OR REPLACE PROCEDURE sp_identity_verification_submit(IN p_actor BIGINT UNSIGNED,
@@ -10,6 +11,7 @@ BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_lock BIGINT UNSIGNED;
     DECLARE v_name VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_current_phone VARCHAR(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN IF v_own THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT h2h_identity_submit; RELEASE SAVEPOINT h2h_identity_submit; END IF; END IF;
@@ -28,9 +30,11 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Số CCCD phải gồm đúng 12 chữ số.';
     END IF;
     -- The account row lock serializes concurrent submissions: at most one pending request per user.
-    SELECT id INTO v_lock FROM users WHERE id=p_actor AND status='active' AND deleted_at IS NULL FOR UPDATE;
+    SELECT id,phone INTO v_lock,v_current_phone FROM users WHERE id=p_actor AND status='active' AND deleted_at IS NULL FOR UPDATE;
     IF v_lock IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản không hợp lệ hoặc đã bị khóa.'; END IF;
-    IF EXISTS(SELECT 1 FROM identity_verifications WHERE user_id=p_actor AND status='approved') THEN
+    -- An approval of a phone the profile no longer shows does not block verifying the new number.
+    IF EXISTS(SELECT 1 FROM identity_verifications v WHERE v.user_id=p_actor AND v.status='approved'
+        AND REGEXP_REPLACE(v_current_phone,'[[:space:].()-]','') IN (v.phone,CONCAT('+84',SUBSTRING(v.phone,2)),CONCAT('84',SUBSTRING(v.phone,2)))) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản đã được xác minh danh tính.';
     END IF;
     IF EXISTS(SELECT 1 FROM identity_verifications WHERE user_id=p_actor AND status='pending') THEN
@@ -46,10 +50,12 @@ CREATE OR REPLACE PROCEDURE sp_identity_verification_status(IN p_actor BIGINT UN
 BEGIN
     -- The owner only ever receives the masked number, even while the request is pending.
     SELECT v.id,v.status,v.full_name_on_card,v.phone,CONCAT('********',RIGHT(v.id_number,4)) id_number_masked,
-        v.decision_reason,v.created_at,v.reviewed_at
+        v.decision_reason,v.created_at,v.reviewed_at,
+        COALESCE(v.status='approved' AND REGEXP_REPLACE(u.phone,'[[:space:].()-]','') IN (v.phone,CONCAT('+84',SUBSTRING(v.phone,2)),CONCAT('84',SUBSTRING(v.phone,2))),FALSE) is_current
     FROM identity_verifications v JOIN users u ON u.id=v.user_id
     WHERE v.user_id=p_actor AND u.status='active' AND u.deleted_at IS NULL
-    ORDER BY v.status='approved' DESC,v.created_at DESC,v.id DESC LIMIT 1;
+    -- A current approval wins; an approval whose phone left the profile ranks by date like any other request.
+    ORDER BY is_current DESC,v.created_at DESC,v.id DESC LIMIT 1;
 END$$
 
 CREATE OR REPLACE PROCEDURE sp_admin_identity_verifications(IN p_admin BIGINT UNSIGNED,
@@ -79,6 +85,7 @@ BEGIN
     DECLARE v_user BIGINT UNSIGNED;
     DECLARE v_status VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_phone VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_name VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_reason TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -96,15 +103,15 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Vui lòng nhập lý do từ chối (ít nhất 5 ký tự).';
     END IF;
     IF CHAR_LENGTH(v_reason)>1000 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Ghi chú quyết định tối đa 1000 ký tự.'; END IF;
-    SELECT user_id,status,phone INTO v_user,v_status,v_phone FROM identity_verifications WHERE id=p_id FOR UPDATE;
+    SELECT user_id,status,phone,full_name_on_card INTO v_user,v_status,v_phone,v_name FROM identity_verifications WHERE id=p_id FOR UPDATE;
     IF v_user IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Yêu cầu xác minh không tồn tại.'; END IF;
     IF v_status<>'pending' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Yêu cầu xác minh này đã được xử lý.'; END IF;
     IF v_user=p_admin THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Admin không thể tự duyệt yêu cầu xác minh của chính mình.'; END IF;
     UPDATE identity_verifications SET status=p_decision,decision_reason=v_reason,reviewed_by=p_admin,reviewed_at=NOW(6),updated_at=NOW(6),
         id_number=CONCAT('********',RIGHT(id_number,4))
     WHERE id=p_id;
-    -- The phone Admin just verified becomes the contact phone shown on bookings.
-    IF p_decision='approved' THEN UPDATE users SET phone=v_phone,updated_at=NOW(6) WHERE id=v_user; END IF;
+    -- The phone and card name Admin just verified become the account's contact phone and name shown on bookings.
+    IF p_decision='approved' THEN UPDATE users SET phone=v_phone,full_name=v_name,updated_at=NOW(6) WHERE id=v_user; END IF;
     -- The audit trail never stores the CCCD number.
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
         VALUES(p_admin,IF(p_decision='approved','approve_identity','reject_identity'),'identity_verification',p_id,
@@ -143,7 +150,8 @@ BEGIN
         v_min_reviews min_reviews,v_min_rating min_rating,v_max_cancel_pct max_cancel_pct,v_min_decided min_decided_requests,v_window_months window_months
     FROM (
         SELECT u.id user_id,
-            EXISTS(SELECT 1 FROM identity_verifications v WHERE v.user_id=u.id AND v.status='approved') is_verified,
+            EXISTS(SELECT 1 FROM identity_verifications v WHERE v.user_id=u.id AND v.status='approved'
+                AND REGEXP_REPLACE(u.phone,'[[:space:].()-]','') IN (v.phone,CONCAT('+84',SUBSTRING(v.phone,2)),CONCAT('84',SUBSTRING(v.phone,2)))) is_verified,
             EXISTS(SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.role='host') is_host,
             (SELECT COUNT(*) FROM reviews rv JOIN bookings b ON b.id=rv.booking_id JOIN listings l ON l.id=b.listing_id
                 WHERE l.host_id=u.id AND rv.moderation_status='visible') review_count,
@@ -161,8 +169,9 @@ END$$
 
 CREATE OR REPLACE PROCEDURE sp_trust_review_badges(IN p_listing BIGINT UNSIGNED)
 BEGIN
-    SELECT r.id review_id,EXISTS(SELECT 1 FROM identity_verifications v WHERE v.user_id=b.guest_id AND v.status='approved') reviewer_verified
-    FROM reviews r JOIN bookings b ON b.id=r.booking_id JOIN listings l ON l.id=b.listing_id
+    SELECT r.id review_id,EXISTS(SELECT 1 FROM identity_verifications v WHERE v.user_id=g.id AND v.status='approved'
+        AND REGEXP_REPLACE(g.phone,'[[:space:].()-]','') IN (v.phone,CONCAT('+84',SUBSTRING(v.phone,2)),CONCAT('84',SUBSTRING(v.phone,2)))) reviewer_verified
+    FROM reviews r JOIN bookings b ON b.id=r.booking_id JOIN listings l ON l.id=b.listing_id JOIN users g ON g.id=b.guest_id
     WHERE b.listing_id=p_listing AND r.moderation_status='visible' AND l.deleted_at IS NULL ORDER BY r.id;
 END$$
 

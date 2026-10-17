@@ -152,7 +152,7 @@ try {
     trustExpect((int) $stored['audit_count'] === 1 && !str_contains((string) $stored['audit_summary'], '079012345678') && str_contains((string) $stored['audit_summary'], 'rejected'), 'Admin audit entry missing or leaked the CCCD.');
     trustExpect((int) $stored['notification_count'] === 1, 'Rejected user was not notified in-app.');
     trustRejects([$trust, 'decideVerification'], [$firstRequest, $adminId, 'approved', ''], 'A decided verification was decided again.');
-    trustExpect((string) $users->findWithRoles($guestId)['phone'] === '', 'Rejected verification changed the contact phone.');
+    trustExpect((string) $users->findWithRoles($guestId)['phone'] === '' && $users->findWithRoles($guestId)['full_name'] === 'Trust Guest', 'Rejected verification changed the contact phone or account name.');
     $rejectedView = $trust->verificationStatus($guestId);
     trustExpect($rejectedView['status'] === 'rejected' && str_contains((string) $rejectedView['decision_reason'], 'không khớp'), 'Owner cannot see the rejection reason.');
     $history = $trust->adminVerifications($adminId, 'rejected', sprintf($emailFor, 'guest'));
@@ -161,11 +161,27 @@ try {
     $trust->decideVerification($secondRequest, $adminId, 'approved', '');
     trustExpect($trust->verificationStatus($guestId)['status'] === 'approved', 'Approved status missing.');
     trustExpect((int) trustBadge($trust, $guestId, null)['is_verified'] === 1, 'Verified badge missing after approval.');
-    trustExpect($users->findWithRoles($guestId)['phone'] === '0912345678', 'Approved phone did not become the contact phone.');
+    $account = $users->findWithRoles($guestId);
+    trustExpect($account['phone'] === '0912345678' && $account['full_name'] === 'Nguyễn Văn Tín', 'Approved phone and card name did not become the contact phone and account name.');
     trustRejects([$trust, 'submitVerification'], [$guestId, 'Nguyễn Văn Tín', '0912345678', '079012345678'], 'Verified account submitted again.');
     $approved = trustCall('CALL sp_test_trust_verification_inspect(?)', [$secondRequest])[0];
     trustExpect($approved['id_number'] === '********5678' && (int) $approved['notification_count'] === 2 && str_contains((string) $approved['audit_summary'], 'approved'), 'Approval masking/audit/notification failed.');
-    echo "PASS trust Admin review: role/decision/reason/self-review guards, CCCD masked on decision, audit without CCCD, notifications, approved phone becomes contact phone, resubmit after rejection only\n";
+    // The badge holds only while the profile phone is the verified one; the same number written another way still counts.
+    $users->updateProfile($guestId, 'Nguyễn Văn Tín', '+84 912-345-678', null);
+    trustExpect((int) trustBadge($trust, $guestId, null)['is_verified'] === 1 && (int) $trust->verificationStatus($guestId)['is_current'] === 1, 'Reformatted verified phone hid the badge.');
+    $users->updateProfile($guestId, 'Nguyễn Văn Tín', '0911111111', null);
+    $staleView = $trust->verificationStatus($guestId);
+    trustExpect((int) trustBadge($trust, $guestId, null)['is_verified'] === 0 && $staleView['status'] === 'approved' && (int) $staleView['is_current'] === 0, 'Badge kept after the profile phone changed.');
+    $users->updateProfile($guestId, 'Nguyễn Văn Tín', '0912 345 678', null);
+    trustExpect((int) trustBadge($trust, $guestId, null)['is_verified'] === 1, 'Badge did not return with the verified phone.');
+    $users->adminUpdate($guestId, ['email' => sprintf($emailFor, 'guest'), 'full_name' => 'Nguyễn Văn Tín', 'phone' => '0922222222', 'password' => '']);
+    trustExpect((int) trustBadge($trust, $guestId, null)['is_verified'] === 0, 'Badge kept after an Admin changed the phone.');
+    $thirdRequest = $trust->submitVerification($guestId, 'Nguyễn Văn Tín', '0922222222', '079012345678');
+    trustExpect($trust->verificationStatus($guestId)['status'] === 'pending', 'New request after a phone change is not the one shown.');
+    $trust->decideVerification($thirdRequest, $adminId, 'approved', '');
+    trustExpect((int) trustBadge($trust, $guestId, null)['is_verified'] === 1 && $users->findWithRoles($guestId)['phone'] === '0922222222', 'Verifying the new phone did not restore the badge.');
+    echo "PASS trust Admin review: role/decision/reason/self-review guards, CCCD masked on decision, audit without CCCD, notifications, approved phone and card name become contact phone and account name, resubmit after rejection only\n";
+    echo "PASS trust badge sync: reformatted phone keeps the badge, Guest or Admin phone change hides it, old phone restores it, new number can be verified\n";
 
     // F. Trusted Host badge: reviews (visible only), average, host-side cancellation ratio with the minimum-decided rule.
     trustExpect(!trustIsTrusted($trust, $hostId) && (int) trustBadge($trust, $hostId, null)['review_count'] === 0, 'New Host is already trusted.');
@@ -216,6 +232,9 @@ try {
     trustExpect((int) $metrics['decided_requests'] === 11 && (int) $metrics['host_side_cancellations'] === 1 && (int) $metrics['is_trusted_host'] === 1, 'Guest cancellation counted against the Host.');
     $reviewBadges = $trust->reviewBadges($listingId);
     trustExpect(count($reviewBadges) === 3 && !in_array(false, $reviewBadges, true), 'Verified reviewer badge missing on visible reviews.');
+    $users->updateProfile($guestId, 'Nguyễn Văn Tín', '0933000000', null);
+    trustExpect(!in_array(true, $trust->reviewBadges($listingId), true), 'Reviewer badge kept after the reviewer changed phone.');
+    $users->updateProfile($guestId, 'Nguyễn Văn Tín', '0922222222', null);
     echo "PASS trust Host badge: >=3 visible reviews, avg >=4.5, hidden reviews ignored, <3 decided requests skip the cancellation rule, 11.1% fails, 10% passes, guest cancellations ignored, metrics private\n";
 
     // G. Check-in guide: owner-only editing, entitlement by booking status and participant.

@@ -130,3 +130,15 @@ Chưa xác minh và giới hạn:
 - IPN cần địa chỉ công khai; trên localhost kết quả chỉ được ghi qua return URL có chữ ký.
 - Chưa quét mã VietQR bằng app ngân hàng thật; test kiểm tra link ảnh `img.vietqr.io` và nội dung trang, không tải ảnh (ảnh cần Internet).
 - MoMo/ZaloPay không có cổng riêng; khách dùng các app này để quét mã VietQR.
+
+## Đồng bộ giờ nhận phòng, huy hiệu xác minh và họ tên — 2026-10-17
+
+Gate như trên: exit 0, **278 dòng PASS** (277 cũ + 1 dòng mới của `feature_trust_test.php`), không có FAIL; installer 167 production / 41 test definitions, zero DROP.
+
+| Suite | Thay đổi |
+|---|---|
+| `feature_trust_test.php` | Từ chối thì giữ nguyên số và họ tên; duyệt thì số và họ tên trên CCCD thành số liên hệ và họ tên tài khoản. Dòng mới “trust badge sync”: cùng số viết khác (`+84 912-345-678`) vẫn giữ huy hiệu; Guest tự đổi số hoặc Admin đổi số thì mất huy hiệu và `is_current` = 0; đổi lại số cũ thì có lại; gửi và duyệt yêu cầu với số mới thì có lại. Huy hiệu người đánh giá cũng mất khi người đó đổi số |
+| `feature_conversation_test.php` | Host đổi giờ nhận phòng 15:30 → 16:00 sau khi khách đặt: chi tiết booking và trang booking (HTTP) hiện 16:00 kèm ghi chú hạn hoàn tiền vẫn tính từ 15:30; tin nhắc lịch ghi 16:00, không còn 15:30 |
+| `feature_i18n_test.php` | 6 câu mới có bản tiếng Anh |
+
+Kiểm thử thủ công trên `db_home2home`: tài khoản Host mẫu đã được duyệt xác minh rồi đổi số điện thoại trong lần thử trước; sau bản sửa, huy hiệu của Host này ẩn và trang Tài khoản hiện “Cần xác minh lại” kèm form gửi lại.

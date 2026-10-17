@@ -334,6 +334,23 @@ Thanh toán online (VietQR chuyển khoản do Admin xác nhận, VNPay sandbox)
 
 Test fixture routines mới (3, chỉ cài trong DB test riêng): `testing_payment.sql` (`sp_test_payment_inspect`, `sp_test_payment_attempt`, `sp_test_payment_cleanup` — chỉ xóa listing `Audit fixture PAY %` ở thành phố `Audit`).
 
+## Đồng bộ giờ nhận phòng, huy hiệu xác minh và họ tên — 2026-10-17
+
+Ba chỗ còn giữ bản sao cũ sau khi dữ liệu gốc đổi, cùng loại với số điện thoại liên hệ đã sửa ngày 2026-10-15. Không thêm routine hay bảng. Gate: installer 167 production / 41 test definitions, zero DROP; 248 CALL sites / 190 routine signatures; 278 dòng PASS, không có FAIL.
+
+### Routine đã có bị thay đổi
+
+| Routine | File | Thay đổi | Test |
+|---|---|---|---|
+| `sp_booking_detail` | `050_quality_core.sql` | Trả thêm `current_check_in_time` (`HH:MM`) và `current_time_zone` của chỗ ở; `policy_snapshot` giữ nguyên | feature_conversation_test |
+| `sp_checkin_reminders_run` | `080_conversation.sql` | Tin nhắc lịch ghi `listings.check_in_time` hiện tại thay cho giờ trong `policy_snapshot` | feature_conversation_test |
+| `sp_trust_badges`, `sp_trust_review_badges` | `075_trust.sql` | `is_verified` / `reviewer_verified` chỉ bật khi có yêu cầu `approved` mà số điện thoại trùng `users.phone` hiện tại (bỏ khoảng trắng, chấm, gạch, ngoặc; `+84`/`84` đọc là `0`, như `Trust::normalizePhone`) | feature_trust_test |
+| `sp_identity_verification_status` | `075` | Trả thêm `is_current`; yêu cầu đã duyệt nhưng số đã đổi được xếp theo ngày như các yêu cầu khác | feature_trust_test |
+| `sp_identity_verification_submit` | `075` | Chỉ chặn gửi khi đang có xác minh còn hiệu lực với số hiện tại; số đã đổi thì gửi được yêu cầu mới | feature_trust_test |
+| `sp_admin_identity_verification_decide` | `075` | Khi duyệt, ghi cả `full_name_on_card` vào `users.full_name` (trước đây chỉ ghi số điện thoại) | feature_trust_test |
+
+Hạn hoàn tiền (`sp_booking_cancel`, `sp_booking_refund_preview`) vẫn tính từ giờ nhận phòng trong `policy_snapshot`: Host đổi giờ sau khi khách đặt không làm thay đổi quyền hoàn tiền của khách.
+
 ## Run / reproduce
 
 Existing local database: install routines only, without importing/reseeding tables:

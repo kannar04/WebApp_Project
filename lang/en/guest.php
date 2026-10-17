@@ -96,6 +96,7 @@ return [
     'Phụ phí được tính trong cơ sở hoàn tiền.' => 'Fees count toward the refundable amount.',
     'Phụ phí không nằm trong cơ sở hoàn tiền.' => 'Fees do not count toward the refundable amount.',
     'Giờ nhận phòng {time} ({zone}).' => 'Check-in time {time} ({zone}).',
+    'Mốc hoàn tiền vẫn tính theo giờ nhận phòng lúc đặt ({time}).' => 'The refund deadline still counts from the check-in time at booking ({time}).',
     'Số tiền hoàn đã ghi nhận' => 'Recorded refund',
     'Số tiền hoàn nếu hủy lúc này' => 'Refund if cancelled now',
     'Đây là mức hoàn theo chính sách; không phải xác nhận đã chuyển tiền. Khi hủy, máy chủ tính lại theo thời điểm thực hiện.' => 'This is the refund under the policy, not a confirmation that money has been sent. When you cancel, the server recalculates it for that moment.',
@@ -194,6 +195,11 @@ return [
     'Số CCCD (12 chữ số)' => 'ID card number (12 digits)',
     'Chỉ Admin xem số đầy đủ khi duyệt; sau khi có kết quả, hệ thống chỉ giữ 4 số cuối.' => 'Only an Admin sees the full number during review; after the decision, only the last 4 digits are kept.',
     'Gửi lại yêu cầu xác minh' => 'Resubmit verification request',
+    'Cần xác minh lại' => 'Needs re-verification',
+    'Số điện thoại trong hồ sơ khác số đã xác minh ({phone}).' => 'The phone on your profile is not the verified number ({phone}).',
+    'Huy hiệu “Đã xác minh” tạm ẩn. Gửi yêu cầu mới với số hiện tại, hoặc đổi lại số cũ trong hồ sơ.' => 'The “Verified” badge is hidden for now. Submit a new request with your current number, or change your profile back to the old one.',
+    'Khi được duyệt, họ tên này thay cho họ tên trong hồ sơ.' => 'Once approved, this name replaces the name on your profile.',
+    'Đổi sang số khác số đã xác minh sẽ ẩn huy hiệu “Đã xác minh” cho tới khi bạn xác minh số mới.' => 'Changing to a number other than your verified one hides the “Verified” badge until you verify the new number.',
     'Gửi yêu cầu xác minh' => 'Submit verification request',
 
     // reports/index.php

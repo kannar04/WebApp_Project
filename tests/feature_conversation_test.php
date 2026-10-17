@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 // Nice-to-have conversation: booking messages H20/G23 (thread + Zalo link), A31 (Admin moderation), check-in reminders G31/A35.
 // Works on a workspace dev database and inside fresh_setup_test.php (throwaway DB + HOME2HOME_TEST_URL server).
+use App\Models\Booking;
 use App\Models\BookingMessage;
 use App\Models\CheckInReminder;
 use App\Models\Listing;
@@ -125,12 +126,13 @@ try {
 
     $listings = new Listing();
     $policy = $listings->policies()[0];
-    $listingId = $listings->create($hostId, [
+    $listingData = [
         'property_type_id' => (int) $listings->types()[0]['id'], 'cancellation_policy_id' => (int) $policy['id'],
         'title' => 'Conversation fixture '.$tag, 'address' => 'Test only', 'city' => 'Audit', 'description' => 'Temporary conversation fixture',
         'nightly_price' => 100000, 'cleaning_fee' => 10000, 'max_guests' => 2, 'room_count' => 1, 'bedroom_count' => 1, 'bed_count' => 1,
         'check_in_time' => '15:30', 'check_out_time' => '11:00',
-    ]);
+    ];
+    $listingId = $listings->create($hostId, $listingData);
     $database->prepare('CALL sp_test_conversation_listing_approve(?)')->execute([$listingId]);
     $outsiderEmail = 'audit-'.$tag.'@home2home.test';
     $outsiderId = $users->create($outsiderEmail, bin2hex(random_bytes(16)), 'Audit outsider', null);
@@ -256,6 +258,10 @@ try {
     $bookingF = $bookingService->create($listingId, $guestId, $today->modify('+3 days')->format('Y-m-d'), $today->modify('+4 days')->format('Y-m-d'), 1);
     $bookingService->hostTransition($bookingD, $hostId, 'confirmed');
     $bookingService->hostTransition($bookingF, $hostId, 'confirmed');
+    // The Host moves check-in to 16:00 after booking: page and reminders follow it, the refund deadline keeps 15:30.
+    $listings->update($listingId, $hostId, ['check_in_time' => '16:00'] + $listingData);
+    $detailD = (new Booking())->detail($bookingD, $guestId);
+    conversationExpect($detailD['current_check_in_time'] === '16:00' && substr((string) $detailD['policy']['check_in_time'], 0, 5) === '15:30', 'Booking detail did not follow the new check-in time.');
     conversationRejects([$reminders, 'run'], [-1, null], 'Negative reminder window accepted.');
     conversationRejects([$reminders, 'run'], [31, null], 'Oversized reminder window accepted.');
     $_SESSION = [];
@@ -263,7 +269,7 @@ try {
     $inspectD = conversationInspect($bookingD, $guestId);
     conversationExpect((int) $inspectD['reminders'] === 1 && (int) $inspectD['reminder_notifications'] === 1 && (int) $inspectD['linked_reminders'] === 1, 'Guest page-load reminder missing.');
     conversationExpect(str_contains($inspectD['reminder_body'], 'Conversation fixture '.$tag) && str_contains($inspectD['reminder_body'], $today->modify('+1 day')->format('d/m/Y'))
-        && str_contains($inspectD['reminder_body'], '15:30') && str_contains($inspectD['reminder_body'], '#'.$bookingD), 'Reminder text wrong.');
+        && str_contains($inspectD['reminder_body'], '16:00') && !str_contains($inspectD['reminder_body'], '15:30') && str_contains($inspectD['reminder_body'], '#'.$bookingD), 'Reminder text wrong.');
     conversationExpect((int) conversationInspect($bookingE, $guestId)['reminders'] === 0, 'Pending booking was reminded.');
     $bookingService->hostTransition($bookingE, $hostId, 'confirmed');
     ConversationService::remindOpportunistically($guestId);
@@ -292,7 +298,7 @@ try {
     $outageOutput = stream_get_contents($outagePipes[1]); stream_get_contents($outagePipes[2]);
     fclose($outagePipes[1]); fclose($outagePipes[2]);
     conversationExpect(proc_close($outage) === 0 && trim((string) $outageOutput) === '0|throttled', 'Navigation helper broke when the database was unavailable.');
-    echo "PASS reminders: confirmed check-ins only, guest+host text with date/time, PK idempotency, 30-minute page throttle, CLI job, safe during DB outage\n";
+    echo "PASS reminders: confirmed check-ins only, guest+host text with the listing's current date/time, PK idempotency, 30-minute page throttle, CLI job, safe during DB outage\n";
 
     $baseUrl = rtrim((string) getenv('HOME2HOME_TEST_URL'), '/');
     if ($baseUrl === '') {
@@ -317,6 +323,8 @@ try {
         conversationExpect($threadPage['status'] === 200 && str_contains($threadPage['body'], 'id="booking-messages"') && str_contains($threadPage['body'], '&lt;script&gt;alert(&quot;conv-'.$tag)
             && !str_contains($threadPage['body'], '<script>alert') && str_contains($threadPage['body'], 'Tin nhắn đã bị quản trị viên ẩn.') && str_contains($threadPage['body'], 'js/messages.js')
             && !str_contains($threadPage['body'], 'zalo.me'), 'Guest thread page failed (escaping, hidden placeholder, script or premature Zalo link).');
+        $stayPage = conversationHttp($guestClient, $baseUrl, '/bookings/'.$bookingD)['body'];
+        conversationExpect(str_contains($stayPage, 'Giờ nhận phòng 16:00') && str_contains($stayPage, 'giờ nhận phòng lúc đặt (15:30)'), 'Booking page lost the new check-in time or the booked refund time.');
         conversationExpect(!str_contains(conversationHttp($guestClient, $baseUrl, '/messages')['body'], 'nav-unread-badge'), 'Badge remained after opening the thread.');
         $noToken = conversationHttp($guestClient, $baseUrl, '/bookings/'.$bookingA.'/messages', ['body' => 'Không có token']);
         conversationExpect($noToken['status'] === 302 && (int) conversationInspect($bookingA, $hostId)['messages'] === $before + 1, 'POST without CSRF token stored a message.');
