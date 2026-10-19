@@ -1,0 +1,8 @@
+<section class="page-section"><div class="container narrow"><div class="section-title"><h1><?= e($title) ?></h1><a class="btn btn-ghost" href="<?= e(url($adminMode?'/admin':'/host')) ?>">Quay lại quản lý</a></div>
+<?php if(!$reviews): ?><div class="empty-state"><h2>Chưa có đánh giá</h2><p>Đánh giá sau lưu trú sẽ xuất hiện tại đây.</p></div><?php endif; ?>
+<?php foreach($reviews as $review): ?><article class="surface-card mb-3"><h2 class="h5"><?= e($review['title']) ?></h2><p><?= e($review['guest_name']) ?> · <?= (int)$review['rating'] ?>/5 · <?= e($review['moderation_status']) ?></p><p><?= e($review['comment']) ?></p>
+<?php if($adminMode): ?>
+<?php if($review['host_reply']): ?><blockquote><?= e($review['host_reply']) ?></blockquote><?php endif; ?>
+<form method="post" action="<?= e(url('/admin/reviews/'.$review['id'].'/moderate')) ?>"><?= csrf_field() ?><input type="hidden" name="status" value="<?= $review['moderation_status']==='visible'?'hidden':'visible' ?>"><button class="btn btn-outline-danger" data-confirm="Cập nhật hiển thị đánh giá này? Nội dung và lịch sử vẫn được giữ."><?= $review['moderation_status']==='visible'?'Gỡ khỏi công khai':'Hiển thị lại' ?></button></form>
+<?php else: ?><form method="post" action="<?= e(url('/host/reviews/'.$review['id'].'/reply')) ?>"><?= csrf_field() ?><label for="reply-<?= (int)$review['id'] ?>">Phản hồi của bạn</label><textarea class="form-control mb-2" id="reply-<?= (int)$review['id'] ?>" name="reply" maxlength="5000" required><?= e($review['host_reply']) ?></textarea><button class="btn btn-primary">Lưu phản hồi</button></form><?php endif; ?>
+</article><?php endforeach; ?></div></section>
