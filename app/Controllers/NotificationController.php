@@ -11,6 +11,7 @@ final class NotificationController extends Controller
     public function index(): void
     {
         $user=$this->requireAuth();
+        \App\Services\ConversationService::remindOpportunistically((int)$user['id']);
         $this->render('notifications/index',['title'=>'Thông báo','notifications'=>(new Notification())->forUser((int)$user['id'])]);
     }
     public function read(string $id): never
