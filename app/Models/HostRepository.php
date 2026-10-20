@@ -10,3 +10,4 @@ final class HostRepository
         $s=Database::connection()->prepare('CALL sp_host_monthly_revenue(?)'); $s->execute([$hostId]); return $s->fetchAll();
     }
 }
+

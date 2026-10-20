@@ -55,3 +55,4 @@ final class Booking
         return $statement->fetchAll();
     }
 }
+

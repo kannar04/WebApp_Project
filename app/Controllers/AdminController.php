@@ -17,9 +17,12 @@ final class AdminController extends Controller
         $query=is_string($_GET['booking_q']??null)?mb_substr(trim($_GET['booking_q']),0,254):'';
         $status=is_string($_GET['booking_status']??null)?$_GET['booking_status']:'';
         if (!in_array($status,['','pending','confirmed','rejected','cancelled','completed'],true)) { $status=''; Session::flash('error','Trạng thái lọc booking không hợp lệ.'); }
-        $this->render('admin/dashboard',['title'=>'Quản trị Home2Home','stats'=>$repo->stats(),
-            'users'=>(new User())->all(is_string($_GET['q']??null)?$_GET['q']:''),'listings'=>$repo->listings(),
-            'bookings'=>(new Booking())->adminSearch((int)$admin['id'],$query,$status),'bookingQuery'=>$query,'bookingStatus'=>$status]);
+        $users=(new User())->all(is_string($_GET['q']??null)?$_GET['q']:'');
+        // Translated here with a {brand} slot (same key as the dashboard h1): the plain text "Quản trị Home2Home" is also the seeded Admin's display name.
+        $this->render('admin/dashboard',['title'=>__('Quản trị {brand}',['brand'=>'Home2Home']),'stats'=>$repo->stats(),
+            'users'=>$users,'listings'=>$repo->listings(),
+            'bookings'=>(new Booking())->adminSearch((int)$admin['id'],$query,$status),'bookingQuery'=>$query,'bookingStatus'=>$status,
+            'trustBadges'=>(new \App\Models\Trust())->badges(array_column($users,'id'),(int)$admin['id'])]);
     }
     public function listingPreview(string $id): void
     {
@@ -44,6 +47,7 @@ final class AdminController extends Controller
         if (!$this->rolesAreValid($roles)) {
             Session::flash('error','Vai trò không hợp lệ.'); $this->redirect('/admin');
         }
+        if ($roles === []) { $roles = ['guest']; } // User::replaceRoles saves guest when nothing is ticked; audit the same value.
         $this->managedUserChange((int)$id,(int)$admin['id'],'set_user_roles',implode(',',$roles),
             fn()=>(new User())->replaceRoles((int)$id,$roles),'Đã cập nhật vai trò.');
     }
@@ -69,7 +73,7 @@ final class AdminController extends Controller
         }
         $this->redirect('/admin');
     }
-    public function userEdit(string $id): void {$this->requireRole('admin');$user=(new User())->findForAdmin((int)$id);if(!$user){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy tài khoản']);return;}$this->render('admin/user-edit',['title'=>'Sửa tài khoản','managedUser'=>$user,'old'=>Session::pullOld()]);}
+    public function userEdit(string $id): void {$this->requireRole('admin');$user=(new User())->findForAdmin((int)$id);if(!$user){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy tài khoản']);return;}$this->render('admin/user-edit',['title'=>'Sửa tài khoản','managedUser'=>$user,'old'=>Session::pullOld(),'trustBadges'=>(new \App\Models\Trust())->badges([(int)$id],(int)\Core\Auth::id())]);}
     public function userUpdate(string $id): never
     {
         Csrf::ensure();
@@ -207,3 +211,4 @@ final class AdminController extends Controller
     }
     public function bookingTransition(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');try{(new BookingService())->adminTransition((int)$id,(int)$admin['id'],(string)($_POST['status']??''));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/admin');}
 }
+
