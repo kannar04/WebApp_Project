@@ -19,7 +19,7 @@ final class Listing
 
     public function searchPage(array $filters,int $limit=12,int $offset=0): array
     {
-        $statement = $this->db->prepare('CALL sp_listing_search_filtered(?,?,?,?,?,?,?,?,?,?,?,?)');
+        $statement = $this->db->prepare('CALL DST_sp_listing_search_filtered(?,?,?,?,?,?,?,?,?,?,?,?)');
         $statement->execute([trim($filters['location'] ?? ''), (int) ($filters['guests'] ?? 0),
             (int) ($filters['type'] ?? 0), (float) ($filters['min_price'] ?? 0), (float) ($filters['max_price'] ?? 0),
             (int) ($filters['bedrooms'] ?? 0), ($filters['check_in'] ?? '') ?: null, ($filters['check_out'] ?? '') ?: null,
@@ -30,7 +30,7 @@ final class Listing
 
     public function findPublic(int $id, bool $withDetails = true): ?array
     {
-        $statement = $this->db->prepare('CALL `sp_listing_get_public`(?)');
+        $statement = $this->db->prepare('CALL `DST_sp_listing_get_public`(?)');
         $statement->execute([$id]);
         $listing = $statement->fetch();
         if (!$listing) { return null; }
@@ -44,28 +44,28 @@ final class Listing
 
     public function findOwned(int $id, int $hostId): ?array
     {
-        $statement = $this->db->prepare('CALL `sp_listing_get_owned`(?,?)');
+        $statement = $this->db->prepare('CALL `NTK_sp_listing_get_owned`(?,?)');
         $statement->execute([$id, $hostId]);
         return $statement->fetch() ?: null;
     }
 
     public function hostListings(int $hostId): array
     {
-        $statement = $this->db->prepare('CALL `sp_listing_get_by_host`(?)');
+        $statement = $this->db->prepare('CALL `NMT_sp_listing_get_by_host`(?)');
         $statement->execute([$hostId]);
         return $statement->fetchAll();
     }
 
     public function create(int $hostId, array $data): int
     {
-        $statement = $this->db->prepare('CALL `sp_listing_create`(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $statement = $this->db->prepare('CALL `LTP_sp_listing_create`(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $statement->execute([$hostId,$data['property_type_id'],$data['cancellation_policy_id'],$data['title'],$data['address'],$data['city'],$data['description'],$data['nightly_price'],$data['cleaning_fee'],$data['max_guests'],$data['room_count'],$data['bedroom_count'],$data['bed_count'],$data['check_in_time'],$data['check_out_time'],!empty($data['allows_smoking']),!empty($data['allows_pets']),!empty($data['allows_parties']),self::coordinate($data['latitude'] ?? null),self::coordinate($data['longitude'] ?? null)]);
         return (int) $this->db->lastInsertId();
     }
 
     public function update(int $id, int $hostId, array $data): void
     {
-        $statement = $this->db->prepare('CALL `sp_listing_update`(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $statement = $this->db->prepare('CALL `NMT_sp_listing_update`(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $statement->execute([$data['property_type_id'],$data['cancellation_policy_id'],$data['title'],$data['address'],$data['city'],$data['description'],$data['nightly_price'],$data['cleaning_fee'],$data['max_guests'],$data['room_count'],$data['bedroom_count'],$data['bed_count'],$data['check_in_time'],$data['check_out_time'],!empty($data['allows_smoking']),!empty($data['allows_pets']),!empty($data['allows_parties']),$id,$hostId,self::coordinate($data['latitude'] ?? null),self::coordinate($data['longitude'] ?? null)]);
     }
 
@@ -76,24 +76,24 @@ final class Listing
 
     public function addPhoto(int $listingId, string $url, string $alt, int $hostId): void
     {
-        $statement = $this->db->prepare('CALL sp_listing_photo_add(?,?,?,?)');
+        $statement = $this->db->prepare('CALL NMT_sp_listing_photo_add(?,?,?,?)');
         $statement->execute([$listingId, $url, $alt, $hostId]);
     }
 
     public function setAmenities(int $listingId, array $ids, int $hostId): void
     {
-        $statement = $this->db->prepare('CALL sp_listing_amenities_replace(?,?,?)');
+        $statement = $this->db->prepare('CALL NTK_sp_listing_amenities_replace(?,?,?)');
         $statement->execute([$listingId, $hostId, json_encode(array_values(array_unique(array_map('intval', $ids))), JSON_THROW_ON_ERROR)]);
     }
 
     public function setVisible(int $id, int $hostId, bool $visible): void
     {
-        $this->db->prepare('CALL `sp_listing_set_visible`(?,?,?)')->execute([$visible,$id,$hostId]);
+        $this->db->prepare('CALL `LTP_sp_listing_set_visible`(?,?,?)')->execute([$visible,$id,$hostId]);
     }
 
     public function setAvailability(int $id, int $hostId, string $date, bool $open, ?string $reason): bool
     {
-        $statement = $this->db->prepare('CALL sp_listing_availability_set(?,?,?,?,?)');
+        $statement = $this->db->prepare('CALL NMT_sp_listing_availability_set(?,?,?,?,?)');
         $statement->execute([$id, $hostId, $date, $open, $reason]);
         return (bool) $statement->fetchColumn();
     }
@@ -101,23 +101,23 @@ final class Listing
     public function availability(int $id,int $hostId): array
     {
         if(!$this->findOwned($id,$hostId)){return [];}
-        $statement=$this->db->prepare('CALL `sp_listing_availability_get`(?)');
+        $statement=$this->db->prepare('CALL `LTP_sp_listing_availability_get`(?)');
         $statement->execute([$id]);return $statement->fetchAll();
     }
 
     public function types(): array { return $this->db->query('CALL `DST_sp_list_property_types`()')->fetchAll(); }
     public function policies(): array { return $this->db->query('CALL `LTP_sp_list_cancellation_policies`()')->fetchAll(); }
-    public function allAmenities(): array { return $this->db->query('CALL `DST_ sp_list_amenities`()')->fetchAll(); }
+    public function allAmenities(): array { return $this->db->query('CALL `DST_sp_list_amenities`()')->fetchAll(); }
     public function amenityIds(int $listingId): array
     {
-        $statement = $this->db->prepare('CALL `sp_listing_amenity_ids`(?)');
+        $statement = $this->db->prepare('CALL `DST_sp_listing_amenity_ids`(?)');
         $statement->execute([$listingId]);
         return array_map('intval', $statement->fetchAll(PDO::FETCH_COLUMN));
     }
     public function photos(int $id,int $actorId=0): array
     {
         if ($actorId===0) { $s=$this->db->prepare('CALL `LTP_sp_get_listing_photos`(?)'); $s->execute([$id]); }
-        else { $s=$this->db->prepare('CALL sp_listing_photos_for_actor(?,?)'); $s->execute([$id,$actorId]); }
+        else { $s=$this->db->prepare('CALL LTP_sp_listing_photos_for_actor(?,?)'); $s->execute([$id,$actorId]); }
         return $s->fetchAll();
     }
     private function amenities(int $id): array { $s=$this->db->prepare('CALL `LTP_sp_get_listing_amenities`(?)'); $s->execute([$id]); return $s->fetchAll(); }
@@ -125,29 +125,29 @@ final class Listing
 
     public function calendar(int $id, int $actorId, string $start, string $end): array
     {
-        $statement=$this->db->prepare('CALL sp_listing_calendar(?,?,?,?)');
+        $statement=$this->db->prepare('CALL DST_sp_listing_calendar(?,?,?,?)');
         $statement->execute([$id,$actorId,$start,$end]);
         return $statement->fetchAll();
     }
 
     public function managePhotos(int $id, int $actorId, array $orderedIds, array $expectedIds): void
     {
-        $this->db->prepare('CALL sp_host_photos_manage(?,?,?,?)')->execute([$id,$actorId,json_encode(array_values($orderedIds),JSON_THROW_ON_ERROR),json_encode(array_values($expectedIds),JSON_THROW_ON_ERROR)]);
+        $this->db->prepare('CALL NTK_sp_host_photos_manage(?,?,?,?)')->execute([$id,$actorId,json_encode(array_values($orderedIds),JSON_THROW_ON_ERROR),json_encode(array_values($expectedIds),JSON_THROW_ON_ERROR)]);
     }
 
     public function softDelete(int $id, int $actorId): void
     {
-        $this->db->prepare('CALL sp_host_listing_delete(?,?)')->execute([$id,$actorId]);
+        $this->db->prepare('CALL LTP_sp_host_listing_delete(?,?)')->execute([$id,$actorId]);
     }
 
     public function adminPreview(int $id, int $actorId): ?array
     {
-        $statement=$this->db->prepare('CALL sp_listing_admin_preview(?,?)');
+        $statement=$this->db->prepare('CALL LTP_sp_listing_admin_preview(?,?)');
         $statement->execute([$id,$actorId]);
         $listing=$statement->fetch();
         if (!$listing) { return null; }
         $listing['photos']=$this->photos($id,$actorId);
-        $amenities=$this->db->prepare('CALL sp_listing_amenities_for_admin(?,?)');
+        $amenities=$this->db->prepare('CALL NMT_sp_listing_amenities_for_admin(?,?)');
         $amenities->execute([$id,$actorId]);
         $listing['amenities']=$amenities->fetchAll();
         $listing['reviews']=[];
