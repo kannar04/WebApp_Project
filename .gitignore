@@ -70,12 +70,13 @@ uploads/*
 # =========================
 # Local database / backup
 # =========================
+*.sql
 *.sqlite
 *.sqlite3
 *.db
 
-# Không bỏ qua *.sql: database/schema.sql, seed.sql và database/procedures/*.sql
-# là mã nguồn của nhóm (ứng dụng chỉ truy cập DB qua stored procedure).
+# Nếu muốn giữ file database mẫu thì có thể dùng:
+# !database/sample.sql
 
 # =========================
 # XAMPP / Local configuration
