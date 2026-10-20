@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\Listing;
 use App\Models\Wishlist;
+use App\Services\DiscoveryService;
 use Core\Auth;
 use Core\Controller;
 
@@ -26,10 +27,14 @@ final class HomeController extends Controller
             if ($name!=='page' && ($name==='amenities'?count($value)>0:trim((string)$value)!=='')) { $hasFilters=true; }
         }
         $favorites=Auth::check()?(new Wishlist())->ids((int)Auth::id()):[];
+        if ($searchError===null && $hasFilters) { DiscoveryService::recordSearch('home',$filters); }
+        $discovery=Auth::check() && !$hasFilters && $page===1 ? DiscoveryService::homeShelf((int)Auth::id()) : null;
         $this->render('home',[
             'title'=>'Tìm chỗ ở ấm áp','listings'=>$result['listings'],'total'=>$result['total'],
             'types'=>$model->types(),'amenities'=>$model->allAmenities(),'filters'=>$filters,'favorites'=>$favorites,
-            'searchError'=>$searchError,'filterErrors'=>$filterErrors,'hasFilters'=>$hasFilters,'page'=>$page,'pages'=>$pages
+            'searchError'=>$searchError,'filterErrors'=>$filterErrors,'hasFilters'=>$hasFilters,'page'=>$page,'pages'=>$pages,
+            'trustBadges'=>(new \App\Models\Trust())->badges(array_column($result['listings'],'host_id'),Auth::id()),
+            'discovery'=>$discovery
         ]);
     }
 
@@ -39,10 +44,12 @@ final class HomeController extends Controller
         if ($searchError!==null) { $this->json(false,$searchError,null,$filterErrors,422); }
         $page=(int)($filters['page']??1);
         $result=(new Listing())->searchPage($filters,12,($page-1)*12);
+        $trustBadges=(new \App\Models\Trust())->badges(array_column($result['listings'],'host_id'),Auth::id());
+        foreach ($result['listings'] as $index=>$listing) { $result['listings'][$index]['trusted_host']=!empty($trustBadges[(int)$listing['host_id']]['is_trusted_host']); }
         $this->json(true,'Đã tải kết quả.',$result+['page'=>$page,'per_page'=>12,'pages'=>(int)ceil($result['total']/12)]);
     }
 
-    private function validatedFilters(array $input): array
+    public static function validatedFilters(array $input): array
     {
         $filters=[]; $errors=[];
         $fields=['location','check_in','check_out','guests','type','min_price','max_price','bedrooms','sort','page'];
@@ -95,6 +102,8 @@ final class HomeController extends Controller
                 $errors['dates']='Vui lòng chọn đủ ngày và bảo đảm ngày trả phòng sau ngày nhận phòng.';
             }
         }
-        return [$filters,$errors?implode(' ',array_unique(array_values($errors))):null,$errors];
+        // The combined search error is translated sentence by sentence; per-field $errors stay as source text.
+        return [$filters,$errors?implode(' ',array_map('__',array_unique(array_values($errors)))):null,$errors];
     }
 }
+
