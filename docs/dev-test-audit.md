@@ -2,6 +2,22 @@
 
 Ngày: 2026-10-20 · Người thực hiện: Nguyễn Tuấn Khôi (31241020025)
 
+## Cập nhật sau PR #38
+
+Theo phản hồi của nhóm trưởng, PR tiếp theo đã làm những việc sau:
+
+- **Đồng bộ file đã có code:**
+  - 37 file code ở mục 4 (loại A, B và C, trừ `README.md` và `.gitignore`) đã được thay bằng bản giống từng byte với `test`.
+  - Trong đó có `app/Views/admin/user-edit.php`, nay đã là form sửa tài khoản.
+  - `README.md` và `.gitignore` giữ bản của `dev`.
+- **Database không để trong repo:** dữ liệu, schema và stored procedure nằm trên MySQL/phpMyAdmin của nhóm trưởng và được cập nhật tại đó.
+  - `.gitignore` có lại dòng `*.sql`.
+  - Các file `.sql` đã bị xóa khỏi `dev`.
+  - Các script trong `database/` trở lại rỗng như trước khi sync.
+  - `database/checkin_reminders.php` là file code mới nên để rỗng. Tổng số file code mới để rỗng là 65.
+
+Mục 3 và mục 4 bên dưới mô tả trạng thái lúc làm PR #38.
+
 ## 1. Phạm vi
 
 - **`test`** = commit `13711892` (đã gộp toàn bộ `test-2`: Nice-to-have, giao diện EN/VI, thanh toán online VietQR + VNPay sandbox). Từ nay chỉ gọi là `test`.
