@@ -58,15 +58,20 @@ final class Listing
 
     public function create(int $hostId, array $data): int
     {
-        $statement = $this->db->prepare('CALL `sp_listing_create`(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-        $statement->execute([$hostId,$data['property_type_id'],$data['cancellation_policy_id'],$data['title'],$data['address'],$data['city'],$data['description'],$data['nightly_price'],$data['cleaning_fee'],$data['max_guests'],$data['room_count'],$data['bedroom_count'],$data['bed_count'],$data['check_in_time'],$data['check_out_time'],!empty($data['allows_smoking']),!empty($data['allows_pets']),!empty($data['allows_parties'])]);
+        $statement = $this->db->prepare('CALL `sp_listing_create`(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $statement->execute([$hostId,$data['property_type_id'],$data['cancellation_policy_id'],$data['title'],$data['address'],$data['city'],$data['description'],$data['nightly_price'],$data['cleaning_fee'],$data['max_guests'],$data['room_count'],$data['bedroom_count'],$data['bed_count'],$data['check_in_time'],$data['check_out_time'],!empty($data['allows_smoking']),!empty($data['allows_pets']),!empty($data['allows_parties']),self::coordinate($data['latitude'] ?? null),self::coordinate($data['longitude'] ?? null)]);
         return (int) $this->db->lastInsertId();
     }
 
     public function update(int $id, int $hostId, array $data): void
     {
-        $statement = $this->db->prepare('CALL `sp_listing_update`(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-        $statement->execute([$data['property_type_id'],$data['cancellation_policy_id'],$data['title'],$data['address'],$data['city'],$data['description'],$data['nightly_price'],$data['cleaning_fee'],$data['max_guests'],$data['room_count'],$data['bedroom_count'],$data['bed_count'],$data['check_in_time'],$data['check_out_time'],!empty($data['allows_smoking']),!empty($data['allows_pets']),!empty($data['allows_parties']),$id,$hostId]);
+        $statement = $this->db->prepare('CALL `sp_listing_update`(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $statement->execute([$data['property_type_id'],$data['cancellation_policy_id'],$data['title'],$data['address'],$data['city'],$data['description'],$data['nightly_price'],$data['cleaning_fee'],$data['max_guests'],$data['room_count'],$data['bedroom_count'],$data['bed_count'],$data['check_in_time'],$data['check_out_time'],!empty($data['allows_smoking']),!empty($data['allows_pets']),!empty($data['allows_parties']),$id,$hostId,self::coordinate($data['latitude'] ?? null),self::coordinate($data['longitude'] ?? null)]);
+    }
+
+    private static function coordinate(mixed $value): ?string
+    {
+        return $value === null || $value === '' ? null : number_format((float) $value, 6, '.', '');
     }
 
     public function addPhoto(int $listingId, string $url, string $alt, int $hostId): void
@@ -149,3 +154,4 @@ final class Listing
         return $listing;
     }
 }
+

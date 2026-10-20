@@ -18,3 +18,4 @@ final class AdminRepository
     public function setListingVisibility(int $id,int $adminId,bool $visible): void {Database::connection()->prepare('CALL sp_admin_listing_visibility(?,?,?)')->execute([$visible,$id,$adminId]);}
     public function softDeleteListing(int $id,int $adminId): void {Database::connection()->prepare('CALL sp_admin_listing_soft_delete(?,?)')->execute([$id,$adminId]);}
 }
+
