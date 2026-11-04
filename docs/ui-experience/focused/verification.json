@@ -1,0 +1,219 @@
+{
+  "passed": 53,
+  "failed": 0,
+  "errors": [],
+  "checks": [
+    {
+      "check": "home 320 HTTP",
+      "passed": true
+    },
+    {
+      "check": "home 320 no overflow",
+      "passed": true
+    },
+    {
+      "check": "home 320 one h1",
+      "passed": true
+    },
+    {
+      "check": "home 390 HTTP",
+      "passed": true
+    },
+    {
+      "check": "home 390 no overflow",
+      "passed": true
+    },
+    {
+      "check": "home 390 one h1",
+      "passed": true
+    },
+    {
+      "check": "First home appears above mobile navigation",
+      "passed": true
+    },
+    {
+      "check": "home 768 HTTP",
+      "passed": true
+    },
+    {
+      "check": "home 768 no overflow",
+      "passed": true
+    },
+    {
+      "check": "home 768 one h1",
+      "passed": true
+    },
+    {
+      "check": "home 1440 HTTP",
+      "passed": true
+    },
+    {
+      "check": "home 1440 no overflow",
+      "passed": true
+    },
+    {
+      "check": "home 1440 one h1",
+      "passed": true
+    },
+    {
+      "check": "Accent-independent keyboard destination selection",
+      "passed": true
+    },
+    {
+      "check": "Valid search keeps advanced controls collapsed",
+      "passed": true
+    },
+    {
+      "check": "Search retains trip",
+      "passed": true
+    },
+    {
+      "check": "Actual first batch has 12 homes",
+      "passed": true
+    },
+    {
+      "check": "Failed batch preserves original homes",
+      "passed": true
+    },
+    {
+      "check": "Retry appends actual next batch",
+      "passed": true
+    },
+    {
+      "check": "No duplicate cards",
+      "passed": true
+    },
+    {
+      "check": "Detail retains selected dates and guests",
+      "passed": true
+    },
+    {
+      "check": "Mobile bar shows trip total",
+      "passed": true
+    },
+    {
+      "check": "Back restores loaded batches",
+      "passed": true
+    },
+    {
+      "check": "Back restores scroll position",
+      "passed": true
+    },
+    {
+      "check": "detail 320 no overflow",
+      "passed": true
+    },
+    {
+      "check": "detail 390 no overflow",
+      "passed": true
+    },
+    {
+      "check": "detail 768 no overflow",
+      "passed": true
+    },
+    {
+      "check": "detail 1440 no overflow",
+      "passed": true
+    },
+    {
+      "check": "Review route is read-only and reachable anonymously",
+      "passed": true
+    },
+    {
+      "check": "No anonymous final booking form",
+      "passed": true
+    },
+    {
+      "check": "Review shows selected dates",
+      "passed": true
+    },
+    {
+      "check": "Failed sign-in preserves review destination",
+      "passed": true
+    },
+    {
+      "check": "Registration receives same trip return",
+      "passed": true
+    },
+    {
+      "check": "Sign-in returns to review with same trip",
+      "passed": true
+    },
+    {
+      "check": "Changed price returns to review",
+      "passed": true
+    },
+    {
+      "check": "Changed price creates no booking",
+      "passed": true
+    },
+    {
+      "check": "Explicit confirmation creates booking",
+      "passed": true
+    },
+    {
+      "check": "Repeated confirmation returns same booking",
+      "passed": true
+    },
+    {
+      "check": "Exactly one booking created",
+      "passed": true
+    },
+    {
+      "check": "Upcoming trip is surfaced",
+      "passed": true
+    },
+    {
+      "check": "Saved state survives reload",
+      "passed": true
+    },
+    {
+      "check": "Map preserves advanced constraints",
+      "passed": true
+    },
+    {
+      "check": "Moving map does not silently change search",
+      "passed": true
+    },
+    {
+      "check": "Explicit area search updates list return URL",
+      "passed": true
+    },
+    {
+      "check": "Invalid filters stay visible",
+      "passed": true
+    },
+    {
+      "check": "Vietnamese dark view",
+      "passed": true
+    },
+    {
+      "check": "Reduced motion disables transitions",
+      "passed": true
+    },
+    {
+      "check": "No uncaught JavaScript errors",
+      "passed": true
+    },
+    {
+      "check": "Header sign-in retains property and trip",
+      "passed": true
+    },
+    {
+      "check": "Expired anonymous submission safely returns to sign-in",
+      "passed": true
+    },
+    {
+      "check": "Manual location edit overrides stale selected city",
+      "passed": true
+    },
+    {
+      "check": "No-JS pagination remains available",
+      "passed": true
+    },
+    {
+      "check": "No-JS homes are server rendered",
+      "passed": true
+    }
+  ]
+}

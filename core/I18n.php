@@ -107,7 +107,7 @@ final class I18n
         }
         $file = self::directory() . '/' . self::SCRIPT_FILE;
         $entries = is_file($file) ? require $file : [];
-        return is_array($entries) ? $entries : [];
+        return (is_array($entries) ? $entries : []) + (require self::directory().'/focused.php');
     }
 
     /** Current request path relative to the app base, for the locale switch to return to. */

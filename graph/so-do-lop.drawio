@@ -1,0 +1,251 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" type="device">
+  <diagram name="Sơ đồ lớp" id="sơ-đồ-lớp">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2280" pageHeight="1570" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="HOME 2 HOME — SƠ ĐỒ LỚP MIỀN NGHIỆP VỤ" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#0f172a;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="25" width="1500" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" value="Nét đứt: phần mở rộng (Nice-to-have). Bội số ghi tại đầu quan hệ. Một tài khoản có thể đồng thời là Guest và Host." style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=middle;spacing=12;fillColor=#fff7ed;strokeColor=#fdba74;fontColor=#7c2d12;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="75" width="1500" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="User" value="NgườiDùng&#10;──────────&#10;id: UUID&#10;email: string&#10;passwordHash: string&#10;họTên: string&#10;sốĐiệnThoại: string&#10;ảnhĐạiDiện: URL&#10;trạngThái: AccountStatus&#10;──────────&#10;đăngNhập()&#10;cậpNhậtHồSơ()" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="40" y="180" width="300" height="270" as="geometry" />
+        </mxCell>
+        <mxCell id="UserRole" value="VaiTròNgườiDùng&#10;──────────&#10;userId: UUID&#10;role: GUEST | HOST | ADMIN" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="40" y="510" width="300" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="Notification" value="ThôngBáo&#10;──────────&#10;id: UUID&#10;ngườiNhậnId: UUID&#10;loại: NotificationType&#10;nộiDung: string&#10;đãĐọc: boolean" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="40" y="720" width="300" height="165" as="geometry" />
+        </mxCell>
+        <mxCell id="AdminAudit" value="NhậtKýQuảnTrị&#10;──────────&#10;id: UUID&#10;adminId: UUID&#10;hànhĐộng: string&#10;đốiTượng: string&#10;thờiĐiểm: datetime" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1020" width="300" height="165" as="geometry" />
+        </mxCell>
+        <mxCell id="Listing" value="ChỗỞ&#10;──────────&#10;id: UUID&#10;hostId: UUID&#10;loạiId: UUID&#10;tên, địaChỉ, môTả: string&#10;giáMỗiĐêm, phụPhí: money&#10;sứcChứa, sốPhòng, sốGiường: int&#10;trạngTháiDuyệt: ReviewStatus&#10;hiểnThị: boolean&#10;──────────&#10;cậpNhật()&#10;ẩnHiện()" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="460" y="180" width="340" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="AvailabilityBlock" value="NgàyChặn&#10;──────────&#10;id: UUID&#10;chỗỞId: UUID&#10;từNgày, đếnNgày: date&#10;lýDo: string" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="460" y="565" width="340" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="Booking" value="ĐặtChỗ&#10;──────────&#10;id: UUID&#10;guestId, chỗỞId: UUID&#10;ngàyNhận, ngàyTrả: date&#10;sốKhách: int&#10;giáĐêmLúcĐặt: money&#10;phụPhíLúcĐặt: money&#10;tổngTiền: money&#10;trạngThái: BookingStatus&#10;──────────&#10;xácNhận()&#10;từChối()&#10;hủy()&#10;hoànThành()" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="460" y="800" width="340" height="335" as="geometry" />
+        </mxCell>
+        <mxCell id="PropertyType" value="LoạiChỗỞ&#10;──────────&#10;id: UUID&#10;tên: string" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="910" y="180" width="300" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="ListingImage" value="ẢnhChỗỞ&#10;──────────&#10;id: UUID&#10;url: string&#10;thứTự: int" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="910" y="370" width="300" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="Amenity" value="TiệnNghi&#10;──────────&#10;id: UUID&#10;tên: string" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="910" y="570" width="300" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="ListingAmenity" value="ChỗỞ_TiệnNghi&#10;──────────&#10;chỗỞId: UUID&#10;tiệnNghiId: UUID" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="910" y="720" width="300" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="Review" value="ĐánhGiá&#10;──────────&#10;id: UUID&#10;bookingId: UUID [unique]&#10;sốSao: 1..5&#10;nhậnXét: string&#10;phảnHồiHost: string" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="910" y="930" width="300" height="165" as="geometry" />
+        </mxCell>
+        <mxCell id="CancellationPolicy" value="ChínhSáchHủy&#10;──────────&#10;id: UUID&#10;loại: linh hoạt | trung bình | nghiêm ngặt&#10;quyTắcHoànTiền: string" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="180" width="330" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="Favorite" value="YêuThích&#10;──────────&#10;guestId: UUID&#10;chỗỞId: UUID&#10;ngàyLưu: datetime" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="520" width="330" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="Report" value="BáoCáoViPhạm&#10;──────────&#10;id: UUID&#10;ngườiGửiId: UUID&#10;chỗỞId: UUID&#10;nộiDung: string&#10;trạngThái: ReportStatus" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#64748b;fillColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="790" width="330" height="165" as="geometry" />
+        </mxCell>
+        <mxCell id="Payment" value="ThanhToán&#10;──────────&#10;id: UUID&#10;bookingId: UUID&#10;sốTiền: money&#10;phươngThức: string&#10;trạngThái: PaymentStatus" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#94a3b8;fillColor=#f1f5f9;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1840" y="180" width="330" height="165" as="geometry" />
+        </mxCell>
+        <mxCell id="Conversation" value="HộiThoại&#10;──────────&#10;id: UUID&#10;guestId, hostId: UUID&#10;bookingId: UUID" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#94a3b8;fillColor=#f1f5f9;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1840" y="520" width="330" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="Message" value="TinNhắn&#10;──────────&#10;id: UUID&#10;hộiThoạiId: UUID&#10;ngườiGửiId: UUID&#10;nộiDung: string" style="rounded=1;html=1;fontSize=14;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=12;spacingTop=10;strokeColor=#94a3b8;fillColor=#f1f5f9;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1840" y="760" width="330" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-1" value="1 → 1..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitPerimeter=1;entryX=0.5;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="User" target="UserRole">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="190.0" y="470.0" />
+              <mxPoint x="190.0" y="490.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-2" value="Host 1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="User" target="Listing">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360.0" y="315.0" />
+              <mxPoint x="360.0" y="330.0" />
+              <mxPoint x="440.0" y="330.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-3" value="Guest 1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="User" target="Booking">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360.0" y="315.0" />
+              <mxPoint x="360.0" y="967.5" />
+              <mxPoint x="440.0" y="967.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-4" value="1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="User" target="Notification">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="20.0" y="315.0" />
+              <mxPoint x="20.0" y="802.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-5" value="Admin 1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="User" target="AdminAudit">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="20.0" y="315.0" />
+              <mxPoint x="20.0" y="1102.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-6" value="0..* → 1" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="Listing" target="PropertyType">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820.0" y="330.0" />
+              <mxPoint x="820.0" y="232.5" />
+              <mxPoint x="890.0" y="232.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-7" value="1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="Listing" target="ListingImage">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820.0" y="330.0" />
+              <mxPoint x="820.0" y="432.5" />
+              <mxPoint x="890.0" y="432.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-8" value="1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitPerimeter=1;entryX=0.5;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="Listing" target="AvailabilityBlock">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="630.0" y="500.0" />
+              <mxPoint x="630.0" y="545.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-9" value="1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="Listing" target="Booking">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="440.0" y="330.0" />
+              <mxPoint x="440.0" y="967.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-10" value="1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="Listing" target="ListingAmenity">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820.0" y="330.0" />
+              <mxPoint x="820.0" y="772.5" />
+              <mxPoint x="890.0" y="772.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-11" value="0..* → 1" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitPerimeter=1;entryX=0.5;entryY=1;entryPerimeter=1;" edge="1" parent="1" source="ListingAmenity" target="Amenity">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1060.0" y="700.0" />
+              <mxPoint x="1060.0" y="695.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-12" value="0..* → 1" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="Listing" target="CancellationPolicy">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820.0" y="330.0" />
+              <mxPoint x="1350.0" y="330.0" />
+              <mxPoint x="1350.0" y="252.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-13" value="1 → 0..1" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="Booking" target="Review">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820.0" y="967.5" />
+              <mxPoint x="820.0" y="1012.5" />
+              <mxPoint x="890.0" y="1012.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-14" value="Guest 1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="User" target="Favorite">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360.0" y="315.0" />
+              <mxPoint x="360.0" y="550.0" />
+              <mxPoint x="1350.0" y="550.0" />
+              <mxPoint x="1350.0" y="582.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-15" value="1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="Listing" target="Favorite">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820.0" y="330.0" />
+              <mxPoint x="1350.0" y="330.0" />
+              <mxPoint x="1350.0" y="582.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-16" value="1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="User" target="Report">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360.0" y="315.0" />
+              <mxPoint x="360.0" y="550.0" />
+              <mxPoint x="1350.0" y="550.0" />
+              <mxPoint x="1350.0" y="872.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-17" value="1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="Listing" target="Report">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820.0" y="330.0" />
+              <mxPoint x="820.0" y="872.5" />
+              <mxPoint x="1350.0" y="872.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-18" value="1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;dashPattern=6 4;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="Booking" target="Payment">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820.0" y="967.5" />
+              <mxPoint x="820.0" y="345.0" />
+              <mxPoint x="1820.0" y="345.0" />
+              <mxPoint x="1820.0" y="262.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-19" value="1 → 0..1" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;dashPattern=6 4;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="Booking" target="Conversation">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820.0" y="967.5" />
+              <mxPoint x="820.0" y="695.0" />
+              <mxPoint x="1820.0" y="695.0" />
+              <mxPoint x="1820.0" y="582.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="relation-20" value="1 → 0..*" style="edgeStyle=segmentEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;strokeColor=#64748b;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;dashPattern=6 4;exitX=0.5;exitY=1;exitPerimeter=1;entryX=0.5;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="Conversation" target="Message">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2005.0" y="665.0" />
+              <mxPoint x="2005.0" y="740.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="class-note" value="Ràng buộc: ngày trả &gt; ngày nhận; số khách ≤ sức chứa; không xác nhận hai đơn trùng khoảng ngày trên cùng chỗ ở; mỗi booking tối đa một đánh giá sau hoàn thành. Trạng thái booking: Chờ duyệt → Xác nhận / Từ chối / Hủy; Xác nhận → Hoàn thành / Hủy." style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=middle;spacing=12;fillColor=#fff7ed;strokeColor=#fdba74;fontColor=#7c2d12;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1300" width="2130" height="100" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

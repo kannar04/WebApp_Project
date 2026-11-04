@@ -19,14 +19,16 @@ final class Listing
 
     public function searchPage(array $filters,int $limit=12,int $offset=0): array
     {
-        $statement = $this->db->prepare('CALL sp_listing_search_filtered(?,?,?,?,?,?,?,?,?,?,?,?)');
+        $statement = $this->db->prepare('CALL sp_focused_listing_search(?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $statement->execute([trim($filters['location'] ?? ''), (int) ($filters['guests'] ?? 0),
             (int) ($filters['type'] ?? 0), (float) ($filters['min_price'] ?? 0), (float) ($filters['max_price'] ?? 0),
             (int) ($filters['bedrooms'] ?? 0), ($filters['check_in'] ?? '') ?: null, ($filters['check_out'] ?? '') ?: null,
-            $filters['sort'] ?? '', max(1, min(100, $limit)), max(0, $offset),json_encode($filters['amenities']??[],JSON_THROW_ON_ERROR)]);
+            $filters['sort'] ?? '', max(1, min(100, $limit)), max(0, $offset),json_encode($filters['amenities']??[],JSON_THROW_ON_ERROR), $filters['city']??'', isset($filters['north'])?json_encode(array_intersect_key($filters,array_flip(['north','south','east','west'])),JSON_THROW_ON_ERROR):null]);
         $rows=$statement->fetchAll(); $metadata=array_pop($rows);
         return ['listings'=>$rows,'total'=>(int)($metadata['__total']??0)];
     }
+
+    public function destinations(): array { return $this->db->query('CALL sp_focused_destinations()')->fetchAll(); }
 
     public function findPublic(int $id, bool $withDetails = true): ?array
     {

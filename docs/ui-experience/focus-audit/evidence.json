@@ -1,0 +1,182 @@
+{
+  "home-390": {
+    "positions": {
+      ".home-hero": 89,
+      ".home-search": 593,
+      ".search-button": 819,
+      "#listing-results": 957,
+      ".listing-card": 1222
+    },
+    "targets": [
+      {
+        "text": "Hội An",
+        "height": 32,
+        "width": 34.625
+      },
+      {
+        "text": "Đà Lạt",
+        "height": 32,
+        "width": 33.359375
+      },
+      {
+        "text": "Đà Nẵng",
+        "height": 32,
+        "width": 45.078125
+      },
+      {
+        "text": "Hà Nội",
+        "height": 32,
+        "width": 35
+      },
+      {
+        "text": "Phú Quốc",
+        "height": 32,
+        "width": 50.9375
+      },
+      {
+        "text": "Search filters",
+        "height": 47.4375,
+        "width": 179.234375
+      }
+    ],
+    "fonts": [
+      {
+        "url": "http://127.0.0.1:8090/assets/fonts/home2home-0.woff2",
+        "bytes": 108704
+      },
+      {
+        "url": "http://127.0.0.1:8090/assets/fonts/home2home-4.woff2",
+        "bytes": 47212
+      },
+      {
+        "url": "http://127.0.0.1:8090/assets/fonts/home2home-2.woff2",
+        "bytes": 112364
+      },
+      {
+        "url": "http://127.0.0.1:8090/assets/fonts/home2home-3.woff2",
+        "bytes": 112616
+      },
+      {
+        "url": "http://127.0.0.1:8090/assets/fonts/home2home-1.woff2",
+        "bytes": 111940
+      }
+    ],
+    "primaryColor": "rgb(255, 255, 255)",
+    "primaryBackground": "rgb(23, 107, 86)",
+    "mutedColor": "rgb(99, 114, 105)",
+    "pageBackground": "rgb(248, 247, 243)"
+  },
+  "home-1440": {
+    "positions": {
+      ".home-hero": 115,
+      ".home-search": 662,
+      ".search-button": 676,
+      "#listing-results": 810,
+      ".listing-card": 1001
+    },
+    "targets": [
+      {
+        "text": "VITiếng Việt",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "text": "Turn on dark mode",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "text": "Log in",
+        "height": 46,
+        "width": 60.5625
+      },
+      {
+        "text": "Sign up",
+        "height": 46,
+        "width": 98.53125
+      },
+      {
+        "text": "Hội An",
+        "height": 32,
+        "width": 37.765625
+      },
+      {
+        "text": "Đà Lạt",
+        "height": 32,
+        "width": 36.390625
+      },
+      {
+        "text": "Đà Nẵng",
+        "height": 32,
+        "width": 49.171875
+      },
+      {
+        "text": "Hà Nội",
+        "height": 32,
+        "width": 38.1875
+      },
+      {
+        "text": "Phú Quốc",
+        "height": 32,
+        "width": 55.5625
+      },
+      {
+        "text": "Search filters",
+        "height": 47.4375,
+        "width": 179.234375
+      }
+    ],
+    "fonts": [
+      {
+        "url": "http://127.0.0.1:8090/assets/fonts/home2home-0.woff2",
+        "bytes": 108704
+      },
+      {
+        "url": "http://127.0.0.1:8090/assets/fonts/home2home-4.woff2",
+        "bytes": 47212
+      },
+      {
+        "url": "http://127.0.0.1:8090/assets/fonts/home2home-1.woff2",
+        "bytes": 111940
+      },
+      {
+        "url": "http://127.0.0.1:8090/assets/fonts/home2home-2.woff2",
+        "bytes": 112364
+      },
+      {
+        "url": "http://127.0.0.1:8090/assets/fonts/home2home-3.woff2",
+        "bytes": 112616
+      }
+    ],
+    "primaryColor": "rgb(255, 255, 255)",
+    "primaryBackground": "rgb(23, 107, 86)",
+    "mutedColor": "rgb(99, 114, 105)",
+    "pageBackground": "rgb(248, 247, 243)"
+  },
+  "search": {
+    "url": "http://127.0.0.1:8090/?location=%C4%90%C3%A0+L%E1%BA%A1t&check_in=2026-11-30&check_out=2026-12-03&guests=2&type=&min_price=&max_price=&bedrooms=&sort=#listing-results",
+    "cards": 1,
+    "filterOpen": "",
+    "scrollY": 747,
+    "firstCardViewportY": 1645.296875
+  },
+  "detail": {
+    "url": "http://127.0.0.1:8090/listings/1",
+    "check_in": "",
+    "check_out": "",
+    "guests": "1",
+    "bookingY": 2764.546875,
+    "messageLinks": 0,
+    "body": "Explore / Đà Lạt\n\nNgôi nhà thông Đà Lạt\n\nNo reviews yet · Phường 8, Đà Lạt, Lâm Đồng\n\nShare\nOverview\nAmenities\nLocation\nHouse rules and policies\nChoose your dates\nEntire place hosted by Nguyễn Minh Anh\n\n4 guest(s) · 4 room(s) · 2 bedroom(s) · 2 bed(s)\n\nMột ngôi nhà ấm áp giữa rừng thông, cách trung tâm Đà Lạt 10 phút. Không gian yên tĩnh, ban công ngập nắng và bếp đầy đủ tiện nghi.\n\nWhat this place offers\n✓ Kitchen\n✓ Parking\n✓ Air conditioning\n✓ High-speed Wi-Fi\nLocation\n\nPhường 8, Đà Lạt, Lâm Đồng\n\n+\n−\n© OpenStreetMap contributors\nView location on Google Maps (new tab)\n\nWithout saved coordinates, the map searches by the Host's address; please confirm the location it finds.\n\nReport false information / scam\n\nHouse rules and policies\n\nCheck-in from 14:00 · Check-out before 11:00\n\nNo pets · No smoking · No parties\n\nFlexible: 100% refund if cancelled at least 24 hours before check-in.\n\n←\nCalendar for 11/2026\n→\n\nEach cell is one night of stay; the check-out day does not take that night. Pending requests also hold dates for now. Availability can change until booking/confirmation.\n\nMon\nTue\nWed\nThu\nFri\nSat\nSun\n1\nPast\n2\nPast\n3\nPast\n4\nPast\n5\nOpen\n6\nOpen\n7\nOpen\n8\nOpen\n9\nOpen\n10\nOpen\n11\nOpen\n12\nOpen\n13\nOpen\n14\nOpen\n15\nOpen\n16\nOpen\n17\nOpen\n18\nOpen\n19\nOpen\n20\nOpen\n21\nOpen\n22\nOpen\n23\nOpen\n24\nOpen\n25\nOpen\n26\nOpen\n27\nOpen\n28\nOpen\n29\nOpen\n30\nOpen\n1.250.000đ / night\nCheck-in\nCheck-out\nGuests\nPromo code (optional)\nSelect dates to see the total\nLog in to book\nYou won't be charged yet. The total is confirmed again by the server.\nPay at check-in, or online once your booking is confirmed.\n1.250.000đ\n/ night\nChoose your dates"
+  },
+  "quote": {
+    "panel": "Regular nights: 3 × 1.250.000đ\n3.750.000đ\nCleaning fee\n150.000đ\nTotal\n3.900.000đ",
+    "sticky": "1.250.000đ\n/ night\nChoose your dates"
+  },
+  "afterLogin": {
+    "url": "http://127.0.0.1:8090/listings/1",
+    "check_in": "",
+    "check_out": "",
+    "guests": "1"
+  }
+}

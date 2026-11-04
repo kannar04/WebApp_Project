@@ -34,7 +34,8 @@ final class HomeController extends Controller
             'types'=>$model->types(),'amenities'=>$model->allAmenities(),'filters'=>$filters,'favorites'=>$favorites,
             'searchError'=>$searchError,'filterErrors'=>$filterErrors,'hasFilters'=>$hasFilters,'page'=>$page,'pages'=>$pages,
             'trustBadges'=>(new \App\Models\Trust())->badges(array_column($result['listings'],'host_id'),Auth::id()),
-            'discovery'=>$discovery
+            'discovery'=>$discovery,'destinations'=>$model->destinations(),
+            'upcoming'=>$this->upcoming()
         ]);
     }
 
@@ -46,13 +47,25 @@ final class HomeController extends Controller
         $result=(new Listing())->searchPage($filters,12,($page-1)*12);
         $trustBadges=(new \App\Models\Trust())->badges(array_column($result['listings'],'host_id'),Auth::id());
         foreach ($result['listings'] as $index=>$listing) { $result['listings'][$index]['trusted_host']=!empty($trustBadges[(int)$listing['host_id']]['is_trusted_host']); }
-        $this->json(true,'Đã tải kết quả.',$result+['page'=>$page,'per_page'=>12,'pages'=>(int)ceil($result['total']/12)]);
+        $listings=$result['listings'];
+        $favorites=Auth::check()?(new Wishlist())->ids((int)Auth::id()):[];
+        ob_start(); require dirname(__DIR__).'/Views/components/listing-cards.php'; $html=ob_get_clean();
+        $this->json(true,'Đã tải kết quả.',$result+['html'=>$html,'page'=>$page,'per_page'=>12,'pages'=>(int)ceil($result['total']/12)]);
+    }
+
+    private function upcoming(): ?array
+    {
+        if (!Auth::check()) { return null; }
+        $bookings=(new \App\Models\Booking())->forGuest((int)Auth::id());
+        $bookings=array_values(array_filter($bookings,fn($b)=>in_array($b['status'],['pending','confirmed'],true)&&$b['check_out']>=date('Y-m-d')));
+        usort($bookings,fn($a,$b)=>strcmp($a['check_in'],$b['check_in']));
+        return $bookings[0]??null;
     }
 
     public static function validatedFilters(array $input): array
     {
         $filters=[]; $errors=[];
-        $fields=['location','check_in','check_out','guests','type','min_price','max_price','bedrooms','sort','page'];
+        $fields=['location','check_in','check_out','guests','type','min_price','max_price','bedrooms','sort','page','city','north','south','east','west'];
         foreach (array_intersect_key($input,array_flip($fields)) as $name=>$value) {
             if (!is_scalar($value)) { $errors[$name]='Bộ lọc tìm kiếm không hợp lệ.'; }
             else { $filters[$name]=trim((string)$value); }
@@ -91,6 +104,13 @@ final class HomeController extends Controller
             && (float)$filters['min_price']>(float)$filters['max_price']) {
             $errors['max_price']='Giá tối đa phải lớn hơn hoặc bằng giá tối thiểu.';
         }
+        if (mb_strlen($filters['city']??'')>254) { $errors['city']='Địa điểm quá dài.'; }
+        [$bounds,$boundsErrors]=\App\Controllers\DiscoveryController::bounds($input);
+        $errors+=$boundsErrors;
+        foreach (['north','south','east','west'] as $bound) { unset($filters[$bound]); }
+        if ($bounds) { $filters+=$bounds; $filters['city']=''; $filters['location']=''; }
+        // A manually edited location must override a stale selected-city hidden field (also without JS).
+        if (!empty($filters['city']) && ($filters['location']??'')!==$filters['city']) { unset($filters['city']); }
         $checkIn=$filters['check_in']??''; $checkOut=$filters['check_out']??'';
         if ($checkIn!=='' || $checkOut!=='') {
             $shaped=preg_match('/^\d{4}-\d{2}-\d{2}$/D',$checkIn) && preg_match('/^\d{4}-\d{2}-\d{2}$/D',$checkOut);

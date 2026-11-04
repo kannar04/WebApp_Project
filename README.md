@@ -25,6 +25,8 @@ docs/         kiến trúc, traceability, tiến độ và test report
 
 ## Chức năng
 
+Kế hoạch UI/UX và tích hợp frontend–backend: [Focused guest experience — decisions, contracts, and checklist](docs/focused-experience-plan.md).
+
 - **Guest:** tìm kiếm theo địa điểm/ngày/số khách và bộ lọc nâng cao, xem chi tiết và bản đồ nhỏ, báo giá theo ngày, đặt chỗ, hủy theo chính sách, yêu thích, đánh giá sau lưu trú, báo cáo, hộp thông báo.
 - **Host:** đăng ký làm Host, tạo/sửa chỗ ở, quản lý ảnh, lịch trống, duyệt/từ chối/hoàn thành booking, phản hồi đánh giá, thống kê.
 - **Admin:** quản lý người dùng, vai trò, chỗ ở (duyệt/ẩn/gỡ), booking, đánh giá, báo cáo, danh mục, thống kê và nhật ký quản trị.

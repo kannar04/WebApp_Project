@@ -45,6 +45,28 @@ final class BookingService
         return ['booking_id'=>(int) $row['booking_id'], 'status'=>(string) $row['booking_status']];
     }
 
+    /** Keep review acceptance and create in one caller-owned transaction. */
+    public function bookReviewed(int $listingId,int $guestId,array $trip,string $fingerprint): array
+    {
+        $this->db->beginTransaction();
+        try {
+            $lock=$this->db->prepare('CALL sp_focused_review_lock(?)'); $lock->execute([$listingId]); $lock->fetchAll();
+            $listing=(new \App\Models\Listing())->findPublic($listingId);
+            if (!$listing) { throw new DomainException('Chỗ ở không khả dụng.'); }
+            $quote=$this->quote($listingId,$trip['check_in'],$trip['check_out'],(int)$trip['guests'],$trip['promo_code']??'');
+            if (!hash_equals($fingerprint,TripContext::fingerprint($quote,$listing))) { throw new DomainException('Giá hoặc chính sách đã thay đổi. Vui lòng xem lại trước khi xác nhận.'); }
+            $booking=$this->book($listingId,$guestId,$trip['check_in'],$trip['check_out'],(int)$trip['guests'],$trip['promo_code']??'');
+            $actual=(new \App\Models\Booking())->detail((int)$booking['booking_id'],$guestId);
+            if (abs((float)$actual['total_amount']-(float)$quote['total'])>.005 || ($booking['status']==='confirmed')!==$quote['instant_book']) {
+                throw new DomainException('Giá hoặc chính sách đã thay đổi. Vui lòng xem lại trước khi xác nhận.');
+            }
+            $this->db->commit(); return $booking;
+        } catch (\Throwable $exception) {
+            if ($this->db->inTransaction()) { $this->db->rollBack(); }
+            throw $exception;
+        }
+    }
+
     public static function money(float $amount): string
     {
         return number_format($amount, 0, ',', '.').'đ';

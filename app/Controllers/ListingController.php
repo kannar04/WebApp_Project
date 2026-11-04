@@ -15,7 +15,8 @@ final class ListingController extends Controller
         try { $calendar=\Core\Calendar::month($_GET['month']??date('Y-m')); }
         catch (\DomainException $exception) { \Core\Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
         $this->render('listings/show',['title'=>$listing['title'],'listing'=>$listing,'calendar'=>$calendar,
-            'calendarDays'=>$model->calendar((int)$id,0,$calendar['start'],$calendar['end']),'calendarPath'=>'/listings/'.$id,'preview'=>false,
+            'calendarDays'=>$model->calendar((int)$id,0,$calendar['start'],$calendar['end']),'calendarPath'=>'/listings/'.$id,'preview'=>false,'trip'=>\App\Services\TripContext::inputs($_GET),
+            'saved'=>\Core\Auth::check()&&in_array((int)$id,(new \App\Models\Wishlist())->ids((int)\Core\Auth::id()),true),
             'trustBadges'=>(new \App\Models\Trust())->badges([(int)$listing['host_id']],\Core\Auth::id()),'reviewBadges'=>(new \App\Models\Trust())->reviewBadges((int)$id),
             'bookingRules'=>(new BookingExtras())->listingRules((int)$id),'upcomingHolidays'=>(new BookingExtras())->upcomingHolidays(6)]);
     }

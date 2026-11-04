@@ -1,0 +1,856 @@
+{
+  "passed": 170,
+  "failed": 0,
+  "checks": [
+    {
+      "check": "home-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "home-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "home-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "home-1440 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "login-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "login-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "login-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "login-1440 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "property-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "property-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "property-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "property-1440 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "journal-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "journal-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "journal-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "journal-1440 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "home-768 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "home-768 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "home-768 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "login-768 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "login-768 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "login-768 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "property-768 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "property-768 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "property-768 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "journal-768 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "journal-768 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "journal-768 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "home-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "home-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "home-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "home-390 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "login-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "login-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "login-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "login-390 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "property-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "property-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "property-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "property-390 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "journal-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "journal-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "journal-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "journal-390 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "home-320 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "home-320 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "home-320 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "login-320 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "login-320 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "login-320 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "property-320 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "property-320 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "property-320 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "journal-320 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "journal-320 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "journal-320 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "register HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "register horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "register primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "recovery HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "recovery horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "recovery primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "reset HTTP",
+      "passed": true,
+      "detail": 422
+    },
+    {
+      "check": "reset horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "reset primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "map HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "map horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "map primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "interaction-home HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "interaction-home horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "interaction-home primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Listing photographs retain landscape proportions",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Local display and interface fonts loaded",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Keyboard skip link",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Mobile menu expands",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Theme control updates accessible state",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "home-dark-vi HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "home-dark-vi horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "home-dark-vi primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "home-dark-vi image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "Vietnamese page",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Keyboard opens filters",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Search submits and retains destination",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Search keeps advanced filters collapsed",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Invalid filter recovery",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Reduced motion removes transitions",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Discovery is immediately visible without hero animation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Mobile booking dates have readable field width",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Mobile reservation links to real form",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "guest sign in",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "profile-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "profile-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "profile-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "profile-1440 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "profile-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "profile-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "profile-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "profile-390 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "wishlist-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "wishlist-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "wishlist-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "wishlist-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "wishlist-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "wishlist-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "bookings-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "bookings-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "bookings-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "bookings-1440 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "bookings-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "bookings-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "bookings-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "bookings-390 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "messages-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "messages-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "messages-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "messages-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "messages-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "messages-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "notifications-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "notifications-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "notifications-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "notifications-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "notifications-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "notifications-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "guest accessible account dropdown",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host sign in",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "host-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-1440 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "host-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "host-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-390 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "host-create-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "host-create-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-create-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-create-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "host-create-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-create-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-reviews-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "host-reviews-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-reviews-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-reviews-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "host-reviews-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host-reviews-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "host accessible account dropdown",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin sign in",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "admin-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-1440 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "admin-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "admin-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-390 image loading",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "admin-articles-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "admin-articles-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-articles-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-articles-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "admin-articles-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-articles-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-catalog-1440 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "admin-catalog-1440 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-catalog-1440 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-catalog-390 HTTP",
+      "passed": true,
+      "detail": 200
+    },
+    {
+      "check": "admin-catalog-390 horizontal overflow",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin-catalog-390 primary heading",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "admin accessible account dropdown",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "No uncaught browser errors",
+      "passed": true,
+      "detail": []
+    }
+  ]
+}

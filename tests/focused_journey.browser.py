@@ -1,0 +1,143 @@
+"""Run via php tests/fresh_setup_test.php --focused-ui (owned disposable database)."""
+import json, os, subprocess
+from datetime import date, timedelta
+from pathlib import Path
+from urllib.parse import urlencode
+from playwright.sync_api import sync_playwright, expect
+
+if not os.environ.get('DB_DATABASE','').startswith('db_home2home_schema_test_'):
+    raise SystemExit('Use the isolated --focused-ui runner; this suite creates one test booking.')
+BASE=os.environ['HOME2HOME_TEST_URL']
+OUT=Path('docs/ui-experience/focused');OUT.mkdir(exist_ok=True)
+checks=[];errors=[]
+def check(name,value):
+    checks.append({'check':name,'passed':bool(value)})
+    if not value: print('FAIL:',name,flush=True)
+def fixture(action):
+    return subprocess.check_output(['php','tests/focused_journey_fixture.php',action],text=True).strip()
+trip={'check_in':(date.today()+timedelta(days=45)).isoformat(),'check_out':(date.today()+timedelta(days=48)).isoformat(),'guests':'2'}
+with sync_playwright() as p:
+    browser=p.chromium.launch()
+    context=browser.new_context(viewport={'width':390,'height':844})
+    context.add_cookies([{'name':'h2h_locale','value':'en','url':BASE}])
+    page=context.new_page();page.on('pageerror',lambda e:errors.append(str(e)))
+    for width in (320,390,768,1440):
+        page.set_viewport_size({'width':width,'height':844 if width<768 else 1000})
+        response=page.goto(BASE,wait_until='networkidle');page.evaluate('document.fonts.ready')
+        check(f'home {width} HTTP',response.status==200)
+        check(f'home {width} no overflow',page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'))
+        check(f'home {width} one h1',page.locator('h1').count()==1)
+        if width==390:
+            check('First home appears above mobile navigation',page.locator('[data-listing-id]').first.bounding_box()['y']<page.locator('.mobile-guest-nav').bounding_box()['y']-40)
+        if width in (390,1440):page.screenshot(path=str(OUT/f'home-{width}.png'))
+    page.set_viewport_size({'width':390,'height':844})
+    page.locator('#location').fill('da lat');page.keyboard.press('ArrowDown');page.keyboard.press('Enter')
+    check('Accent-independent keyboard destination selection',page.locator('#destination-city').input_value()=='Đà Lạt')
+    for key,value in trip.items():page.locator('#'+key).fill(value)
+    page.locator('.search-button').click();page.wait_for_load_state('networkidle')
+    check('Valid search keeps advanced controls collapsed',page.locator('.home-filter').get_attribute('open') is None)
+    check('Search retains trip',all(page.locator('#'+k).input_value()==v for k,v in trip.items()))
+    initial=page.locator('[data-home-feed] [data-listing-id]').count()
+    check('Actual first batch has 12 homes',initial==12)
+    failed_once=[False]
+    def fail_batch(route):
+        if not failed_once[0]:failed_once[0]=True;route.abort()
+        else:route.continue_()
+    page.route('**/api/listings?**',fail_batch)
+    page.locator('[data-feed-sentinel]').scroll_into_view_if_needed()
+    expect(page.locator('[data-feed-status]')).to_contain_text('Could not load')
+    check('Failed batch preserves original homes',page.locator('[data-home-feed] [data-listing-id]').count()==12)
+    page.locator('[data-feed-more]').click()
+    page.wait_for_function("document.querySelectorAll('[data-home-feed] [data-listing-id]').length>12")
+    check('Retry appends actual next batch',page.locator('[data-home-feed] [data-listing-id]').count()>=24)
+    ids=page.locator('[data-home-feed] [data-listing-id]').evaluate_all('els=>els.map(e=>e.dataset.listingId)')
+    check('No duplicate cards',len(ids)==len(set(ids)))
+    card=page.locator('[data-home-feed] [data-listing-id]').nth(18)
+    card.scroll_into_view_if_needed();anchor=card.get_attribute('id')
+    before_scroll=page.evaluate('scrollY')
+    card.locator('[data-open-home]').first.click();page.wait_for_load_state('networkidle')
+    check('Detail retains selected dates and guests',all(page.locator('#'+k).input_value()==v for k,v in trip.items()))
+    expect(page.locator('[data-mobile-action]')).to_have_text('Review booking')
+    check('Mobile bar shows trip total', 'total for 3 nights' in page.locator('[data-mobile-price-label]').inner_text())
+    page.go_back(wait_until='networkidle')
+    page.wait_for_function("document.querySelectorAll('[data-home-feed] [data-listing-id]').length>=24")
+    check('Back restores loaded batches',page.locator('#'+anchor).count()==1)
+    check('Back restores scroll position',abs(page.evaluate('scrollY')-before_scroll)<160)
+    page.unroute('**/api/listings?**')
+
+    page.goto(BASE+'/listings/1?'+urlencode(trip),wait_until='networkidle')
+    for width in (320,390,768,1440):
+        page.set_viewport_size({'width':width,'height':1000})
+        check(f'detail {width} no overflow',page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'))
+    page.set_viewport_size({'width':390,'height':844})
+    page.screenshot(path=str(OUT/'detail-390.png'))
+    page.locator('[data-review-submit]').click();page.wait_for_load_state('networkidle')
+    check('Review route is read-only and reachable anonymously','/review?' in page.url and page.locator('h1').inner_text()=='Review your stay')
+    check('No anonymous final booking form',page.locator('input[name=review_token]').count()==0)
+    check('Review shows selected dates',all(v in page.locator('.review-facts').inner_text() for v in trip.values()))
+    page.screenshot(path=str(OUT/'review-390.png'))
+    page.locator('.review-total a[href*="/login?"]').click();page.wait_for_load_state('networkidle')
+    next_value=page.locator('input[name=next]').input_value()
+    page.locator('#email').fill('guest@home2home.test');page.locator('#password').fill('wrongpassword')
+    page.locator('form[action$="/login"] button[type=submit]').click();page.wait_for_load_state('networkidle')
+    check('Failed sign-in preserves review destination',page.locator('input[name=next]').input_value()==next_value)
+    page.locator('.auth-switch a').click();page.wait_for_load_state('networkidle')
+    check('Registration receives same trip return',page.locator('input[name=next]').input_value()==next_value)
+    page.goto(BASE+'/login?'+urlencode({'next':next_value}))
+    page.locator('#email').fill('guest@home2home.test');page.locator('#password').fill('Password123!')
+    page.locator('form[action$="/login"] button[type=submit]').click();page.wait_for_load_state('networkidle')
+    check('Sign-in returns to review with same trip','/listings/1/review?' in page.url and all(v in page.locator('.review-facts').inner_text() for v in trip.values()))
+    token=page.locator('input[name=review_token]').input_value()
+    csrf=page.locator('.review-total input[name=_token]').input_value()
+    count_before=fixture('count-bookings')
+    fixture('price-change')
+    page.locator('.review-total button[type=submit]').click();page.wait_for_load_state('networkidle')
+    check('Changed price returns to review','/review?' in page.url and 'price or policy has changed' in page.locator('body').inner_text())
+    check('Changed price creates no booking',fixture('count-bookings')==count_before)
+    data={**trip,'_token':page.locator('.review-total input[name=_token]').input_value(),'review_token':page.locator('input[name=review_token]').input_value()}
+    page.locator('.review-total button[type=submit]').click();page.wait_for_load_state('networkidle')
+    check('Explicit confirmation creates booking','/bookings/' in page.url)
+    booked_url=page.url
+    repeat=context.request.post(BASE+'/listings/1/book',form=data)
+    check('Repeated confirmation returns same booking',repeat.url==booked_url)
+    check('Exactly one booking created',int(fixture('count-bookings'))==int(count_before)+1)
+    page.goto(BASE);page.wait_for_load_state('networkidle')
+    check('Upcoming trip is surfaced',page.locator('.upcoming-trip').count()==1)
+    fav=page.locator('[data-home-feed] [data-favorite]').first;fav.click();expect(fav).to_have_attribute('aria-pressed','true')
+    page.reload(wait_until='networkidle');check('Saved state survives reload',page.locator('[data-home-feed] [data-favorite]').first.get_attribute('aria-pressed')=='true')
+    page.goto(BASE+'/map?'+urlencode({'city':'Đà Lạt','location':'Đà Lạt','bedrooms':2,'amenities[0]':1}),wait_until='networkidle')
+    map_page_url=page.url
+    check('Map preserves advanced constraints','bedrooms=2' in page.locator('[data-map-list-link]').get_attribute('href'))
+    # Exercise the visible zoom control; scope changes only after explicit commit.
+    zoom=page.locator('[data-discovery-map="search"] .h2h-map-controls button').first
+    zoom.click();expect(page.locator('[data-search-area]')).to_be_visible()
+    check('Moving map does not silently change search',page.url==map_page_url)
+    page.locator('[data-search-area]').click();page.wait_for_timeout(500)
+    check('Explicit area search updates list return URL','north=' in page.locator('[data-map-list-link]').get_attribute('href'))
+    page.goto(BASE+'/?min_price=1000000&max_price=100')
+    check('Invalid filters stay visible',page.locator('.home-filter').get_attribute('open') is not None and page.locator('[data-search-invalid]').count()==1)
+    context.add_cookies([{'name':'h2h_locale','value':'vi','url':BASE}])
+    page.goto(BASE);page.evaluate("localStorage.setItem('h2h-theme','dark')");page.reload(wait_until='networkidle')
+    page.screenshot(path=str(OUT/'home-dark-vi.png'))
+    check('Vietnamese dark view',page.locator('html').get_attribute('lang')=='vi' and page.locator('html').get_attribute('data-theme')=='dark')
+    page.emulate_media(reduced_motion='reduce')
+    check('Reduced motion disables transitions',page.locator('.btn').first.evaluate('el=>getComputedStyle(el).transitionDuration')=='0s')
+    check('No uncaught JavaScript errors',not errors)
+    # Fresh anonymous context: header sign-in and expired POST must retain trip intent.
+    anonymous=browser.new_context(viewport={'width':1440,'height':1000})
+    ap=anonymous.new_page();ap.goto(BASE+'/listings/2?'+urlencode(trip))
+    ap.locator('.navbar-actions a[href*="/login?"]').click()
+    check('Header sign-in retains property and trip', '/listings/2?' in ap.locator('input[name=next]').input_value() and trip['check_in'] in ap.locator('input[name=next]').input_value())
+    expired=anonymous.request.post(BASE+'/listings/2/book',form=trip)
+    check('Expired anonymous submission safely returns to sign-in', '/login?' in expired.url and '/review' in expired.text())
+    changed=anonymous.request.get(BASE+'/api/listings?'+urlencode({'location':'Hội An','city':'Đà Lạt'})).json()
+    check('Manual location edit overrides stale selected city', changed['success'] and all(row['city']=='Hội An' for row in changed['data']['listings']) and len(changed['data']['listings'])>0)
+    nojs=browser.new_context(java_script_enabled=False)
+    np=nojs.new_page();np.goto(BASE)
+    check('No-JS pagination remains available',np.locator('[data-feed-pagination]').is_visible())
+    check('No-JS homes are server rendered',np.locator('[data-home-feed] [data-listing-id]').count()==12)
+    browser.close()
+report={'passed':sum(c['passed'] for c in checks),'failed':sum(not c['passed'] for c in checks),'errors':errors,'checks':checks}
+(OUT/'verification.json').write_text(json.dumps(report,indent=2,ensure_ascii=False),encoding='utf-8')
+print(json.dumps(report,indent=2,ensure_ascii=False))
+raise SystemExit(bool(report['failed']))

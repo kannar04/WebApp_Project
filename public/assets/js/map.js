@@ -498,6 +498,8 @@
             this.request = 0;
             this.abort = null;
             this.runQuery = this.query.bind(this);
+            this.areaButton=document.querySelector('[data-search-area]');
+            this.areaButton?.addEventListener('click',()=>{this.useLocation=false;delete this.filters.city;this.query();});
             this.typeLabels = parseJson(container.dataset.typeLabels, {});
             const items = this.localize(parseJson(container.dataset.initial, []));
             this.map = new SlippyMap(container, {center: VIETNAM, zoom: VIETNAM.zoom, label: container.dataset.label,
@@ -530,10 +532,7 @@
 
         onMove(byUser) {
             if (!byUser) { return; }
-            // After the first drag/zoom the visible area replaces the typed place.
-            this.useLocation = false;
-            window.clearTimeout(this.timer);
-            this.timer = window.setTimeout(this.runQuery, QUERY_DELAY);
+            if(this.areaButton)this.areaButton.hidden=false;
         }
 
         onMarkerSelect(listingId) {
@@ -548,13 +547,15 @@
             const bounds = this.map.getBounds();
             const params = new URLSearchParams();
             for (const name of Object.keys(this.filters)) {
-                if (this.filters[name] !== '' && this.filters[name] !== null) { params.set(name, this.filters[name]); }
+                if(Array.isArray(this.filters[name])){this.filters[name].forEach(value=>params.append(name+'[]',value));}
+                else if (this.filters[name] !== '' && this.filters[name] !== null) { params.set(name, this.filters[name]); }
             }
             if (this.useLocation) { params.set('location', this.location); }
             params.set('north', bounds.north.toFixed(6));
             params.set('south', bounds.south.toFixed(6));
             params.set('east', bounds.east.toFixed(6));
             params.set('west', bounds.west.toFixed(6));
+            this.pendingParams=params;
             const request = ++this.request;
             this.results.setAttribute('aria-busy', 'true');
             fetch(this.endpoint + '?' + params.toString(), {headers: {Accept: 'application/json'}, credentials: 'same-origin', signal: this.abort.signal})
@@ -571,6 +572,11 @@
                 return;
             }
             this.showError('');
+            if(this.areaButton)this.areaButton.hidden=true;
+            const pageUrl=new URL(location.href);pageUrl.search=this.pendingParams.toString();history.replaceState(history.state,'',pageUrl);
+            const listLink=document.querySelector('[data-map-list-link]');
+            if(listLink){const listUrl=new URL(listLink.href);listUrl.search=this.pendingParams.toString();listLink.href=listUrl.href;}
+            const locationField=document.querySelector('#map-location');if(locationField&&!this.useLocation)locationField.value='';
             const data = result.body.data;
             const listings = this.localize(data.listings);
             this.map.setMarkers(listings);

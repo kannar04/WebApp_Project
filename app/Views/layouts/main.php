@@ -1,37 +1,83 @@
-<?php use Core\Auth; use Core\Session; $currentUser=Auth::user(); ?>
-<!doctype html><html lang="<?= e(\Core\I18n::locale()) ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="app-base-url" content="<?= e(url('/')) ?>"><meta name="csrf-token" content="<?= e(\Core\Csrf::token()) ?>"><script src="<?= e(asset('js/theme.js')) ?>"></script><title><?= e(__($title??'Home2Home')) ?> · Home2Home</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"><link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>"></head>
-<body><a class="skip-link" href="#main-content"><?= e(__('Bỏ qua điều hướng')) ?></a>
-<header class="site-header"><div class="container"><nav class="navbar navbar-expand-lg navbar-light px-0"><a class="navbar-brand brand" href="<?= e(url('/')) ?>"><span class="brand-mark" aria-hidden="true"></span>home 2 home</a><button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="<?= e(__('Mở điều hướng')) ?>"><span class="navbar-toggler-icon"></span></button><div class="collapse navbar-collapse" id="mainNav">
-<ul class="navbar-nav mx-auto">
-<li class="nav-item"><a class="nav-link" href="<?= e(url('/')) ?>"><?= e(__('Khám phá')) ?></a></li>
-<li class="nav-item"><a class="nav-link" href="<?= e(url('/articles')) ?>"><?= e(__('Cẩm nang')) ?></a></li>
-<?php if($currentUser): ?>
-<li class="nav-item"><a class="nav-link" href="<?= e(url('/wishlist')) ?>"><?= e(__('Yêu thích')) ?></a></li>
-<li class="nav-item"><a class="nav-link" href="<?= e(url('/bookings')) ?>"><?= e(__('Đặt chỗ')) ?></a></li>
-<?php $messageUnread=\App\Services\ConversationService::navigation((int)$currentUser['id']); ?>
-<li class="nav-item"><a class="nav-link" href="<?= e(url('/messages')) ?>"><?= e(__('Tin nhắn')) ?><?php if($messageUnread>0): ?> <span class="nav-unread-badge"><span aria-hidden="true"><?= $messageUnread>99?'99+':(int)$messageUnread ?></span><span class="sr-only"> <?= e($messageUnread===1?__('1 tin nhắn chưa đọc'):__('{count} tin nhắn chưa đọc', ['count'=>(int)$messageUnread])) ?></span></span><?php endif; ?></a></li>
+<?php
+use Core\Auth;
+use Core\Session;
+require_once dirname(__DIR__).'/components/ui-icons.php';
+$currentUser=Auth::user();
+$requestPath=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH) ?: '/';
+$basePath=rtrim(parse_url(url('/'),PHP_URL_PATH)??'','/');
+if($basePath!=='' && str_starts_with($requestPath,$basePath.'/')) { $requestPath=substr($requestPath,strlen($basePath)); }
+$isAdminWorkspace=$currentUser && in_array('admin',$currentUser['roles'],true) && ($requestPath==='/admin'||str_starts_with($requestPath,'/admin/'));
+$isHostWorkspace=$currentUser && in_array('host',$currentUser['roles'],true) && ($requestPath==='/host'||str_starts_with($requestPath,'/host/'));
+$isWorkspace=$isAdminWorkspace||$isHostWorkspace;
+$isAccountPage=$currentUser && preg_match('~^/(profile|bookings|wishlist|messages|notifications|reports|payments)(/|$)~',$requestPath);
+$messageUnread=$currentUser?\App\Services\ConversationService::navigation((int)$currentUser['id']):0;
+?>
+<!doctype html>
+<html lang="<?= e(\Core\I18n::locale()) ?>">
+<head><?php require dirname(__DIR__).'/components/document-head.php'; ?></head>
+<body class="experience-body<?= $isWorkspace?' workspace-body':'' ?>">
+<a class="skip-link" href="#main-content"><?= e(__('Bỏ qua điều hướng')) ?></a>
+<header class="site-header"><div class="container">
+<nav class="navbar navbar-expand-lg navbar-light px-0" aria-label="<?= e(__('Điều hướng chính')) ?>">
+    <a class="navbar-brand brand" href="<?= e(url('/')) ?>">home2home<span class="brand-dot" aria-hidden="true">.</span></a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="<?= e(__('Mở điều hướng')) ?>"><span class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse" id="mainNav">
+        <ul class="navbar-nav mx-auto">
+            <?php foreach([['/','Khám phá','search'],['/wishlist','Đã lưu','heart'],['/bookings','Chuyến đi','calendar']] as [$navPath,$navLabel,$navIcon]): $active=$requestPath===$navPath || ($navPath!=='/' && str_starts_with($requestPath,$navPath.'/')); ?>
+            <li class="nav-item"><a class="nav-link<?= $active?' is-active':'' ?>" href="<?= e(url($navPath)) ?>" <?= $active?'aria-current="page"':'' ?>><?= ui_icon($navIcon) ?> <?= e(__($navLabel)) ?></a></li>
+            <?php endforeach; ?>
+        </ul>
+        <div class="navbar-actions">
+            <div class="appearance-controls"><?php require dirname(__DIR__).'/components/appearance-controls.php'; ?></div>
+            <?php if(!$currentUser): ?>
+                <a class="btn btn-ghost" href="<?= e(url('/login?'.http_build_query(['next'=>\App\Services\TripContext::safeReturn(\Core\I18n::returnPath())]))) ?>"><?= e(__('Đăng nhập')) ?></a>
+                <a class="btn btn-primary nav-signup" href="<?= e(url('/register?'.http_build_query(['next'=>\App\Services\TripContext::safeReturn(\Core\I18n::returnPath())]))) ?>"><?= e(__('Đăng ký')) ?> <?= ui_icon('arrow') ?></a>
+            <?php else: ?>
+                <a class="nav-message icon-control" href="<?= e(url('/messages')) ?>" aria-label="<?= e(__('Tin nhắn')) ?>"><?= ui_icon('message') ?><?php if($messageUnread>0): ?><span class="nav-unread-badge"><?= $messageUnread>99?'99+':(int)$messageUnread ?><span class="sr-only"> <?= e(__('tin nhắn chưa đọc')) ?></span></span><?php endif; ?></a>
+                <div class="dropdown account-dropdown">
+                    <button class="account-trigger" id="account-menu-button" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="account-avatar" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($currentUser['full_name'],0,1))) ?></span><span class="account-name"><?= e($currentUser['full_name']) ?></span><?= ui_icon('chevron') ?></button>
+                    <div class="dropdown-menu dropdown-menu-right" aria-labelledby="account-menu-button">
+                        <?php foreach([['/profile','Hồ sơ','user'],['/bookings','Đặt chỗ','calendar'],['/wishlist','Yêu thích','heart'],['/notifications','Thông báo','bell']] as [$accountPath,$accountLabel,$accountIcon]): ?><a class="dropdown-item" href="<?= e(url($accountPath)) ?>"><?= ui_icon($accountIcon) ?> <?= e(__($accountLabel)) ?></a><?php endforeach; ?>
+                        <div class="dropdown-divider"></div>
+                        <?php if(in_array('host',$currentUser['roles'],true)): ?><a class="dropdown-item" href="<?= e(url('/host')) ?>"><?= ui_icon('home') ?> <?= e(__('Không gian Host')) ?></a><?php endif; ?>
+                        <?php if(in_array('admin',$currentUser['roles'],true)): ?><a class="dropdown-item" href="<?= e(url('/admin')) ?>"><?= ui_icon('grid') ?> <?= e(__('Quản trị')) ?></a><?php endif; ?>
+                        <form method="post" action="<?= e(url('/logout')) ?>"><?= csrf_field() ?><button class="dropdown-item" type="submit"><?= ui_icon('logout') ?> <?= e(__('Đăng xuất')) ?></button></form>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+</nav></div></header>
+<main id="main-content" tabindex="-1">
+    <?php if($isWorkspace): ?><div class="workspace-shell"><?php require dirname(__DIR__).'/components/workspace-nav.php'; ?><div class="workspace-content"><?php endif; ?>
+    <?php if($isAccountPage): ?><div class="account-navigation"><nav class="container" aria-label="<?= e(__('Tài khoản của bạn')) ?>">
+        <?php foreach([['/profile','Hồ sơ','user'],['/bookings','Đặt chỗ','calendar'],['/wishlist','Yêu thích','heart'],['/messages','Tin nhắn','message'],['/notifications','Thông báo','bell']] as [$accountPath,$accountLabel,$accountIcon]): $active=$requestPath===$accountPath || str_starts_with($requestPath,$accountPath.'/'); ?>
+        <a href="<?= e(url($accountPath)) ?>" <?= $active?'class="is-active" aria-current="page"':'' ?>><?= ui_icon($accountIcon) ?> <?= e(__($accountLabel)) ?></a>
+        <?php endforeach; ?>
+    </nav></div><?php endif; ?>
+    <?php if($message=Session::flash('success')): ?><div class="container mt-3"><div class="alert alert-success" role="status"><?= e(__($message)) ?></div></div><?php endif; ?>
+    <?php if($message=Session::flash('error')): ?><div class="container mt-3"><div class="alert alert-danger" role="alert"><?= e(__($message)) ?></div></div><?php endif; ?>
+    <?= $content ?>
+    <?php if($isWorkspace): ?></div></div><?php endif; ?>
+</main>
+<footer class="site-footer"><div class="container">
+    <div class="footer-main row">
+        <div class="col-md-6"><a class="brand" href="<?= e(url('/')) ?>">home2home<span class="brand-dot" aria-hidden="true">.</span></a><p class="footer-manifesto"><?= e(__('Ở đâu cũng thấy như ở nhà.')) ?></p></div>
+        <div class="col-6 col-md-3"><h2><?= e(__('Khám phá')) ?></h2><a href="<?= e(url('/')) ?>"><?= e(__('Tìm chỗ ở')) ?></a><a href="<?= e(url('/map')) ?>"><?= e(__('Xem trên bản đồ')) ?></a><a href="<?= e(url('/articles')) ?>"><?= e(__('Cẩm nang du lịch và tin tức')) ?></a></div>
+        <div class="col-6 col-md-3"><h2><?= e(__('Hành trình của bạn')) ?></h2><a href="<?= e(url('/bookings')) ?>"><?= e(__('Đặt chỗ')) ?></a><a href="<?= e(url('/wishlist')) ?>"><?= e(__('Yêu thích')) ?></a><a href="<?= e(url('/profile')) ?>"><?= e(__('Tài khoản của bạn')) ?></a></div>
+    </div>
+    <div class="footer-bottom"><span>© <?= date('Y') ?> Home2Home</span><span><?= e(__('Việt Nam, theo nhịp riêng của bạn.')) ?></span><a href="#main-content"><?= e(__('Lên đầu trang')) ?> ↑</a></div>
+</div></footer>
+<?php if(!$isWorkspace && !preg_match('~^/listings/\d+(?:/review)?$~',$requestPath)): ?>
+<nav class="mobile-guest-nav" aria-label="<?= e(__('Điều hướng chính')) ?>">
+    <?php foreach([['/','Khám phá','search'],['/wishlist','Đã lưu','heart'],['/bookings','Chuyến đi','calendar']] as [$mobilePath,$mobileLabel,$mobileIcon]): ?>
+    <a href="<?= e(url($mobilePath)) ?>" <?= $requestPath===$mobilePath?'aria-current="page"':'' ?>><?= ui_icon($mobileIcon) ?><span><?= e(__($mobileLabel)) ?></span></a>
+    <?php endforeach; ?>
+</nav>
 <?php endif; ?>
-</ul>
-<div class="navbar-actions">
-<?php $switchLocale=\Core\I18n::locale()==='en'?'vi':'en'; ?><form class="d-inline locale-switch" method="post" action="<?= e(url('/locale')) ?>"><?= csrf_field() ?><input type="hidden" name="return_to" value="<?= e(\Core\I18n::returnPath()) ?>"><button class="btn btn-ghost locale-toggle" type="submit" name="locale" value="<?= $switchLocale ?>" lang="<?= $switchLocale ?>" title="<?= $switchLocale==='en'?'Switch to English':'Chuyển sang tiếng Việt' ?>"><span aria-hidden="true"><?= $switchLocale==='en'?'EN':'VI' ?></span><span class="sr-only"><?= $switchLocale==='en'?'English':'Tiếng Việt' ?></span></button></form>
-<?php /* theme.js runs before app.js (no h2hT yet), so both toggle labels are rendered here in the interface language. */ ?>
-<button class="btn btn-ghost theme-toggle" type="button" data-theme-toggle data-label-dark-on="<?= e(__('Bật chế độ tối')) ?>" data-label-dark-off="<?= e(__('Tắt chế độ tối')) ?>" aria-pressed="false" title="<?= e(__('Bật chế độ tối')) ?>"><svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4.5"/><path d="M12 1.5v2.5M12 20v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M1.5 12H4M20 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></svg><span class="theme-toggle-label" data-theme-label><?= e(__('Bật chế độ tối')) ?></span></button>
-<?php if(!$currentUser): ?>
-<a class="btn btn-ghost mr-2" href="<?= e(url('/login')) ?>"><?= e(__('Đăng nhập')) ?></a>
-<a class="btn btn-primary" href="<?= e(url('/register')) ?>"><?= e(__('Đăng ký')) ?></a>
-<?php else: ?>
-<?php if(in_array('host',$currentUser['roles'],true)): ?><a class="btn btn-ghost" href="<?= e(url('/host')) ?>"><?= e(__('Không gian Host')) ?></a><?php endif; ?>
-
-<?php if(in_array('admin',$currentUser['roles'],true)): ?><a class="btn btn-ghost" href="<?= e(url('/admin')) ?>"><?= e(__('Quản trị')) ?></a><?php endif; ?>
-
-<a class="btn btn-ghost" href="<?= e(url('/notifications')) ?>"><?= e(__('Thông báo')) ?></a>
-<a class="btn btn-soft" href="<?= e(url('/profile')) ?>"><?= e($currentUser['full_name']) ?></a>
-<form class="d-inline" method="post" action="<?= e(url('/logout')) ?>"><?= csrf_field() ?><button class="btn btn-link text-muted" type="submit"><?= e(__('Đăng xuất')) ?></button></form>
-<?php endif; ?>
-</div></div></nav></div></header>
-<main id="main-content"><?php if($message=Session::flash('success')): ?><div class="container mt-3"><div class="alert alert-success" role="status"><?= e(__($message)) ?></div></div><?php endif; ?><?php if($message=Session::flash('error')): ?><div class="container mt-3"><div class="alert alert-danger" role="alert"><?= e(__($message)) ?></div></div><?php endif; ?><?= $content ?></main>
-<footer class="site-footer"><div class="container d-flex flex-column flex-md-row justify-content-between"><span>© <?= date('Y') ?> Home2Home</span><a class="footer-link" href="<?= e(url('/articles')) ?>"><?= e(__('Cẩm nang du lịch và tin tức')) ?></a><span><?= e(__('Ở đâu cũng thấy như ở nhà.')) ?></span></div></footer>
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script><script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script><script type="application/json" id="h2h-i18n"><?= json_encode(\Core\I18n::scriptDictionary(), JSON_FORCE_OBJECT|JSON_HEX_TAG|JSON_HEX_AMP|JSON_UNESCAPED_UNICODE) ?></script><script src="<?= e(asset('js/app.js')) ?>"></script>
-<?php /* A view may set $pageScripts=['js/feature.js'] for page-only behaviour; render() shares its scope with this layout. */ ?>
+<script src="<?= e(asset('vendor/jquery.slim.min.js')) ?>"></script>
+<script src="<?= e(asset('vendor/bootstrap.bundle.min.js')) ?>"></script>
+<script type="application/json" id="h2h-i18n"><?= json_encode(\Core\I18n::scriptDictionary(),JSON_FORCE_OBJECT|JSON_HEX_TAG|JSON_HEX_AMP|JSON_UNESCAPED_UNICODE) ?></script>
+<script src="<?= e(asset('js/app.js')) ?>"></script>
 <?php foreach(($pageScripts??[]) as $pageScript): ?><script src="<?= e(asset($pageScript)) ?>"></script><?php endforeach; ?>
 </body></html>

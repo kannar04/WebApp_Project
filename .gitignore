@@ -28,6 +28,9 @@ id_ed25519
 Thumbs.db
 desktop.ini
 
+# Machine-local AI/MCP configuration
+/.kilo/
+
 # Runtime logs and temporary files: directories scoped to runtime locations
 *.log
 /logs/
@@ -54,7 +57,22 @@ composer.phar
 /coverage/
 .phpunit.result.cache
 .phpunit.cache/
-# Keep docs/screenshots/ as project evidence.
+# Local Python/browser-test tooling (keep test source and curated evidence)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+/.venv/
+/venv/
+/test-results/
+/playwright-report/
+/blob-report/
+# Generated UI/browser screenshots (retain reports and original design references)
+/docs/ui-experience/**/*.png
+/docs/figma/home-*.png
+!/docs/figma/home-reference.png
+/docs/screenshots/*.png
+/docs/quality/screenshots/**/*.png
+/docs/quality/visual/screenshots/**/*.png
 
 # User uploads: preserve the empty directory; demo images belong in assets.
 /public/uploads/*

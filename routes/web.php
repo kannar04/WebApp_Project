@@ -38,6 +38,7 @@ $router->get('/api/listings',[HomeController::class,'search']);
 $router->get('/login',[AuthController::class,'loginForm']);$router->post('/login',[AuthController::class,'login']);
 $router->get('/register',[AuthController::class,'registerForm']);$router->post('/register',[AuthController::class,'register']);$router->post('/logout',[AuthController::class,'logout']);
 $router->get('/profile',[ProfileController::class,'show']);$router->post('/profile',[ProfileController::class,'update']);$router->post('/profile/become-host',[ProfileController::class,'becomeHost']);
+$router->get('/listings/{id}/review',[BookingController::class,'reviewStay']);
 $router->get('/listings/{id}',[ListingController::class,'show']);$router->get('/api/listings/{id}/quote',[ListingController::class,'quote']);$router->post('/listings/{id}/book',[BookingController::class,'create']);
 $router->get('/bookings',[BookingController::class,'index']);$router->post('/bookings/{id}/cancel',[BookingController::class,'cancel']);$router->post('/bookings/{id}/review',[BookingController::class,'review']);
 $router->get('/wishlist',[WishlistController::class,'index']);$router->post('/api/wishlist/{id}',[WishlistController::class,'toggle']);

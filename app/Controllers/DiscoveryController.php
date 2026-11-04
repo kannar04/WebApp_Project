@@ -12,7 +12,7 @@ use Core\Session;
 final class DiscoveryController extends Controller
 {
     public const MAP_LIMIT = 100;
-    private const FILTER_FIELDS = ['location','check_in','check_out','guests','type','min_price','max_price'];
+    private const FILTER_FIELDS = ['location','check_in','check_out','guests','type','min_price','max_price','bedrooms','amenities','sort','city','north','south','east','west'];
     private const BOUND_FIELDS = ['north','south','east','west'];
 
     public function map(): void
@@ -20,12 +20,12 @@ final class DiscoveryController extends Controller
         [$filters,$searchError,$filterErrors]=$this->filters($_GET);
         $result=['listings'=>[],'total'=>0];
         if ($searchError===null) {
-            $result=(new Discovery())->mapSearch(null,$filters,self::MAP_LIMIT);
+            $result=$this->mapSearch($filters);
             DiscoveryService::recordSearch('map',$filters);
         }
         $this->render('discovery/map',[
             'title'=>'Bản đồ chỗ ở','filters'=>$filters,'searchError'=>$searchError,'filterErrors'=>$filterErrors,
-            'types'=>(new Listing())->types(),'listings'=>self::mapItems($result['listings']),'total'=>$result['total'],
+            'types'=>(new Listing())->types(),'listings'=>self::mapItems($result['listings'],$filters),'total'=>$result['total'],
             'limit'=>self::MAP_LIMIT
         ]);
     }
@@ -40,12 +40,12 @@ final class DiscoveryController extends Controller
             $this->json(false,$searchError ?? implode(' ',array_unique(array_values($boundErrors))),null,$errors,422);
         }
         try {
-            $result=(new Discovery())->mapSearch($bounds,$filters,self::MAP_LIMIT);
+            $result=$this->mapSearch(array_replace($filters,$bounds??[]));
         } catch (\DomainException $exception) {
             $this->json(false,$exception->getMessage(),null,['map'=>$exception->getMessage()],422);
         }
         $this->json(true,'Đã tải chỗ ở trong khu vực bản đồ.',[
-            'listings'=>self::mapItems($result['listings']),'total'=>$result['total'],'limit'=>self::MAP_LIMIT
+            'listings'=>self::mapItems($result['listings'],$filters),'total'=>$result['total'],'limit'=>self::MAP_LIMIT
         ]);
     }
 
@@ -60,6 +60,13 @@ final class DiscoveryController extends Controller
             Session::flash('error',$exception instanceof \DomainException ? $exception->getMessage() : 'Không thể xóa lịch sử. Vui lòng thử lại.');
         }
         $this->redirect('/profile#discovery-history');
+    }
+
+    private function mapSearch(array $filters): array
+    {
+        // World bounds exclude missing coordinates without scanning every listing in PHP.
+        $filters+=['north'=>'90','south'=>'-90','east'=>'180','west'=>'-180'];
+        return (new Listing())->searchPage($filters,self::MAP_LIMIT,0);
     }
 
     /** Reuses the home search validation for the subset of filters the map supports. */
@@ -94,7 +101,7 @@ final class DiscoveryController extends Controller
     }
 
     /** Public JSON/view shape: only what a marker, popup and list item need. The property type is a catalog label. */
-    public static function mapItems(array $rows): array
+    public static function mapItems(array $rows,array $filters=[]): array
     {
         $items=[];
         foreach ($rows as $row) {
@@ -103,7 +110,7 @@ final class DiscoveryController extends Controller
                 'price'=>(float)$row['nightly_price'],'price_label'=>number_format((float)$row['nightly_price'],0,',','.').'đ',
                 'rating'=>round((float)$row['rating'],1),'review_count'=>(int)$row['review_count'],
                 'latitude'=>(float)$row['latitude'],'longitude'=>(float)$row['longitude'],
-                'photo'=>image_url($row['image_url']),'url'=>url('/listings/'.(int)$row['id'])];
+                'photo'=>image_url($row['image_url']),'url'=>url(\App\Services\TripContext::path((int)$row['id'],$filters))];
         }
         return $items;
     }

@@ -77,6 +77,14 @@ try {
         $expect($request('/logout', ['_token'=>$match[1]])['status'] === 200, 'Fresh logout failed.');
     }
     echo "PASS fresh Guest/Host/Admin login, pages, Guest permission denial and logout\n";
+    if (in_array('--focused-ui',$argv,true)) {
+        foreach ([[PHP_BINARY,$root.'/tests/focused_journey_fixture.php'],['python','-X','utf8',$root.'/tests/focused_journey.browser.py']] as $command) {
+            $child=proc_open($command,[0=>['pipe','r'],1=>STDOUT,2=>STDERR],$childPipes,$root,$environment,['bypass_shell'=>true]);
+            if(!is_resource($child)){throw new RuntimeException('Focused suite failed to start.');}
+            fclose($childPipes[0]);
+            if(proc_close($child)!==0){throw new RuntimeException('Focused journey suite failed.');}
+        }
+    }
     if ($qualityRun || in_array('--visual-baseline',$argv,true)) {
         $commands = [];
         if (in_array('--visual-baseline',$argv,true)) {

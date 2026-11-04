@@ -60,6 +60,12 @@
                 form.setAttribute('aria-busy', 'true');
                 const button = form.querySelector('button[type="submit"]');
                 if (button) {
+                    if (button.hasAttribute('data-search-icon')) {
+                        button.dataset.idleAria = button.getAttribute('aria-label');
+                        button.setAttribute('aria-label', h2hT('Đang tìm…'));
+                        button.disabled = true;
+                        return;
+                    }
                     button.dataset.idleLabel = button.textContent;
                     button.disabled = true;
                     button.textContent = h2hT('Đang tìm…');
@@ -69,6 +75,11 @@
 
         // Back/forward cache must not leave a restored search/booking button disabled.
         window.addEventListener('pageshow', () => {
+            document.querySelectorAll('button[data-idle-aria]').forEach(button => {
+                button.disabled = false;
+                button.setAttribute('aria-label', button.dataset.idleAria);
+                delete button.dataset.idleAria;
+            });
             document.querySelectorAll('button[data-idle-label]').forEach(button => {
                 button.disabled = false;
                 button.textContent = button.dataset.idleLabel;
@@ -79,8 +90,10 @@
             });
         });
 
-        document.querySelectorAll('[data-favorite]').forEach(button => {
-            button.addEventListener('click', async function () {
+        document.addEventListener('click', async function (event) {
+                const button=event.target.closest('[data-favorite]');
+                if (!button || button.disabled) return;
+                await (async function () {
                 this.disabled = true;
                 try {
                     const response = await fetch(`${baseUrl}/api/wishlist/${this.dataset.favorite}`, {
@@ -106,7 +119,7 @@
                 } finally {
                     this.disabled = false;
                 }
-            });
+                }).call(button);
         });
 
         const bookingForm = document.querySelector('[data-booking-form]');
@@ -179,7 +192,7 @@
                 if (submitButton) {
                     submitButton.dataset.idleLabel = submitButton.textContent;
                     submitButton.disabled = true;
-                    submitButton.textContent = h2hT('Đang gửi yêu cầu…');
+                    submitButton.textContent = h2hT(bookingForm.hasAttribute('data-focused-booking')?'Đang tải…':'Đang gửi yêu cầu…');
                 }
             });
         }
