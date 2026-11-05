@@ -166,6 +166,23 @@ function Check-BookingRefusal {
     Write-Output 'PASS browser refused booking keeps its input and quotes it again on load'
 }
 
+function Check-MenuWithoutScript {
+    # Without JS the toggler cannot open the menu, so below 992 px the menu stays open and the toggler goes. With JS nothing changes.
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=375;height=800;deviceScaleFactor=1;mobile=$false} | Out-Null
+    $read="(function(){const toggler=document.querySelector('.navbar-toggler');const menu=document.querySelector('.site-header .navbar-collapse');const login=menu.querySelector('a[href*=login]').getBoundingClientRect();return {toggler:getComputedStyle(toggler).display,menu:getComputedStyle(menu).display,header:getComputedStyle(document.querySelector('.site-header')).position,linkShown:login.width>0&&login.height>0,overflow:document.documentElement.scrollWidth>window.innerWidth};})()"
+    Send-Cdp 'Emulation.setScriptExecutionDisabled' @{value=$true} | Out-Null
+    try {
+        Navigate '/'
+        $off=Evaluate $read
+    } finally { Send-Cdp 'Emulation.setScriptExecutionDisabled' @{value=$false} | Out-Null }
+    if ($off.toggler -ne 'none' -or $off.menu -ne 'block' -or $off.header -ne 'static' -or !$off.linkShown -or $off.overflow) { throw "Menu unreachable without JS: $($off | ConvertTo-Json -Compress)" }
+    Navigate '/'
+    $on=Evaluate $read
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    if ($on.toggler -eq 'none' -or $on.menu -ne 'none' -or $on.header -ne 'sticky') { throw "Menu changed with JS on: $($on | ConvertTo-Json -Compress)" }
+    Write-Output 'PASS browser menu is open and the toggler hidden without JS below 992 px, unchanged with JS'
+}
+
 function Check-LoginCarriesBooking {
     # Signed out, the sign-in link takes the chosen stay along: same site, encoded, following the form. After signing in the listing has it back and quotes it.
     Navigate '/listings/1'
@@ -430,6 +447,7 @@ try {
     Check-RegisterDoubleClick
 
     Check-LoginCarriesBooking
+    Check-MenuWithoutScript
     Navigate '/login'
     Check-Page 'login'
     if ((Login-Role 'guest') -ne '/') { throw 'Guest login redirect failed' }
