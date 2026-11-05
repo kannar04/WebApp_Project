@@ -244,6 +244,35 @@ No reproduced P0–P2 remains in the tested implemented journeys. This is a loca
 - Test-only routines are opt-in. Historical fixture creation additionally requires the exact isolated schema-test database naming pattern.
 - Reset-password/email delivery/payments/maps and other features without current routes are not implemented by this task. High-load testing and full accessibility remain NOT_VERIFIED.
 
+## Routine lõi chất lượng, khôi phục mật khẩu và khuyến mãi
+
+Các routine production này có từ trước nhưng chưa được ghi trong các bảng khác của tài liệu. Không đổi code; `tests/stored_procedure_audit_test.php` nay đối chiếu tên trong tài liệu với các file SQL.
+
+| Routine | File | Mục đích | Transaction / khóa / quyền | Test |
+|---|---|---|---|---|
+| `sp_host_listing_delete` | `050_quality_core.sql` | Host xóa mềm và ẩn tin của mình; từ chối khi còn booking `pending` hoặc `confirmed` | Transaction/savepoint; khóa listing → booking; chủ tin (`sp_quality_assert_host`) | procedure_flow_test, quality_core_test |
+| `sp_host_photos_manage` | `050` | Sắp xếp lại và gỡ ảnh theo danh sách id; từ chối khi danh sách ảnh đã đổi so với lúc mở form (`p_expected`); chỉ gỡ tham chiếu, không xóa tệp | Transaction/savepoint; khóa listing; chủ tin | quality_core_test |
+| `sp_booking_detail_nights` | `050` | Giá từng đêm cho trang chi tiết booking | Chỉ đọc; Guest của booking, Host của tin hoặc Admin (`sp_quality_assert_booking`) | quality_core_test, feature_payment_test |
+| `sp_booking_detail_events` | `050` | Lịch sử trạng thái cho trang chi tiết booking | Chỉ đọc; cùng quyền `sp_quality_assert_booking` | quality_core_test, feature_payment_test |
+| `sp_listing_photos_for_actor` | `050` | Ảnh của tin cho form quản lý và trang xem trước, kể cả tin chưa công khai | Chỉ đọc; chủ tin có vai trò Host hoặc Admin, tài khoản active | quality_core_test |
+| `sp_listing_admin_preview` | `050` | Dữ liệu trang xem trước của Admin, kể cả tin chưa duyệt | Chỉ đọc; Admin (`sp_admin_assert_role`) | quality_core_test |
+| `sp_listing_amenities_for_admin` | `050` | Tiện nghi của tin trong trang xem trước của Admin | Chỉ đọc; Admin | quality_core_test |
+| `sp_admin_count_guests` | `050` | Đếm tài khoản có vai trò Guest chưa xóa cho thống kê Admin | Chỉ đọc, không tham số; quyền Admin kiểm tra ở controller | quality_core_test, feature_booking_extras_test |
+| `sp_notifications_list` | `050` | 200 thông báo trong ứng dụng mới nhất của người dùng | Chỉ đọc; thông báo của chính người gọi, tài khoản active | quality_core_test, procedure_flow_test |
+| `sp_notification_read` | `050` | Đánh dấu một thông báo đã đọc; gọi lại không đổi thời điểm đọc | Một câu UPDATE; thông báo của chính người gọi, tài khoản active | quality_core_test |
+| `sp_host_reviews` | `060_quality_community.sql` | Đánh giá đang hiển thị trên các tin của Host | Chỉ đọc; Host active | quality_core_test, feature_trust_test |
+| `sp_host_review_reply` | `060` | Host trả lời đánh giá đang hiển thị, 1 đến 5000 ký tự | Một câu UPDATE; chủ tin có vai trò Host, tài khoản active | quality_core_test |
+| `sp_admin_review_moderate` | `060` | Ẩn hoặc hiện đánh giá, giữ dòng làm bằng chứng cho báo cáo | Transaction/savepoint; khóa review; Admin; audit `moderate_review` | quality_core_test, feature_trust_test |
+| `sp_reports_for_user` | `060` | Báo cáo do chính người dùng gửi | Chỉ đọc; tài khoản active | quality_core_test, procedure_flow_test |
+| `sp_admin_report_resolve` | `060` | Đổi trạng thái báo cáo; `resolved` và `dismissed` bắt buộc có kết luận | Transaction/savepoint; khóa report; Admin; audit `resolve_report` | quality_core_test, procedure_flow_test |
+| `sp_admin_catalog` | `060` | Danh sách loại chỗ ở hoặc tiện nghi cho trang danh mục | Chỉ đọc; Admin | quality_core_test, procedure_flow_test |
+| `sp_admin_catalog_save` | `060` | Thêm, sửa hoặc tắt một mục danh mục, trả id | Transaction/savepoint; khóa dòng khi sửa; Admin; audit `save_catalog` | quality_core_test, procedure_flow_test |
+| `sp_user_password_change` | `060` | Đổi mật khẩu khi hash cũ còn khớp; đóng các token khôi phục chưa dùng | Transaction/savepoint; khóa user; chính chủ, tài khoản active | quality_core_test |
+| `sp_password_reset_issue` | `065_password_recovery.sql` | Tạo token khôi phục (chỉ lưu hash, hạn 45 phút, tối đa một lần mỗi 5 phút), đóng token cũ | Transaction/savepoint; khóa user; tài khoản active | quality_core_test, source_audit_test |
+| `sp_password_reset_consume` | `065` | Đặt mật khẩu mới theo token còn hạn và đóng mọi token của user | Transaction/savepoint; khóa user → token; tài khoản active | quality_core_test |
+| `sp_admin_promotion_toggle` | `070_booking_extras.sql` | Bật hoặc tắt mã khuyến mãi | Transaction/savepoint; khóa promotion; Admin; audit `toggle_promotion` | feature_booking_extras_test |
+| `sp_admin_promotion_delete` | `070` | Xóa mã chưa dùng; mã đã dùng cho booking chỉ được tắt | Transaction/savepoint; khóa promotion như khi tạo booking; Admin; audit `delete_promotion` | feature_booking_extras_test |
+
 ## Nice-to-have routines — 2026-10-13
 
 Sau khi gộp 5 nhánh Nice-to-have, quy tắc “SQL nghiệp vụ chỉ qua routine” vẫn giữ nguyên. Gate sau gộp (`tests/stored_procedure_audit_test.php` trong `fresh_setup_test.php --quality-regression`) ghi nhận: installer **159 production definitions, 38 opt-in test definitions, zero DROP**; **236 CALL sites / 179 routine signatures** khớp với database (trước đó 106/16 và 140/108). Trên DB nâng cấp thử: 151 tên routine production khác nhau (trước 98), tức **53 routine mới**; không có `sp_test_*`.

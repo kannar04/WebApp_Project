@@ -43,6 +43,29 @@ if (!str_contains(implode("\n",$auditLines),'Test fixture routines mới ('.$pay
 }
 echo "PASS audit doc: every table row has its header's cell count; the payment fixture count matches the file\n";
 
+/** Routine names defined in SQL files, read from the source so a routine added by any branch is covered. */
+function auditRoutineNames(array $files): array
+{
+    $names=[];
+    foreach ($files as $file) {
+        $source=(string)file_get_contents($file);
+        $found=preg_match_all('/\bCREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([^`(]+?)`?\s*\(/i',$source,$match);
+        if ($found!==preg_match_all('/\bCREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\b/i',$source)) { throw new RuntimeException('Could not read every routine name in '.basename($file).'.'); }
+        $names=array_merge($names,$match[1]);
+    }
+    return array_values(array_unique($names));
+}
+require_once $root.'/database/procedures/install.php';
+$productionRoutines=auditRoutineNames(home2HomeProcedureFiles());
+// Mapped means a backticked name on a table row; any backticked routine name in the doc has to exist, including sp_test_ fixtures.
+preg_match_all('/`([^`]+)`/',implode("\n",preg_grep('/^\|/',$auditLines)),$tableNames);
+$unmapped=array_diff($productionRoutines,$tableNames[1]);
+if ($unmapped) { throw new RuntimeException('Production routines missing from docs/stored-procedure-audit.md: '.implode(', ',$unmapped)); }
+preg_match_all('/`((?:[A-Z]{2,4}_ ?)?sp_[A-Za-z0-9_]+)`/',implode("\n",$auditLines),$docNames);
+$staleNames=array_diff(array_unique($docNames[1]),auditRoutineNames(home2HomeProcedureFiles(true)));
+if ($staleNames) { throw new RuntimeException('docs/stored-procedure-audit.md names routines that no longer exist: '.implode(', ',$staleNames)); }
+echo 'PASS audit doc maps all '.count($productionRoutines)." production routines and names none that no longer exist\n";
+
 // Read-only schema metadata is an explicit administrative audit exception.
 $pdo=\Core\Database::connection();
 $rows=$pdo->query('SELECT r.ROUTINE_NAME,COUNT(p.ORDINAL_POSITION) parameter_count FROM information_schema.ROUTINES r LEFT JOIN information_schema.PARAMETERS p ON p.SPECIFIC_SCHEMA=r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME=r.ROUTINE_NAME WHERE r.ROUTINE_SCHEMA=DATABASE() AND r.ROUTINE_TYPE=\'PROCEDURE\' GROUP BY r.ROUTINE_NAME')->fetchAll(PDO::FETCH_ASSOC);
