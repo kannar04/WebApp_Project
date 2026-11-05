@@ -69,6 +69,18 @@
         window.setTimeout(releaseFormBusy, 20000, form);
     }
 
+    // Result messages print at the top of the page, so after a redirect to a #fragment the browser lands far below them.
+    // The scroll follows html{scroll-behavior}, which the stylesheet already turns off for prefers-reduced-motion.
+    function revealFlash() {
+        const flash = document.querySelector('[data-flash]');
+        if (!flash || window.location.hash === '') { return; }
+        const header = document.querySelector('.site-header');
+        const headerBottom = header ? header.getBoundingClientRect().height : 0;
+        window.scrollTo(0, Math.max(0, flash.getBoundingClientRect().top + window.scrollY - headerBottom - 12));
+        flash.setAttribute('tabindex', '-1');
+        flash.focus({preventScroll: true});
+    }
+
     function initialize() {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const baseUrl = document.querySelector('meta[name="app-base-url"]')?.content.replace(/\/$/, '') || '';
@@ -102,6 +114,13 @@
 
         document.querySelectorAll('[data-filter-form], [data-search-form]').forEach(watchSearchSubmit);
         document.querySelector('[data-report-form]')?.addEventListener('submit', handleReportSubmit);
+
+        // The browser's own fragment scroll keeps running until the page has loaded.
+        if (document.readyState === 'complete') {
+            revealFlash();
+        } else {
+            window.addEventListener('load', revealFlash, {once: true});
+        }
 
         // Back/forward cache must not leave a restored search/booking button disabled.
         window.addEventListener('pageshow', () => {

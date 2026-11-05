@@ -158,6 +158,19 @@ function Check-BookingRefusal {
     Write-Output 'PASS browser refused booking keeps its input and quotes it again on load'
 }
 
+function Check-FlashReveal {
+    # A refused save redirects to /profile#personal: the result sits on screen below the navbar with focus, while a plain fragment link keeps its scroll.
+    foreach ($width in @(375,1440)) {
+        Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+        Navigate '/profile'
+        Evaluate "(function(){const f=document.querySelector('#personal').closest('section,form').querySelector('[name=full_name]').form;f.elements.full_name.required=false;f.elements.full_name.value='';f.submit();return true;})()" | Out-Null
+        Wait-FilterPage "location.hash==='#personal'&&(function(){const a=document.querySelector('[data-flash]');if(!a||document.activeElement!==a){return false;}const r=a.getBoundingClientRect();return r.top>=document.querySelector('.site-header').getBoundingClientRect().bottom-1&&r.bottom<=innerHeight;})()"
+        Navigate '/profile#verification'
+        Wait-FilterPage "scrollY>100&&!document.querySelector('[data-flash]')&&document.activeElement===document.body"
+    }
+    Write-Output 'PASS browser result message shown and focused after a fragment redirect, plain fragment scroll kept'
+}
+
 function Check-CalendarNavigation([string]$Path) {
     Navigate $Path
     $next=Evaluate 'document.querySelector(''#availability-calendar'').closest(''section'').querySelectorAll(''a'')[1].getAttribute(''href'')'
@@ -229,6 +242,7 @@ try {
     }
     Check-SubmitGuards $bookingPath
     Check-BookingRefusal
+    Check-FlashReveal
     Check-CalendarNavigation '/listings/1'
     Logout-Role
     if ((Login-Role 'host') -ne '/host') { throw 'Host login redirect failed' }
