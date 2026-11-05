@@ -341,8 +341,9 @@ BEGIN
         SELECT status,ROUND(amount,0),decided_by INTO v_status,v_amount,v_decided FROM payment_transactions WHERE id=v_attempt FOR UPDATE;
         IF p_amount IS NULL OR p_amount<>v_amount THEN
             SET v_result='invalid_amount';
-        ELSEIF v_status NOT IN ('pending','cancelled') OR v_decided IS NOT NULL THEN
+        ELSEIF (v_status NOT IN ('pending','cancelled') AND NOT (v_status='failed' AND p_response_code='00' AND p_transaction_status='00')) OR v_decided IS NOT NULL THEN
             -- decided_by is only set on a VNPay attempt when an Admin closed it as a refunded duplicate.
+            -- A signed success after a signed non-success on this reference is money taken, so it goes on to be recorded below; every other repeat is ignored.
             SET v_result='already';
         ELSEIF p_response_code='00' AND p_transaction_status='00' THEN
             IF COALESCE(v_payment,'unpaid')='unpaid' THEN

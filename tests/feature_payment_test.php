@@ -210,7 +210,7 @@ try {
     payExpect($result['result']==='invalid_amount' && payAttempt((int)$v1['transaction_id'])['status']==='pending','Wrong amount changed the attempt.');
     $result=$payments->vnpayResult($v1['reference'],'220000.00','24','02','0','');
     payExpect($result['result']==='ok' && $result['transaction_status']==='failed' && $result['response_code']==='24' && (int)$result['booking_id']===$bookingB,'Cancelled VNPay result is wrong.');
-    payExpect($payments->vnpayResult($v1['reference'],'220000.00','00','00','1','NCB')['result']==='already','A closed attempt was paid later.');
+    payExpect($payments->vnpayResult($v1['reference'],'220000.00','24','02','0','')['result']==='already' && payAttempt((int)$v1['transaction_id'])['status']==='failed','A repeated failure was recorded again.');
     $result=$payments->vnpayResult($v2['reference'],'220000.00','00','00','14000001','NCB');
     $state=payInspect($bookingB);
     payExpect($result['result']==='ok' && $result['transaction_status']==='succeeded' && $state['payment_status']==='paid' && $state['payment_method']==='vnpay'
@@ -235,7 +235,23 @@ try {
     $result=$payments->vnpayResult($c1['reference'],'220000.00','00','00','14000003','NCB');
     payExpect($result['result']==='already' && $result['return_reason']==='cancelled' && (float)$result['refund_owed']===220000.0,'VNPay result does not say the money goes back: '.json_encode($result));
     payRejects([$payments,'start'],[$bookingC,$guestId,'vnpay'],'đã được ghi nhận thanh toán','A cancelled booking started a payment');
-    echo "PASS VNPay results: unknown/amount guards, cancelled, success once, repeat-safe, duplicate and after-cancel payments flagged for refund\n";
+    // A signed success after a signed non-success on the same reference is money taken: recorded, or flagged when the booking is already paid.
+    $failedFirst=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,125);
+    $failedAttempt=$payments->start($failedFirst,$guestId,'vnpay');
+    $payments->vnpayResult($failedAttempt['reference'],'220000.00','24','02','0','');
+    $result=$payments->vnpayResult($failedAttempt['reference'],'220000.00','00','00','14000070','NCB');
+    $state=payInspect($failedFirst); $stored=payAttempt((int)$failedAttempt['transaction_id']);
+    payExpect($result['result']==='ok' && $result['transaction_status']==='succeeded' && $state['payment_status']==='paid' && (int)$state['paid_notices']===1 && (int)$state['payment_events']===1
+        && $stored['gateway_transaction_no']==='14000070' && $stored['gateway_response_code']==='00','A success after a failure on one reference was dropped: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    payExpect($payments->vnpayResult($failedAttempt['reference'],'220000.00','24','02','0','')['result']==='already' && payAttempt((int)$failedAttempt['transaction_id'])['status']==='succeeded' && (int)payInspect($failedFirst)['payment_events']===1,'A failure after a success changed the payment.');
+    $failedDuplicate=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,128);
+    $failedDupFirst=$payments->start($failedDuplicate,$guestId,'vnpay'); $failedDupOther=$payments->start($failedDuplicate,$guestId,'vnpay');
+    $payments->vnpayResult($failedDupFirst['reference'],'220000.00','24','02','0','');
+    $payments->vnpayResult($failedDupOther['reference'],'220000.00','00','00','14000071','NCB');
+    $result=$payments->vnpayResult($failedDupFirst['reference'],'220000.00','00','00','14000072','NCB');
+    $state=payInspect($failedDuplicate);
+    payExpect($result['result']==='ok' && (int)$result['duplicate_payment']===1 && (int)$state['payment_events']===1 && (int)$state['admin_duplicate_notices']>=1,'A late success on a paid booking was not flagged: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    echo "PASS VNPay results: unknown/amount guards, cancelled, success once, repeat-safe, duplicate and after-cancel payments flagged for refund, success after a failure recorded\n";
 
     // ---- Whole dong: a booking still holding a decimal amount pays one rounded figure on VietQR and VNPay.
     $bookingF=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,30);
