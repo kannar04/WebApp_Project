@@ -38,7 +38,7 @@ return [
     'Chuyển trạng thái booking không hợp lệ.' => 'Invalid booking status change.',
     'Chỉ có thể hoàn thành booking sau ngày trả phòng.' => 'A booking can only be completed after the check-out date.',
     'Ngày này vừa được booking khác xác nhận.' => 'These dates were just confirmed for another booking.',
-    'Khoảng ngày có ngày đang bị chặn.' => 'The selected dates include blocked days.',
+    'Khoảng ngày có ngày đang bị chặn. Hãy mở lại ngày đó trong Lịch khả dụng rồi xác nhận, hoặc từ chối yêu cầu này.' => 'The selected dates include a blocked day. Reopen it in the availability calendar and confirm, or reject this request.',
     'Booking không tồn tại hoặc không thuộc về bạn.' => 'The booking does not exist or does not belong to you.',
     'Booking ở trạng thái này không thể hủy.' => 'A booking in this status cannot be cancelled.',
     'Chưa cấu hình múi giờ để tính hoàn tiền an toàn.' => 'The time zone is not configured, so the refund cannot be calculated safely.',

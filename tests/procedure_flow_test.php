@@ -367,6 +367,25 @@ try {
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS Host role cannot be removed while listings or unfinished bookings remain, and can after the take-down\n";
 
+    // A Host may block a date inside a pending request; Accept then says what to do and Reject keeps working. Everything rolls back.
+    $db->beginTransaction();
+    try {
+        $service=new BookingService(); $hostId=(int)$host['id']; $guestId=(int)$guest['id'];
+        $blockedRequest=$service->create($listingId,$guestId,$start,$end,1);
+        ensure($model->setAvailability($listingId,$hostId,$start,false,'Procedure block fixture'),'A Host could not block a date inside a pending request.');
+        refusedSaying([$service,'hostTransition'],[$blockedRequest,$hostId,'confirmed'],'Hãy mở lại ngày đó trong Lịch khả dụng');
+        ensure(bookingState($blockedRequest)['status']==='pending','A refused Accept changed the request.');
+        ensure($model->setAvailability($listingId,$hostId,$start,true,null),'A Host could not reopen the date.');
+        $service->hostTransition($blockedRequest,$hostId,'confirmed');
+        ensure(bookingState($blockedRequest)['status']==='confirmed','Reopening the date did not allow Accept.');
+        $day=new DateTimeImmutable($start);
+        $rejectable=$service->create($listingId,$guestId,$day->modify('+10 days')->format('Y-m-d'),$day->modify('+12 days')->format('Y-m-d'),1);
+        ensure($model->setAvailability($listingId,$hostId,$day->modify('+10 days')->format('Y-m-d'),false,'Procedure block fixture'),'A Host could not block a second date.');
+        $service->hostTransition($rejectable,$hostId,'rejected');
+        ensure(bookingState($rejectable)['status']==='rejected','A request with a blocked date could not be rejected.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS blocked date inside a pending request: Accept says how to proceed, reopening allows it, Reject still works\n";
+
     for ($i=0;$i<2;$i++) {
         $pipes=[];
         $process=proc_open([PHP_BINARY,__FILE__,'--worker',(string)$listingId,(string)$guest['id'],$start,$end],

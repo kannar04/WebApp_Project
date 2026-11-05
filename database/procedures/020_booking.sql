@@ -199,7 +199,7 @@ BEGIN
         SELECT COUNT(*) INTO v_conflicts FROM bookings WHERE listing_id=v_listing AND id<>p_booking AND status='confirmed' AND check_in<v_end AND check_out>v_start FOR UPDATE;
         IF v_conflicts>0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Ngày này vừa được booking khác xác nhận.'; END IF;
         SELECT COUNT(*) INTO v_conflicts FROM listing_availability WHERE listing_id=v_listing AND is_open=0 AND stay_date>=v_start AND stay_date<v_end FOR UPDATE;
-        IF v_conflicts>0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Khoảng ngày có ngày đang bị chặn.'; END IF;
+        IF v_conflicts>0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Khoảng ngày có ngày đang bị chặn. Hãy mở lại ngày đó trong Lịch khả dụng rồi xác nhận, hoặc từ chối yêu cầu này.'; END IF;
     END IF;
     UPDATE bookings SET status=p_target,updated_at=NOW(6) WHERE id=p_booking;
     INSERT INTO booking_events(booking_id,actor_id,from_status,to_status,reason,created_at)
