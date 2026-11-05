@@ -363,6 +363,10 @@ try {
         foreach ($path in @('/host','/host/reviews','/host/listings/1/edit','/host/listings/1/checkin-guide','/messages','/host/listings/1/pricing','/host/listings/1/availability')) { Navigate $path; Check-Page "Host $path $width" }
         if ($width -eq 375 -or $width -eq 1440) { Capture-Page "host-calendar-$width" }
     }
+    Navigate '/listings/1'
+    $own=Evaluate "(function(){const link=document.querySelector('.booking-box a[href$=`"/host/listings/1/edit`"]');return {form:!!document.querySelector('[data-booking-form]'),note:!!document.querySelector('[data-own-listing]'),link:!!link,price:!!document.querySelector('.booking-price'),calendar:!!document.querySelector('#availability-calendar')};})()"
+    if ($own.form -or !$own.note -or !$own.link -or !$own.price -or !$own.calendar) { throw "Own listing page wrong for the Host: $($own | ConvertTo-Json -Compress)" }
+    Write-Output 'PASS browser Host sees a note and manage link instead of the booking form on their own listing'
     Check-LongText '/host/listings/1/availability' '.section-title h1, .section-title p'
     Write-Output 'PASS browser long unbroken text wraps at 375 on Host pages'
     Check-CalendarNavigation '/host/listings/1/availability'

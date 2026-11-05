@@ -512,6 +512,25 @@ $threadList=qaRenderView('admin/messages',['thread'=>array_fill(0,200,$limitMess
 qaExpect(!str_contains($threadList,'tin nhắn mới nhất'),'One booking thread is not a limited search.');
 echo "PASS QA admin bookings, admin messages, notifications and inbox say so when the 200 row limit is reached\n";
 
+// The Host sees a note and a manage link on their own listing, everyone else the booking form; the server still refuses the Host's booking.
+$login('host');
+$ownPage=$request('/listings/1');
+qaExpect(!str_contains($ownPage['body'],'data-booking-form') && !str_contains($ownPage['body'],'/listings/1/book'),'Host is offered the booking form on their own listing.');
+qaExpect(str_contains($ownPage['body'],'data-own-listing') && str_contains($ownPage['body'],'href="'.e(url('/host/listings/1/edit')).'"'),'Host has no manage link on their own listing.');
+qaExpect(str_contains($ownPage['body'],'class="booking-price"') && str_contains($ownPage['body'],'id="availability-calendar"'),'Own listing lost its price or calendar.');
+$ownBooking=$request('/listings/1/book',['_token'=>$token($ownPage),'check_in'=>'2031-06-10','check_out'=>'2031-06-12','guests'=>'1','promo_code'=>'']);
+qaExpect(str_contains($ownBooking['body'],'alert-danger') && !str_contains($ownBooking['url'],'/bookings/'),'Server accepted a booking on the Host\'s own listing.');
+$logout();
+foreach (['guest','admin'] as $visitor) {
+    $login($visitor);
+    $visitorPage=$request('/listings/1')['body'];
+    qaExpect(str_contains($visitorPage,'data-booking-form') && !str_contains($visitorPage,'data-own-listing'),'The booking form is gone for '.$visitor);
+    $logout();
+}
+$anonPage=$request('/listings/1')['body'];
+qaExpect(str_contains($anonPage,'data-booking-form') && !str_contains($anonPage,'data-own-listing'),'The booking form is gone for a visitor who is not logged in.');
+echo "PASS QA Host gets a note and manage link instead of the booking form on their own listing, others keep the form\n";
+
 $passwordUser=new User(); $email='quality-password-'.bin2hex(random_bytes(6)).'@home2home.test';
 $oldPassword='QaOld!'.bin2hex(random_bytes(10)); $newPassword='QaNew!'.bin2hex(random_bytes(10));
 $passwordId=$passwordUser->create($email,$oldPassword,'Quality password test',null);
