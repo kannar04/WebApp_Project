@@ -18,6 +18,7 @@ return [
     'Tọa độ cần có cả vĩ độ (-90 đến 90) và kinh độ (-180 đến 180), hoặc để trống cả hai.' => 'Coordinates need both a latitude (-90 to 90) and a longitude (-180 to 180), or leave both empty.',
     'Thông tin hoặc quyền sửa chỗ ở không hợp lệ.' => 'Invalid listing details or no permission to edit this listing.',
     'Không có quyền thay đổi hiển thị chỗ ở.' => 'You do not have permission to change this listing’s visibility.',
+    'Host đã tự ẩn chỗ ở này nên chỉ Host mới hiện lại được.' => 'The Host hid this listing themselves, so only the Host can show it again.',
     'Admin đã ẩn chỗ ở này nên chỉ Admin mới hiện lại được. Hãy liên hệ Admin nếu bạn cần.' => 'An Admin hid this listing, so only an Admin can show it again. Contact an Admin if you need to.',
     'Đánh giá không hợp lệ.' => 'Invalid review.',
 
@@ -84,6 +85,7 @@ return [
     'Cập nhật báo cáo' => 'Report update',
     'Tin đăng bị ẩn' => 'Listing hidden',
     'Tin đăng được hiện lại' => 'Listing shown again',
+    'Admin đã bỏ ẩn tin đăng' => 'Admin lifted the hide on your listing',
     'Chỗ ở đã bị gỡ' => 'Listing taken down',
 
     // ---- 050_quality_core.sql

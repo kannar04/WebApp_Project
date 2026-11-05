@@ -246,7 +246,9 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_admin_listings`()
 BEGIN
-    SELECT l.id,l.host_id,l.property_type_id,l.cancellation_policy_id,l.title,l.description,l.address,l.city,l.country_code,l.latitude,l.longitude,l.time_zone,l.base_nightly_rate,l.fee_amount,l.currency,l.max_guests,l.room_count,l.bedroom_count,l.bed_count,l.check_in_time,l.check_out_time,l.smoking_allowed,l.pets_allowed,l.parties_allowed,l.house_rules,l.moderation_status,l.moderation_reason,l.reviewed_by,l.reviewed_at,l.is_visible,l.created_at,l.updated_at,l.deleted_at,l.moderation_reason moderation_note,u.full_name host_name,pt.name property_type FROM listings l JOIN users u ON u.id=l.host_id JOIN property_types pt ON pt.id=l.property_type_id WHERE l.deleted_at IS NULL ORDER BY l.created_at DESC;
+    SELECT l.id,l.host_id,l.property_type_id,l.cancellation_policy_id,l.title,l.description,l.address,l.city,l.country_code,l.latitude,l.longitude,l.time_zone,l.base_nightly_rate,l.fee_amount,l.currency,l.max_guests,l.room_count,l.bedroom_count,l.bed_count,l.check_in_time,l.check_out_time,l.smoking_allowed,l.pets_allowed,l.parties_allowed,l.house_rules,l.moderation_status,l.moderation_reason,l.reviewed_by,l.reviewed_at,l.is_visible,l.created_at,l.updated_at,l.deleted_at,l.moderation_reason moderation_note,u.full_name host_name,pt.name property_type,
+        CASE WHEN l.is_visible<>0 THEN NULL ELSE COALESCE((SELECT IF(a.action<>'hide_listing','host',IF(JSON_VALUE(a.change_summary,'$.host_hidden')=1,'both','admin')) FROM admin_audit_logs a WHERE a.entity_type='listing' AND a.entity_id=l.id AND a.action IN ('hide_listing','restore_listing') ORDER BY a.id DESC LIMIT 1),'host') END hidden_by
+        FROM listings l JOIN users u ON u.id=l.host_id JOIN property_types pt ON pt.id=l.property_type_id WHERE l.deleted_at IS NULL ORDER BY l.created_at DESC;
 END$$
 
 CREATE OR REPLACE PROCEDURE `sp_admin_audit_add`(IN p_1 bigint unsigned, IN p_2 varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_3 varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_4 bigint unsigned, IN p_5 longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)

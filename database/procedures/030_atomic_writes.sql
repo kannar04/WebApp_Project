@@ -253,7 +253,11 @@ BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_lock BIGINT UNSIGNED;
     DECLARE v_was_visible BOOL;
+    DECLARE v_latest_hide BOOL;
+    DECLARE v_latest_host_hidden BOOL;
     DECLARE v_admin_hidden BOOL DEFAULT FALSE;
+    DECLARE v_host_hidden BOOL DEFAULT FALSE;
+    DECLARE v_visible BOOL;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -268,14 +272,28 @@ BEGIN
     IF v_lock IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở không tồn tại.'; END IF;
     IF p_1 IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Hiển thị không hợp lệ.'; END IF;
     -- The latest of these audit rows says who holds a hidden listing: sp_listing_set_visible refuses the Host while it is hide_listing.
-    SET v_admin_hidden=(v_was_visible=0 AND COALESCE((SELECT a.action FROM admin_audit_logs a WHERE a.entity_type='listing' AND a.entity_id=p_2 AND a.action IN ('hide_listing','restore_listing') ORDER BY a.id DESC LIMIT 1),'')='hide_listing');
-    UPDATE listings SET is_visible=p_1,updated_at=NOW(6) WHERE id=p_2;
-    INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at) VALUES(p_3,IF(p_1,'restore_listing','hide_listing'),'listing',p_2,JSON_OBJECT('details',CONCAT('visibility=',p_1)),NOW(6));
+    -- An Admin hide over the Host's own hide records host_hidden, so ending the Admin's hold hands the listing back still hidden.
+    SELECT a.action='hide_listing',COALESCE(JSON_VALUE(a.change_summary,'$.host_hidden'),0)=1 INTO v_latest_hide,v_latest_host_hidden
+        FROM admin_audit_logs a WHERE a.entity_type='listing' AND a.entity_id=p_2 AND a.action IN ('hide_listing','restore_listing') ORDER BY a.id DESC LIMIT 1;
+    SET v_admin_hidden=(v_was_visible=0 AND COALESCE(v_latest_hide,FALSE));
+    SET v_host_hidden=(v_was_visible=0 AND (NOT v_admin_hidden OR COALESCE(v_latest_host_hidden,FALSE)));
+    IF p_1<>0 AND v_was_visible=0 AND NOT v_admin_hidden THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Host đã tự ẩn chỗ ở này nên chỉ Host mới hiện lại được.';
+    END IF;
+    SET v_visible=(p_1<>0 AND NOT v_host_hidden);
+    UPDATE listings SET is_visible=v_visible,updated_at=NOW(6) WHERE id=p_2;
+    INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at) VALUES(p_3,IF(p_1,'restore_listing','hide_listing'),'listing',p_2,JSON_OBJECT('details',CONCAT('visibility=',v_visible),'host_hidden',IF(v_host_hidden,1,0)),NOW(6));
     -- A repeat click from a stale page changes nothing for the Host, so it tells them nothing either.
     IF (p_1=0 AND NOT v_admin_hidden) OR (p_1<>0 AND v_was_visible=0) THEN
         INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
-            SELECT l.host_id,NULL,'in_app',IF(p_1,'listing_shown','listing_hidden'),IF(p_1,'Tin đăng được hiện lại','Tin đăng bị ẩn'),
-                IF(p_1,CONCAT('Admin đã hiện lại tin “',l.title,'”.'),CONCAT('Admin đã ẩn tin “',l.title,'”. Tin không hiển thị với khách cho đến khi Admin hiện lại; hãy liên hệ Admin nếu bạn cần.')),'sent',1,NOW(6)
+            SELECT l.host_id,NULL,'in_app',
+                CASE WHEN p_1=0 THEN 'listing_hidden' WHEN v_visible THEN 'listing_shown' ELSE 'listing_hold_lifted' END,
+                CASE WHEN p_1=0 THEN 'Tin đăng bị ẩn' WHEN v_visible THEN 'Tin đăng được hiện lại' ELSE 'Admin đã bỏ ẩn tin đăng' END,
+                CASE WHEN p_1=0 AND v_host_hidden THEN CONCAT('Admin đã ẩn tin “',l.title,'”, tin mà bạn đang tự ẩn. Bạn chỉ hiện lại được sau khi Admin bỏ ẩn; hãy liên hệ Admin nếu bạn cần.')
+                    WHEN p_1=0 THEN CONCAT('Admin đã ẩn tin “',l.title,'”. Tin không hiển thị với khách cho đến khi Admin hiện lại; hãy liên hệ Admin nếu bạn cần.')
+                    WHEN v_visible THEN CONCAT('Admin đã hiện lại tin “',l.title,'”.')
+                    ELSE CONCAT('Admin đã bỏ ẩn tin “',l.title,'”. Tin vẫn đang ẩn vì bạn đã tự ẩn trước đó; bạn có thể tự hiện lại khi sẵn sàng.') END,
+                'sent',1,NOW(6)
             FROM listings l JOIN users u ON u.id=l.host_id WHERE l.id=p_2 AND u.deleted_at IS NULL;
     END IF;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_admin_listing_visibility; END IF;

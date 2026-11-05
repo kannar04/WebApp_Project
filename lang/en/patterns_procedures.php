@@ -48,6 +48,8 @@ return [
     'Admin đã gỡ chỗ ở “{listing}” khỏi hệ thống.' => 'Admin took your listing “{listing}” down.',
     'Admin đã ẩn tin “{listing}”. Tin không hiển thị với khách cho đến khi Admin hiện lại; hãy liên hệ Admin nếu bạn cần.' => 'Admin hid your listing “{listing}”. Guests cannot see it until an Admin shows it again; contact an Admin if you need to.',
     'Admin đã hiện lại tin “{listing}”.' => 'Admin showed your listing “{listing}” again.',
+    'Admin đã ẩn tin “{listing}”, tin mà bạn đang tự ẩn. Bạn chỉ hiện lại được sau khi Admin bỏ ẩn; hãy liên hệ Admin nếu bạn cần.' => 'Admin also hid “{listing}”, which you had hidden yourself. You can show it again only after Admin lifts this hide; contact an Admin if you need to.',
+    'Admin đã bỏ ẩn tin “{listing}”. Tin vẫn đang ẩn vì bạn đã tự ẩn trước đó; bạn có thể tự hiện lại khi sẵn sàng.' => 'Admin lifted the hide on “{listing}”. It stays hidden because you had hidden it yourself; you can show it again when you are ready.',
 
     // ---- 020_booking.sql: sp_booking_cancel Guest notification (now e.g. 1.500.000đ / 100; the second entry keeps older rows stored as 1500000.00 / 100.00)
     'Booking #{id} đã hủy. Khoản thanh toán đã được hoàn trước đó nên không có khoản hoàn thêm.' => 'Booking #{id} was cancelled. The payment was already refunded, so no further refund is due.',

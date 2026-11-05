@@ -70,6 +70,13 @@ function trustHttpClient(): CurlHandle
     return $client;
 }
 
+/** The Admin dashboard's table row for one listing. */
+function trustAdminListingRow(string $page, int $listingId): string
+{
+    preg_match('~<tr><td class="table-title">(?:(?!</tr>).)*?/admin/listings/'.$listingId.'/preview(?:(?!</tr>).)*</tr>~su', $page, $row);
+    return $row[0] ?? '';
+}
+
 function trustHttp(CurlHandle $client, string $baseUrl, string $path, ?array $data = null, array $headers = []): array
 {
     curl_setopt($client, CURLOPT_URL, $baseUrl.$path);
@@ -544,7 +551,26 @@ try {
         $shownDashboard = trustHttp($quietClient, $baseUrl, '/host')['body'];
         trustExpect(!str_contains($shownDashboard, 'data-admin-hidden') && str_contains($shownDashboard, '/host/listings/'.$quietListing.'/visibility'), 'An Admin show did not give the Host the button back.');
         trustExpect(str_contains(trustHttp($quietClient, $baseUrl, '/notifications')['body'], 'Admin đã hiện lại tin'), 'The Host got no notice of the Admin show.');
-        echo "PASS Admin hide: dashboard state in place of the button, Show refused with the reason, notices for hide and show\n";
+        // A Host's own hide: the Admin's row says so and offers no Show, and a direct POST is refused with the reason.
+        $quietVisibility = trustHttp($quietClient, $baseUrl, '/host/listings/'.$quietListing.'/visibility', ['_token' => trustToken($shownDashboard), 'visible' => '0']);
+        trustExpect($quietVisibility['status'] === 200 && trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$quietListing)['status'] === 404, 'The Host could not hide their listing.');
+        $adminPage = trustHttp($adminClient, $baseUrl, '/admin')['body'];
+        $hostHiddenRow = trustAdminListingRow($adminPage, $quietListing);
+        trustExpect(str_contains($hostHiddenRow, 'data-hidden-by="host"') && str_contains($hostHiddenRow, 'name="visible" value="0"') && !str_contains($hostHiddenRow, 'name="visible" value="1"'), 'The Admin row offers Show on a listing the Host hid, or does not say who hid it.');
+        $adminShow = trustHttp($adminClient, $baseUrl, '/admin/listings/'.$quietListing.'/visibility', ['_token' => trustToken($adminPage), 'visible' => '1']);
+        trustExpect(str_contains($adminShow['body'], 'alert-danger') && str_contains($adminShow['body'], 'chỉ Host mới hiện lại được') && trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$quietListing)['status'] === 404, 'A direct Admin POST undid a Host hide or gave no reason.');
+        // The Admin can hide it too, which blocks the Host; ending that hold gives the Host their button back and leaves the listing hidden.
+        trustHttp($adminClient, $baseUrl, '/admin/listings/'.$quietListing.'/visibility', ['_token' => trustToken($adminPage), 'visible' => '0']);
+        $adminPage = trustHttp($adminClient, $baseUrl, '/admin')['body'];
+        $bothRow = trustAdminListingRow($adminPage, $quietListing);
+        trustExpect(str_contains($bothRow, 'data-hidden-by="both"') && str_contains($bothRow, 'name="visible" value="1"') && str_contains($bothRow, 'Bỏ ẩn của Admin'), 'The Admin row does not show an Admin hide over a Host hide.');
+        $heldDashboard = trustHttp($quietClient, $baseUrl, '/host')['body'];
+        trustExpect(str_contains($heldDashboard, 'data-admin-hidden') && str_contains(trustHttp($quietClient, $baseUrl, '/notifications')['body'], 'tin mà bạn đang tự ẩn'), 'The Host was not told about the Admin hide over their own.');
+        trustHttp($adminClient, $baseUrl, '/admin/listings/'.$quietListing.'/visibility', ['_token' => trustToken($adminPage), 'visible' => '1']);
+        $handedBack = trustHttp($quietClient, $baseUrl, '/host')['body'];
+        trustExpect(!str_contains($handedBack, 'data-admin-hidden') && trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$quietListing)['status'] === 404 && str_contains(trustHttp($quietClient, $baseUrl, '/notifications')['body'], 'Tin vẫn đang ẩn'), 'Ending the Admin hold undid the Host hide or said otherwise.');
+        trustExpect(trustHttp($quietClient, $baseUrl, '/host/listings/'.$quietListing.'/visibility', ['_token' => trustToken($handedBack), 'visible' => '1'])['status'] === 200 && trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$quietListing)['status'] === 200, 'The Host could not show the listing after the Admin hold ended.');
+        echo "PASS Admin hide: dashboard state in place of the button, Show refused with the reason, notices for hide and show; the Admin row says who hid it and cannot undo a Host hide\n";
 
         // An Admin's removal of the Host role holds on the profile page and against a direct POST, until an Admin gives it back.
         $applicantProfile = trustHttp($guestOfLeaving, $baseUrl, '/profile')['body'];
