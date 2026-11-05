@@ -4,6 +4,8 @@ namespace App\Models;
 use Core\ProcedureConnection as Database;
 final class Review
 {
+    /** Same limit as sp_review_create. */
+    public const MAX_COMMENT_LENGTH = 5000;
     public function forHost(int $actorId): array
     {
         $s=\Core\ProcedureConnection::connection()->prepare('CALL sp_host_reviews(?)'); $s->execute([$actorId]); return $s->fetchAll();

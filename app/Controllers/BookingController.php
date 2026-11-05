@@ -10,7 +10,7 @@ use Core\Csrf;
 use Core\Session;
 final class BookingController extends Controller
 {
-    public function index(): void {$user=$this->requireAuth();$this->render('bookings/index',['title'=>'Chuyến đi của bạn','bookings'=>(new Booking())->forGuest((int)$user['id']),'payments'=>(new BookingExtras())->paymentMap((int)$user['id'],'guest')]);}
+    public function index(): void {$user=$this->requireAuth();$this->render('bookings/index',['title'=>'Chuyến đi của bạn','bookings'=>(new Booking())->forGuest((int)$user['id']),'payments'=>(new BookingExtras())->paymentMap((int)$user['id'],'guest'),'reviewOld'=>Session::pull('_review_old',[])]);}
     public function show(string $id): void
     {
         $user=$this->requireAuth();
@@ -28,6 +28,13 @@ final class BookingController extends Controller
     }
     public function create(string $id): never {Csrf::ensure();$user=$this->requireAuth();try{$booking=(new BookingService())->book((int)$id,(int)$user['id'],(is_string($_POST['check_in']??null)?$_POST['check_in']:''),(is_string($_POST['check_out']??null)?$_POST['check_out']:''),(int)filter_var($_POST['guests']??null,FILTER_VALIDATE_INT),(is_string($_POST['promo_code']??null)?$_POST['promo_code']:''));$bookingId=$booking['booking_id'];Session::flash('success',$booking['status']==='confirmed'?'Đặt ngay thành công! Booking #'.$bookingId.' đã được xác nhận. Bạn thanh toán khi nhận phòng.':'Yêu cầu đặt chỗ #'.$bookingId.' đã được gửi tới Host.');$this->redirect('/bookings');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');$this->redirect('/listings/'.$id);}}
     public function cancel(string $id): never {Csrf::ensure();$user=$this->requireAuth();try{$result=(new BookingService())->cancelByGuest((int)$id,(int)$user['id'],(string)($_POST['reason']??''));Session::flash('success',!$result['was_paid']?'Đã hủy booking.':($result['refund_amount']<=0?'Đã hủy booking. Theo chính sách hủy, khoản đã thanh toán không được hoàn.':'Đã hủy booking. Mức hoàn dự kiến: '.$result['refund_percent'].'%.'));}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/bookings');}
-    public function review(string $id): never {Csrf::ensure();$user=$this->requireAuth();$rating=(int)($_POST['rating']??0);$comment=trim((string)($_POST['comment']??''));if($rating<1||$rating>5||$comment===''){Session::flash('error','Vui lòng nhập số sao và nhận xét hợp lệ.');$this->redirect('/bookings');}$ok=(new Review())->create((int)$id,(int)$user['id'],$rating,$comment);Session::flash($ok?'success':'error',$ok?'Cảm ơn đánh giá của bạn.':'Chỉ booking đã hoàn thành và chưa đánh giá mới được thực hiện.');$this->redirect('/bookings');}
+    public function review(string $id): never {Csrf::ensure();$user=$this->requireAuth();$rating=(int)($_POST['rating']??0);$comment=trim(is_string($_POST['comment']??null)?$_POST['comment']:'');if($rating<1||$rating>5||$comment===''){Session::flash('error','Vui lòng nhập số sao và nhận xét hợp lệ.');$this->redirect('/bookings');}if(mb_strlen($comment)>Review::MAX_COMMENT_LENGTH){$this->reviewFailed((int)$id,$rating,$comment,'Nhận xét tối đa 5000 ký tự.');}try{$ok=(new Review())->create((int)$id,(int)$user['id'],$rating,$comment);}catch(\Throwable $e){$this->reviewFailed((int)$id,$rating,$comment,$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}Session::flash($ok?'success':'error',$ok?'Cảm ơn đánh giá của bạn.':'Chỉ booking đã hoàn thành và chưa đánh giá mới được thực hiện.');$this->redirect('/bookings');}
+    /** Back to the review form with what the Guest typed, up to the limit, as the other forms keep their input. */
+    private function reviewFailed(int $bookingId, int $rating, string $comment, string $message): never
+    {
+        Session::put('_review_old',['booking_id'=>$bookingId,'rating'=>$rating,'comment'=>mb_substr($comment,0,Review::MAX_COMMENT_LENGTH)]);
+        Session::flash('error',$message);
+        $this->redirect('/bookings');
+    }
 }
 

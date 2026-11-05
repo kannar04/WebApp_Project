@@ -98,6 +98,7 @@ return [
 
     // ---- 060_quality_community.sql
     'Phản hồi cần từ 1 đến 5000 ký tự.' => 'Reply must be 1 to 5000 characters.',
+    'Nhận xét tối đa 5000 ký tự.' => 'A review comment can be up to 5000 characters.',
     'Không có quyền phản hồi đánh giá này.' => 'You do not have permission to reply to this review.',
     'Trạng thái đánh giá không hợp lệ.' => 'Invalid review status.',
     'Đánh giá không tồn tại.' => 'The review does not exist.',

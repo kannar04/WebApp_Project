@@ -189,6 +189,8 @@ BEGIN
     IF p_1 IS NULL OR p_1<1 OR p_1>5 OR p_2 IS NULL OR TRIM(p_2)='' OR NOT EXISTS(SELECT 1 FROM users WHERE id=p_4 AND status='active') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Đánh giá không hợp lệ.';
     END IF;
+    -- Same limit as Review::MAX_COMMENT_LENGTH. Outside strict mode a longer comment would be cut at 64 KB by this TEXT parameter and still count as over the limit here.
+    IF CHAR_LENGTH(p_2)>5000 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Nhận xét tối đa 5000 ký tự.'; END IF;
     INSERT INTO reviews(booking_id,rating,comment,moderation_status,created_at,updated_at) SELECT b.id,p_1,p_2,'visible',NOW(6),NOW(6) FROM bookings b WHERE b.id=p_3 AND b.guest_id=p_4 AND b.status='completed' AND b.check_out<=CURDATE() AND NOT EXISTS(SELECT 1 FROM reviews WHERE booking_id=b.id);
     SELECT ROW_COUNT() __affected,LAST_INSERT_ID() __insert_id;
 END$$

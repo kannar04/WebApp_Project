@@ -318,6 +318,19 @@ try {
     trustExpect($trust->guideForBooking(999999999, $guestId) === null, 'Unknown booking returned a guide.');
     echo "PASS trust check-in guide: owner-only edit/read, validation, upsert/clear, pending hidden from everyone, confirmed/completed Guest+Host+Admin only, door code and Wi-Fi only inside the stay window (Host always)\n";
 
+    // Review comment length: the routine refuses over 5000 characters instead of cutting at 64 KB; on another Host so the badge counts above stay as they are.
+    $reviewListing = $listings->create($otherHostId, ['title' => 'Audit fixture trust '.$tag.' reviews'] + $listingData);
+    trustCall('CALL sp_test_listing_approve(?)', [$reviewListing]);
+    $reviewStay = (int) trustCall('CALL sp_test_trust_completed_booking(?,?,?)', [$reviewListing, $guestId, 10])[0]['booking_id'];
+    trustRejects([$reviews, 'create'], [$reviewStay, $guestId, 5, str_repeat('a', Review::MAX_COMMENT_LENGTH + 1)], 'Review comment over the limit accepted.');
+    trustRejects([$reviews, 'create'], [$reviewStay, $guestId, 5, str_repeat('ệ', 30000)], 'Review comment over 64 KB accepted.');
+    trustExpect($reviews->create($reviewStay, $guestId, 5, str_repeat('ệ', Review::MAX_COMMENT_LENGTH)), 'Review comment exactly at the limit refused.');
+    $storedComment = '';
+    foreach ($reviews->forHost($otherHostId) as $review) { if ((int) $review['booking_id'] === $reviewStay) { $storedComment = (string) $review['comment']; } }
+    trustExpect($storedComment === str_repeat('ệ', Review::MAX_COMMENT_LENGTH), 'Review comment at the limit was not stored whole.');
+    $httpReviewStay = (int) trustCall('CALL sp_test_trust_completed_booking(?,?,?)', [$reviewListing, $guestId, 20])[0]['booking_id'];
+    echo "PASS trust review comment: routine refuses over 5000 characters, exactly 5000 multibyte characters stored\n";
+
     $baseUrl = rtrim((string) getenv('HOME2HOME_TEST_URL'), '/');
     if ($baseUrl !== '') {
         $anonymous = trustHttpClient();
@@ -345,6 +358,17 @@ try {
         $endedPage = trustHttp($guestClient, $baseUrl, '/bookings/'.$windowStay);
         trustExpect($endedPage['status'] === 200 && !str_contains($endedPage['body'], 'K-4821') && str_contains($endedPage['body'], 'không còn hiển thị'), 'Completed-stay Guest page must not show the codes.');
         trustExpect(!str_contains(trustHttp($guestClient, $baseUrl, '/notifications')['body'], 'K-4821'), 'Notifications page carried the door code.');
+        // Over-long review comments come back as a friendly error with the input kept, also past the database packet limit (1 MiB), which used to answer 500.
+        $trips = trustHttp($guestClient, $baseUrl, '/bookings');
+        $tooLong = trustHttp($guestClient, $baseUrl, '/bookings/'.$httpReviewStay.'/review', ['_token' => trustToken($trips['body']), 'rating' => 4, 'comment' => str_repeat('x', Review::MAX_COMMENT_LENGTH + 1)]);
+        trustExpect($tooLong['status'] === 200 && $tooLong['path'] === '/bookings' && str_contains($tooLong['body'], 'alert-danger') && str_contains($tooLong['body'], 'tối đa 5000 ký tự'), 'Over-long review comment did not get the friendly error.');
+        trustExpect(str_contains($tooLong['body'], 'value="'.str_repeat('x', Review::MAX_COMMENT_LENGTH).'"') && str_contains($tooLong['body'], '<option value="4" selected>'), 'Over-long review comment lost the input.');
+        foreach ([70000, 2097152] as $size) {
+            $huge = trustHttp($guestClient, $baseUrl, '/bookings/'.$httpReviewStay.'/review', ['_token' => trustToken($trips['body']), 'rating' => 5, 'comment' => str_repeat('y', $size)]);
+            trustExpect($huge['status'] === 200 && $huge['path'] === '/bookings' && str_contains($huge['body'], 'tối đa 5000 ký tự'), 'A '.$size.'-byte review comment did not get the friendly error.');
+        }
+        $accepted = trustHttp($guestClient, $baseUrl, '/bookings/'.$httpReviewStay.'/review', ['_token' => trustToken($trips['body']), 'rating' => 5, 'comment' => 'Kỳ nghỉ rất tốt']);
+        trustExpect($accepted['path'] === '/bookings' && str_contains($accepted['body'], 'alert-success'), 'Normal review comment refused.');
         [$checkIn, $checkOut] = trustDates($slot++);
         $pendingId = $service->create($listingId, $guestId, $checkIn, $checkOut, 1);
         $pendingPage = trustHttp($guestClient, $baseUrl, '/bookings/'.$pendingId);
