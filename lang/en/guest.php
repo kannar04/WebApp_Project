@@ -132,6 +132,7 @@ return [
     'Mỗi booking có một cuộc trò chuyện riêng giữa Guest và Host.' => 'Each booking has its own conversation between the Guest and the Host.',
     'Xem thông báo' => 'View notifications',
     'Chưa có cuộc trò chuyện' => 'No conversations yet',
+    'Chỉ hiển thị {count} cuộc trò chuyện mới nhất.' => 'Showing only the {count} latest conversations.',
     'Mở chi tiết một booking để gửi tin nhắn đầu tiên cho Host hoặc Guest.' => 'Open a booking’s details to send your first message to the Host or Guest.',
     'Bạn:' => 'You:',
     '{count} chưa đọc' => '{count} unread',
@@ -158,6 +159,7 @@ return [
     // notifications/index.php
     'CẬP NHẬT CỦA BẠN' => 'YOUR UPDATES',
     'Chưa có thông báo' => 'No notifications yet',
+    'Chỉ hiển thị {count} thông báo mới nhất.' => 'Showing only the {count} latest notifications.',
     'Cập nhật booking sẽ xuất hiện ở đây.' => 'Booking updates will appear here.',
     'Nhắc lịch' => 'Reminder',
     'Đã đọc' => 'Read',

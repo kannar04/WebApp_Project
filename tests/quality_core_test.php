@@ -57,6 +57,12 @@ function qaSortedAmenities(Listing $listings,int $listingId): array
 {
     $ids=$listings->amenityIds($listingId); sort($ids); return $ids;
 }
+function qaRenderView(string $qaView,array $qaData): string
+{
+    extract($qaData,EXTR_SKIP); ob_start();
+    require dirname(__DIR__).'/app/Views/'.$qaView.'.php';
+    return (string)ob_get_clean();
+}
 function qaCall(string $sql,array $parameters=[]): array
 {
     $s=ProcedureConnection::connection()->prepare($sql); $s->execute($parameters); return $s->fetchAll();
@@ -484,6 +490,27 @@ $badStatus=$request('/admin?booking_status=%22x')['body'];
 qaExpect(!str_contains($badStatus,'type="hidden" name="booking_status"'),'Rejected booking status was carried.');
 $logout();
 echo "PASS QA admin user search and booking filter carry each other's value\n";
+
+// The lists cut off by a fixed LIMIT 200 say so at the limit, not below it. Rendered from the real views: the rows would otherwise need 200 bookings in the shared test database.
+$limitTime='2030-01-01 10:00:00.000000';
+$limitBooking=['id'=>1,'title'=>'T','guest_name'=>'G','host_name'=>'H','check_in'=>'2030-01-01','check_out'=>'2030-01-02','status'=>'cancelled','total_amount'=>'100000.00'];
+$limitNotification=['id'=>1,'title'=>'T','body'=>'B','event_type'=>'booking_status','booking_id'=>null,'read_at'=>$limitTime,'created_at'=>$limitTime];
+$limitConversation=['booking_id'=>1,'title'=>'T','last_at'=>$limitTime,'my_role'=>'guest','other_name'=>'O','status'=>'pending','last_hidden'=>0,'last_mine'=>0,'last_snippet'=>'S','last_truncated'=>0,'unread_count'=>0];
+$limitMessage=['id'=>1,'booking_id'=>1,'title'=>'T','booking_status'=>'pending','guest_name'=>'G','host_name'=>'H','sender_id'=>1,'sender_name'=>'S','sender_role'=>'guest','recipient_name'=>'R','body'=>'B','created_at'=>$limitTime,'read_at'=>null,'hidden_at'=>null,'hidden_reason'=>null,'hidden_by_name'=>null];
+$limitStats=['users'=>0,'guests'=>0,'hosts'=>0,'listings'=>0,'bookings'=>0,'revenue'=>0];
+foreach ([199=>false,200=>true] as $limitCount=>$limitShown) {
+    $bookingsList=qaRenderView('admin/dashboard',['stats'=>$limitStats,'users'=>[],'listings'=>[],'bookings'=>array_fill(0,$limitCount,$limitBooking),'bookingQuery'=>'','bookingStatus'=>'','trustBadges'=>[],'old'=>[]]);
+    qaExpect(str_contains($bookingsList,'Hiển thị 200 booking mới nhất (tối đa 200; hãy lọc để thu hẹp).')===$limitShown,'Admin bookings limit notice wrong at '.$limitCount);
+    $messagesList=qaRenderView('admin/messages',['thread'=>null,'results'=>array_fill(0,$limitCount,$limitMessage),'filters'=>['q'=>'','booking'=>null,'user'=>'']]);
+    qaExpect(str_contains($messagesList,'Hiển thị 200 tin nhắn mới nhất (tối đa 200; hãy lọc để thu hẹp).')===$limitShown,'Admin messages limit notice wrong at '.$limitCount);
+    $notificationsList=qaRenderView('notifications/index',['notifications'=>array_fill(0,$limitCount,$limitNotification)]);
+    qaExpect(str_contains($notificationsList,'Chỉ hiển thị 200 thông báo mới nhất.')===$limitShown,'Notifications limit notice wrong at '.$limitCount);
+    $inboxList=qaRenderView('messages/index',['conversations'=>array_fill(0,$limitCount,$limitConversation)]);
+    qaExpect(str_contains($inboxList,'Chỉ hiển thị 200 cuộc trò chuyện mới nhất.')===$limitShown,'Inbox limit notice wrong at '.$limitCount);
+}
+$threadList=qaRenderView('admin/messages',['thread'=>array_fill(0,200,$limitMessage),'results'=>[],'filters'=>['q'=>'','booking'=>1,'user'=>'']]);
+qaExpect(!str_contains($threadList,'tin nhắn mới nhất'),'One booking thread is not a limited search.');
+echo "PASS QA admin bookings, admin messages, notifications and inbox say so when the 200 row limit is reached\n";
 
 $passwordUser=new User(); $email='quality-password-'.bin2hex(random_bytes(6)).'@home2home.test';
 $oldPassword='QaOld!'.bin2hex(random_bytes(10)); $newPassword='QaNew!'.bin2hex(random_bytes(10));

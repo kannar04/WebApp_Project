@@ -247,6 +247,7 @@ return [
     'Cuộc trò chuyện booking #{id}' => 'Booking #{id} conversation',
     'Kết quả tìm kiếm' => 'Search results',
     'Tin nhắn mới nhất' => 'Latest messages',
+    'Hiển thị {count} tin nhắn mới nhất' => 'Showing the {count} latest message(s)',
     'Chi tiết booking' => 'Booking details',
     'Không có tin nhắn phù hợp' => 'No matching messages',
     'Booking này chưa có tin nhắn hoặc không tồn tại.' => 'This booking has no messages yet or does not exist.',
