@@ -473,6 +473,43 @@ try {
         trustExpect(str_contains(trustHttp($guestOfLeaving, $baseUrl, $bookingPath)['body'], $linkLabel), 'The link did not come back with the listing.');
         echo "PASS booking page links to the public listing only while it is public, for guest, Host and Admin\n";
 
+        // The contact note says only what is true in each state. Neither party of this booking has a phone.
+        $quietHostEmail = sprintf($emailFor, 'quiethost');
+        $quietHost = $users->adminCreate(['email' => $quietHostEmail, 'password' => $password, 'full_name' => 'Trust Quiet Host', 'phone' => ''], ['guest', 'host']);
+        $quietListing = $listings->create($quietHost, ['title' => 'Audit fixture trust '.$tag.' quiet'] + $listingData);
+        trustCall('CALL sp_test_listing_approve(?)', [$quietListing]);
+        $quietClient = trustLogin($baseUrl, $quietHostEmail, $password);
+        $contactNote = 'Thông tin liên hệ của hai bên chỉ mở sau khi booking được xác nhận.';
+        $noHostPhone = 'Host chưa cung cấp số điện thoại.';
+        $noGuestPhone = 'Khách chưa cung cấp số điện thoại.';
+        [$quietIn, $quietOut] = trustDates(41);
+        $quietStay = $service->create($quietListing, $leavingGuest, $quietIn, $quietOut, 1);
+        $quietPath = '/bookings/'.$quietStay;
+        $asGuest = trustHttp($guestOfLeaving, $baseUrl, $quietPath)['body'];
+        $asHost = trustHttp($quietClient, $baseUrl, $quietPath)['body'];
+        $asAdmin = trustHttp($adminClient, $baseUrl, $quietPath)['body'];
+        trustExpect(str_contains($asGuest, $contactNote) && str_contains($asHost, $contactNote) && !str_contains($asAdmin, $contactNote), 'Pending: the note must reach the two parties and not the Admin.');
+        trustExpect(!str_contains($asGuest, $noHostPhone) && !str_contains($asHost, $noGuestPhone), 'Pending: phones are not missing yet, only closed.');
+        $service->hostTransition($quietStay, $quietHost, 'confirmed');
+        $asGuest = trustHttp($guestOfLeaving, $baseUrl, $quietPath)['body'];
+        $asHost = trustHttp($quietClient, $baseUrl, $quietPath)['body'];
+        $asAdmin = trustHttp($adminClient, $baseUrl, $quietPath)['body'];
+        trustExpect(str_contains($asGuest, $noHostPhone) && !str_contains($asGuest, $contactNote), 'Confirmed: the guest was not told the Host has no phone.');
+        trustExpect(str_contains($asHost, $noGuestPhone) && !str_contains($asHost, $contactNote), 'Confirmed: the Host was not told the guest has no phone.');
+        trustExpect(!str_contains($asAdmin, $contactNote) && !str_contains($asAdmin, $noHostPhone) && !str_contains($asAdmin, $noGuestPhone), 'Confirmed: the Admin got a contact note.');
+        $service->cancelByGuest($quietStay, $leavingGuest, 'Trust contact note fixture');
+        [$quietIn, $quietOut] = trustDates(42);
+        $quietRefused = $service->create($quietListing, $leavingGuest, $quietIn, $quietOut, 1);
+        $service->hostTransition($quietRefused, $quietHost, 'rejected');
+        foreach ([$quietPath, '/bookings/'.$quietRefused] as $closedPath) {
+            foreach ([$guestOfLeaving, $quietClient, $adminClient] as $party) {
+                $closed = trustHttp($party, $baseUrl, $closedPath)['body'];
+                trustExpect(!str_contains($closed, $contactNote) && !str_contains($closed, $noHostPhone) && !str_contains($closed, $noGuestPhone), 'A cancelled or rejected booking still shows a contact note.');
+            }
+        }
+        foreach ([$guestOfLeaving, $quietClient] as $client) { curl_close($client); }
+        echo "PASS contact note: pending for the two parties, missing phone when confirmed, nothing when cancelled or rejected or for the Admin\n";
+
         foreach ([$anonymous, $guestClient, $otherClient, $adminClient, $hostClient, $otherHostClient] as $client) { curl_close($client); }
         echo "PASS trust HTTP: login/403/404 guards, CSRF 419 on verification and decision, profile submit/duplicate, Admin queue+approval+masked history+badges, Host progress/guide save/validation, public pages without secrets\n";
     }
