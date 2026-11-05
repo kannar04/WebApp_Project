@@ -244,7 +244,7 @@ BEGIN
             JSON_EXTRACT(v_policy,'$.early_refund_pct'),JSON_EXTRACT(v_policy,'$.late_refund_pct'));
         SET v_base=v_total-IF(JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.refund_fees')) IN ('true','1'),0,v_fee);
     END IF;
-    SET v_refund=ROUND(GREATEST(0,v_base)*v_percent/100,2);
+    SET v_refund=ROUND(GREATEST(0,v_base)*v_percent/100,0);
     UPDATE bookings SET status='cancelled',updated_at=NOW(6) WHERE id=p_booking;
     INSERT INTO booking_cancellations(booking_id,cancelled_by,reason,refund_amount,calculation_details,created_at)
         VALUES(p_booking,p_guest,TRIM(p_reason),v_refund,JSON_OBJECT('policy',JSON_EXTRACT(v_policy,'$'),'refund_percent',v_percent,'refundable_base',v_base),NOW(6));

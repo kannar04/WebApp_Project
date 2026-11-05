@@ -8,11 +8,11 @@ CREATE OR REPLACE PROCEDURE sp_booking_extras_night_rate(IN p_day DATE, IN p_bas
     OUT o_rate DECIMAL(12,2), OUT o_kind VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
     IF p_holiday IS NOT NULL AND EXISTS(SELECT 1 FROM public_holidays WHERE holiday_date=p_day) THEN
-        SET o_rate=p_holiday; SET o_kind='holiday';
+        SET o_rate=ROUND(p_holiday,0); SET o_kind='holiday';
     ELSEIF p_weekend IS NOT NULL AND DAYOFWEEK(p_day) IN (6,7) THEN
-        SET o_rate=p_weekend; SET o_kind='weekend';
+        SET o_rate=ROUND(p_weekend,0); SET o_kind='weekend';
     ELSE
-        SET o_rate=p_base; SET o_kind='base';
+        SET o_rate=ROUND(p_base,0); SET o_kind='base';
     END IF;
 END$$
 
@@ -57,6 +57,8 @@ BEGIN
     END IF;
     IF o_base IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở không khả dụng.'; END IF;
     SET o_instant=COALESCE(o_instant,FALSE);
+    -- Hosts and Admins may type decimals: VND has no fractions, so every price component is whole dong before anything is added up.
+    SET o_base=ROUND(o_base,0); SET o_fee=ROUND(o_fee,0); SET o_weekend_rate=ROUND(o_weekend_rate,0); SET o_holiday_rate=ROUND(o_holiday_rate,0);
     SET o_nights=DATEDIFF(p_end,p_start); SET o_subtotal=0; SET o_weekend_nights=0; SET o_holiday_nights=0; SET v_day=p_start;
     WHILE v_day<p_end DO
         CALL sp_booking_extras_night_rate(v_day,o_base,o_weekend_rate,o_holiday_rate,v_rate,v_kind);
@@ -111,7 +113,7 @@ BEGIN
                     SET o_promo_amount=v_value;
                 END IF;
                 -- Discount applies to the nights subtotal after the stay-length discount and never goes below zero.
-                SET o_promo_amount=LEAST(o_promo_amount,v_after);
+                SET o_promo_amount=ROUND(LEAST(o_promo_amount,v_after),0);
             END IF;
         END IF;
         IF p_strict AND o_promo_message IS NOT NULL THEN
@@ -119,7 +121,7 @@ BEGIN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=v_message;
         END IF;
     END IF;
-    SET o_total=v_after-o_promo_amount+o_fee;
+    SET o_total=ROUND(v_after-o_promo_amount+o_fee,0);
 END$$
 
 -- Public rule summary for the listing detail page (no private data).

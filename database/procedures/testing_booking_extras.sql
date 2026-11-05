@@ -13,6 +13,7 @@ BEGIN
         (SELECT COUNT(*) FROM notifications WHERE booking_id=b.id AND event_type IN ('payment_paid','payment_refunded')) payment_notices,
         (SELECT COUNT(*) FROM booking_payment_events WHERE booking_id=b.id) payment_events,
         (SELECT COUNT(*) FROM admin_audit_logs WHERE entity_type='booking' AND entity_id=b.id AND action IN ('mark_payment_paid','refund_payment')) payment_audits,
+        (SELECT SUM(nightly_amount) FROM booking_nights WHERE booking_id=b.id) nights_total,
         (SELECT GROUP_CONCAT(CONCAT(stay_date,'=',CAST(nightly_amount AS DECIMAL(12,0))) ORDER BY stay_date SEPARATOR ',') FROM booking_nights WHERE booking_id=b.id) nights
     FROM bookings b LEFT JOIN booking_price_breakdowns bp ON bp.booking_id=b.id LEFT JOIN booking_payments pay ON pay.booking_id=b.id WHERE b.id=p_booking;
 END$$

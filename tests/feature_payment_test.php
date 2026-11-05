@@ -13,7 +13,7 @@ use Core\ProcedureConnection;
 /*
  * Online payment: VietQR bank transfer (Guest reports it, Admin confirms or rejects) and VNPay (signed return URL and IPN).
  * Works on the workspace dev database directly and inside fresh_setup_test.php, which gives the server a fake receiving
- * account and a per-run VNPay secret. Fixture dates are today+4300..4330 days. Everything created here is removed in `finally`.
+ * account and a per-run VNPay secret. Fixture dates are today+4300..4400 days. Everything created here is removed in `finally`.
  */
 
 function payExpect(bool $condition, string $message): void
@@ -212,6 +212,40 @@ try {
     payExpect($state['booking_status']==='cancelled' && $state['payment_status']==='paid' && (int)$state['admin_refund_notices']>=1,'Money received after cancelling was not flagged for a refund: '.json_encode($state));
     payRejects([$payments,'start'],[$bookingC,$guestId,'vnpay'],'đã được ghi nhận thanh toán','A cancelled booking started a payment');
     echo "PASS VNPay results: unknown/amount guards, cancelled, success once, repeat-safe, duplicate and after-cancel payments flagged for refund\n";
+
+    // ---- Whole dong: a booking still holding a decimal amount pays one rounded figure on VietQR and VNPay.
+    $bookingF=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,30);
+    payCall('CALL sp_test_payment_set_amount(?,?)',[$bookingF,'220000.50']);
+    $wholeVnpay=$payments->start($bookingF,$guestId,'vnpay');
+    $wholeQr=$payments->start($bookingF,$guestId,'vietqr');
+    payExpect((float)$wholeVnpay['amount']===220001.0 && (float)$wholeQr['amount']===220001.0,'Attempts of a decimal booking are not whole dong: '.json_encode([$wholeVnpay,$wholeQr]));
+    $wholeGateway=['vnpay_tmn_code'=>'H2HTEST1','vnpay_hash_secret'=>'fixture-secret','vnpay_pay_url'=>'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'];
+    parse_str((string)parse_url(VnpayGateway::paymentUrl($wholeGateway,$wholeVnpay,'http://127.0.0.1/payments/vnpay/return','127.0.0.1','vi',new DateTimeImmutable('now')),PHP_URL_QUERY),$query);
+    $wholeLink=VietQr::imageUrl(['bank_id'=>'970436','account_no'=>'0001234567','account_name'=>'HOME2HOME TEST'],(float)$wholeQr['amount'],$wholeQr['reference']);
+    payExpect($query['vnp_Amount']==='22000100' && str_contains($wholeLink,'amount=220001&'),'VietQR and VNPay do not ask for the same whole-dong amount.');
+    payExpect((int)$payments->start($bookingF,$guestId,'vietqr')['transaction_id']===(int)$wholeQr['transaction_id'],'Reloading the QR page of a decimal booking changed the transfer code.');
+    foreach (['220000.00','220000.50','220002.00'] as $wrongAmount) {
+        payExpect($payments->vnpayResult($wholeVnpay['reference'],$wrongAmount,'00','00','14000010','NCB')['result']==='invalid_amount' && payInspect($bookingF)['payment_status']==='unpaid','A genuinely different amount was accepted: '.$wrongAmount);
+    }
+    $result=$payments->vnpayResult($wholeVnpay['reference'],'220001.00','00','00','14000010','NCB');
+    $state=payInspect($bookingF);
+    payExpect($result['result']==='ok' && $result['transaction_status']==='succeeded' && $state['payment_status']==='paid' && (float)$state['amount_due']===220001.0,'A correct whole-dong payment was not recorded: '.json_encode($state));
+    $wholeRefund=$service->cancelByGuest($bookingF,$guestId,'Audit fixture whole dong')['refund_amount'];
+    payExpect(fmod($wholeRefund,1.0)===0.0,'The refund of a decimal booking is not whole dong: '.$wholeRefund);
+    $bookingG=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,33);
+    $oldVnpay=$payments->start($bookingG,$guestId,'vnpay');
+    payCall('CALL sp_test_payment_set_amount(?,?)',[$bookingG,'220000.50']);
+    payExpect((float)payAttempt((int)$oldVnpay['transaction_id'])['amount']===220000.5,'Fixture did not keep the decimal attempt.');
+    $result=$payments->vnpayResult($oldVnpay['reference'],'220001.00','00','00','14000011','NCB');
+    payExpect($result['result']==='ok' && $result['transaction_status']==='succeeded' && (float)payInspect($bookingG)['amount_due']===220001.0,'An attempt started with a decimal amount became invalid_amount.');
+    $bookingH=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,36);
+    $oldQr=$payments->start($bookingH,$guestId,'vietqr');
+    payCall('CALL sp_test_payment_set_amount(?,?)',[$bookingH,'220000.50']);
+    payExpect((int)$payments->start($bookingH,$guestId,'vietqr')['transaction_id']===(int)$oldQr['transaction_id'],'A decimal QR attempt was not reused.');
+    $payments->submitTransfer((int)$oldQr['transaction_id'],$guestId);
+    $payments->decideTransfer((int)$oldQr['transaction_id'],$adminId,'confirm','');
+    payExpect((float)payInspect($bookingH)['amount_due']===220001.0,'Confirming a decimal transfer did not record whole dong.');
+    echo "PASS whole dong: decimal bookings pay one rounded figure on VietQR and VNPay, correct amount never invalid, different amount still invalid, refund whole dong\n";
 
     // ---- Signing and QR links (pure PHP).
     $gateway=VnpayGateway::enabled($paymentConfig) ? $paymentConfig

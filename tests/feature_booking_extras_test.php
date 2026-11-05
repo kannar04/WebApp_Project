@@ -351,6 +351,29 @@ try {
     bxExpect($state['payment_status']==='paid' && (float)$state['amount_due']===120000.0 && (int)$state['payment_audits']===1,'Admin payment on a booking without a payment row failed.');
     echo "PASS pay at check-in: not before check-in, Host owner/Admin only, once only, Admin refund with note + audit, filters/totals, bookings without a payment row\n";
 
+    // ---- VND has no fractions: decimal rates, fee and promo values price in whole dong, and the rows add up.
+    $extras->saveHostSettings($listingId,$hostId,'150000.40','300000.60','10','20',false);
+    $listings->update($listingId,$hostId,array_merge($data,['cleaning_fee'=>'20000.50']));
+    bxCall('CALL sp_test_listing_approve(?)',[$listingId]);
+    $codeD='TBX'.$suffix.'D'; $codeC='TBX'.$suffix.'C';
+    bxPromotion($extras,$adminId,$promotions,$codeD,['type'=>'fixed','value'=>'10000.50','max'=>null]);
+    bxPromotion($extras,$adminId,$promotions,$codeC,['value'=>'50','max'=>'20000.75']);
+    $whole=$service->quote($listingId,$d0,$d7,1,$codeD);
+    $wholeSum=0.0;
+    foreach ($whole['breakdown'] as $row) { if ($row['kind']!=='total') { $wholeSum+=$row['amount']; } }
+    bxExpect($whole['subtotal']===1150002.0 && $whole['promo']['discount']===10001.0 && $whole['fee']===20001.0 && $whole['total']===1045002.0 && $wholeSum===1045002.0,
+        'Decimal prices did not quote whole dong: '.json_encode($whole,JSON_UNESCAPED_UNICODE));
+    bxExpect($service->quote($listingId,$d0,$d7,1,$codeC)['promo']['discount']===20001.0,'A decimal promo cap did not round to whole dong.');
+    $wholeBooking=$service->book($listingId,$guestId,$d0,$d7,1,$codeD);
+    $state=bxInspect($wholeBooking['booking_id']);
+    bxExpect((float)$state['total_amount']===1045002.0 && (float)$state['breakdown_total']===1045002.0 && (float)$state['amount_due']===1045002.0
+        && (float)$state['fee_amount']===20001.0 && (float)$state['nights_total']===1150002.0,'Stored decimal booking is not whole dong: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $service->cancelByGuest($wholeBooking['booking_id'],$guestId,'Audit fixture whole dong');
+    $listings->update($listingId,$hostId,$data);
+    bxCall('CALL sp_test_listing_approve(?)',[$listingId]);
+    $extras->saveHostSettings($listingId,$hostId,'150000','300000','10','20',true);
+    echo "PASS whole dong pricing: decimal weekend/holiday rate, fee, fixed promo and promo cap round per component; rows, total, nights and amount due agree\n";
+
     // ---- HTTP (controllers, CSRF, roles, pages) when a server is available.
     $baseUrl=rtrim((string)(getenv('HOME2HOME_TEST_URL')?:($app['url']?:'')),'/');
     $probe=null;

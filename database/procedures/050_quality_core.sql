@@ -163,7 +163,7 @@ BEGIN
                 JSON_EXTRACT(v_policy,'$.early_refund_pct'),JSON_EXTRACT(v_policy,'$.late_refund_pct'));
             SET v_base=v_total-IF(JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.refund_fees')) IN ('true','1'),0,v_fee);
         END IF;
-        SELECT v_percent refund_percent,ROUND(GREATEST(0,v_base)*v_percent/100,2) refund_amount;
+        SELECT v_percent refund_percent,ROUND(GREATEST(0,v_base)*v_percent/100,0) refund_amount;
     END IF;
 END$$
 

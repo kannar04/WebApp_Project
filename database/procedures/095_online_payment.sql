@@ -51,7 +51,8 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không có quyền thanh toán booking này.';
     END IF;
     SELECT status,amount_due INTO v_payment,v_due FROM booking_payments WHERE booking_id=p_booking FOR UPDATE;
-    SET v_due=COALESCE(v_due,v_total);
+    -- VND has no fractions: a booking saved with a decimal amount is charged in whole dong, the same figure on VietQR and VNPay.
+    SET v_due=ROUND(COALESCE(v_due,v_total),0);
     IF COALESCE(v_payment,'unpaid')<>'unpaid' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được ghi nhận thanh toán.'; END IF;
     IF v_status<>'confirmed' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ thanh toán online cho booking đã được xác nhận.'; END IF;
     IF v_currency<>'VND' OR v_due<=0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này không hỗ trợ thanh toán online.'; END IF;
@@ -61,7 +62,7 @@ BEGIN
     IF p_provider='vietqr' THEN
         -- Reloading the QR page keeps the same transfer content, so the Guest never sees two codes for one booking.
         SELECT id INTO v_attempt FROM payment_transactions
-        WHERE booking_id=p_booking AND provider='vietqr' AND status='pending' AND amount=v_due ORDER BY id DESC LIMIT 1 FOR UPDATE;
+        WHERE booking_id=p_booking AND provider='vietqr' AND status='pending' AND ROUND(amount,0)=v_due ORDER BY id DESC LIMIT 1 FOR UPDATE;
     END IF;
     IF v_attempt IS NULL THEN
         INSERT INTO payment_transactions(booking_id,provider,reference,amount,status,created_at,updated_at)
@@ -171,7 +172,7 @@ BEGIN
     SELECT guest_id,total_amount INTO v_guest,v_total FROM bookings WHERE id=v_booking FOR UPDATE;
     IF v_guest IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không tìm thấy giao dịch thanh toán.'; END IF;
     SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
-    SELECT provider,status,reference,amount INTO v_provider,v_status,v_reference,v_amount FROM payment_transactions WHERE id=p_transaction FOR UPDATE;
+    SELECT provider,status,reference,ROUND(amount,0) INTO v_provider,v_status,v_reference,v_amount FROM payment_transactions WHERE id=p_transaction FOR UPDATE;
     IF v_provider<>'vietqr' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ xác nhận giao dịch chuyển khoản VietQR.'; END IF;
     IF v_status NOT IN ('pending','submitted') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giao dịch chuyển khoản này đã được xử lý.'; END IF;
     IF p_decision='confirm' THEN
@@ -243,7 +244,8 @@ BEGIN
         SELECT id INTO v_lock FROM listings WHERE id=v_listing FOR UPDATE;
         SELECT guest_id,status INTO v_guest,v_booking_status FROM bookings WHERE id=v_booking FOR UPDATE;
         SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
-        SELECT status,amount INTO v_status,v_amount FROM payment_transactions WHERE id=v_attempt FOR UPDATE;
+        -- VNPay was asked for the whole-dong amount, even if this attempt was stored with a decimal before amounts were rounded.
+        SELECT status,ROUND(amount,0) INTO v_status,v_amount FROM payment_transactions WHERE id=v_attempt FOR UPDATE;
         IF p_amount IS NULL OR p_amount<>v_amount THEN
             SET v_result='invalid_amount';
         ELSEIF v_status NOT IN ('pending','cancelled') THEN

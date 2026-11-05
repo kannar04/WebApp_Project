@@ -26,6 +26,17 @@ BEGIN
     FROM payment_transactions WHERE id=p_transaction;
 END$$
 
+-- Simulates a booking saved before amounts were whole dong: its total, amount due and open attempts hold a decimal.
+CREATE OR REPLACE PROCEDURE sp_test_payment_set_amount(IN p_booking BIGINT UNSIGNED, IN p_amount DECIMAL(12,2))
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=p_booking AND l.city='Audit' AND l.title LIKE 'Audit fixture PAY %') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to change a non-fixture booking.';
+    END IF;
+    UPDATE bookings SET total_amount=p_amount WHERE id=p_booking;
+    UPDATE booking_payments SET amount_due=p_amount WHERE booking_id=p_booking;
+    UPDATE payment_transactions SET amount=p_amount WHERE booking_id=p_booking AND status='pending';
+END$$
+
 -- Removes every booking of a fixture listing (with children, payment attempts included), then the listing itself.
 CREATE OR REPLACE PROCEDURE sp_test_payment_cleanup(IN p_listing BIGINT UNSIGNED)
 BEGIN
