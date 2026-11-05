@@ -322,6 +322,44 @@ function Check-SiteIcon {
     }
 }
 
+function Check-MonthArrowsCarryStay {
+    # A month arrow is a full page load: dates and guests typed on the listing go with it, as the current values. A plain page keeps plain arrows, and without JS they are what the server wrote.
+    $arrows="(function(){return Array.from(document.querySelectorAll('#availability-calendar > div:first-child a')).map(function(link){const url=new URL(link.href);return url.pathname+url.search+url.hash;});})()"
+    $month='\?month=\d{4}-\d{2}'
+    $hash='#availability-calendar$'
+    Navigate '/listings/1'
+    if (@(Evaluate $arrows | Where-Object { $_ -notmatch ('^/listings/1'+$month+$hash) }).Count) { throw "Plain month arrows gained a query: $(Evaluate $arrows)" }
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_in.value='2035-09-10';f.elements.check_in.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+    if (@(Evaluate $arrows | Where-Object { $_ -notmatch ('^/listings/1'+$month+'&check_in=2035-09-10'+$hash) }).Count) { throw "Month arrows lost a lone check-in: $(Evaluate $arrows)" }
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_out.value='2035-09-12';f.elements.guests.value='2';f.elements.guests.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+    $stay='&check_in=2035-09-10&check_out=2035-09-12&guests=2'
+    if (@(Evaluate $arrows | Where-Object { $_ -notmatch ('^/listings/1'+$month+$stay+$hash) }).Count) { throw "Month arrows lost the typed stay: $(Evaluate $arrows)" }
+    $next=Evaluate "new URL(document.querySelectorAll('#availability-calendar > div:first-child a')[1].href).searchParams.get('month')"
+    Evaluate "window.__beforeArrow=true;document.querySelectorAll('#availability-calendar > div:first-child a')[1].click();true" | Out-Null
+    Wait-FilterPage "!window.__beforeArrow&&new URLSearchParams(location.search).get('month')==='$next'&&!!document.querySelector('[data-quote] .is-total')"
+    $seen=Evaluate "(function(){const f=document.querySelector('[data-booking-form]');return {checkIn:f.elements.check_in.value,checkOut:f.elements.check_out.value,guests:f.elements.guests.value,shown:document.querySelector('.calendar-day').dataset.date};})()"
+    if ($seen.checkIn -ne '2035-09-10' -or $seen.checkOut -ne '2035-09-12' -or $seen.guests -ne '2' -or !$seen.shown.StartsWith($next)) { throw "The arrow lost the stay: $($seen | ConvertTo-Json -Compress)" }
+    # Current values, not the ones in the address: a changed date replaces it, an emptied one and the default one guest leave.
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_in.value='';f.elements.check_out.value='2035-09-15';f.elements.guests.value='1';f.elements.guests.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+    if (@(Evaluate $arrows | Where-Object { $_ -notmatch ('^/listings/1'+$month+'&check_out=2035-09-15'+$hash) }).Count) { throw "Month arrows kept old values: $(Evaluate $arrows)" }
+    # Back fills the form in without an input event, a lone date too.
+    Navigate '/listings/1'
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_in.value='2035-09-20';f.elements.check_in.dispatchEvent(new Event('input',{bubbles:true}));window.__beforeArrow=true;document.querySelectorAll('#availability-calendar > div:first-child a')[1].click();return true;})()" | Out-Null
+    Wait-FilterPage "!window.__beforeArrow&&location.search.includes('month=')&&document.querySelector('[data-booking-form]').elements.check_in.value==='2035-09-20'"
+    Evaluate "history.back();true" | Out-Null
+    Wait-FilterPage "!location.search&&document.querySelector('[data-booking-form]').elements.check_in.value==='2035-09-20'"
+    if (@(Evaluate $arrows | Where-Object { $_ -notmatch ('^/listings/1'+$month+'&check_in=2035-09-20'+$hash) }).Count) { throw "Month arrows lost the date Back restored: $(Evaluate $arrows)" }
+    # Without JS the arrows stay as the server writes them.
+    Send-Cdp 'Emulation.setScriptExecutionDisabled' @{value=$true} | Out-Null
+    Navigate '/listings/1'
+    $plain=@(Evaluate $arrows)
+    Navigate ('/listings/1?check_in=2035-09-10&check_out=2035-09-12&guests=2')
+    $carried=@(Evaluate $arrows)
+    Send-Cdp 'Emulation.setScriptExecutionDisabled' @{value=$false} | Out-Null
+    if (@($plain | Where-Object { $_ -notmatch ('^/listings/1'+$month+$hash) }).Count -or @($carried | Where-Object { $_ -notmatch ('^/listings/1'+$month+$stay+$hash) }).Count) { throw "Month arrows without JS changed: $($plain -join ' ') $($carried -join ' ')" }
+    Write-Output 'PASS browser month arrows take the dates and guests typed on the listing, as they stand and after Back; plain pages and pages without JS keep the arrows the server wrote'
+}
+
 function Check-LoginCarriesBooking {
     # Signed out, the sign-in link takes the chosen stay along: same site, encoded, following the form. After signing in the listing has it back and quotes it.
     Navigate '/listings/1'
@@ -712,6 +750,7 @@ try {
     Check-SearchStayToListing
     Write-Output 'PASS browser search dates and guests reach the listing from cards and the map, quote by themselves and survive month arrows and sign-in; plain links stay plain'
     Check-LoginCarriesBooking
+    Check-MonthArrowsCarryStay
     Check-MenuWithoutScript
     Navigate '/login'
     Check-Page 'login'

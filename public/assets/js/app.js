@@ -115,6 +115,19 @@
         link.href = login.href;
     }
 
+    // A calendar month arrow is a full page load, so it takes the dates and guests as they stand, in the query the page reads them back from. One guest is the default and stays out of it, as on the listing cards, so a plain page keeps plain arrows.
+    function carryBookingToMonthArrows(form) {
+        for (const arrow of document.querySelectorAll('#availability-calendar a')) {
+            const target = new URL(arrow.href);
+            for (const name of ['check_in', 'check_out', 'guests']) {
+                const value = form.elements.namedItem(name).value;
+                target.searchParams.delete(name);
+                if (value !== '' && !(name === 'guests' && value === '1')) { target.searchParams.set(name, value); }
+            }
+            arrow.href = target.href;
+        }
+    }
+
     function bookingQuoteKey(form) {
         const fields = form.elements;
         return [fields.namedItem('check_in').value, fields.namedItem('check_out').value, fields.namedItem('guests').value, fields.namedItem('promo_code').value].join('|');
@@ -124,7 +137,9 @@
     // A page out of the back/forward cache keeps its old total, so that gets a fresh one too. Either way one quote: dates already quoted on load are left alone.
     function quoteRestoredDates(event) {
         const form = document.querySelector('[data-booking-form]');
-        if (!form || !form.elements.namedItem('check_in').value || !form.elements.namedItem('check_out').value) { return; }
+        if (!form) { return; }
+        carryBookingToMonthArrows(form);
+        if (!form.elements.namedItem('check_in').value || !form.elements.namedItem('check_out').value) { return; }
         if (event.persisted || form.dataset.quotedFor !== bookingQuoteKey(form)) {
             form.elements.namedItem('check_out').dispatchEvent(new Event('input', {bubbles: true}));
         }
@@ -337,6 +352,7 @@
             function updateQuote() {
                 bookingForm.dataset.quotedFor = bookingQuoteKey(bookingForm);
                 carryBookingToLogin(bookingForm);
+                carryBookingToMonthArrows(bookingForm);
                 clearTimeout(timer);
                 requestController?.abort();
                 const currentRevision = ++revision;
