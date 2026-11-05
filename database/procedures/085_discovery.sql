@@ -40,7 +40,7 @@ BEGIN
         AND (COALESCE(p_min,0)=0 OR l.base_nightly_rate>=p_min) AND (COALESCE(p_max,0)=0 OR l.base_nightly_rate<=p_max)
         AND (p_start IS NULL OR (
             NOT EXISTS(SELECT 1 FROM listing_availability a WHERE a.listing_id=l.id AND a.is_open=0 AND a.stay_date>=p_start AND a.stay_date<p_end)
-            AND NOT EXISTS(SELECT 1 FROM bookings b WHERE b.listing_id=l.id AND b.status IN ('pending','confirmed') AND b.check_in<p_end AND b.check_out>p_start)))
+            AND NOT EXISTS(SELECT 1 FROM bookings b WHERE b.listing_id=l.id AND b.status IN ('pending','confirmed') AND (b.status='confirmed' OR b.check_in>=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) AND b.check_in<p_end AND b.check_out>p_start)))
     ORDER BY rating DESC,review_count DESC,l.id DESC
     LIMIT p_limit;
     SELECT FOUND_ROWS() __total;

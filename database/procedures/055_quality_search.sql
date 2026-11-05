@@ -31,7 +31,7 @@ BEGIN
             AND NOT EXISTS(SELECT 1 FROM listing_amenities la WHERE la.listing_id=l.id AND la.amenity_id=wanted.id))
         AND (p_start IS NULL OR p_end IS NULL OR (
             NOT EXISTS(SELECT 1 FROM listing_availability a WHERE a.listing_id=l.id AND a.is_open=0 AND a.stay_date>=p_start AND a.stay_date<p_end)
-            AND NOT EXISTS(SELECT 1 FROM bookings b WHERE b.listing_id=l.id AND b.status IN ('pending','confirmed') AND b.check_in<p_end AND b.check_out>p_start)))
+            AND NOT EXISTS(SELECT 1 FROM bookings b WHERE b.listing_id=l.id AND b.status IN ('pending','confirmed') AND (b.status='confirmed' OR b.check_in>=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) AND b.check_in<p_end AND b.check_out>p_start)))
     ORDER BY CASE WHEN p_sort='price_asc' THEN l.base_nightly_rate END ASC,
         CASE WHEN p_sort='price_desc' THEN l.base_nightly_rate END DESC,
         CASE WHEN p_sort='rating' THEN rating END DESC,l.created_at DESC,l.id DESC

@@ -10,6 +10,7 @@ use App\Models\AdminRepository;
 use App\Models\Catalog;
 use App\Models\Report;
 use App\Models\Notification;
+use App\Models\Discovery;
 use App\Services\BookingService;
 use Core\ProcedureConnection;
 
@@ -385,6 +386,40 @@ try {
         ensure(bookingState($rejectable)['status']==='rejected','A request with a blocked date could not be rejected.');
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS blocked date inside a pending request: Accept says how to proceed, reopening allows it, Reject still works\n";
+
+    // A pending request whose check-in has passed holds no dates; one that can still be confirmed does. Everything rolls back.
+    $db->beginTransaction();
+    try {
+        $service=new BookingService(); $discovery=new Discovery(); $hostId=(int)$host['id']; $guestId=(int)$guest['id']; $tag=bin2hex(random_bytes(6));
+        $today=new DateTimeImmutable('today',new DateTimeZone('Asia/Ho_Chi_Minh')); $farAway=$today->modify('+100 days');
+        $staleListing=$model->create($hostId,['title'=>'Audit fixture BX '.$tag,'latitude'=>10.5,'longitude'=>106.5]+$data);
+        callRows('CALL sp_test_listing_approve(?)',[$staleListing]);
+        $stale=$service->create($staleListing,$guestId,$farAway->format('Y-m-d'),$farAway->modify('+6 days')->format('Y-m-d'),1);
+        callRows('CALL sp_test_booking_extras_backdate(?)',[$stale]);
+        $free=[$today->modify('+2 days')->format('Y-m-d'),$today->modify('+3 days')->format('Y-m-d')];
+        $filters=['location'=>'Audit','check_in'=>$free[0],'check_out'=>$free[1]];
+
+        ensure($service->quote($staleListing,$free[0],$free[1],1)['nights']===1,'A stale request blocked the quote.');
+        ensure($model->calendar($staleListing,0,$free[0],$free[1])[0]['day_status']==='available','A stale request still shows on the calendar.');
+        ensure(in_array($staleListing,array_map('intval',array_column($model->search($filters,100),'id')),true),'A stale request hid the listing from search.');
+        ensure(in_array($staleListing,array_map('intval',array_column($discovery->mapSearch(null,$filters)['listings'],'id')),true),'A stale request hid the listing from the map.');
+        $taken=$service->create($staleListing,$guestId,$free[0],$free[1],1);
+        ensure(bookingState($taken)['status']==='pending','A stale request blocked a new booking.');
+        refusedSaying([$service,'hostTransition'],[$stale,$hostId,'confirmed'],'Đã qua ngày nhận phòng');
+
+        ensure($model->calendar($staleListing,0,$free[0],$free[1])[0]['day_status']==='pending','A live request is missing from the calendar.');
+        refusedSaying([$service,'quote'],[$staleListing,$free[0],$free[1],1],'yêu cầu đặt chỗ khác');
+        refusedSaying([$service,'create'],[$staleListing,$guestId,$free[0],$free[1],1],'yêu cầu đặt chỗ khác');
+        ensure(!in_array($staleListing,array_map('intval',array_column($model->search($filters,100),'id')),true),'A live request did not hide the listing from search.');
+        ensure(!in_array($staleListing,array_map('intval',array_column($discovery->mapSearch(null,$filters)['listings'],'id')),true),'A live request did not hide the listing from the map.');
+
+        // Check-in today can still be confirmed, so it still holds its dates.
+        $todayListing=$model->create($hostId,['title'=>'Audit fixture BX '.$tag.' today']+$data);
+        callRows('CALL sp_test_listing_approve(?)',[$todayListing]);
+        $service->create($todayListing,$guestId,$today->format('Y-m-d'),$today->modify('+1 day')->format('Y-m-d'),1);
+        refusedSaying([$service,'quote'],[$todayListing,$today->format('Y-m-d'),$today->modify('+1 day')->format('Y-m-d'),1],'yêu cầu đặt chỗ khác');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS a pending request past its check-in holds no dates in quote, booking, calendar, search or map; a live one still does\n";
 
     for ($i=0;$i<2;$i++) {
         $pipes=[];

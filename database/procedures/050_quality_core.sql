@@ -111,7 +111,7 @@ BEGIN
         CASE WHEN d.stay_date<DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN 'past'
             WHEN EXISTS(SELECT 1 FROM bookings b WHERE b.listing_id=p_listing AND b.status='confirmed' AND b.check_in<=d.stay_date AND b.check_out>d.stay_date) THEN 'confirmed'
             WHEN a.is_open=0 THEN 'blocked'
-            WHEN EXISTS(SELECT 1 FROM bookings b WHERE b.listing_id=p_listing AND b.status='pending' AND b.check_in<=d.stay_date AND b.check_out>d.stay_date) THEN 'pending'
+            WHEN EXISTS(SELECT 1 FROM bookings b WHERE b.listing_id=p_listing AND b.status='pending' AND b.check_in>=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) AND b.check_in<=d.stay_date AND b.check_out>d.stay_date) THEN 'pending'
             ELSE 'available' END day_status,
         CASE WHEN EXISTS(SELECT 1 FROM listings WHERE id=p_listing AND host_id=p_actor) THEN a.block_reason ELSE NULL END block_reason
     FROM days d LEFT JOIN listing_availability a ON a.listing_id=p_listing AND a.stay_date=d.stay_date ORDER BY d.stay_date;

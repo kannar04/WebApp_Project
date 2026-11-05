@@ -19,7 +19,8 @@ BEGIN
     IF EXISTS(SELECT 1 FROM listing_availability WHERE listing_id=p_listing AND is_open=0 AND stay_date>=p_start AND stay_date<p_end) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Khoảng ngày đã chọn có ngày không cho thuê.';
     END IF;
-    IF EXISTS(SELECT 1 FROM bookings WHERE listing_id=p_listing AND status IN ('pending','confirmed') AND check_in<p_end AND check_out>p_start) THEN
+    -- A pending request whose check-in has passed can never be confirmed, so it holds no dates. Same rule in sp_booking_create, the search routines and sp_listing_calendar.
+    IF EXISTS(SELECT 1 FROM bookings WHERE listing_id=p_listing AND status IN ('pending','confirmed') AND (status='confirmed' OR check_in>=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) AND check_in<p_end AND check_out>p_start) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Khoảng ngày này đã có yêu cầu đặt chỗ khác.';
     END IF;
 END$$
@@ -104,7 +105,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản không khả dụng.';
     END IF;
     -- A current locking read avoids a stale caller REPEATABLE READ snapshot.
-    SELECT COUNT(*) INTO v_conflicts FROM bookings WHERE listing_id=p_listing AND status IN ('pending','confirmed') AND check_in<p_end AND check_out>p_start FOR UPDATE;
+    SELECT COUNT(*) INTO v_conflicts FROM bookings WHERE listing_id=p_listing AND status IN ('pending','confirmed') AND (status='confirmed' OR check_in>=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) AND check_in<p_end AND check_out>p_start FOR UPDATE;
     IF v_conflicts>0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Khoảng ngày này đã có yêu cầu đặt chỗ khác.'; END IF;
     SELECT COUNT(*) INTO v_conflicts FROM listing_availability WHERE listing_id=p_listing AND is_open=0 AND stay_date>=p_start AND stay_date<p_end FOR UPDATE;
     IF v_conflicts>0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Khoảng ngày đã chọn có ngày không cho thuê.'; END IF;
