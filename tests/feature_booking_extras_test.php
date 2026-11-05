@@ -250,6 +250,25 @@ try {
     $promotions[$base['code']]=null;
     bxRejects([$extras,'savePromotion'],[$adminId,0,array_merge($base,['code'=>'ab'])],'phải gồm','Malformed promo code accepted');
     bxRejects([$extras,'savePromotion'],[$adminId,0,array_merge($base,['value'=>'150'])],'Giá trị giảm','Percent above 100 accepted');
+    foreach (['0.01','0.5','0.99'] as $tooSmall) {
+        bxRejects([$extras,'savePromotion'],[$adminId,0,array_merge($base,['value'=>$tooSmall])],'phần trăm từ 1 đến 100','Percent '.$tooSmall.' accepted by the routine');
+    }
+    foreach (['0.01','0.49'] as $tooSmall) {
+        bxRejects([$extras,'savePromotion'],[$adminId,0,array_merge($base,['type'=>'fixed','value'=>$tooSmall])],'số tiền từ 1đ','Fixed '.$tooSmall.' accepted by the routine');
+    }
+    bxRejects([$extras,'savePromotion'],[$adminId,0,array_merge($base,['max'=>'0.4'])],'Điều kiện áp dụng','A cap that rounds to nothing accepted by the routine');
+    // The smallest values that do give a discount are still accepted, and a discount that rounds to nothing does not use up the code.
+    $codeP1='TBX'.$suffix.'P'; $codeF1='TBX'.$suffix.'Y';
+    bxPromotion($extras,$adminId,$promotions,$codeP1,['value'=>'1']);
+    bxPromotion($extras,$adminId,$promotions,$codeF1,['type'=>'fixed','value'=>'0.5']);
+    bxExpect($service->quote($listingId,$d0,$d7,1,$codeF1)['promo']['discount']===1.0,'A fixed 0.5 promotion must give 1đ.');
+    $tinyListing=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6)),'nightly_price'=>40,'cleaning_fee'=>0]+$data);
+    $extraListings[]=$tinyListing;
+    bxCall('CALL sp_test_listing_approve(?)',[$tinyListing]);
+    $nothing=$service->quote($tinyListing,$d0,bxDay($monday,1),1,$codeP1);
+    bxExpect($nothing['promo']['code']===null && $nothing['promo']['discount']===0.0 && str_contains((string)$nothing['promo']['message'],'không giảm được') && $nothing['total']===40.0,'A discount of nothing was applied: '.json_encode($nothing['promo'],JSON_UNESCAPED_UNICODE));
+    bxRejects([$service,'book'],[$tinyListing,$guestId,$d0,bxDay($monday,1),1,$codeP1],'không giảm được','A booking used up a code for no discount');
+    bxExpect(bxBookingCount($tinyListing)===0,'A refused code left a booking behind.');
     bxRejects([$extras,'savePromotion'],[$adminId,0,array_merge($base,['to'=>bxDay($today,-1)])],'Ngày kết thúc','Reversed validity accepted');
     bxRejects([$extras,'savePromotion'],[$guestId,0,$base],'quyền quản trị','Guest created a promotion');
     bxRejects([$extras,'savePromotion'],[$adminId,0,array_merge($base,['code'=>$codeA])],'đã tồn tại','Duplicate promo code accepted');
@@ -759,6 +778,13 @@ try {
         $promotions[$codeH]=(int)$saved['id'];
         $response=bxHttp($adminClient,$baseUrl,'/admin/promotions',['_token'=>$adminToken]+array_merge($promoForm,['code'=>'x!']));
         bxExpect($response['status']===302 && str_contains(bxHttp($adminClient,$baseUrl,'/admin/promotions')['body'],'4–20'),'Invalid promotion code was not rejected over HTTP.');
+        foreach ([['fixed','0.01','số tiền từ 1đ'],['fixed','0.49','số tiền từ 1đ'],['percent','0.5','phần trăm từ 1 đến 100'],['percent','101','phần trăm từ 1 đến 100']] as [$type,$typed,$needle]) {
+            $tooSmallCode='TBX'.$suffix.'Q'.bin2hex(random_bytes(2));
+            $promotions[strtoupper($tooSmallCode)]=null;
+            $response=bxHttp($adminClient,$baseUrl,'/admin/promotions',['_token'=>$adminToken]+array_merge($promoForm,['code'=>$tooSmallCode,'discount_type'=>$type,'discount_value'=>$typed]));
+            $page=bxHttp($adminClient,$baseUrl,'/admin/promotions')['body'];
+            bxExpect($response['status']===302 && str_contains($page,$needle) && bxFindPromotion($extras,$adminId,strtoupper($tooSmallCode))===null,'Promotion form accepted '.$type.' '.$typed.'.');
+        }
         foreach (['discount_value'=>'50.000','max_discount_amount'=>'50.000','min_subtotal'=>'500.000'] as $field=>$typed) {
             bxHttp($adminClient,$baseUrl,'/admin/promotions',['_token'=>$adminToken]+array_merge($promoForm,[$field=>$typed]));
             $page=bxHttp($adminClient,$baseUrl,'/admin/promotions')['body'];

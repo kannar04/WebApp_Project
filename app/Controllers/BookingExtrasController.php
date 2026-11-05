@@ -118,6 +118,8 @@ final class BookingExtrasController extends Controller
                 'from'=>$this->date($input['valid_from'], 'Ngày bắt đầu không hợp lệ.'), 'to'=>$this->date($input['valid_to'], 'Ngày kết thúc không hợp lệ.'),
                 'limit'=>$this->optionalInteger($input['usage_limit'], 1, 1000000, 'Giới hạn lượt dùng phải từ 1 trở lên.'), 'active'=>$input['is_active']];
             if ($data['value'] === null) { throw new \DomainException('Vui lòng nhập giá trị giảm.'); }
+            if ($data['type'] === 'percent' && ((float) $data['value'] < 1 || (float) $data['value'] > 100)) { throw new \DomainException('Giá trị giảm không hợp lệ (phần trăm từ 1 đến 100).'); }
+            if ($data['type'] === 'fixed' && round((float) $data['value']) < 1) { throw new \DomainException('Giá trị giảm không hợp lệ (số tiền từ 1đ trở lên).'); }
             (new BookingExtras())->savePromotion((int) $user['id'], $promotionId, $data);
             Session::flash('success', 'Đã lưu mã khuyến mãi '.$data['code'].'.');
             $returnPath = '/admin/promotions';

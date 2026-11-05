@@ -150,6 +150,8 @@ return [
     'Vui lòng nhập mô tả khuyến mãi.' => 'Please enter a promotion description.',
     'Loại giảm giá không hợp lệ.' => 'Invalid discount type.',
     'Giá trị giảm không hợp lệ (phần trăm từ 1 đến 100).' => 'Invalid discount value (percentage from 1 to 100).',
+    'Giá trị giảm không hợp lệ (số tiền từ 1đ trở lên).' => 'Invalid discount value (an amount of at least 1đ).',
+    'Không đủ điều kiện: mã này không giảm được gì cho kỳ ở này.' => 'Not eligible: this code gives no discount on this stay.',
     'Điều kiện áp dụng khuyến mãi không hợp lệ.' => 'Invalid promotion conditions.',
     'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.' => 'The end date must be on or after the start date.',
     'Trạng thái khuyến mãi không hợp lệ.' => 'Invalid promotion status.',

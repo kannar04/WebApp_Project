@@ -129,6 +129,11 @@ BEGIN
                 END IF;
                 -- Discount applies to the nights subtotal after the stay-length discount and never goes below zero.
                 SET o_promo_amount=ROUND(LEAST(o_promo_amount,v_after),0);
+                -- A discount that rounds to nothing (a promotion saved before the limit, or 1% of a few dong) must not use up the code.
+                IF o_promo_amount<=0 THEN
+                    SET o_promo_id=NULL; SET o_promo_code=NULL; SET o_promo_amount=0;
+                    SET o_promo_message='Không đủ điều kiện: mã này không giảm được gì cho kỳ ở này.';
+                END IF;
             END IF;
         END IF;
         IF p_strict AND o_promo_message IS NOT NULL THEN
@@ -295,8 +300,10 @@ BEGIN
     IF NOT (CAST(v_code AS BINARY) REGEXP '^[A-Z0-9]{4,20}$') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Mã khuyến mãi phải gồm 4–20 chữ cái A–Z hoặc số.'; END IF;
     IF v_description='' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Vui lòng nhập mô tả khuyến mãi.'; END IF;
     IF p_type IS NULL OR p_type NOT IN ('percent','fixed') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Loại giảm giá không hợp lệ.'; END IF;
-    IF p_value IS NULL OR p_value<=0 OR (p_type='percent' AND p_value>100) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giá trị giảm không hợp lệ (phần trăm từ 1 đến 100).'; END IF;
-    IF (p_max IS NOT NULL AND p_max<=0) OR (p_min_nights IS NOT NULL AND (p_min_nights<1 OR p_min_nights>365))
+    IF p_value IS NULL OR p_value<=0 OR (p_type='percent' AND (p_value<1 OR p_value>100)) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giá trị giảm không hợp lệ (phần trăm từ 1 đến 100).'; END IF;
+    -- A discount is whole dong: under 0.5 it rounds to nothing and would use up the code for no discount.
+    IF p_type='fixed' AND ROUND(p_value,0)<1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giá trị giảm không hợp lệ (số tiền từ 1đ trở lên).'; END IF;
+    IF (p_max IS NOT NULL AND ROUND(p_max,0)<1) OR (p_min_nights IS NOT NULL AND (p_min_nights<1 OR p_min_nights>365))
         OR (p_min_subtotal IS NOT NULL AND p_min_subtotal<0) OR (p_limit IS NOT NULL AND p_limit<1) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Điều kiện áp dụng khuyến mãi không hợp lệ.';
     END IF;
