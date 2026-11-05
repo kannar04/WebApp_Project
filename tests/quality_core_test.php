@@ -40,6 +40,16 @@ function qaIssueRefused(\App\Models\PasswordReset $recovery,int $userId): bool
 {
     try { $recovery->issue($userId,bin2hex(random_bytes(32))); } catch (DomainException $exception) { return true; }
     return false;
+function qaSetCatalogActive(Catalog $catalog,string $kind,int $id,bool $active): void
+{
+    foreach ($catalog->all(1,$kind) as $row) {
+        if ((int)$row['id']===$id) { $catalog->save(1,$kind,$id,$row['name'],(string)$row['detail'],$active); return; }
+    }
+    throw new RuntimeException('Catalog fixture not found.');
+}
+function qaSortedAmenities(Listing $listings,int $listingId): array
+{
+    $ids=$listings->amenityIds($listingId); sort($ids); return $ids;
 }
 function qaCall(string $sql,array $parameters=[]): array
 {
@@ -292,6 +302,29 @@ qaExpect((int)$auditCounts['catalog_audits']>=8 && (int)$auditCounts['report_aud
     && (int)$auditCounts['review_audits']>=3 && (int)$auditCounts['admin_audits']>0,'Admin HTTP audit logs not persistent.');
 $logout();
 echo "PASS QA real HTTP Guest/Host/Admin details/calendar/preview/filters/inbox/reports/reply/moderation with database persistence and denial/404/422 paths\n";
+
+// A retired catalog item stays on the listing that uses it: marked in the form, kept on save, refused for anything else.
+qaSetCatalogActive($catalog,'type',2,false); qaSetCatalogActive($catalog,'amenity',6,false); qaSetCatalogActive($catalog,'amenity',5,false);
+$login('host');
+$page=$request('/host/listings/3/edit');
+qaExpect(preg_match('/<option value="2" selected>[^<]*\(không còn cung cấp\)<\/option>/u',$page['body'])===1,'Edit form lost the current retired type.');
+qaExpect(preg_match('/value="6" checked> [^<]*\(không còn cung cấp\)<\/label>/u',$page['body'])===1,'Edit form lost the current retired amenity.');
+qaExpect(!str_contains($page['body'],'name="amenities[]" value="5"'),'Edit form offered a retired amenity the listing does not have.');
+qaExpect(!str_contains($request('/host/listings/create')['body'],'không còn cung cấp'),'New listing form offered retired items.');
+$retiredPost=$listings->findOwned(3,2); $retiredPost=array_intersect_key($retiredPost,array_flip(['cancellation_policy_id','title','address','city','description','nightly_price','cleaning_fee','max_guests','room_count','bedroom_count','bed_count','check_in_time','check_out_time']));
+$retiredPost['check_in_time']=substr($retiredPost['check_in_time'],0,5); $retiredPost['check_out_time']=substr($retiredPost['check_out_time'],0,5);
+$request('/host/listings/3',['_token'=>$token($page),'property_type_id'=>2,'amenities'=>[1,3,6]]+$retiredPost);
+qaExpect((int)$listings->findOwned(3,2)['property_type_id']===2 && qaSortedAmenities($listings,3)===[1,3,6],'Saving the form changed the retired type or amenities.');
+$request('/host/listings/3',['_token'=>$token($request('/host/listings/3/edit')),'property_type_id'=>2,'amenities'=>[1,5,6]]+$retiredPost);
+qaExpect(qaSortedAmenities($listings,3)===[1,3,6],'Tampered form added another retired amenity.');
+$listingsBefore=count($listings->hostListings(2));
+$request('/host/listings',['_token'=>$token($request('/host/listings/create')),'property_type_id'=>2]+$retiredPost);
+$request('/host/listings',['_token'=>$token($request('/host/listings/create')),'property_type_id'=>1,'amenities'=>[6]]+$retiredPost);
+qaExpect(count($listings->hostListings(2))===$listingsBefore,'New listing accepted a retired type or amenity.');
+qaSetCatalogActive($catalog,'type',2,true); qaSetCatalogActive($catalog,'amenity',6,true); qaSetCatalogActive($catalog,'amenity',5,true);
+(new AdminRepository())->moderate(3,1,'approved','Quality retired catalog fixture');
+$logout();
+echo "PASS QA retired type/amenity marked on their own listing, kept on save, refused for other and new listings\n";
 
 $passwordUser=new User(); $email='quality-password-'.bin2hex(random_bytes(6)).'@home2home.test';
 $oldPassword='QaOld!'.bin2hex(random_bytes(10)); $newPassword='QaNew!'.bin2hex(random_bytes(10));

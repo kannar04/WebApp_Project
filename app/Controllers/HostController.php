@@ -13,7 +13,7 @@ final class HostController extends Controller
 {
     public function dashboard(): void {$u=$this->requireRole('host');$this->render('host/dashboard',['title'=>'Không gian Host','stats'=>(new HostRepository())->stats((int)$u['id']),'monthlyRevenue'=>(new HostRepository())->monthlyRevenue((int)$u['id']),'listings'=>(new Listing())->hostListings((int)$u['id']),'bookings'=>(new Booking())->forHost((int)$u['id']),'trustStatus'=>(new \App\Models\Trust())->badges([(int)$u['id']],(int)$u['id'])[(int)$u['id']]??null,'payments'=>(new \App\Models\BookingExtras())->paymentMap((int)$u['id'],'host')]);}
     public function createForm(): void {$this->requireRole('host');$m=new Listing();$this->render('host/listing-form',['title'=>'Đăng chỗ ở','listing'=>null,'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>[],'old'=>Session::pullOld()]);}
-    public function editForm(string $id): void {$u=$this->requireRole('host');$m=new Listing();$listing=$m->findOwned((int)$id,(int)$u['id']);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('host/listing-form',['title'=>'Chỉnh sửa chỗ ở','listing'=>$listing,'photos'=>$m->photos((int)$id,(int)$u['id']),'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>$m->amenityIds((int)$id),'old'=>Session::pullOld()]);}
+    public function editForm(string $id): void {$u=$this->requireRole('host');$m=new Listing();$listing=$m->findOwned((int)$id,(int)$u['id']);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('host/listing-form',['title'=>'Chỉnh sửa chỗ ở','listing'=>$listing,'photos'=>$m->photos((int)$id,(int)$u['id']),'types'=>$m->catalogChoices('type',(int)$id,(int)$u['id']),'policies'=>$m->policies(),'amenities'=>$m->catalogChoices('amenity',(int)$id,(int)$u['id']),'selectedAmenities'=>$m->amenityIds((int)$id),'old'=>Session::pullOld()]);}
     public function availabilityPage(string $id): void
     {
         $user=$this->requireRole('host'); $model=new Listing();
@@ -93,14 +93,14 @@ final class HostController extends Controller
                 }
             }
             self::assertCoordinates($data);
-            if (!in_array($data['property_type_id'], array_map('intval', array_column($listingModel->types(), 'id')), true)
+            if (!in_array($data['property_type_id'], array_map('intval', array_column($listingModel->catalogChoices('type', (int) $listingId, $hostId), 'id')), true)
                 || !in_array($data['cancellation_policy_id'], array_map('intval', array_column($listingModel->policies(), 'id')), true)) {
                 throw new \DomainException('Loại chỗ ở hoặc chính sách hủy không hợp lệ.');
             }
             $amenities = $_POST['amenities'] ?? [];
             if (!is_array($amenities)) { throw new \DomainException('Tiện nghi không hợp lệ.'); }
             $amenities = array_map('intval', array_filter($amenities, 'is_string'));
-            if (array_diff($amenities, array_map('intval', array_column($listingModel->allAmenities(), 'id')))) {
+            if (array_diff($amenities, array_map('intval', array_column($listingModel->catalogChoices('amenity', (int) $listingId, $hostId), 'id')))) {
                 throw new \DomainException('Tiện nghi không tồn tại hoặc đã ngừng sử dụng.');
             }
 

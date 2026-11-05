@@ -108,6 +108,7 @@ return [
     'Giờ nhận phòng' => 'Check-in time',
     'Giờ trả phòng' => 'Check-out time',
     'Tiện nghi' => 'Amenities',
+    'không còn cung cấp' => 'no longer offered',
     'Nội quy' => 'House rules',
     'Cho phép hút thuốc' => 'Smoking allowed',
     'Cho phép thú cưng' => 'Pets allowed',

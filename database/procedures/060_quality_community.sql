@@ -113,6 +113,21 @@ BEGIN
     ELSE SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Loại danh mục không hợp lệ.'; END IF;
 END$$
 
+-- Host form choices: active items plus the retired ones this host's own listing still uses. Listing 0 means a new listing.
+CREATE OR REPLACE PROCEDURE sp_listing_catalog_choices(IN p_kind VARCHAR(12), IN p_listing BIGINT UNSIGNED, IN p_host BIGINT UNSIGNED)
+BEGIN
+    IF p_kind='type' THEN
+        SELECT pt.id,pt.name,pt.description,pt.is_active FROM property_types pt
+        WHERE pt.is_active=1 OR pt.id=(SELECT l.property_type_id FROM listings l WHERE l.id=p_listing AND l.host_id=p_host AND l.deleted_at IS NULL)
+        ORDER BY pt.name;
+    ELSEIF p_kind='amenity' THEN
+        SELECT a.id,a.name,a.icon_key,a.is_active FROM amenities a
+        WHERE a.is_active=1 OR EXISTS(SELECT 1 FROM listing_amenities la JOIN listings l ON l.id=la.listing_id
+            WHERE la.listing_id=p_listing AND la.amenity_id=a.id AND l.host_id=p_host AND l.deleted_at IS NULL)
+        ORDER BY a.name;
+    ELSE SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Loại danh mục không hợp lệ.'; END IF;
+END$$
+
 CREATE OR REPLACE PROCEDURE sp_admin_catalog_save(IN p_actor BIGINT UNSIGNED, IN p_kind VARCHAR(12), IN p_id BIGINT UNSIGNED,
     IN p_name VARCHAR(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_detail TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_active BOOL)
 BEGIN

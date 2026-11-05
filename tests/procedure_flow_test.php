@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Booking;
 use App\Models\Wishlist;
 use App\Models\AdminRepository;
+use App\Models\Catalog;
 use App\Services\BookingService;
 use Core\ProcedureConnection;
 
@@ -33,6 +34,11 @@ function restoreRefused(User $users,int $id): bool
 function domainFailure(callable $operation): void
 {
     try { $operation(); } catch (DomainException $exception) { return; }
+    throw new RuntimeException('A routine accepted an invalid business operation.');
+}
+function refused(callable $call, array $arguments): void
+{
+    try { $call(...$arguments); } catch (DomainException $exception) { return; }
     throw new RuntimeException('A routine accepted an invalid business operation.');
 }
 
@@ -76,6 +82,47 @@ try {
     domainFailure(fn()=>callRows('CALL sp_user_roles_replace(?,?)',[(int)$guest['id'],'["superadmin"]']));
     ensure($users->findWithRoles((int)$guest['id'])['roles']===['guest'],'Invalid role changed the demo user.');
     echo "PASS routine authorization, JSON validation, error cursor draining and rollback\n";
+
+    // Retiring a catalog item must not change a listing that uses it; everything below rolls back with the outer transaction.
+    $db->beginTransaction();
+    try {
+        $catalog=new Catalog(); $tag=bin2hex(random_bytes(6)); $hostId=(int)$host['id'];
+        $usedType=$catalog->save((int)$admin['id'],'type',0,'Audit used '.$tag,'',true);
+        $otherType=$catalog->save((int)$admin['id'],'type',0,'Audit other '.$tag,'',false);
+        $usedAmenity=$catalog->save((int)$admin['id'],'amenity',0,'Audit used '.$tag,'',true);
+        $otherAmenity=$catalog->save((int)$admin['id'],'amenity',0,'Audit other '.$tag,'',false);
+        $retiredData=['property_type_id'=>$usedType]+$data;
+        $model->update($listingId,$hostId,$retiredData);
+        $model->setAmenities($listingId,[$amenity,$usedAmenity],$hostId);
+        $catalog->save((int)$admin['id'],'type',$usedType,'Audit used '.$tag,'',false);
+        $catalog->save((int)$admin['id'],'amenity',$usedAmenity,'Audit used '.$tag,'',false);
+
+        $typeFlags=array_column($model->catalogChoices('type',$listingId,$hostId),'is_active','id');
+        ensure(isset($typeFlags[$usedType]) && (int)$typeFlags[$usedType]===0 && !isset($typeFlags[$otherType]) && (int)$typeFlags[(int)$data['property_type_id']]===1,'Edit form types wrong.');
+        $amenityFlags=array_column($model->catalogChoices('amenity',$listingId,$hostId),'is_active','id');
+        ensure(isset($amenityFlags[$usedAmenity]) && (int)$amenityFlags[$usedAmenity]===0 && !isset($amenityFlags[$otherAmenity]) && (int)$amenityFlags[$amenity]===1,'Edit form amenities wrong.');
+        foreach ([[0,(int)$host['id'],'New listing'],[$listingId,(int)$guest['id'],'Another account']] as [$listing,$actor,$who]) {
+            ensure(!isset(array_column($model->catalogChoices('type',$listing,$actor),'name','id')[$usedType]),$who.' was offered a retired type.');
+            ensure(!isset(array_column($model->catalogChoices('amenity',$listing,$actor),'name','id')[$usedAmenity]),$who.' was offered a retired amenity.');
+        }
+        refused([$model,'catalogChoices'],['bogus',$listingId,$hostId]);
+
+        $model->update($listingId,$hostId,$retiredData);
+        $model->setAmenities($listingId,[$amenity,$usedAmenity],$hostId);
+        $kept=$model->amenityIds($listingId); sort($kept); $wanted=[$amenity,$usedAmenity]; sort($wanted);
+        ensure((int)$model->findOwned($listingId,$hostId)['property_type_id']===$usedType && $kept===$wanted,'Saving changed the retired type or amenities.');
+        refused([$model,'update'],[$listingId,$hostId,['property_type_id'=>$otherType]+$data]);
+        refused([$model,'setAmenities'],[$listingId,[$amenity,$otherAmenity],$hostId]);
+        refused([$model,'create'],[$hostId,$retiredData]);
+        ensure((int)$model->findOwned($listingId,$hostId)['property_type_id']===$usedType && count($model->amenityIds($listingId))===2,'Rejected retired item changed the listing.');
+
+        $model->setAmenities($listingId,[$amenity],$hostId);
+        refused([$model,'setAmenities'],[$listingId,[$amenity,$usedAmenity],$hostId]);
+        $model->update($listingId,$hostId,$data);
+        refused([$model,'update'],[$listingId,$hostId,$retiredData]);
+        ensure($model->amenityIds($listingId)===[$amenity] && (int)$model->findOwned($listingId,$hostId)['property_type_id']===(int)$data['property_type_id'],'Dropped retired item did not stay dropped.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS retired catalog items stay on their listing, are marked, and cannot be newly selected\n";
 
     $start=(new DateTimeImmutable('today'))->modify('+5500 days')->format('Y-m-d');
     $end=(new DateTimeImmutable($start))->modify('+2 days')->format('Y-m-d');

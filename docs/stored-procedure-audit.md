@@ -53,6 +53,7 @@ Query column mô tả nhóm SQL cũ; số site là số vị trí chuẩn bị/t
 | `app/Models/Listing.php` | `types` | SELECT; 1 | `DST_sp_list_property_types` | COMPLIANT |
 | `app/Models/Listing.php` | `policies` | SELECT; 1 | `LTP_sp_list_cancellation_policies` | COMPLIANT |
 | `app/Models/Listing.php` | `allAmenities` | SELECT; 1 | `DST_ sp_list_amenities` | COMPLIANT |
+| `app/Models/Listing.php` | `catalogChoices` | SELECT; 1 | `sp_listing_catalog_choices` | COMPLIANT |
 | `app/Models/Listing.php` | `amenityIds` | SELECT; 1 | `sp_listing_amenity_ids` | COMPLIANT |
 | `app/Models/Listing.php` | `photos` | SELECT; 1 | `LTP_sp_get_listing_photos` | COMPLIANT |
 | `app/Models/Listing.php` | `amenities` | SELECT; 1 | `LTP_sp_get_listing_amenities` | COMPLIANT |
@@ -351,6 +352,23 @@ Ba chỗ còn giữ bản sao cũ sau khi dữ liệu gốc đổi, cùng loại
 | `sp_admin_identity_verification_decide` | `075` | Khi duyệt, ghi cả `full_name_on_card` vào `users.full_name` (trước đây chỉ ghi số điện thoại) | feature_trust_test |
 
 Hạn hoàn tiền (`sp_booking_cancel`, `sp_booking_refund_preview`) vẫn tính từ giờ nhận phòng trong `policy_snapshot`: Host đổi giờ sau khi khách đặt không làm thay đổi quyền hoàn tiền của khách.
+
+## Sửa lỗi danh mục ngừng sử dụng, báo cáo và phân trang — 2026-11-05
+
+Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
+
+### Routine đã có bị thay đổi
+
+| Routine | File | Thay đổi | Test |
+|---|---|---|---|
+| `sp_listing_update` | `010_models.sql` | Chấp nhận loại chỗ ở đã ngừng sử dụng chỉ khi đó là loại hiện tại của chính tin này | procedure_flow_test |
+| `sp_listing_amenities_replace` | `030_atomic_writes.sql` | Không xóa hết rồi thêm lại: tiện nghi đã ngừng sử dụng được giữ nếu tin đang có, tiện nghi mới vẫn phải đang hoạt động | procedure_flow_test |
+
+### Routine mới
+
+| Routine | File | Mục đích | Transaction / khóa / quyền | Test |
+|---|---|---|---|---|
+| `sp_listing_catalog_choices` | `060_quality_community.sql` | Lựa chọn trong form Host: mục đang hoạt động cộng với mục đã ngừng mà tin của chính Host vẫn dùng (`p_listing=0` là tin mới) | Chỉ đọc; mục đã ngừng chỉ hiện khi tin thuộc đúng `p_host` | procedure_flow_test, quality_core_test |
 
 ## Run / reproduce
 

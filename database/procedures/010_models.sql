@@ -81,7 +81,7 @@ BEGIN
     IF p_7 IS NULL OR p_7<=0 OR p_8 IS NULL OR p_8<0 OR p_9<1 OR p_10<1 OR p_11<1 OR p_12<1
         OR p_3 IS NULL OR TRIM(p_3)='' OR p_4 IS NULL OR TRIM(p_4)='' OR p_5 IS NULL OR TRIM(p_5)='' OR p_6 IS NULL OR TRIM(p_6)=''
         OR NOT EXISTS(SELECT 1 FROM listings l JOIN users u ON u.id=l.host_id JOIN user_roles r ON r.user_id=u.id WHERE l.id=p_18 AND l.host_id=p_19 AND l.deleted_at IS NULL AND u.status='active' AND r.role='host')
-        OR NOT EXISTS(SELECT 1 FROM property_types WHERE id=p_1 AND is_active=1)
+        OR NOT EXISTS(SELECT 1 FROM property_types pt WHERE pt.id=p_1 AND (pt.is_active=1 OR pt.id=(SELECT l.property_type_id FROM listings l WHERE l.id=p_18 AND l.host_id=p_19)))
         OR NOT EXISTS(SELECT 1 FROM cancellation_policies WHERE id=p_2 AND is_active=1) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Thông tin hoặc quyền sửa chỗ ở không hợp lệ.';
     END IF;

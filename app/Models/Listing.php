@@ -108,6 +108,13 @@ final class Listing
     public function types(): array { return $this->db->query('CALL `DST_sp_list_property_types`()')->fetchAll(); }
     public function policies(): array { return $this->db->query('CALL `LTP_sp_list_cancellation_policies`()')->fetchAll(); }
     public function allAmenities(): array { return $this->db->query('CALL `DST_ sp_list_amenities`()')->fetchAll(); }
+    /** Host form choices: active items plus retired ones the host's own listing still uses (listing 0 = new listing). */
+    public function catalogChoices(string $kind, int $listingId, int $hostId): array
+    {
+        $statement = $this->db->prepare('CALL sp_listing_catalog_choices(?,?,?)');
+        $statement->execute([$kind, $listingId, $hostId]);
+        return $statement->fetchAll();
+    }
     public function amenityIds(int $listingId): array
     {
         $statement = $this->db->prepare('CALL `sp_listing_amenity_ids`(?)');

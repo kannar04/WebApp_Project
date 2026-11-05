@@ -95,10 +95,11 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không có quyền sửa chỗ ở.';
     END IF;
     IF p_3 IS NULL OR NOT JSON_VALID(p_3) OR JSON_TYPE(p_3)<>'ARRAY' OR JSON_LENGTH(p_3)>100 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tiện nghi không hợp lệ.'; END IF;
-    DELETE FROM listing_amenities WHERE listing_id=p_1;
+    -- A retired amenity may stay on the listing that already has it; only a newly added one must be active.
+    DELETE FROM listing_amenities WHERE listing_id=p_1 AND NOT JSON_CONTAINS(p_3,CAST(amenity_id AS CHAR));
     WHILE v_i<JSON_LENGTH(p_3) DO
         SET v_id=JSON_UNQUOTE(JSON_EXTRACT(p_3,CONCAT('$[',v_i,']')));
-        IF NOT EXISTS(SELECT 1 FROM amenities WHERE id=v_id AND is_active=1) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tiện nghi không tồn tại hoặc đã ngừng sử dụng.'; END IF;
+        IF NOT EXISTS(SELECT 1 FROM amenities a WHERE a.id=v_id AND (a.is_active=1 OR EXISTS(SELECT 1 FROM listing_amenities la WHERE la.listing_id=p_1 AND la.amenity_id=a.id))) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tiện nghi không tồn tại hoặc đã ngừng sử dụng.'; END IF;
         INSERT INTO listing_amenities(listing_id,amenity_id) VALUES(p_1,v_id) ON DUPLICATE KEY UPDATE amenity_id=VALUES(amenity_id);
         SET v_i=v_i+1;
     END WHILE;
