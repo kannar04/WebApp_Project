@@ -166,8 +166,9 @@ final class PaymentController extends Controller
         $returnTo = self::adminReturnPath();
         try {
             if ($note === '' || mb_strlen($note) > 500) { throw new \DomainException('Vui lòng ghi chú lý do hoàn tiền (tối đa 500 ký tự).'); }
-            (new Payment())->resolveDuplicate((int) $id, (int) $admin['id'], $note);
-            Session::flash('success', 'Đã ghi nhận hoàn khoản thanh toán trùng. Booking vẫn ở trạng thái đã thanh toán.');
+            $resolved = (new Payment())->resolveDuplicate((int) $id, (int) $admin['id'], $note);
+            Session::flash('success', ($resolved['payment_status'] ?? '') === 'refunded' ? 'Đã ghi nhận hoàn khoản thanh toán trùng. Khoản thanh toán chính của booking này cũng đã được hoàn trước đó.'
+                : 'Đã ghi nhận hoàn khoản thanh toán trùng. Booking vẫn ở trạng thái đã thanh toán.');
         } catch (\Throwable $exception) {
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }

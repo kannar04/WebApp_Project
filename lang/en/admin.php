@@ -343,7 +343,7 @@ return [
     'Thanh toán trùng {amount}đ (mã {reference}) cần hoàn cho khách.' => 'Duplicate payment of {amount}đ (reference {reference}) must go back to the guest.',
     'Ghi chú hoàn khoản trùng {reference}' => 'Refund note for duplicate {reference}',
     'Ghi chú đã hoàn khoản trùng' => 'Note on the duplicate refund',
-    'Ghi nhận đã hoàn khoản trùng {amount}đ? Booking vẫn ở trạng thái đã thanh toán.' => 'Record the {amount}đ duplicate as refunded? The booking stays paid.',
+    'Ghi nhận đã hoàn khoản trùng {amount}đ? Trạng thái thanh toán của booking không đổi.' => 'Record the {amount}đ duplicate as refunded? The booking\'s payment status does not change.',
     'Đã hoàn khoản trùng' => 'Duplicate refunded',
     'Khách báo đã chuyển khoản với nội dung {reference}. Kiểm tra tài khoản nhận rồi xác nhận:' => 'The guest reported a transfer with reference {reference}. Check the receiving account, then decide:',
     'Khách đã lấy mã QR với nội dung {reference} nhưng chưa báo chuyển khoản.' => 'The guest got a QR code with reference {reference} but has not reported a transfer yet.',

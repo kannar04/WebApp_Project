@@ -48,11 +48,12 @@ final class Payment
         return $statement->fetch() ?: [];
     }
 
-    /** Closes one duplicate VNPay payment after its money went back to the Guest; the booking stays paid. */
-    public function resolveDuplicate(int $transactionId, int $adminId, string $note): void
+    /** Closes one duplicate VNPay payment after its money went back to the Guest; the booking's payment status does not change and is returned as payment_status. */
+    public function resolveDuplicate(int $transactionId, int $adminId, string $note): array
     {
         $statement = $this->db->prepare('CALL sp_admin_payment_duplicate_resolve(?,?,?)');
         $statement->execute([$transactionId, $adminId, $note]);
+        return $statement->fetch() ?: [];
     }
 
     /** Records a VNPay result whose signature was already verified; returns result/booking_id/transaction_status/duplicate_payment. */

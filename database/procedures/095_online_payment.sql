@@ -261,6 +261,7 @@ BEGIN
     DECLARE v_amount DECIMAL(12,2);
     DECLARE v_stored_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_payment VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -277,6 +278,7 @@ BEGIN
     SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
     SELECT id INTO v_lock FROM listings WHERE id=v_listing FOR UPDATE;
     SELECT guest_id INTO v_guest FROM bookings WHERE id=v_booking FOR UPDATE;
+    SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
     SELECT provider,status,reference,ROUND(amount,0),note INTO v_provider,v_status,v_reference,v_amount,v_stored_note FROM payment_transactions WHERE id=p_transaction FOR UPDATE;
     -- A first VNPay success stores no note; only the duplicate branch of sp_payment_vnpay_result leaves succeeded + note.
     IF v_guest IS NULL OR v_provider<>'vnpay' OR v_status<>'succeeded' OR v_stored_note IS NULL THEN
@@ -286,11 +288,13 @@ BEGIN
         note=LEFT(CONCAT('Đã hoàn khoản thanh toán trùng: ',v_note),500),updated_at=NOW(6) WHERE id=p_transaction;
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
         VALUES(v_guest,v_booking,'in_app','payment_duplicate_refunded','Đã hoàn khoản thanh toán trùng',
-        CONCAT('Khoản VNPay ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,') của booking #',v_booking,' đã được hoàn lại. Booking vẫn được giữ là đã thanh toán.'),'sent',1,NOW(6));
+        CONCAT('Khoản VNPay ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,') của booking #',v_booking,' đã được hoàn lại.',
+            IF(v_payment='refunded',' Khoản thanh toán chính của booking cũng đã được hoàn trước đó.',' Booking vẫn được giữ là đã thanh toán.')),'sent',1,NOW(6));
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
         VALUES(p_admin,'resolve_duplicate_payment','booking',v_booking,JSON_OBJECT('transaction_id',p_transaction,'reference',v_reference,'amount',v_amount,'note',v_note),NOW(6));
     SELECT 1 __affected,p_transaction __insert_id;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_duplicate_resolve; END IF;
+    SELECT v_payment payment_status;
 END$$
 
 -- Records a VNPay result whose signature PHP has already verified (return URL and IPN share it; safe to repeat).

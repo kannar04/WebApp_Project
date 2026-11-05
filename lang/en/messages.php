@@ -290,6 +290,7 @@ return [
     'Đã hủy booking.' => 'Booking cancelled.',
     'Đã hủy booking. Theo chính sách hủy, khoản đã thanh toán không được hoàn.' => 'Booking cancelled. Under the cancellation policy, the payment is not refunded.',
     'Đã ghi nhận hoàn khoản thanh toán trùng. Booking vẫn ở trạng thái đã thanh toán.' => 'Duplicate payment refund recorded. The booking stays paid.',
+    'Đã ghi nhận hoàn khoản thanh toán trùng. Khoản thanh toán chính của booking này cũng đã được hoàn trước đó.' => 'Duplicate payment refund recorded. The main payment on this booking was refunded earlier too.',
     'Đã báo khách chưa nhận được tiền chuyển khoản.' => 'The guest was told the transfer has not arrived.',
     'Đã đóng giao dịch chuyển khoản trùng. Nếu khoản này đã vào tài khoản, hãy hoàn lại cho khách.' => 'Duplicate bank transfer closed. If this money reached the account, return it to the guest.',
     'Không xác định được địa chỉ trang web để VNPay trả kết quả.' => 'Could not determine the site address for VNPay to return to.',

@@ -290,13 +290,24 @@ try {
     payRejects([$payments,'resolveDuplicate'],[$lateVnpayId,$adminId,'   '],'ghi chú','Closing a duplicate without a note accepted');
     payRejects([$payments,'resolveDuplicate'],[$lateQrId,$adminId,'Đã hoàn'],'không phải thanh toán trùng','The payment that counts was closed as a duplicate');
     payRejects([$payments,'resolveDuplicate'],[(int)$v2['transaction_id'],$adminId,'Đã hoàn'],'không phải thanh toán trùng','A first VNPay success was closed as a duplicate');
-    $payments->resolveDuplicate($lateVnpayId,$adminId,'Đã hoàn qua ngân hàng');
+    $resolved=$payments->resolveDuplicate($lateVnpayId,$adminId,'Đã hoàn qua ngân hàng');
+    payExpect($resolved['payment_status']==='paid' && str_contains((string)payInspect($bookingI)['guest_duplicate_refunded_body'],'vẫn được giữ là đã thanh toán'),'Closing a duplicate on a paid booking does not say it stays paid.');
     $stored=payAttempt($lateVnpayId); $state=payInspect($bookingI);
     payExpect($stored['status']==='cancelled' && (int)$stored['decided_by']===$adminId && $stored['note']==='Đã hoàn khoản thanh toán trùng: Đã hoàn qua ngân hàng' && $state['payment_status']==='paid'
         && (int)$state['payment_events']===1 && (int)$state['guest_duplicate_refunded_notices']===1 && (int)$state['duplicate_audits']===1,'Closing the duplicate changed more than that transaction: '.json_encode($state));
     payExpect(payAdminRows($adminId,$bookingI)[0]['duplicate_id']===null,'A closed duplicate is still listed as open.');
     payRejects([$payments,'resolveDuplicate'],[$lateVnpayId,$adminId,'Đã hoàn'],'không phải thanh toán trùng','A duplicate was closed twice');
     payExpect($payments->vnpayResult($lateVnpay['reference'],'220000.00','00','00','14000012','NCB')['result']==='already' && payAttempt($lateVnpayId)['status']==='cancelled','Replaying the result reopened a closed duplicate.');
+    // The main payment was refunded before the duplicate was closed: nothing may claim the booking is still paid.
+    $bookingRD=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,113);
+    $firstDup=$payments->start($bookingRD,$guestId,'vnpay'); $secondDup=$payments->start($bookingRD,$guestId,'vnpay');
+    $payments->vnpayResult($firstDup['reference'],'220000.00','00','00','14000060','NCB');
+    $payments->vnpayResult($secondDup['reference'],'220000.00','00','00','14000061','NCB');
+    (new BookingExtras())->refund($bookingRD,$adminId,'Hoàn khoản chính');
+    $resolved=$payments->resolveDuplicate((int)$secondDup['transaction_id'],$adminId,'Hoàn cả khoản trùng');
+    $state=payInspect($bookingRD);
+    payExpect($resolved['payment_status']==='refunded' && $state['payment_status']==='refunded' && str_contains((string)$state['guest_duplicate_refunded_body'],'cũng đã được hoàn') && !str_contains((string)$state['guest_duplicate_refunded_body'],'đã thanh toán'),
+        'Closing a duplicate on a refunded booking claims it is still paid: '.json_encode($state,JSON_UNESCAPED_UNICODE));
     // VNPay lands first while the transfer waits: the Admin cannot confirm a second success, and closing the transfer leaves the booking paid.
     $bookingJ=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,42);
     $firstVnpay=$payments->start($bookingJ,$guestId,'vnpay');
@@ -584,6 +595,15 @@ try {
         $state=payInspect($bookingK);
         payExpect($response['status']===302 && $response['location']==='/bookings/'.$bookingK && payAttempt((int)$kVnpay['transaction_id'])['status']==='cancelled' && $state['payment_status']==='paid',
             'Admin could not close the duplicate over HTTP: '.json_encode($state));
+        // Closing a duplicate on a refunded booking: the flash fits that state.
+        $refundedDup=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,116);
+        $refundedDupFirst=$payments->start($refundedDup,$guestId,'vnpay'); $refundedDupSecond=$payments->start($refundedDup,$guestId,'vnpay');
+        $payments->vnpayResult($refundedDupFirst['reference'],'220000.00','00','00','15000012','NCB');
+        $payments->vnpayResult($refundedDupSecond['reference'],'220000.00','00','00','15000013','NCB');
+        payHttp($adminClient,$baseUrl,'/admin/payments/'.$refundedDup.'/refund',['_token'=>$adminToken,'note'=>'Hoàn khoản chính']);
+        payHttp($adminClient,$baseUrl,'/admin/payments/duplicates/'.(int)$refundedDupSecond['transaction_id'],['_token'=>$adminToken,'note'=>'Hoàn khoản trùng']);
+        $page=payHttp($adminClient,$baseUrl,'/admin/payments')['body'];
+        payExpect(str_contains($page,'cũng đã được hoàn trước đó') && !str_contains($page,'Booking vẫn ở trạng thái đã thanh toán'),'Flash after closing a duplicate on a refunded booking is wrong.');
         // A transfer still open on a paid booking offers closing it, not confirming it.
         $bookingL=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,48);
         $lVnpay=$payments->start($bookingL,$guestId,'vnpay');

@@ -27,6 +27,7 @@ BEGIN
         (SELECT COUNT(*) FROM notifications WHERE booking_id=b.id AND user_id=b.guest_id AND event_type='payment_duplicate_refunded') guest_duplicate_refunded_notices,
         (SELECT COUNT(*) FROM admin_audit_logs WHERE entity_type='booking' AND entity_id=b.id AND action='resolve_duplicate_payment') duplicate_audits,
         (SELECT n.body FROM notifications n WHERE n.booking_id=b.id AND n.user_id=b.guest_id AND n.event_type='payment_duplicate_transfer_closed') guest_transfer_closed_body,
+        (SELECT n.body FROM notifications n WHERE n.booking_id=b.id AND n.user_id=b.guest_id AND n.event_type='payment_duplicate_refunded' ORDER BY n.id DESC LIMIT 1) guest_duplicate_refunded_body,
         (SELECT COUNT(*) FROM admin_audit_logs WHERE entity_type='booking' AND entity_id=b.id AND action='close_duplicate_transfer') transfer_close_audits,
         (SELECT COUNT(*) FROM admin_audit_logs WHERE entity_type='booking' AND entity_id=b.id AND action IN ('confirm_bank_transfer','reject_bank_transfer')) transfer_audits
     FROM bookings b LEFT JOIN booking_payments pay ON pay.booking_id=b.id WHERE b.id=p_booking;
