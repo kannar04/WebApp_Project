@@ -18,7 +18,7 @@ try {
     if ($config['debug']) {
         echo '<pre>' . e((string) $exception) . '</pre>';
     } else {
-        if (str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') || str_starts_with((string) ($_SERVER['REQUEST_URI'] ?? ''), '/api/')) {
+        if (str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') || str_starts_with(\Core\I18n::returnPath(), '/api/')) {
             (new \Core\Controller())->json(false, 'Home2Home đang tạm thời gặp sự cố. Vui lòng thử lại.', null, [], 500);
         }
         // This standalone view remains usable even when authentication/database lookup fails.

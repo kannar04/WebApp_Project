@@ -51,7 +51,7 @@ class Controller
         $user = Auth::user();
         if (!$user) {
             if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
-                $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
+                $uri = I18n::returnPath();
                 if (I18n::safeReturnPath($uri) === $uri) {
                     Session::put('intended_url', $uri);
                 }

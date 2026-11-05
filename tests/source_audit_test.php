@@ -32,6 +32,89 @@ function appPathUnder(string $scriptName, string $path): ?string
     return $result;
 }
 
+/** A throwaway php -S for the app. $scriptName reports a sub-folder front controller, as Apache does; $phpSettings are extra -d values. */
+function auditServerStart(string $scriptName = '', array $phpSettings = []): array
+{
+    $listener = stream_socket_server('tcp://127.0.0.1:0');
+    expect($listener !== false, 'Could not reserve a test server port.');
+    $address = stream_socket_get_name($listener, false); fclose($listener);
+    $root = dirname(__DIR__);
+    $router = (string) tempnam(sys_get_temp_dir(), 'h2h');
+    file_put_contents($router, '<?php '.($scriptName === '' ? '' : '$_SERVER["SCRIPT_NAME"]='.var_export($scriptName, true).';').' return require '.var_export($root.'/public/router.php', true).';');
+    $settings = ['-d', 'error_log='];
+    foreach ($phpSettings as $name => $value) { array_push($settings, '-d', $name.'='.$value); }
+    $output = tmpfile();
+    $process = proc_open(array_merge([PHP_BINARY], $settings, ['-S', $address, '-t', $root.'/public', $router]),
+        [0 => ['pipe', 'r'], 1 => $output, 2 => $output], $pipes, $root, array_merge(getenv(), ['APP_URL' => '']), ['bypass_shell' => true]);
+    expect(is_resource($process), 'Could not start the test server.');
+    fclose($pipes[0]);
+    for ($attempt = 0; $attempt < 50; $attempt++) {
+        $connection = @stream_socket_client('tcp://'.$address, $errorCode, $errorText, 1);
+        if ($connection !== false) {
+            fclose($connection);
+            return ['process' => $process, 'output' => $output, 'router' => $router, 'url' => 'http://'.$address];
+        }
+        usleep(100000);
+    }
+    throw new RuntimeException('The test server did not start.');
+}
+
+function auditServerStop(array $server): void
+{
+    proc_terminate($server['process']); proc_close($server['process']);
+    fclose($server['output']); unlink($server['router']);
+}
+
+/** One browser session; cookies stay on the handle. */
+function auditBrowser(): CurlHandle
+{
+    $browser = curl_init();
+    curl_setopt_array($browser, [CURLOPT_RETURNTRANSFER => true, CURLOPT_COOKIEFILE => '', CURLOPT_TIMEOUT => 20]);
+    return $browser;
+}
+
+/** $fields null is a GET. Location comes back as path and query only. */
+function auditRequest(CurlHandle $browser, string $url, array|string|null $fields = null, string $referer = '', array $headers = []): array
+{
+    curl_setopt_array($browser, [CURLOPT_URL => $url, CURLOPT_REFERER => $referer, CURLOPT_HTTPHEADER => $headers]);
+    if ($fields === null) { curl_setopt($browser, CURLOPT_HTTPGET, true); }
+    else { curl_setopt_array($browser, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => is_array($fields) ? http_build_query($fields) : $fields]); }
+    $body = curl_exec($browser);
+    $location = (string) curl_getinfo($browser, CURLINFO_REDIRECT_URL);
+    $query = (string) parse_url($location, PHP_URL_QUERY);
+    return ['status' => curl_getinfo($browser, CURLINFO_RESPONSE_CODE), 'location' => (string) parse_url($location, PHP_URL_PATH).($query !== '' ? '?'.$query : ''), 'body' => (string) $body];
+}
+
+function auditFormToken(string $html): string
+{
+    expect((bool) preg_match('/name="_token" value="([^"]+)"/', $html, $match), 'Form token missing.');
+    return $match[1];
+}
+
+/** Signs in on the form the browser already has open, and returns where the app sends the user. */
+function auditSignIn(CurlHandle $browser, string $base, string $formHtml, string $email): string
+{
+    return auditRequest($browser, $base.'/login', ['_token' => auditFormToken($formHtml), 'email' => $email, 'password' => 'Password123!'])['location'];
+}
+
+/** Protected page, Referer, expired form and language switch all land inside the app, with its base exactly once. */
+function auditReturnTargets(string $server, string $base): void
+{
+    $browser = auditBrowser();
+    expect(auditRequest($browser, $server.$base.'/bookings?status=x')['location'] === $base.'/login', 'Protected page did not ask to sign in: '.$base);
+    $form = auditRequest($browser, $server.$base.'/login')['body'];
+    expect(auditSignIn($browser, $server.$base, $form, 'guest@home2home.test') === $base.'/bookings?status=x', 'Sign-in lost the protected page: '.$base);
+    $browser = auditBrowser();
+    $form = auditRequest($browser, $server.$base.'/login', null, $server.$base.'/listings/1')['body'];
+    expect(auditSignIn($browser, $server.$base, $form, 'guest@home2home.test') === $base.'/listings/1', 'Sign-in lost the Referer page: '.$base);
+    $browser = auditBrowser();
+    expect(auditRequest($browser, $server.$base.'/login', ['_token' => 'stale'], $server.$base.'/login')['location'] === $base.'/login', 'Expired form left the page: '.$base);
+    expect(auditRequest($browser, $server.$base.'/login', ['_token' => 'stale'], $server.$base.'/listings/1?month=2030-01')['location'] === $base.'/listings/1?month=2030-01', 'Expired form lost the query: '.$base);
+    $page = auditRequest($browser, $server.$base.'/listings/1')['body'];
+    expect((bool) preg_match('/name="return_to" value="([^"]+)"/', $page, $match) && $match[1] === '/listings/1', 'Language switch must return to an app path: '.$base);
+    expect(auditRequest($browser, $server.$base.'/locale', ['_token' => auditFormToken($page), 'locale' => 'vi', 'return_to' => $match[1]])['location'] === $base.'/listings/1', 'Language switch left the page: '.$base);
+}
+
 /** Renders the login view in a child process, because APP_ENV is read when the view runs. */
 function loginViewUnderEnv(string $environment): string
 {
@@ -101,6 +184,24 @@ expect(appPathUnder('/WebApp/public/index.php', '/other/bookings') === null && a
 expect(appPathUnder('/public/index.php', '/public/login') === '/login' && appPathUnder('/public/index.php', '/login') === '/login', 'Project as the web root: both bases.');
 expect(appPathUnder('/My Folder/public/index.php', '/My%20Folder/public/listings/1') === '/listings/1', 'Encoded folder name not recognised.');
 echo "PASS root .htaccess serves only public/, test scripts are CLI only, app_path removes the base once\n";
+
+$rootServer = auditServerStart();
+$subfolderServer = auditServerStart('/WebApp/public/index.php');
+try {
+    auditReturnTargets($rootServer['url'], '');
+    auditReturnTargets($subfolderServer['url'], '/WebApp/public');
+    // The address the root .htaccess keeps: /WebApp/x runs public/index.php.
+    $viaFolder = auditBrowser();
+    expect(auditRequest($viaFolder, $subfolderServer['url'].'/WebApp/')['status'] === 200 && auditRequest($viaFolder, $subfolderServer['url'].'/WebApp/listings/1')['status'] === 200, 'Folder address must serve the app.');
+    expect(auditRequest($viaFolder, $subfolderServer['url'].'/WebApp/bookings')['location'] === '/WebApp/public/login', 'Folder address must reach the app routes.');
+    $form = auditRequest($viaFolder, $subfolderServer['url'].'/WebApp/public/login')['body'];
+    expect(auditSignIn($viaFolder, $subfolderServer['url'].'/WebApp/public', $form, 'guest@home2home.test') === '/WebApp/public/bookings', 'Folder address lost the protected page.');
+    $elsewhere = auditBrowser();
+    expect(auditRequest($elsewhere, $subfolderServer['url'].'/WebApp/public/login', ['_token' => 'stale'], $subfolderServer['url'].'/phpmyadmin/')['location'] === '/WebApp/public/', 'Expired form followed a Referer outside the app.');
+} finally {
+    auditServerStop($rootServer); auditServerStop($subfolderServer);
+}
+echo "PASS sign-in return, expired form and language switch keep the base exactly once at the root and under a sub-folder\n";
 
 $userModel = new User();
 $host = $userModel->findByEmail('host@home2home.test');

@@ -36,7 +36,7 @@ final class AuthController extends Controller
         $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
         $requestHost = explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0];
         if ((string) (parse_url($referer, PHP_URL_HOST) ?? '') !== $requestHost) { return; }
-        $target = $this->returnTarget((string) (parse_url($referer, PHP_URL_PATH) ?? ''));
+        $target = $this->returnTarget((string) app_path((string) (parse_url($referer, PHP_URL_PATH) ?? '')));
         if ($target !== '') { Session::put('referer_url', $target); }
     }
     /** Sends a signed-in user to the remembered page, otherwise to the home of their role. */

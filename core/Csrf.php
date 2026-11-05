@@ -34,11 +34,11 @@ final class Csrf
             }
             Session::flash('error', $message);
             $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
-            $path = (string) (parse_url($referer, PHP_URL_PATH) ?? '/');
+            $path = app_path((string) (parse_url($referer, PHP_URL_PATH) ?? '/'));
             $query = (string) (parse_url($referer, PHP_URL_QUERY) ?? '');
             $refererHost = (string) (parse_url($referer, PHP_URL_HOST) ?? '');
             $requestHost = explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0];
-            if ($refererHost !== $requestHost || I18n::safeReturnPath($path) !== $path) {
+            if ($refererHost !== $requestHost || $path === null || I18n::safeReturnPath($path) !== $path) {
                 $path = '/';
                 $query = '';
             }
