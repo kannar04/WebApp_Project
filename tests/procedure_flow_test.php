@@ -147,7 +147,7 @@ try {
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS retired catalog items stay on their listing, are marked, and cannot be newly selected\n";
 
-    // A repeated report adds nothing while the first is open on the same target; everything rolls back with the outer transaction.
+    // A repeated report adds nothing while the first is open or under investigation on the same target; everything rolls back with the outer transaction.
     $db->beginTransaction();
     try {
         $reports=new Report(); $repeatReporter=(int)$guest['id']; $body='Procedure duplicate report check';
@@ -161,11 +161,12 @@ try {
         $open=$reports->forUser($repeatReporter)[0];
         ensure((int)$open['listing_id']===$listingId && $open['status']==='open' && $open['category']==='other','Duplicate report overwrote the first one.');
         $reports->resolve((int)$open['id'],(int)$admin['id'],'investigating','Checking');
-        ensure($reports->create($repeatReporter,$listingId,null,'other',$body)===true,'A report under investigation is no longer open, so a new one must be accepted.');
+        ensure($reports->create($repeatReporter,$listingId,null,'other',$body)===false,'A second report was saved while the Admin is still investigating the first.');
+        ensure(count($reports->forUser($repeatReporter))===$before+1,'A report under investigation did not count as the open one.');
         $reports->resolve((int)$reports->forUser($repeatReporter)[0]['id'],(int)$admin['id'],'resolved','Closed');
         ensure($reports->create($repeatReporter,$listingId,null,'other',$body)===true,'A closed report blocked a new one.');
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
-    echo "PASS repeated report on an open target saves nothing; other reporters and closed reports are unaffected\n";
+    echo "PASS repeated report on an open or investigated target saves nothing; other reporters and closed reports are unaffected\n";
 
     // Admin report paging; the fixtures roll back with the outer transaction.
     $db->beginTransaction();

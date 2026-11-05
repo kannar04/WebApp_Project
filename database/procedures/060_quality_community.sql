@@ -77,7 +77,7 @@ BEGIN
     END IF;
     -- A double submit waits here, then its locking read sees the first report and adds nothing: 0 __affected, same id.
     SELECT id INTO v_lock FROM listings WHERE id=p_listing FOR UPDATE;
-    SELECT id INTO v_existing FROM reports WHERE reporter_id=p_actor AND listing_id=p_listing AND booking_id<=>p_booking AND status='open' ORDER BY id LIMIT 1 FOR UPDATE;
+    SELECT id INTO v_existing FROM reports WHERE reporter_id=p_actor AND listing_id=p_listing AND booking_id<=>p_booking AND status IN ('open','investigating') ORDER BY id LIMIT 1 FOR UPDATE;
     IF v_existing IS NULL THEN
         INSERT INTO reports(reporter_id,listing_id,booking_id,category,description,status,created_at)
             VALUES(p_actor,p_listing,p_booking,p_category,TRIM(p_description),'open',NOW(6));
