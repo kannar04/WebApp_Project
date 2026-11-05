@@ -229,6 +229,7 @@ return [
     'Đã đánh dấu đã đọc.' => 'Marked as read.',
     'Thông tin báo cáo không hợp lệ.' => 'Invalid report details.',
     'Admin đã nhận báo cáo. Bạn có thể theo dõi kết quả ở đây.' => 'The Admin has received your report. You can follow the outcome here.',
+    'Bạn đã gửi báo cáo cho mục này và Admin chưa xử lý xong. Bạn có thể theo dõi kết quả ở đây.' => 'You have already reported this and the Admin has not finished handling it. You can follow the outcome here.',
     'Thông tin xử lý không hợp lệ.' => 'Invalid resolution details.',
     'Đã cập nhật xử lý báo cáo.' => 'Report resolution updated.',
     'Phản hồi cần từ 1 đến 5000 ký tự.' => 'Reply must be 1 to 5000 characters.',

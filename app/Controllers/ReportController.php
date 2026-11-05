@@ -37,7 +37,8 @@ final class ReportController extends Controller
         try {
             $category=$_POST['category']??''; $description=$_POST['description']??'';
             if (!is_string($category) || !is_string($description) || mb_strlen($description)>5000) { throw new \DomainException('Thông tin báo cáo không hợp lệ.'); }
-            (new Report())->create((int)$user['id'],$listingId,$bookingId,$category,$description); Session::flash('success','Admin đã nhận báo cáo. Bạn có thể theo dõi kết quả ở đây.');
+            $created=(new Report())->create((int)$user['id'],$listingId,$bookingId,$category,$description);
+            Session::flash('success',$created?'Admin đã nhận báo cáo. Bạn có thể theo dõi kết quả ở đây.':'Bạn đã gửi báo cáo cho mục này và Admin chưa xử lý xong. Bạn có thể theo dõi kết quả ở đây.');
         } catch (\DomainException $exception) {
             Session::put('_report_old', ['listing_id'=>$listingId,'booking_id'=>$bookingId,
                 'category'=>is_string($category)?$category:'','description'=>is_string($description)?$description:'']);

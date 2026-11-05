@@ -51,6 +51,17 @@ END$$
 CREATE OR REPLACE PROCEDURE sp_report_create(IN p_actor BIGINT UNSIGNED, IN p_listing BIGINT UNSIGNED, IN p_booking BIGINT UNSIGNED,
     IN p_category VARCHAR(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
+    DECLARE v_own BOOL DEFAULT FALSE;
+    DECLARE v_lock BIGINT UNSIGNED;
+    DECLARE v_existing BIGINT UNSIGNED;
+    DECLARE v_id BIGINT UNSIGNED;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF @@in_transaction THEN IF v_own THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT h2h_report_create; RELEASE SAVEPOINT h2h_report_create; END IF; END IF;
+        RESIGNAL;
+    END;
+    SET v_own=(@@in_transaction=0);
+    IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_report_create; END IF;
     IF NOT EXISTS(SELECT 1 FROM users WHERE id=p_actor AND status='active' AND deleted_at IS NULL)
         OR p_category IS NULL OR p_category NOT IN ('misleading','fraud','complaint','other')
         OR p_description IS NULL OR CHAR_LENGTH(TRIM(p_description))<10 OR CHAR_LENGTH(p_description)>5000 THEN
@@ -62,9 +73,16 @@ BEGIN
     ELSEIF p_listing IS NULL OR NOT EXISTS(SELECT 1 FROM listings l JOIN users h ON h.id=l.host_id WHERE l.id=p_listing AND l.deleted_at IS NULL AND l.moderation_status='approved' AND l.is_visible=1 AND h.status='active') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở không khả dụng để báo cáo.';
     END IF;
-    INSERT INTO reports(reporter_id,listing_id,booking_id,category,description,status,created_at)
-        VALUES(p_actor,p_listing,p_booking,p_category,TRIM(p_description),'open',NOW(6));
-    SELECT 1 __affected,LAST_INSERT_ID() __insert_id;
+    -- A double submit waits here, then its locking read sees the first report and adds nothing: 0 __affected, same id.
+    SELECT id INTO v_lock FROM listings WHERE id=p_listing FOR UPDATE;
+    SELECT id INTO v_existing FROM reports WHERE reporter_id=p_actor AND listing_id=p_listing AND booking_id<=>p_booking AND status='open' ORDER BY id LIMIT 1 FOR UPDATE;
+    IF v_existing IS NULL THEN
+        INSERT INTO reports(reporter_id,listing_id,booking_id,category,description,status,created_at)
+            VALUES(p_actor,p_listing,p_booking,p_category,TRIM(p_description),'open',NOW(6));
+        SET v_id=LAST_INSERT_ID();
+    END IF;
+    IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_report_create; END IF;
+    SELECT IF(v_existing IS NULL,1,0) __affected,COALESCE(v_existing,v_id) __insert_id;
 END$$
 
 CREATE OR REPLACE PROCEDURE sp_reports_for_user(IN p_actor BIGINT UNSIGNED)

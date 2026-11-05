@@ -5,9 +5,10 @@ use Core\ProcedureConnection;
 
 final class Report
 {
-    public function create(int $actorId,?int $listingId,?int $bookingId,string $category,string $description): void
+    /** False when this reporter already has an open report on the same target: nothing new was saved. */
+    public function create(int $actorId,?int $listingId,?int $bookingId,string $category,string $description): bool
     {
-        ProcedureConnection::connection()->prepare('CALL sp_report_create(?,?,?,?,?)')->execute([$actorId,$listingId,$bookingId,$category,$description]);
+        $s=ProcedureConnection::connection()->prepare('CALL sp_report_create(?,?,?,?,?)'); $s->execute([$actorId,$listingId,$bookingId,$category,$description]); return $s->rowCount()===1;
     }
     public function forUser(int $actorId): array
     {

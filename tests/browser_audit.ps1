@@ -133,6 +133,21 @@ function Check-FilterResubmit {
     Write-Output 'PASS browser filter resubmit, changed filter guard and Back'
 }
 
+function Check-SubmitGuards([string]$BookingPath) {
+    # Events only, so nothing is posted: the guard must let one submit through, stop the repeat, and release on pageshow.
+    Navigate '/reports?listing=2'
+    $report=Evaluate "(()=>{const form=document.querySelector('[data-report-form]');const button=form.querySelector('button[type=submit]');const idle=button.textContent;const first=new Event('submit',{cancelable:true});form.dispatchEvent(first);const second=new Event('submit',{cancelable:true});form.dispatchEvent(second);const locked=button.disabled;window.dispatchEvent(new Event('pageshow'));return {first:first.defaultPrevented,second:second.defaultPrevented,locked,released:!button.disabled&&!form.dataset.submitting,label:button.textContent===idle};})()"
+    if ($report.first -or !$report.second -or !$report.locked -or !$report.released -or !$report.label) { throw "Report submit guard failed: $($report | ConvertTo-Json -Compress)" }
+    Write-Output 'PASS browser report form submit guard and release'
+    if (!$BookingPath) { Write-Output 'SKIP browser message guard: no guest booking'; return }
+    Navigate $BookingPath
+    if (!(Evaluate "!!document.querySelector('[data-message-form]')")) { Write-Output 'SKIP browser message guard: first booking has a closed thread'; return }
+    $shortcut="f.elements.body.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true,bubbles:true,cancelable:true}))"
+    $message=Evaluate "(()=>{const f=document.querySelector('[data-message-form]');const b=f.querySelector('button[type=submit]');let sent=0;f.addEventListener('submit',e=>{if(!e.defaultPrevented){sent++;}e.preventDefault();});f.elements.body.value='guard check';$shortcut;$shortcut;b.click();const once=sent;const locked=b.disabled;window.dispatchEvent(new Event('pageshow'));const released=!b.disabled&&!f.dataset.sending;$shortcut;return {once,locked,released,retried:sent,kept:f.elements.body.value};})()"
+    if ($message.once -ne 1 -or !$message.locked -or !$message.released -or $message.retried -ne 2 -or $message.kept -ne 'guard check') { throw "Message sending guard failed: $($message | ConvertTo-Json -Compress)" }
+    Write-Output 'PASS browser message guard covers button and Ctrl+Enter, released for retry with the text kept'
+}
+
 function Check-CalendarNavigation([string]$Path) {
     Navigate $Path
     $next=Evaluate 'document.querySelector(''#availability-calendar'').closest(''section'').querySelectorAll(''a'')[1].getAttribute(''href'')'
@@ -202,6 +217,7 @@ try {
             Navigate $bookingPath; Check-Page "Guest booking-detail $width"; Capture-Page "guest-booking-$width"
         }
     }
+    Check-SubmitGuards $bookingPath
     Check-CalendarNavigation '/listings/1'
     Logout-Role
     if ((Login-Role 'host') -ne '/host') { throw 'Host login redirect failed' }

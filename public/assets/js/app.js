@@ -29,22 +29,44 @@
         return target.hash !== '' && target.href.split('#')[0] === window.location.href.split('#')[0];
     }
 
-    function handleSearchSubmit(event) {
-        const form = event.currentTarget;
-        if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
-        if (isFragmentOnlySubmit(form)) { return; }
+    function markFormBusy(form, label) {
         form.dataset.submitting = 'true';
         form.setAttribute('aria-busy', 'true');
         const button = form.querySelector('button[type="submit"]');
         if (button) {
             button.dataset.idleLabel = button.textContent;
             button.disabled = true;
-            button.textContent = h2hT('Đang tìm…');
+            button.textContent = label;
         }
+    }
+
+    function handleSearchSubmit(event) {
+        const form = event.currentTarget;
+        if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
+        if (isFragmentOnlySubmit(form)) { return; }
+        markFormBusy(form, h2hT('Đang tìm…'));
     }
 
     function watchSearchSubmit(form) {
         form.addEventListener('submit', handleSearchSubmit);
+    }
+
+    function releaseFormBusy(form) {
+        const button = form.querySelector('button[data-idle-label]');
+        if (button) {
+            button.disabled = false;
+            button.textContent = button.dataset.idleLabel;
+        }
+        delete form.dataset.submitting;
+        form.removeAttribute('aria-busy');
+    }
+
+    function handleReportSubmit(event) {
+        const form = event.currentTarget;
+        if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
+        markFormBusy(form, h2hT('Đang gửi…'));
+        // Stopping the page load fires no event, so give the form back in case the report never left.
+        window.setTimeout(releaseFormBusy, 20000, form);
     }
 
     function initialize() {
@@ -79,6 +101,7 @@
         }
 
         document.querySelectorAll('[data-filter-form], [data-search-form]').forEach(watchSearchSubmit);
+        document.querySelector('[data-report-form]')?.addEventListener('submit', handleReportSubmit);
 
         // Back/forward cache must not leave a restored search/booking button disabled.
         window.addEventListener('pageshow', () => {

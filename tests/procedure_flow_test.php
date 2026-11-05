@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\Wishlist;
 use App\Models\AdminRepository;
 use App\Models\Catalog;
+use App\Models\Report;
 use App\Services\BookingService;
 use Core\ProcedureConnection;
 
@@ -123,6 +124,26 @@ try {
         ensure($model->amenityIds($listingId)===[$amenity] && (int)$model->findOwned($listingId,$hostId)['property_type_id']===(int)$data['property_type_id'],'Dropped retired item did not stay dropped.');
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS retired catalog items stay on their listing, are marked, and cannot be newly selected\n";
+
+    // A repeated report adds nothing while the first is open on the same target; everything rolls back with the outer transaction.
+    $db->beginTransaction();
+    try {
+        $reports=new Report(); $repeatReporter=(int)$guest['id']; $body='Procedure duplicate report check';
+        (new AdminRepository())->moderate($listingId,(int)$admin['id'],'approved','Procedure report fixture');
+        $before=count($reports->forUser($repeatReporter));
+        ensure($reports->create($repeatReporter,$listingId,null,'other',$body)===true,'First report was not saved.');
+        ensure($reports->create($repeatReporter,$listingId,null,'fraud',$body.' again')===false,'Second open report on the same target was saved.');
+        ensure(count($reports->forUser($repeatReporter))===$before+1,'Duplicate report changed the list.');
+        ensure($reports->create((int)$host['id'],$listingId,null,'other',$body)===true,'Another reporter was blocked by someone else\'s report.');
+        refused([$reports,'create'],[$repeatReporter,$listingId,null,'other','short']);
+        $open=$reports->forUser($repeatReporter)[0];
+        ensure((int)$open['listing_id']===$listingId && $open['status']==='open' && $open['category']==='other','Duplicate report overwrote the first one.');
+        $reports->resolve((int)$open['id'],(int)$admin['id'],'investigating','Checking');
+        ensure($reports->create($repeatReporter,$listingId,null,'other',$body)===true,'A report under investigation is no longer open, so a new one must be accepted.');
+        $reports->resolve((int)$reports->forUser($repeatReporter)[0]['id'],(int)$admin['id'],'resolved','Closed');
+        ensure($reports->create($repeatReporter,$listingId,null,'other',$body)===true,'A closed report blocked a new one.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS repeated report on an open target saves nothing; other reporters and closed reports are unaffected\n";
 
     $start=(new DateTimeImmutable('today'))->modify('+5500 days')->format('Y-m-d');
     $end=(new DateTimeImmutable($start))->modify('+2 days')->format('Y-m-d');

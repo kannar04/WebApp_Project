@@ -262,6 +262,9 @@ qaExpect($api['success'] && $api['data']['total']===1 && $api['data']['page']===
   $page=$request('/reports?listing=1');
 $sent=$request('/reports',['_token'=>$token($page),'listing_id'=>1,'category'=>'other','description'=>'HTTP end-to-end quality report.']);
 qaExpect($sent['status']===200 && count($reports->forUser(3))===2,'HTTP report persistence failed.');
+$page=$request('/reports?listing=1');
+$again=$request('/reports',['_token'=>$token($page),'listing_id'=>1,'category'=>'other','description'=>'HTTP end-to-end quality report.']);
+qaExpect($again['status']===200 && str_contains($again['body'],'Admin chưa xử lý xong') && count($reports->forUser(3))===2,'Double report saved a second open report or gave no friendly result.');
 $logout(); $login('host');
 foreach(['/host','/host/reviews','/host/listings/1/edit','/host/listings/1/availability','/bookings/'.$bookingId] as $path) { qaExpect($request($path)['status']===200,'Host HTTP page failed.'); }
 $page=$request('/host/reviews'); $request('/host/reviews/'.$reviewId.'/reply',['_token'=>$token($page),'reply'=>'HTTP Host reply.']);
