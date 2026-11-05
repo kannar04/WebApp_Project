@@ -37,6 +37,8 @@ final class AuthController extends Controller
         $requestHost = explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0];
         if ((string) (parse_url($referer, PHP_URL_HOST) ?? '') !== $requestHost) { return; }
         $target = $this->returnTarget((string) app_path((string) (parse_url($referer, PHP_URL_PATH) ?? '')));
+        // The home page is where sign-in links start, not a page to return to; it also replaces an older Referer, and each role then goes to its own home.
+        if ($target === '/') { Session::pull('referer_url'); return; }
         if ($target !== '') { Session::put('referer_url', $target); }
     }
     /** Sends a signed-in user to the remembered page, otherwise to the home of their role. */

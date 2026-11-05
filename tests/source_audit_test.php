@@ -119,6 +119,19 @@ function auditReturnTargets(string $server, string $base): void
     $page = auditRequest($browser, $server.$base.'/listings/1')['body'];
     expect((bool) preg_match('/name="return_to" value="([^"]+)"/', $page, $match) && $match[1] === '/listings/1', 'Language switch must return to an app path: '.$base);
     expect(auditRequest($browser, $server.$base.'/locale', ['_token' => auditFormToken($page), 'locale' => 'vi', 'return_to' => $match[1]])['location'] === $base.'/listings/1', 'Language switch left the page: '.$base);
+    // Signing in from the home page goes to the role's home; only an explicit next=/ asks for the home page.
+    foreach (['host@home2home.test' => $base.'/host', 'admin@home2home.test' => $base.'/admin', 'guest@home2home.test' => $base.'/'] as $email => $roleHome) {
+        $browser = auditBrowser();
+        auditRequest($browser, $server.$base.'/login', null, $server.$base.'/listings/1');
+        $form = auditRequest($browser, $server.$base.'/login', null, $server.$base.'/')['body'];
+        expect(auditSignIn($browser, $server.$base, $form, $email) === $roleHome, 'Sign-in from the home page must reach the role home: '.$email.$base);
+    }
+    $browser = auditBrowser();
+    $form = auditRequest($browser, $server.$base.'/login?next=/', null, $server.$base.'/listings/1')['body'];
+    expect(auditSignIn($browser, $server.$base, $form, 'host@home2home.test') === $base.'/', 'An explicit next=/ must still work: '.$base);
+    $browser = auditBrowser();
+    $form = auditRequest($browser, $server.$base.'/login', null, $server.$base.'/listings/1')['body'];
+    expect(auditSignIn($browser, $server.$base, $form, 'host@home2home.test') === $base.'/listings/1', 'A host must still return to a Referer page: '.$base);
 }
 
 /** Renders the login view in a child process, because APP_ENV is read when the view runs. */
