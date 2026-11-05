@@ -57,7 +57,9 @@ final class AuthController extends Controller
     private function returnTarget(string $candidate): string
     {
         if (I18n::safeReturnPath($candidate) !== $candidate) { return ''; }
-        $path = rtrim(rawurldecode((string) (parse_url($candidate, PHP_URL_PATH) ?? '')), '/');
+        $readable = parse_url($candidate, PHP_URL_PATH);
+        if ($readable === false) { return ''; }
+        $path = rtrim(rawurldecode((string) $readable), '/');
         return in_array($path, ['/login', '/register', '/forgot-password', '/reset-password'], true) ? '' : $candidate;
     }
     public function forgotForm(): void

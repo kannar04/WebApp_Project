@@ -290,6 +290,26 @@ try {
     }
     echo "PASS a path starting with // is the normal 404 at the root and under a sub-folder, and / still opens\n";
 
+    // parse_url gives up on a path holding :digits, which must not read as the home page. The language switch on that 404 returns to it, and a readable query with :digits is untouched.
+    foreach ([[$rootServer['url'], ''], [$subfolderServer['url'], '/WebApp/public']] as [$serverUrl, $base]) {
+        foreach (['/listings/1:80', '/foo:80', '/a:80/b', '/:80', '/login:80', '/listings/1:80/', '///x:80'] as $unreadable) {
+            $colonBrowser = auditBrowser();
+            $answer = auditRequest($colonBrowser, $serverUrl.$base.$unreadable);
+            expect($answer['status'] === 404 && str_contains($answer['body'], 'Không tìm thấy'), "$base$unreadable must be the normal 404, got {$answer['status']}.");
+            $backTo = $unreadable === '///x:80' ? '/' : $unreadable;
+            expect(str_contains($answer['body'], 'name="return_to" value="'.$backTo.'"'), "$base$unreadable has the wrong language return path.");
+            if ($unreadable === '/listings/1:80') {
+                $switched = auditRequest($colonBrowser, $serverUrl.$base.'/locale', ['_token' => auditFormToken($answer['body']), 'locale' => 'en', 'return_to' => $unreadable]);
+                expect($switched['status'] === 302 && $switched['location'] === $base.$unreadable, "The language switch must return to $base$unreadable, got {$switched['location']}.");
+            }
+        }
+        foreach (['/?location=a:80', '/?x=1:80&y=2', '/listings/1?x=1:80'] as $readable) {
+            $answer = auditRequest(auditBrowser(), $serverUrl.$base.$readable);
+            expect($answer['status'] === 200 && str_contains($answer['body'], 'name="return_to" value="'.e($readable).'"'), "$base$readable must still open and return to itself.");
+        }
+    }
+    echo "PASS a path parse_url cannot read is the normal 404 at the root and under a sub-folder, its language switch returns to it, and :digits in a query still works\n";
+
     $url = $rootServer['url'];
     foreach (["\0", "2027-02-01\0", "\x002027-02-01", '2027-02-30', '2027-2-1', '', 'x'] as $badDate) {
         expect(\Core\Calendar::date($badDate) === null, 'Bad date accepted.');

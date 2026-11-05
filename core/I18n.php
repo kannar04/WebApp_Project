@@ -114,7 +114,13 @@ final class I18n
     public static function returnPath(): string
     {
         $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
-        $path = (string) (parse_url($uri, PHP_URL_PATH) ?: '/');
+        $path = parse_url($uri, PHP_URL_PATH);
+        if ($path === false) {
+            // An address parse_url cannot read (see Router::dispatch) is not the home page: it stays the page to return to, when that is safe.
+            [$path, $query] = explode('?', $uri, 2) + [1 => ''];
+            return self::safeReturnPath((app_path($path) ?? $path) . ($query !== '' ? '?' . $query : ''));
+        }
+        $path = (string) ($path ?: '/');
         $path = app_path($path) ?? $path;
         $query = parse_url($uri, PHP_URL_QUERY);
         return $path . (is_string($query) && $query !== '' ? '?' . $query : '');

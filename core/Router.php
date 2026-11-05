@@ -23,11 +23,13 @@ final class Router
     public function dispatch(string $method, string $uri): void
     {
         // parse_url reads //x as a host with no path, which would make any //anything the home page.
-        $uriPath = str_starts_with($uri, '//') ? explode('?', $uri, 2)[0] : (parse_url($uri, PHP_URL_PATH) ?: '/');
-        $path = rawurldecode(app_path($uriPath) ?? $uriPath);
+        $uriPath = str_starts_with($uri, '//') ? explode('?', $uri, 2)[0] : parse_url($uri, PHP_URL_PATH);
+        $uriPath = $uriPath === false ? false : ($uriPath ?: '/');
+        $path = $uriPath === false ? '' : rawurldecode(app_path($uriPath) ?? $uriPath);
+        // parse_url gives up (false) on a path like /listings/1:80, taking :80 for a port. No route has such a path, so it is the normal 404, not the home page.
         // No route has a control character; a NUL or line break must not reach a controller's id or a redirect header.
         // No route starts with //, though the home route's optional slash would match a bare //.
-        $routes = preg_match('/[\x00-\x1F\x7F]/', $path) || str_starts_with($path, '//') ? [] : ($this->routes[$method] ?? []);
+        $routes = $uriPath === false || preg_match('/[\x00-\x1F\x7F]/', $path) || str_starts_with($path, '//') ? [] : ($this->routes[$method] ?? []);
 
         foreach ($routes as $route) {
             if (!preg_match($route['pattern'], $path, $matches)) {
