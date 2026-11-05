@@ -258,6 +258,15 @@ BEGIN
     JOIN listings l ON l.id=la.listing_id WHERE l.id=p_listing AND l.deleted_at IS NULL ORDER BY a.name;
 END$$
 
+-- The reviews NTK_sp_get_listing_reviews shows the public, without its check that the listing is public: the preview also opens hidden and pending listings.
+CREATE OR REPLACE PROCEDURE sp_listing_reviews_for_admin(IN p_listing BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED)
+BEGIN
+    CALL sp_admin_assert_role(p_actor);
+    SELECT r.id,r.booking_id,r.rating,r.comment,r.host_reply,r.host_replied_at,r.moderation_status,r.created_at,r.updated_at,r.host_reply host_response,u.full_name guest_name
+    FROM reviews r JOIN bookings b ON b.id=r.booking_id JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id
+    WHERE b.listing_id=p_listing AND r.moderation_status='visible' AND l.deleted_at IS NULL ORDER BY r.created_at DESC;
+END$$
+
 CREATE OR REPLACE PROCEDURE sp_admin_count_guests()
 BEGIN
     SELECT COUNT(*) FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='guest' AND u.deleted_at IS NULL;

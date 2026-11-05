@@ -34,7 +34,7 @@ final class AdminController extends Controller
         try { $calendar=\Core\Calendar::month($_GET['month']??date('Y-m')); }
         catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
         $this->render('listings/show',['title'=>'Xem trước: '.$listing['title'],'listing'=>$listing,'preview'=>true,'calendar'=>$calendar,
-            'calendarDays'=>$model->calendar((int)$id,(int)$admin['id'],$calendar['start'],$calendar['end']),'calendarPath'=>'/admin/listings/'.$id.'/preview']);
+            'calendarDays'=>$model->calendar((int)$id,(int)$admin['id'],$calendar['start'],$calendar['end']),'calendarPath'=>'/admin/listings/'.$id.'/preview','reviewBadges'=>(new \App\Models\Trust())->reviewBadges((int)$id)]);
     }
     public function userStatus(string $id): never
     {

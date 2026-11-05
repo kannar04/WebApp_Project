@@ -257,6 +257,7 @@ Các routine production này có từ trước nhưng chưa được ghi trong c
 | `sp_listing_photos_for_actor` | `050` | Ảnh của tin cho form quản lý và trang xem trước, kể cả tin chưa công khai | Chỉ đọc; chủ tin có vai trò Host hoặc Admin, tài khoản active | quality_core_test |
 | `sp_listing_admin_preview` | `050` | Dữ liệu trang xem trước của Admin, kể cả tin chưa duyệt | Chỉ đọc; Admin (`sp_admin_assert_role`) | quality_core_test |
 | `sp_listing_amenities_for_admin` | `050` | Tiện nghi của tin trong trang xem trước của Admin | Chỉ đọc; Admin | quality_core_test |
+| `sp_listing_reviews_for_admin` | `050` | Đánh giá đang hiển thị của tin trong trang xem trước của Admin, kể cả khi tin bị ẩn hoặc chờ duyệt | Chỉ đọc; Admin | feature_trust_test |
 | `sp_admin_count_guests` | `050` | Đếm tài khoản có vai trò Guest chưa xóa cho thống kê Admin | Chỉ đọc, không tham số; quyền Admin kiểm tra ở controller | quality_core_test, feature_booking_extras_test |
 | `sp_notifications_list` | `050` | 200 thông báo trong ứng dụng mới nhất của người dùng | Chỉ đọc; thông báo của chính người gọi, tài khoản active | quality_core_test, procedure_flow_test |
 | `sp_notification_read` | `050` | Đánh dấu một thông báo đã đọc; gọi lại không đổi thời điểm đọc | Một câu UPDATE; thông báo của chính người gọi, tài khoản active | quality_core_test |

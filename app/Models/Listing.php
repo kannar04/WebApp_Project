@@ -157,7 +157,9 @@ final class Listing
         $amenities=$this->db->prepare('CALL sp_listing_amenities_for_admin(?,?)');
         $amenities->execute([$id,$actorId]);
         $listing['amenities']=$amenities->fetchAll();
-        $listing['reviews']=[];
+        $reviews=$this->db->prepare('CALL sp_listing_reviews_for_admin(?,?)');
+        $reviews->execute([$id,$actorId]);
+        $listing['reviews']=$reviews->fetchAll();
         return $listing;
     }
 }

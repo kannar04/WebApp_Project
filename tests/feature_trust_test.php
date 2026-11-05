@@ -337,6 +337,17 @@ try {
     trustExpect((int) $metrics['review_count'] === 0 && (float) $metrics['average_rating'] === 0.0 && (int) $metrics['rating_met'] === 0 && (int) $metrics['is_trusted_host'] === 0 && $trust->reviewBadges($rateReviewed) === [], 'Reviews on a taken-down listing still count toward the badge.');
     echo "PASS trust reviews: a listing taken down takes its reviews out of the badge, as sp_trust_review_badges does\n";
 
+    // The Admin's preview reads the reviews the public page shows, and keeps them while the listing is hidden, so the Admin can judge it.
+    $publicReviews = $listings->findPublic($listingId)['reviews'];
+    $previewReviews = $listings->adminPreview($listingId, $adminId)['reviews'];
+    trustExpect(count($publicReviews) === 3 && array_column($previewReviews, 'id') === array_column($publicReviews, 'id') && array_column($previewReviews, 'rating') === array_column($publicReviews, 'rating') && array_column($previewReviews, 'guest_name') === array_column($publicReviews, 'guest_name'), 'The Admin preview and the public page disagree about the reviews.');
+    $moderation->setListingVisibility($listingId, $adminId, false);
+    trustExpect(array_column($listings->adminPreview($listingId, $adminId)['reviews'], 'id') === array_column($publicReviews, 'id'), 'The Admin preview lost the reviews of a hidden listing.');
+    $moderation->setListingVisibility($listingId, $adminId, true);
+    trustExpect($listings->findPublic($listingId) !== null, 'The listing did not come back after the preview check.');
+    trustRejects('trustCall', ['CALL sp_listing_reviews_for_admin(?,?)', [$listingId, $guestId]], 'A Guest read the Admin review list.');
+    echo "PASS Admin preview shows the same reviews as the public page, also while the listing is hidden, and only to an Admin\n";
+
 
     // G. Check-in guide: owner-only editing, entitlement by booking status and participant.
     $guide = ['arrival_instructions' => 'Lấy chìa khóa ở hộp khóa cạnh cổng xanh, đi thang bộ lên tầng 2.', 'door_code' => 'K-4821',
@@ -479,6 +490,11 @@ try {
         trustExpect(str_contains($invalid['body'], 'alert-danger') && str_contains($invalid['body'], 'đang chờ duyệt'), 'Duplicate HTTP submission was not reported.');
 
         $adminClient = trustLogin($baseUrl, sprintf($emailFor, 'admin'), $password);
+        $previewBody = trustHttp($adminClient, $baseUrl, '/admin/listings/'.$listingId.'/preview')['body'];
+        $publicBody = trustHttp($anonymous, $baseUrl, '/listings/'.$listingId)['body'];
+        $ratingLine = '~★ [\d.]+ · \d+ đánh giá~u';
+        trustExpect(preg_match($ratingLine, $previewBody, $previewRating) === 1 && preg_match($ratingLine, $publicBody, $publicRating) === 1 && $previewRating === $publicRating, 'The Admin preview and the public page show a different rating.');
+        trustExpect(substr_count($previewBody, '<article class="review">') === substr_count($publicBody, '<article class="review">') && substr_count($previewBody, 'Đã xác minh') === substr_count($publicBody, 'Đã xác minh'), 'The Admin preview and the public page show different reviews or verified marks.');
         $queue = trustHttp($adminClient, $baseUrl, '/admin/verifications?'.http_build_query(['status' => 'pending', 'q' => sprintf($emailFor, 'otherguest')]));
         trustExpect($queue['status'] === 200 && str_contains($queue['body'], '123456784321'), 'Admin queue lacks the pending CCCD.');
         $otherRequest = (int) $trust->verificationStatus($otherGuestId)['id'];
