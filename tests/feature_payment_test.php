@@ -311,9 +311,15 @@ try {
     $queued=[];
     foreach ($payments->adminTransfers($adminId) as $row) { if ((int)$row['transaction_id']===$waitingQrId) { $queued=$row; } }
     payExpect(($queued['payment_status']??'')==='paid','Admin queue does not show the booking is already paid.');
-    $payments->decideTransfer($waitingQrId,$adminId,'reject','Booking đã thanh toán qua VNPay');
+    payRejects([$payments,'decideTransfer'],[$waitingQrId,$adminId,'reject','abc'],'đóng giao dịch trùng','Closing a duplicate transfer without a reason accepted');
+    $closed=$payments->decideTransfer($waitingQrId,$adminId,'reject','Booking đã thanh toán qua VNPay');
     $state=payInspect($bookingJ);
-    payExpect(payAttempt($waitingQrId)['status']==='failed' && $state['payment_status']==='paid' && (int)$state['payment_events']===1,'Closing the duplicate transfer changed the booking: '.json_encode($state));
+    $stored=payAttempt($waitingQrId);
+    payExpect((int)$closed['duplicate_closed']===1 && $stored['status']==='cancelled' && (int)$stored['decided_by']===$adminId && str_contains((string)$stored['note'],'Admin sẽ hoàn lại cho khách') && str_contains((string)$stored['note'],'Booking đã thanh toán qua VNPay')
+        && $state['payment_status']==='paid' && (int)$state['payment_events']===1,'Closing the duplicate transfer changed the booking: '.json_encode($state));
+    payExpect((int)$state['rejected_notices']===0 && (int)$state['transfer_close_audits']===1 && str_contains((string)$state['guest_transfer_closed_body'],'Admin sẽ hoàn lại cho bạn') && !str_contains((string)$state['guest_transfer_closed_body'],'Chưa xác nhận'),
+        'Closing a duplicate transfer told the Guest the money never came: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    payExpect(!$payments->decideTransfer((int)$payments->start(payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,110),$guestId,'vietqr')['transaction_id'],$adminId,'reject','Chưa thấy tiền vào')['duplicate_closed'],'A plain rejection was reported as closing a duplicate.');
     echo "PASS duplicate payments: transfer report closes VNPay, late payment flagged to Guest and Admin, Admin confirm refused, Admin closes only that transaction, replay cannot reopen\n";
 
     // ---- Cancelling a paid booking: Admins learn the refund owed in the same transaction; the refund records the policy amount.
@@ -587,6 +593,13 @@ try {
         foreach (['/admin/payments','/bookings/'.$bookingL,'/payments/'.(int)$lQr['transaction_id']] as $path) {
             $page=payHttp($adminClient,$baseUrl,$path)['body'];
             payExpect(str_contains($page,'Đóng giao dịch trùng') && !preg_match('/transfers\/'.(int)$lQr['transaction_id'].'"(?:(?!<\/form>).)*value="confirm"/s',$page),'Admin was offered a confirmation on a paid booking: '.$path);
+        }
+        payHttp($adminClient,$baseUrl,'/admin/payments/transfers/'.(int)$lQr['transaction_id'],['_token'=>$adminToken,'decision'=>'reject','note'=>'Đã thanh toán qua VNPay']);
+        $page=payHttp($adminClient,$baseUrl,'/admin/payments')['body'];
+        payExpect(str_contains($page,'Đã đóng giao dịch chuyển khoản trùng') && !str_contains($page,'chưa nhận được tiền chuyển khoản'),'Admin was told a closed duplicate never arrived.');
+        foreach (['/payments/'.(int)$lQr['transaction_id'],'/bookings/'.$bookingL] as $path) {
+            $page=payHttp($guestClient,$baseUrl,$path)['body'];
+            payExpect(str_contains($page,'Admin sẽ hoàn lại cho khách') && !str_contains($page,'chưa xác nhận được khoản chuyển'),'Guest page of a closed duplicate transfer is wrong: '.$path);
         }
         // Policy refund on the Admin list and the booking page; a zero refund offers no form.
         $bookingP=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,60,'15000020');

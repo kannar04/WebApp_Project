@@ -162,6 +162,7 @@ BEGIN
     DECLARE v_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_removed DATETIME(6);
     DECLARE v_booking_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_duplicate BOOL DEFAULT FALSE;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -174,9 +175,6 @@ BEGIN
     CALL sp_admin_assert_role(p_admin);
     IF p_decision IS NULL OR p_decision NOT IN ('confirm','reject') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Quyết định chuyển khoản không hợp lệ.'; END IF;
     SET v_note=NULLIF(TRIM(COALESCE(p_note,'')),'');
-    IF p_decision='reject' AND (v_note IS NULL OR CHAR_LENGTH(v_note)<5) THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Vui lòng nhập lý do chưa nhận được tiền (ít nhất 5 ký tự).';
-    END IF;
     SELECT booking_id INTO v_booking FROM payment_transactions WHERE id=p_transaction;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
     SELECT id,deleted_at INTO v_lock,v_removed FROM listings WHERE id=v_listing FOR UPDATE;
@@ -186,9 +184,14 @@ BEGIN
     SELECT provider,status,reference,ROUND(amount,0) INTO v_provider,v_status,v_reference,v_amount FROM payment_transactions WHERE id=p_transaction FOR UPDATE;
     IF v_provider<>'vietqr' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ xác nhận giao dịch chuyển khoản VietQR.'; END IF;
     IF v_status NOT IN ('pending','submitted') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giao dịch chuyển khoản này đã được xử lý.'; END IF;
+    SET v_duplicate=(p_decision='reject' AND COALESCE(v_payment,'unpaid')<>'unpaid');
+    IF p_decision='reject' AND (v_note IS NULL OR CHAR_LENGTH(v_note)<5) THEN
+        IF v_duplicate THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Vui lòng ghi chú lý do đóng giao dịch trùng (ít nhất 5 ký tự).'; END IF;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Vui lòng nhập lý do chưa nhận được tiền (ít nhất 5 ký tự).';
+    END IF;
     IF p_decision='confirm' THEN
         IF COALESCE(v_payment,'unpaid')<>'unpaid' THEN
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được ghi nhận thanh toán; hãy từ chối giao dịch trùng và hoàn tiền cho khách.';
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được ghi nhận thanh toán; hãy đóng giao dịch trùng và hoàn tiền cho khách.';
         END IF;
         UPDATE payment_transactions SET status='succeeded',decided_by=p_admin,decided_at=NOW(6),note=v_note,updated_at=NOW(6) WHERE id=p_transaction;
         UPDATE payment_transactions SET status='cancelled',decided_at=NOW(6),note='Booking đã được thanh toán bằng giao dịch khác.',updated_at=NOW(6)
@@ -222,6 +225,13 @@ BEGIN
                     'sent',1,NOW(6)
                 FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='admin' AND u.status='active' AND u.deleted_at IS NULL;
         END IF;
+    ELSEIF v_duplicate THEN
+        -- The booking was paid another way while this transfer was open. Closing it says nothing about the money not arriving: if it did arrive, it goes back to the Guest.
+        UPDATE payment_transactions SET status='cancelled',decided_by=p_admin,decided_at=NOW(6),
+            note=LEFT(CONCAT('Đã đóng chuyển khoản trùng vì booking đã được thanh toán bằng giao dịch khác; nếu khoản này đã vào tài khoản, Admin sẽ hoàn lại cho khách. Ghi chú: ',v_note),500),updated_at=NOW(6) WHERE id=p_transaction;
+        INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+            VALUES(v_guest,v_booking,'in_app','payment_duplicate_transfer_closed','Đã đóng chuyển khoản trùng',
+            CONCAT('Booking #',v_booking,' đã được thanh toán bằng giao dịch khác nên chuyển khoản ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,') đã được đóng. Nếu khoản này đã vào tài khoản, Admin sẽ hoàn lại cho bạn. Ghi chú: ',v_note),'sent',1,NOW(6));
     ELSE
         UPDATE payment_transactions SET status='failed',decided_by=p_admin,decided_at=NOW(6),note=v_note,updated_at=NOW(6) WHERE id=p_transaction;
         INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
@@ -229,10 +239,11 @@ BEGIN
             CONCAT('Chưa xác nhận được chuyển khoản cho booking #',v_booking,' (mã ',v_reference,'). Lý do: ',v_note),'sent',1,NOW(6));
     END IF;
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
-        VALUES(p_admin,IF(p_decision='confirm','confirm_bank_transfer','reject_bank_transfer'),'booking',v_booking,
+        VALUES(p_admin,IF(p_decision='confirm','confirm_bank_transfer',IF(v_duplicate,'close_duplicate_transfer','reject_bank_transfer')),'booking',v_booking,
             JSON_OBJECT('transaction_id',p_transaction,'reference',v_reference,'amount',v_amount,'note',v_note),NOW(6));
     SELECT 1 __affected,p_transaction __insert_id;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_transfer_decide; END IF;
+    SELECT v_duplicate duplicate_closed;
 END$$
 
 -- Admin records that one duplicate VNPay payment went back to the Guest. Only that transaction closes: the booking stays paid.

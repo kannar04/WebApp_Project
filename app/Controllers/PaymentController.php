@@ -150,8 +150,9 @@ final class PaymentController extends Controller
         try {
             if (!in_array($decision, ['confirm', 'reject'], true)) { throw new \DomainException('Quyết định chuyển khoản không hợp lệ.'); }
             if (mb_strlen($note) > 500) { throw new \DomainException('Ghi chú tối đa 500 ký tự.'); }
-            (new Payment())->decideTransfer((int) $id, (int) $admin['id'], $decision, $note);
-            Session::flash('success', $decision === 'confirm' ? 'Đã xác nhận nhận được tiền chuyển khoản.' : 'Đã báo khách chưa nhận được tiền chuyển khoản.');
+            $decided = (new Payment())->decideTransfer((int) $id, (int) $admin['id'], $decision, $note);
+            Session::flash('success', $decision === 'confirm' ? 'Đã xác nhận nhận được tiền chuyển khoản.'
+                : ((int) ($decided['duplicate_closed'] ?? 0) === 1 ? 'Đã đóng giao dịch chuyển khoản trùng. Nếu khoản này đã vào tài khoản, hãy hoàn lại cho khách.' : 'Đã báo khách chưa nhận được tiền chuyển khoản.'));
         } catch (\Throwable $exception) {
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }

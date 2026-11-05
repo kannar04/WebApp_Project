@@ -40,11 +40,12 @@ final class Payment
         $statement->execute([$transactionId, $guestId]);
     }
 
-    /** $decision: 'confirm' | 'reject' (reason required). */
-    public function decideTransfer(int $transactionId, int $adminId, string $decision, string $note): void
+    /** $decision: 'confirm' | 'reject' (reason required). duplicate_closed in the result: a rejection on a booking already paid closed a duplicate. */
+    public function decideTransfer(int $transactionId, int $adminId, string $decision, string $note): array
     {
         $statement = $this->db->prepare('CALL sp_admin_payment_transfer_decide(?,?,?,?)');
         $statement->execute([$transactionId, $adminId, $decision, $note]);
+        return $statement->fetch() ?: [];
     }
 
     /** Closes one duplicate VNPay payment after its money went back to the Guest; the booking stays paid. */
