@@ -785,6 +785,10 @@ try {
         payHttp($guestClient,$baseUrl,'/bookings/'.$bookingNoRefund.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
         $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingNoRefund)['body'];
         payExpect(!str_contains($page,'Số tiền cần hoàn') && str_contains($page,'Theo chính sách hủy, booking này không được hoàn tiền.'),'A 0% paid cancelled booking still shows a refund due.');
+        foreach ([$guestClient,$adminClient] as $client) {
+            $page=payHttp($client,$baseUrl,'/bookings/'.$bookingNoRefund)['body'];
+            payExpect(substr_count($page,'Theo chính sách hủy, booking này không được hoàn tiền.')===1,'The 0đ refund sentence does not appear exactly once on a cancelled paid booking.');
+        }
         // A refunded booking offers no further refund, before or after cancelling, and keeps the figure that went back; a row refunded by older code too.
         $refundedOpen=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,104,'14000052');
         payHttp($adminClient,$baseUrl,'/admin/payments/'.$refundedOpen.'/refund',['_token'=>$adminToken,'note'=>'Hoàn trước khi hủy']);
