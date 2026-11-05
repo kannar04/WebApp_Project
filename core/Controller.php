@@ -42,7 +42,14 @@ class Controller
         foreach ($errors as $field => $error) {
             if (is_string($error)) { $errors[$field] = I18n::translate($error); }
         }
-        echo json_encode(compact('success', 'message', 'data', 'errors'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE;
+        $body = json_encode(compact('success', 'message', 'data', 'errors'), $flags);
+        if ($body === false) {
+            // Only data JSON cannot hold reaches here (INF, NAN, too deep): a server fault, still answered in JSON.
+            http_response_code(500);
+            $body = json_encode(['success' => false, 'message' => I18n::translate('Home2Home đang tạm thời gặp sự cố. Vui lòng thử lại.'), 'data' => null, 'errors' => []], $flags);
+        }
+        echo $body;
         exit;
     }
 

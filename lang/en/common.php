@@ -234,6 +234,7 @@ return [
     'Liên kết có thể đã thay đổi hoặc nội dung không còn khả dụng.' => 'The link may have changed or the content is no longer available.',
     'Tạm thời gặp sự cố' => 'Temporary problem',
     'Home2Home đang tạm thời gặp sự cố' => 'Home2Home is having a temporary problem',
+    'Home2Home đang tạm thời gặp sự cố. Vui lòng thử lại.' => 'Home2Home is having a temporary problem. Please try again.',
     'Vui lòng thử lại sau ít phút.' => 'Please try again in a few minutes.',
     'Quay về trang chủ' => 'Back to home page',
 ];

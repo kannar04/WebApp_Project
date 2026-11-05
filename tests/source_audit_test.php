@@ -130,6 +130,17 @@ function loginViewUnderEnv(string $environment): string
     return $output;
 }
 
+/** Controller::json() in a child process, since it exits. $data is PHP source. Returns the decoded body and the status it set. */
+function jsonHelperOutput(string $data): array
+{
+    $code = 'require "core/bootstrap.php"; function reportStatus(): void { echo "|", http_response_code(); } register_shutdown_function("reportStatus"); (new Core\Controller())->json(true, "ok", '.$data.');';
+    $process = proc_open([PHP_BINARY, '-r', $code], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, dirname(__DIR__), null, ['bypass_shell' => true]);
+    $output = (string) stream_get_contents($pipes[1]);
+    fclose($pipes[1]); fclose($pipes[2]); proc_close($process);
+    $split = (int) strrpos($output, '|');
+    return ['body' => json_decode(substr($output, 0, $split), true), 'status' => (int) substr($output, $split + 1)];
+}
+
 $appConfig = require dirname(__DIR__).'/config/app.php';
 $dbConfig = require dirname(__DIR__).'/config/database.php';
 expect($appConfig['env'] === 'local' && in_array($dbConfig['host'], ['localhost', '127.0.0.1', '::1'], true), 'Run fixture tests only on a local database.');
@@ -238,6 +249,13 @@ try {
     $blocked = auditRequest($hostBrowser, $url.'/api/host/listings/1/availability', '_token='.$hostToken.'&date=%00&open=1', '', ['Accept: application/json']);
     expect($blocked['status'] === 422 && (json_decode($blocked['body'], true)['message'] ?? '') === 'Ngày không hợp lệ.', 'NUL date on the availability form must be refused.');
     echo "PASS control characters in any route path give the 404 page; NUL in query and date values is an ordinary invalid value\n";
+    $invalidText = jsonHelperOutput('["promo" => "a\xffb"]');
+    expect($invalidText['status'] === 200 && $invalidText['body']['success'] === true && $invalidText['body']['data']['promo'] === "a\u{FFFD}b", 'json() must substitute invalid UTF-8.');
+    $unencodable = jsonHelperOutput('["price" => INF]');
+    expect($unencodable['status'] === 500 && $unencodable['body']['success'] === false && $unencodable['body']['message'] !== '' && $unencodable['body']['data'] === null, 'json() must answer in JSON when the data cannot be encoded.');
+    $invalidPromo = auditRequest($anonymous, $url.'/api/listings/1/quote?check_in=2099-02-01&check_out=2099-02-03&guests=1&promo_code=%ff');
+    expect(trim($invalidPromo['body']) !== '' && is_array(json_decode($invalidPromo['body'], true)), 'A quote with an invalid promo byte must still answer in JSON.');
+    echo "PASS json() always emits valid JSON, never a blank body\n";
 } finally {
     auditServerStop($rootServer); auditServerStop($subfolderServer);
 }
