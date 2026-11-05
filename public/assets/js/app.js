@@ -98,14 +98,40 @@
         scheduleFormRelease(form);
     }
 
-    // Result messages print at the top of the page, so after a redirect to a #fragment the browser lands far below them.
+    // Result messages print at the top of the page, but a #fragment in the URL is where the user was working: the message moves right above it.
+    // In a conversation that means above its form: a long thread would push a form placed further down off screen, with the kept draft in it.
+    function moveFlashToFragment() {
+        const target = window.location.hash === '' ? null : document.getElementById(window.location.hash.slice(1));
+        if (!target || target.contains(document.querySelector('[data-flash]'))) { return; }
+        const anchor = target.querySelector('[data-message-form]') || target;
+        for (const flash of document.querySelectorAll('[data-flash]')) {
+            const holder = flash.parentElement;
+            if (anchor.closest('.container')) {
+                flash.classList.add('mt-3');
+                anchor.before(flash);
+                holder.remove();
+            } else {
+                anchor.before(holder);
+            }
+        }
+    }
+
+    // Viewport position that belongs right under the header: the message, or in a conversation as much of the thread as fits with the message and form on screen.
+    function flashLandingTop(flash, headerGap) {
+        const flashTop = flash.getBoundingClientRect().top;
+        const form = flash.nextElementSibling;
+        if (!form || !form.matches('[data-message-form]')) { return flashTop; }
+        const fittedTop = form.getBoundingClientRect().bottom + 12 + headerGap - window.innerHeight;
+        return Math.min(flashTop, Math.max(form.parentElement.getBoundingClientRect().top, fittedTop));
+    }
+
     // The scroll follows html{scroll-behavior}, which the stylesheet already turns off for prefers-reduced-motion.
     function revealFlash() {
         const flash = document.querySelector('[data-flash]');
         if (!flash || window.location.hash === '') { return; }
         const header = document.querySelector('.site-header');
-        const headerBottom = header ? header.getBoundingClientRect().height : 0;
-        window.scrollTo(0, Math.max(0, flash.getBoundingClientRect().top + window.scrollY - headerBottom - 12));
+        const headerGap = (header ? header.getBoundingClientRect().height : 0) + 12;
+        window.scrollTo(0, Math.max(0, flashLandingTop(flash, headerGap) + window.scrollY - headerGap));
         flash.setAttribute('tabindex', '-1');
         flash.focus({preventScroll: true});
     }
@@ -145,6 +171,7 @@
         document.querySelector('[data-report-form]')?.addEventListener('submit', handleReportSubmit);
         document.addEventListener('submit', guardPostSubmit);
 
+        moveFlashToFragment();
         // The browser's own fragment scroll keeps running until the page has loaded.
         if (document.readyState === 'complete') {
             revealFlash();

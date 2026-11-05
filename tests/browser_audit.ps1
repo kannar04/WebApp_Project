@@ -213,12 +213,26 @@ function Check-FlashReveal {
         Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
         Navigate '/profile'
         Evaluate "(function(){const f=document.querySelector('#personal').closest('section,form').querySelector('[name=full_name]').form;f.elements.full_name.required=false;f.elements.full_name.value='';f.submit();return true;})()" | Out-Null
-        Wait-FilterPage "location.hash==='#personal'&&(function(){const a=document.querySelector('[data-flash]');if(!a||document.activeElement!==a){return false;}const r=a.getBoundingClientRect();return r.top>=document.querySelector('.site-header').getBoundingClientRect().bottom-1&&r.bottom<=innerHeight;})()"
+        Wait-FilterPage "location.hash==='#personal'&&(function(){const a=document.querySelector('[data-flash]');if(!a||document.activeElement!==a||a.nextElementSibling!==document.querySelector('#personal')){return false;}const r=a.getBoundingClientRect();return r.top>=document.querySelector('.site-header').getBoundingClientRect().bottom-1&&r.bottom<=innerHeight;})()"
         Navigate '/wishlist'
         Navigate '/profile#verification'
         Wait-FilterPage "scrollY>100&&!document.querySelector('[data-flash]')&&document.activeElement===document.body"
     }
     Write-Output 'PASS browser result message shown and focused after a fragment redirect, plain fragment scroll kept'
+}
+
+function Check-MessageFlash([string]$BookingPath) {
+    # A message result used to land thousands of pixels above the thread. This one is refused, so nothing is stored: the result, the draft and the form must all be on screen.
+    if (!$BookingPath) { Write-Output 'SKIP browser message result landing: no guest booking'; return }
+    foreach ($size in @(@(375,700),@(1440,900))) {
+        Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$size[0];height=$size[1];deviceScaleFactor=1;mobile=$false} | Out-Null
+        Navigate $BookingPath
+        if (!(Evaluate "!!document.querySelector('[data-message-form]')")) { Write-Output 'SKIP browser message result landing: first booking has a closed thread'; return }
+        Evaluate "(function(){const b=document.querySelector('#message-body');b.removeAttribute('maxlength');b.value='x'.repeat(2001);b.form.submit();return true;})()" | Out-Null
+        Wait-FilterPage "location.hash==='#booking-messages'&&(function(){const a=document.querySelector('[data-flash]');const b=document.querySelector('#message-body');if(!a||!b||document.activeElement!==a||b.value.length!==2001||!document.querySelector('#booking-messages').contains(a)){return false;}const line=document.querySelector('.site-header').getBoundingClientRect().bottom-1;const r=a.getBoundingClientRect();const s=b.getBoundingClientRect();return r.top>=line&&r.bottom<=innerHeight&&s.top>=line&&s.bottom<=innerHeight;})()"
+    }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    Write-Output 'PASS browser refused message lands on the thread with its result and draft on screen at 375 and 1440'
 }
 
 function Send-DoubleClick([string]$Selector) {
@@ -354,6 +368,7 @@ try {
     Write-Output 'PASS browser long unbroken text wraps at 375 on Guest pages'
     Check-BookingDateWidth
     Check-FlashReveal
+    Check-MessageFlash $bookingPath
     Check-PostGuardEvents
     Check-CalendarNavigation '/listings/1'
     Logout-Role
