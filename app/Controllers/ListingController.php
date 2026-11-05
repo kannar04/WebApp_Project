@@ -12,10 +12,12 @@ final class ListingController extends Controller
         $model=new Listing(); $listing=$model->findPublic((int)$id);
         if (!$listing) { http_response_code(404); $this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']); return; }
         \App\Services\DiscoveryService::recordView($listing);
+        $old=\Core\Session::pullOld();
+        if (($old['listing_id']??null)!==(int)$id) { $old=[]; }
         try { $calendar=\Core\Calendar::month($_GET['month']??date('Y-m')); }
         catch (\DomainException $exception) { \Core\Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
         $this->render('listings/show',['title'=>$listing['title'],'listing'=>$listing,'calendar'=>$calendar,
-            'calendarDays'=>$model->calendar((int)$id,0,$calendar['start'],$calendar['end']),'calendarPath'=>'/listings/'.$id,'preview'=>false,
+            'calendarDays'=>$model->calendar((int)$id,0,$calendar['start'],$calendar['end']),'calendarPath'=>'/listings/'.$id,'preview'=>false,'old'=>$old,
             'trustBadges'=>(new \App\Models\Trust())->badges([(int)$listing['host_id']],\Core\Auth::id()),'reviewBadges'=>(new \App\Models\Trust())->reviewBadges((int)$id),
             'bookingRules'=>(new BookingExtras())->listingRules((int)$id),'upcomingHolidays'=>(new BookingExtras())->upcomingHolidays(6)]);
     }

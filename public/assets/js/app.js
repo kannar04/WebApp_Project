@@ -210,6 +210,8 @@
 
             quotePanel.setAttribute('aria-live', 'polite');
             fields.forEach(field => field.addEventListener('input', updateQuote));
+            // Dates kept after a refused request need a total too, so the panel matches the form.
+            if (fields[0].value && fields[1].value) { updateQuote(); }
             bookingForm.addEventListener('submit', () => {
                 const submitButton = bookingForm.querySelector('button[type="submit"]');
                 if (submitButton) {

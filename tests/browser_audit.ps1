@@ -148,6 +148,16 @@ function Check-SubmitGuards([string]$BookingPath) {
     Write-Output 'PASS browser message guard covers button and Ctrl+Enter, released for retry with the text kept'
 }
 
+function Check-BookingRefusal {
+    # The promo code does not exist, so nothing is booked: the form comes back filled and the quote panel matches it.
+    Navigate '/listings/1'
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_in.value='2035-05-10';f.elements.check_out.value='2035-05-12';f.elements.guests.value='2';f.elements.promo_code.value='NOSUCHCODE';f.querySelector('button[type=submit]').click();return true;})()" | Out-Null
+    Wait-FilterPage "!!document.querySelector('main .alert-danger')&&!!document.querySelector('[data-quote] .is-total')"
+    $kept=Evaluate "(function(){const f=document.querySelector('[data-booking-form]');return {path:location.pathname,checkIn:f.elements.check_in.value,checkOut:f.elements.check_out.value,guests:f.elements.guests.value,promo:f.elements.promo_code.value,invalid:f.querySelector('[data-promo-feedback]').classList.contains('is-invalid'),ready:!f.querySelector('button[type=submit]').disabled};})()"
+    if ($kept.path -ne '/listings/1' -or $kept.checkIn -ne '2035-05-10' -or $kept.checkOut -ne '2035-05-12' -or $kept.guests -ne '2' -or $kept.promo -ne 'NOSUCHCODE' -or !$kept.invalid -or !$kept.ready) { throw "Refused booking lost its input or quote: $($kept | ConvertTo-Json -Compress)" }
+    Write-Output 'PASS browser refused booking keeps its input and quotes it again on load'
+}
+
 function Check-CalendarNavigation([string]$Path) {
     Navigate $Path
     $next=Evaluate 'document.querySelector(''#availability-calendar'').closest(''section'').querySelectorAll(''a'')[1].getAttribute(''href'')'
@@ -218,6 +228,7 @@ try {
         }
     }
     Check-SubmitGuards $bookingPath
+    Check-BookingRefusal
     Check-CalendarNavigation '/listings/1'
     Logout-Role
     if ((Login-Role 'host') -ne '/host') { throw 'Host login redirect failed' }

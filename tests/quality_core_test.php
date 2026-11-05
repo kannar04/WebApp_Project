@@ -395,6 +395,21 @@ qaExpect($bookings->upcomingForGuest($tripGuest)===[],'New guest has upcoming tr
 foreach ([$farTrip,$nearTrip] as $tripId) { $service->cancelByGuest($tripId,3,'Quality upcoming trips cleanup'); }
 echo "PASS QA upcoming trips exclude finished and cancelled stays and list the soonest first\n";
 
+// A refused booking request keeps what the Guest typed, escaped, on that listing and for that one page load.
+$login('guest');
+$refused=$request('/listings/1/book',['_token'=>$token($request('/listings/1')),'check_in'=>'2031-04-10','check_out'=>'2031-04-12','guests'=>'2','promo_code'=>'"><b>NOPE']);
+qaExpect((string)parse_url($refused['url'],PHP_URL_PATH)==='/listings/1' && str_contains($refused['body'],'alert-danger'),'Refused booking did not return to the listing with the error.');
+foreach (['name="check_in" min="'.date('Y-m-d').'" value="2031-04-10"','value="2031-04-12"','name="guests" min="1" max="','value="2" required','value="&quot;&gt;&lt;b&gt;NOPE"'] as $kept) { qaExpect(str_contains($refused['body'],$kept),'Refused booking lost input: '.$kept); }
+qaExpect(!str_contains($refused['body'],'"><b>NOPE'),'Refused promo code printed unescaped.');
+qaExpect(!str_contains($request('/listings/1')['body'],'value="2031-04-10"'),'Old booking input survived the next page load.');
+$request('/listings/1/book',['_token'=>$token($request('/listings/1')),'check_in'=>'"><script>','check_out'=>'2031-04-12','guests'=>'abc','promo_code'=>"\xFF"]);
+$other=$request('/listings/2')['body'];
+qaExpect(!str_contains($other,'value="2031-04-12"') && str_contains($other,'name="guests" min="1"'),'Booking input followed the Guest to another listing.');
+$malformed=$request('/listings/1/book',['_token'=>$token($request('/listings/1')),'check_in'=>'"><script>','check_out'=>'2031-04-12','guests'=>'abc','promo_code'=>"\xFF"])['body'];
+qaExpect(!str_contains($malformed,'"><script>') && str_contains($malformed,'value="2031-04-12"') && str_contains($malformed,'value="1" required'),'Malformed booking input was kept.');
+$logout();
+echo "PASS QA refused booking keeps dates, guests and promo code, escaped, once and on that listing only\n";
+
 $passwordUser=new User(); $email='quality-password-'.bin2hex(random_bytes(6)).'@home2home.test';
 $oldPassword='QaOld!'.bin2hex(random_bytes(10)); $newPassword='QaNew!'.bin2hex(random_bytes(10));
 $passwordId=$passwordUser->create($email,$oldPassword,'Quality password test',null);
