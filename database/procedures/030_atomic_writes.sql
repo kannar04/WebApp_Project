@@ -204,6 +204,7 @@ BEGIN
     IF p_3 IS NULL OR p_3 NOT IN ('approved','rejected') OR (p_3='rejected' AND (p_4 IS NULL OR TRIM(p_4)='')) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Quyết định kiểm duyệt hoặc lý do không hợp lệ.';
     END IF;
+    IF CHAR_LENGTH(TRIM(p_4))>5000 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Lý do hoặc ghi chú kiểm duyệt tối đa 5000 ký tự.'; END IF;
     UPDATE listings SET moderation_status=p_3,moderation_reason=p_4,reviewed_by=p_2,reviewed_at=NOW(6),updated_at=NOW(6) WHERE id=p_1;
     INSERT INTO listing_moderation_events(listing_id,admin_id,action,reason,created_at) VALUES(p_1,p_2,IF(p_3='approved','approve','reject'),p_4,NOW(6));
     -- A rejected listing cannot honour its requests, same as a take-down. Confirmed stays are left for people to sort out.

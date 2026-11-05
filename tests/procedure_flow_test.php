@@ -440,6 +440,20 @@ try {
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS notifications link to a booking only when that person can open it\n";
 
+    // The moderation reason has the same 5000-character limit as the other free-text fields. Everything rolls back.
+    $db->beginTransaction();
+    try {
+        $moderation=new AdminRepository(); $adminId=(int)$admin['id']; $tag=bin2hex(random_bytes(6));
+        $limitListing=$model->create((int)$host['id'],['title'=>'Audit fixture '.$tag]+$data);
+        callRows('CALL sp_test_listing_approve(?)',[$limitListing]);
+        refusedSaying([$moderation,'moderate'],[$limitListing,$adminId,'rejected',str_repeat('ệ',5001)],'tối đa 5000 ký tự');
+        ensure($moderation->findListing($limitListing)['moderation_status']==='approved','A refused reason changed the listing.');
+        $moderation->moderate($limitListing,$adminId,'rejected',str_repeat('ệ',5000));
+        $limitRow=$moderation->findListing($limitListing);
+        ensure($limitRow['moderation_status']==='rejected' && mb_strlen((string)$limitRow['moderation_reason'])===5000,'A reason of exactly 5000 characters was not kept whole.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS moderation reason: 5000 characters kept, 5001 refused with nothing changed\n";
+
     // A hide by an Admin holds until an Admin shows the listing; a Host's own hide stays theirs. Everything rolls back.
     $db->beginTransaction();
     try {

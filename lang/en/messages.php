@@ -120,6 +120,7 @@ return [
     'Đã khôi phục tài khoản.' => 'Account restored.',
     'Không thể thay đổi trạng thái hoặc vai trò của Admin đang đăng nhập.' => 'You cannot change the status or roles of the Admin who is logged in.',
     'Từ chối bài đăng phải có lý do.' => 'Rejecting a listing requires a reason.',
+    'Lý do hoặc ghi chú kiểm duyệt tối đa 5000 ký tự.' => 'A moderation reason or note can be up to 5000 characters.',
     'Đã cập nhật kiểm duyệt bài đăng.' => 'Listing moderation updated.',
     'Không thể kiểm duyệt bài đăng. Vui lòng thử lại.' => 'Could not moderate the listing. Please try again.',
     'Sức chứa phải từ 1 đến 65535.' => 'Capacity must be between 1 and 65535.',

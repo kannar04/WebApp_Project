@@ -445,6 +445,10 @@ try {
         $reasonRaw = '<b>Ảnh '.$tag.'</b> chưa rõ';
         $reasonSafe = '&lt;b&gt;Ảnh '.$tag.'&lt;/b&gt; chưa rõ';
         $moderationPage = trustHttp($adminClient, $baseUrl, '/admin/listings');
+        $refusedReason = trustHttp($adminClient, $baseUrl, '/admin/listings/'.$rejectedListing.'/moderate', ['_token' => trustToken($moderationPage['body']), 'action' => 'rejected', 'note' => str_repeat('ệ', 5001)]);
+        trustExpect(str_contains($refusedReason['body'], 'alert-danger') && str_contains($refusedReason['body'], 'tối đa 5000 ký tự'), 'A rejection reason over 5000 characters was not refused.');
+        trustExpect(str_contains($refusedReason['body'], 'value="'.str_repeat('ệ', 5000).'"'), 'The refused reason was not kept in its form.');
+        trustExpect(!str_contains(trustHttp($adminClient, $baseUrl, '/admin')['body'], 'value="'.str_repeat('ệ', 5000).'"'), 'The refused reason stayed after the next page load.');
         $rejectedBy = trustHttp($adminClient, $baseUrl, '/admin/listings/'.$rejectedListing.'/moderate', ['_token' => trustToken($moderationPage['body']), 'action' => 'rejected', 'note' => $reasonRaw]);
         trustExpect(str_contains($rejectedBy['body'], 'alert-success'), 'Admin could not reject the fixture listing.');
         foreach (['/host', '/host/listings/'.$rejectedListing.'/edit', '/notifications'] as $hostPage) {

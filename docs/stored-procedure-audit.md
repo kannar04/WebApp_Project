@@ -425,6 +425,7 @@ Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
 | `sp_trust_badges` | `075_trust.sql` | Tỷ lệ Host từ chối/hủy chỉ tính yêu cầu có `booking_events` từ chối do chính Host; yêu cầu bị từ chối tự động hoặc do Admin không vào cả tử số lẫn mẫu số | feature_trust_test |
 | `sp_booking_transition` | `020_booking.sql` | Lời từ chối ngày bị chặn theo người thao tác: Host giữ nguyên, Admin được bảo nhờ Host mở lại ngày hoặc từ chối yêu cầu | procedure_flow_test |
 | `sp_notifications_list` | `050_quality_core.sql` | Trả thêm `can_open_booking` (cùng quy tắc với `sp_quality_assert_booking`) để không hiện liên kết dẫn tới 404 cho người không còn mở được booking | procedure_flow_test, quality_core_test |
+| `sp_admin_listing_moderate` | `030_atomic_writes.sql` | Từ chối lý do hoặc ghi chú dài hơn 5000 ký tự | procedure_flow_test, feature_trust_test |
 
 ### Routine mới
 
