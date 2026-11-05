@@ -49,6 +49,8 @@ return [
     'Admin cập nhật trạng thái.' => 'Admin updated the status.',
     'Admin gỡ chỗ ở nên yêu cầu bị từ chối tự động.' => 'Admin took the listing down, so the request was rejected automatically.',
     'Admin từ chối tin đăng nên yêu cầu bị từ chối tự động.' => 'Admin rejected the listing, so the request was rejected automatically.',
+    'Tài khoản Host đã bị xóa nên yêu cầu bị từ chối tự động.' => 'The Host account was deleted, so the request was rejected automatically.',
+    'Tài khoản khách đã bị xóa nên yêu cầu bị từ chối tự động.' => 'The guest account was deleted, so the request was rejected automatically.',
     'Host cập nhật trạng thái.' => 'Host updated the status.',
     'Khách hủy booking.' => 'Guest cancelled the booking.',
 

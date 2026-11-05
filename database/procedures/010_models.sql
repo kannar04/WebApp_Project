@@ -41,8 +41,48 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_user_soft_delete`(IN p_1 bigint unsigned)
 BEGIN
+    DECLARE v_own BOOL DEFAULT FALSE;
+    DECLARE v_listing BIGINT UNSIGNED;
+    DECLARE v_count INT DEFAULT 0;
+    DECLARE v_stays INT DEFAULT 0;
+    DECLARE v_affected INT DEFAULT 0;
+    DECLARE v_message VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF @@in_transaction THEN
+            IF v_own THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT h2h_user_soft_delete; RELEASE SAVEPOINT h2h_user_soft_delete; END IF;
+        END IF;
+        RESIGNAL;
+    END;
+    SET v_own=(@@in_transaction=0);
+    IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_user_soft_delete; END IF;
+    -- Lock order listing -> booking, like sp_booking_transition, so a confirm running now is either seen here or refused afterwards.
+    SELECT COUNT(*) INTO v_count FROM listings WHERE host_id=p_1 FOR UPDATE;
+    SELECT COUNT(*) INTO v_count FROM listings WHERE id IN (SELECT listing_id FROM bookings WHERE guest_id=p_1 AND status IN ('pending','confirmed')) FOR UPDATE;
+    -- Same rule as an Admin take-down: an unfinished confirmed stay needs a person to sort out the money.
+    SELECT COUNT(*) INTO v_stays FROM bookings WHERE guest_id=p_1 AND status='confirmed' AND check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) FOR UPDATE;
+    SELECT COUNT(*) INTO v_count FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE l.host_id=p_1 AND b.status='confirmed' AND b.check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) FOR UPDATE;
+    SET v_stays=v_stays+v_count;
+    IF v_stays>0 THEN
+        SET v_message=CONCAT('Không thể xóa tài khoản: còn ',v_stays,' booking đã xác nhận chưa kết thúc (với tư cách khách hoặc Host). Hãy liên hệ các bên để xử lý trước.');
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=v_message;
+    END IF;
+    -- Requests involving this account cannot be honoured any more. No actor: the Admin who deleted the account is in the audit log of the same transaction.
+    SELECT MIN(id) INTO v_listing FROM listings WHERE host_id=p_1;
+    WHILE v_listing IS NOT NULL DO
+        CALL sp_listing_reject_pending(v_listing,NULL,'Tài khoản Host đã bị xóa nên yêu cầu bị từ chối tự động.','tài khoản Host đã bị xóa',v_count);
+        SELECT MIN(id) INTO v_listing FROM listings WHERE host_id=p_1 AND id>v_listing;
+    END WHILE;
+    INSERT INTO booking_events(booking_id,actor_id,from_status,to_status,reason,created_at)
+        SELECT id,NULL,'pending','rejected','Tài khoản khách đã bị xóa nên yêu cầu bị từ chối tự động.',NOW(6) FROM bookings WHERE guest_id=p_1 AND status='pending';
+    INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+        SELECT l.host_id,b.id,'in_app','booking_rejected','Cập nhật booking',CONCAT('Yêu cầu đặt chỗ #',b.id,' cho “',l.title,'” đã bị từ chối vì tài khoản khách đã bị xóa.'),'sent',1,NOW(6)
+        FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.guest_id=p_1 AND b.status='pending';
+    UPDATE bookings SET status='rejected',updated_at=NOW(6) WHERE guest_id=p_1 AND status='pending';
     UPDATE users SET status='deleted',deleted_at=NOW(6),updated_at=NOW(6) WHERE id=p_1;
-    SELECT ROW_COUNT() __affected,LAST_INSERT_ID() __insert_id;
+    SET v_affected=ROW_COUNT();
+    SELECT v_affected __affected,LAST_INSERT_ID() __insert_id;
+    IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_user_soft_delete; END IF;
 END$$
 
 CREATE OR REPLACE PROCEDURE `sp_listing_get_public`(IN p_1 bigint unsigned)

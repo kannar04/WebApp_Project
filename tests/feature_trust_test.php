@@ -435,6 +435,17 @@ try {
         trustExpect(!str_contains(trustHttp($hostClient, $baseUrl, '/host')['body'], $reasonSafe), 'The dashboard kept a reason after the listing was approved.');
         echo "PASS rejection reason shown escaped to the Host on the dashboard, edit page and notification, only while the listing is rejected\n";
 
+        // Deleting an account with an unfinished stay: the Admin reads why on the dashboard, not a 500.
+        $leavingEmail = sprintf($emailFor, 'leaving');
+        $leavingGuest = $users->adminCreate(['email' => $leavingEmail, 'password' => $password, 'full_name' => 'Trust Leaving Guest', 'phone' => ''], ['guest']);
+        [$leavingIn, $leavingOut] = trustDates(40);
+        $leavingStay = $service->create($listingId, $leavingGuest, $leavingIn, $leavingOut, 1);
+        $service->hostTransition($leavingStay, $hostId, 'confirmed');
+        $refusedDelete = trustHttp($adminClient, $baseUrl, '/admin/users/'.$leavingGuest.'/delete', ['_token' => trustToken(trustHttp($adminClient, $baseUrl, '/admin')['body'])]);
+        trustExpect($refusedDelete['status'] === 200 && $refusedDelete['path'] === '/admin' && str_contains($refusedDelete['body'], 'alert-danger') && str_contains($refusedDelete['body'], 'còn 1 booking đã xác nhận chưa kết thúc'), 'The Admin did not read why the delete was refused.');
+        trustExpect($users->findByEmail($leavingEmail)['status'] === 'active', 'A refused delete changed the account.');
+        echo "PASS refused account delete shows the Admin the count on the dashboard\n";
+
         foreach ([$anonymous, $guestClient, $otherClient, $adminClient, $hostClient, $otherHostClient] as $client) { curl_close($client); }
         echo "PASS trust HTTP: login/403/404 guards, CSRF 419 on verification and decision, profile submit/duplicate, Admin queue+approval+masked history+badges, Host progress/guide save/validation, public pages without secrets\n";
     }

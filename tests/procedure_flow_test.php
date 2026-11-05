@@ -260,6 +260,48 @@ try {
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS the Host is notified with the reason on rejection and on take-down, in the same transaction, and not on approval or a refused rejection\n";
 
+    // Deleting an account: refused while a confirmed stay is unfinished, otherwise its requests close with a notice to the other party; everything rolls back.
+    $db->beginTransaction();
+    try {
+        $service=new BookingService(); $hostId=(int)$host['id']; $guestId=(int)$guest['id']; $day=new DateTimeImmutable($start); $tag=bin2hex(random_bytes(6));
+        $stay=[$day->modify('+10 days')->format('Y-m-d'),$day->modify('+12 days')->format('Y-m-d')];
+        $oneNight=[$day->modify('+20 days')->format('Y-m-d'),$day->modify('+21 days')->format('Y-m-d')];
+        $goneGuestEmail='audit-'.$tag.'-guest@home2home.test'; $goneHostEmail='audit-'.$tag.'-host@home2home.test';
+        $goneGuest=$users->adminCreate(['email'=>$goneGuestEmail,'password'=>bin2hex(random_bytes(16)),'full_name'=>'Audit leaving guest','phone'=>''],['guest']);
+        $goneHost=$users->adminCreate(['email'=>$goneHostEmail,'password'=>bin2hex(random_bytes(16)),'full_name'=>'Audit leaving host','phone'=>''],['guest','host']);
+        $goneListing=$model->create($goneHost,['title'=>'Audit fixture BX '.$tag]+$data);
+        callRows('CALL sp_test_listing_approve(?)',[$goneListing]);
+
+        $guestRequest=$service->create($listingId,$goneGuest,$start,$end,1);
+        $guestStay=$service->create($listingId,$goneGuest,$stay[0],$stay[1],1);
+        $service->hostTransition($guestStay,$hostId,'confirmed');
+        refusedSaying([$users,'softDelete'],[$goneGuest],'còn 1 booking đã xác nhận chưa kết thúc');
+        ensure($users->findByEmail($goneGuestEmail)['status']==='active' && bookingState($guestRequest)['status']==='pending','A refused delete changed the guest account or request.');
+
+        $hostRequest=$service->create($goneListing,$guestId,$start,$end,1);
+        $hostStay=$service->create($goneListing,$guestId,$stay[0],$stay[1],1);
+        $finished=$service->create($goneListing,$guestId,$oneNight[0],$oneNight[1],1);
+        $service->hostTransition($hostStay,$goneHost,'confirmed');
+        $service->hostTransition($finished,$goneHost,'confirmed');
+        callRows('CALL sp_test_booking_extras_backdate(?)',[$finished]);
+        refusedSaying([$users,'softDelete'],[$goneHost],'còn 1 booking đã xác nhận chưa kết thúc');
+        ensure($users->findByEmail($goneHostEmail)['status']==='active' && bookingState($hostRequest)['status']==='pending','A refused delete changed the Host account or request.');
+
+        // Both stays end: nothing holds the delete any more, and a finished stay stays as it is.
+        $service->cancelByGuest($guestStay,$goneGuest,'Procedure account delete fixture');
+        $service->cancelByGuest($hostStay,$guestId,'Procedure account delete fixture');
+        $users->softDelete($goneGuest);
+        $state=bookingState($guestRequest); $notices=noticesFor($hostId,$guestRequest,'booking_rejected');
+        ensure($users->findByEmail($goneGuestEmail)['status']==='deleted' && $state['status']==='rejected' && (int)$state['events']===2,'Deleting a guest left the request open.');
+        ensure(count($notices)===1 && str_contains($notices[0]['body'],'tài khoản khách đã bị xóa'),'The Host was not told the guest account was deleted.');
+        $users->softDelete($goneHost);
+        $state=bookingState($hostRequest); $notices=noticesFor($guestId,$hostRequest,'booking_rejected');
+        ensure($users->findByEmail($goneHostEmail)['status']==='deleted' && $state['status']==='rejected' && (int)$state['events']===2,'Deleting a Host left the request open.');
+        ensure(count($notices)===1 && str_contains($notices[0]['body'],'tài khoản Host đã bị xóa'),'The guest was not told the Host account was deleted.');
+        ensure(bookingState($finished)['status']==='confirmed','Deleting a Host changed a finished stay.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS account delete refused with the count for an unfinished stay as guest or Host; otherwise requests close with event and notice to the other party\n";
+
     for ($i=0;$i<2;$i++) {
         $pipes=[];
         $process=proc_open([PHP_BINARY,__FILE__,'--worker',(string)$listingId,(string)$guest['id'],$start,$end],

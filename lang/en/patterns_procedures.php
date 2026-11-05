@@ -24,6 +24,11 @@ return [
     'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì chỗ ở đã được gỡ khỏi hệ thống.' => 'Booking request #{id} for “{listing}” was rejected because the listing has been taken down.',
     'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì chỗ ở không được duyệt.' => 'Booking request #{id} for “{listing}” was rejected because the listing was not approved.',
 
+    // ---- 010_models.sql: sp_user_soft_delete refusal and notifications to the other party
+    'Không thể xóa tài khoản: còn {count} booking đã xác nhận chưa kết thúc (với tư cách khách hoặc Host). Hãy liên hệ các bên để xử lý trước.' => 'This account cannot be deleted: {count} confirmed booking(s) have not finished (as guest or Host). Contact the people involved to resolve them first.',
+    'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì tài khoản Host đã bị xóa.' => 'Booking request #{id} for “{listing}” was rejected because the Host account was deleted.',
+    'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì tài khoản khách đã bị xóa.' => 'Booking request #{id} for “{listing}” was rejected because the guest account was deleted.',
+
     // ---- 030_atomic_writes.sql: Host notifications about a rejected or removed listing
     'Tin “{listing}” đã bị Admin từ chối. Lý do: {reason}' => 'Admin rejected your listing “{listing}”. Reason: {reason}',
     'Admin đã gỡ chỗ ở “{listing}” khỏi hệ thống.' => 'Admin took your listing “{listing}” down.',
