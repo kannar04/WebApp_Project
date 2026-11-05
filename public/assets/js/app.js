@@ -44,9 +44,37 @@
         }
     }
 
+    function carryTickedAmenities(searchForm, filterForm) {
+        const carried = searchForm.querySelectorAll('input[type="hidden"][name="amenities[]"]');
+        for (let index = 0; index < carried.length; index++) { carried[index].remove(); }
+        const ticked = filterForm.querySelectorAll('input[name="amenities[]"]:checked');
+        const button = searchForm.querySelector('button[type="submit"]');
+        for (let index = 0; index < ticked.length; index++) {
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'amenities[]';
+            hidden.value = ticked[index].value;
+            searchForm.insertBefore(hidden, button);
+        }
+    }
+
+    // The home search bar and filter panel are two forms. Each sends the other's current values through its hidden inputs.
+    function carryOtherFormValues(form) {
+        const isSearchBar = form.matches('[data-search-form]');
+        const other = document.querySelector(isSearchBar ? '[data-filter-form]' : '[data-search-form]');
+        if (!other) { return; }
+        const hidden = form.querySelectorAll('input[type="hidden"]:not([name="amenities[]"])');
+        for (let index = 0; index < hidden.length; index++) {
+            const field = other.elements.namedItem(hidden[index].name);
+            if (field) { hidden[index].value = field.value; }
+        }
+        if (isSearchBar) { carryTickedAmenities(form, other); }
+    }
+
     function handleSearchSubmit(event) {
         const form = event.currentTarget;
         if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
+        carryOtherFormValues(form);
         if (isFragmentOnlySubmit(form)) { return; }
         markFormBusy(form, h2hT('Đang tìm…'));
         scheduleFormRelease(form);

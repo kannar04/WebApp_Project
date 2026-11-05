@@ -794,6 +794,17 @@ foreach ([['/','/?reset=1#listing-results'],['/?reset=1','/#listing-results'],['
 }
 echo "PASS QA filter reset always reloads and lands on the results\n";
 
+// Without JavaScript each home form still sends the last applied search, every field once.
+$appliedSearch=$request('/?'.http_build_query(['location'=>'Da','guests'=>2,'type'=>1,'sort'=>'price_asc','min_price'=>1000,'bedrooms'=>1,'amenities'=>[1,2]]))['body'];
+qaExpect(preg_match('~<form[^>]*data-search-form.*?</form>~s',$appliedSearch,$searchBar)===1 && preg_match('~<form[^>]*data-filter-form.*?</form>~s',$appliedSearch,$filterPanel)===1,'Home search forms missing.');
+foreach (['location'=>'Da','guests'=>'2','type'=>'1','sort'=>'price_asc','min_price'=>'1000','bedrooms'=>'1'] as $appliedName=>$appliedValue) {
+    qaExpect(substr_count($searchBar[0],'name="'.$appliedName.'"')===1 && str_contains($searchBar[0],'name="'.$appliedName.'" value="'.$appliedValue.'"'),'Search bar does not carry '.$appliedName);
+    qaExpect(substr_count($filterPanel[0],'name="'.$appliedName.'"')===1,'Filter panel repeats '.$appliedName);
+}
+foreach (['location'=>'Da','guests'=>'2'] as $appliedName=>$appliedValue) { qaExpect(str_contains($filterPanel[0],'type="hidden" name="'.$appliedName.'" value="'.$appliedValue.'"'),'Filter panel does not carry '.$appliedName); }
+qaExpect(substr_count($searchBar[0],'type="hidden" name="amenities[]"')===2 && substr_count($filterPanel[0],'type="hidden" name="amenities[]"')===0,'Applied amenities not carried once.');
+echo "PASS QA each home form holds the last applied search once, without JavaScript\n";
+
 // More than one UI page, with real approval and filter-preserving navigation.
 $paginationFixtures=[]; $paginationData=$listings->findOwned(1,2); $paginationData['city']='QualityPagination';
 try {

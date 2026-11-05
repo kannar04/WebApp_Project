@@ -169,6 +169,43 @@ function Check-FilterResetLoads {
     }
 }
 
+function Get-SearchParameters {
+    Evaluate "(function(){const query=new URLSearchParams(location.search);const repeated=Array.from(query.keys()).filter(function(name,index,all){return name!=='amenities[]'&&all.indexOf(name)!==index;});return {location:query.get('location'),guests:query.get('guests'),type:query.get('type'),min:query.get('min_price'),sort:query.get('sort'),amenities:query.getAll('amenities[]').join(','),repeated:repeated.length,page:query.has('page')};})()"
+}
+
+function Check-SearchFormsCarry {
+    # Either form sends both forms' current values, each parameter once, and only the amenities ticked right now.
+    Navigate '/'
+    Evaluate "(function(){window.__beforeCarry=true;document.querySelector('[data-search-form]').elements.location.value='Carry place';document.querySelector('[data-search-form]').elements.guests.value='2';const panel=document.querySelector('[data-filter-form]');panel.elements.type.selectedIndex=1;document.querySelector('[data-filter-submit]').click();return true;})()" | Out-Null
+    Wait-FilterPage '!window.__beforeCarry'
+    $sent=Get-SearchParameters
+    if ($sent.location -ne 'Carry place' -or $sent.guests -ne '2' -or !$sent.type -or $sent.repeated) { throw "Filter button dropped the search bar: $($sent | ConvertTo-Json -Compress)" }
+    if ((Evaluate "document.querySelector('[data-search-form]').elements.location.value") -ne 'Carry place') { throw 'Filter button left the search bar empty' }
+
+    Navigate '/'
+    $ticked=Evaluate "(function(){window.__beforeCarry=true;const panel=document.querySelector('[data-filter-form]');panel.elements.min_price.value='7000';panel.elements.sort.value='price_asc';const boxes=panel.querySelectorAll('input[name=""amenities[]""]');boxes[0].checked=true;boxes[1].checked=true;document.querySelector('[data-search-form] button[type=submit]').click();return [boxes[0].value,boxes[1].value];})()"
+    Wait-FilterPage '!window.__beforeCarry'
+    $sent=Get-SearchParameters
+    if ($sent.min -ne '7000' -or $sent.sort -ne 'price_asc' -or $sent.amenities -ne ($ticked -join ',') -or $sent.repeated) { throw "Search button dropped the panel: $($sent | ConvertTo-Json -Compress)" }
+
+    # Hidden copies from the last search must not outlive a change: the unticked amenity is gone and nothing doubles, with either button.
+    Evaluate "(function(){window.__beforeCarry=true;const panel=document.querySelector('[data-filter-form]');panel.querySelectorAll('input[name=""amenities[]""]')[0].checked=false;panel.elements.min_price.value='8000';document.querySelector('[data-search-form]').elements.location.value='Carry again';document.querySelector('[data-search-form] button[type=submit]').click();return true;})()" | Out-Null
+    Wait-FilterPage '!window.__beforeCarry'
+    $sent=Get-SearchParameters
+    if ($sent.location -ne 'Carry again' -or $sent.min -ne '8000' -or $sent.amenities -ne $ticked[1] -or $sent.repeated) { throw "Search button kept old values: $($sent | ConvertTo-Json -Compress)" }
+    Evaluate "(function(){window.__beforeCarry=true;document.querySelector('[data-search-form]').elements.location.value='Carry third';document.querySelector('[data-filter-submit]').click();return true;})()" | Out-Null
+    Wait-FilterPage '!window.__beforeCarry'
+    $sent=Get-SearchParameters
+    if ($sent.location -ne 'Carry third' -or $sent.min -ne '8000' -or $sent.amenities -ne $ticked[1] -or $sent.sort -ne 'price_asc' -or $sent.repeated) { throw "Filter button kept old values: $($sent | ConvertTo-Json -Compress)" }
+
+    # Reset still clears the panel, carried values included.
+    Evaluate "(function(){window.__beforeCarry=true;document.querySelector('[data-filter-reset]').click();return true;})()" | Out-Null
+    Wait-FilterPage '!window.__beforeCarry'
+    $sent=Get-SearchParameters
+    $panel=Evaluate "(function(){const panel=document.querySelector('[data-filter-form]');const bar=new FormData(document.querySelector('[data-search-form]'));return panel.querySelectorAll('input[name=""amenities[]""]:checked').length+panel.elements.min_price.value+panel.elements.sort.value+bar.get('min_price')+bar.get('sort')+bar.getAll('amenities[]').join('');})()"
+    if ($sent.location -ne 'Carry third' -or $sent.min -or $sent.sort -or $sent.amenities -or [string]$panel -ne '0') { throw "Reset kept carried values: $($sent | ConvertTo-Json -Compress) $panel" }
+}
+
 function Check-SubmitStopRelease([string]$Selector, [string]$Path, [string]$Fill) {
     # Pressing Stop fires no event, so the search and booking buttons must come back on the timer. Events only, so nothing is sent.
     Navigate $Path
@@ -560,6 +597,8 @@ try {
     Check-FilterResubmit
     Check-FilterResetLoads
     Write-Output 'PASS browser filter reset is a real load from every address and lands on the results'
+    Check-SearchFormsCarry
+    Write-Output 'PASS browser search bar and filter panel each send both forms current values, each once, and reset clears them'
     Check-SubmitStopRelease '[data-search-form]' '/' "f.elements.location.value='Stop test'"
     Check-SubmitStopRelease '[data-filter-form]' '/' "f.elements.min_price.value='7000'"
     Write-Output 'PASS browser search and filter guards release on the timer after Stop'
