@@ -236,6 +236,7 @@ return [
     'Giao dịch này đã đóng; vui lòng tải lại trang thanh toán.' => 'This transaction is closed; please reload the payment page.',
     'Quyết định chuyển khoản không hợp lệ.' => 'Invalid transfer decision.',
     'Vui lòng nhập lý do chưa nhận được tiền (ít nhất 5 ký tự).' => 'Please enter why the money was not received (at least 5 characters).',
+    'Chỗ ở này đã bị gỡ nên không thể thanh toán online.' => 'This listing was taken down, so it can no longer be paid online.',
     'Chuyến ở đã kết thúc nên không thể hủy booking.' => 'The stay has ended, so this booking can no longer be cancelled.',
     'Theo chính sách hủy, booking này không có khoản hoàn nên không thể ghi nhận hoàn tiền.' => 'Under the cancellation policy this booking has nothing to refund, so no refund can be recorded.',
     'Chỉ xác nhận giao dịch chuyển khoản VietQR.' => 'Only VietQR bank transfers can be confirmed here.',

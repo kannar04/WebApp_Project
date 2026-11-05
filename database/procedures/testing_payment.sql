@@ -48,6 +48,15 @@ BEGIN
     UPDATE payment_transactions SET amount=p_amount WHERE booking_id=p_booking AND status='pending';
 END$$
 
+-- A fixture listing taken down (p_removed=1) or back (p_removed=0): only the soft-delete mark moves.
+CREATE OR REPLACE PROCEDURE sp_test_payment_listing_removed(IN p_listing BIGINT UNSIGNED, IN p_removed BOOL)
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM listings WHERE id=p_listing AND city='Audit' AND title LIKE 'Audit fixture PAY %') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to change a non-fixture listing.';
+    END IF;
+    UPDATE listings SET deleted_at=IF(p_removed,NOW(6),NULL) WHERE id=p_listing;
+END$$
+
 -- Removes every booking of a fixture listing (with children, payment attempts included), then the listing itself.
 CREATE OR REPLACE PROCEDURE sp_test_payment_cleanup(IN p_listing BIGINT UNSIGNED)
 BEGIN

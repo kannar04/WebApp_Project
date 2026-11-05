@@ -345,6 +345,34 @@ try {
     payExpect(!$service->cancelByGuest($bookingO,$guestId,'Audit fixture unpaid')['was_paid'] && (int)payInspect($bookingO)['admin_refund_notices']===0,'Cancelling an unpaid booking asked Admins for a refund.');
     echo "PASS cancel after payment: Admin notice with the refund owed in the same transaction, refund and totals use the policy amount, zero refund shown clearly and refused\n";
 
+    // ---- A taken-down listing: no new online payment; money that already left is recorded and flagged for a refund.
+    $removedListing=$policyListings[100];
+    $bookingR=payConfirmedBooking($service,$removedListing,$guestId,$hostId,$base,65);
+    $bookingS=payConfirmedBooking($service,$removedListing,$guestId,$hostId,$base,68);
+    $bookingT=payConfirmedBooking($service,$removedListing,$guestId,$hostId,$base,71);
+    $openVnpay=$payments->start($bookingR,$guestId,'vnpay');
+    $openQr=$payments->start($bookingS,$guestId,'vietqr');
+    payCall('CALL sp_test_payment_listing_removed(?,?)',[$removedListing,1]);
+    $checkout=$payments->checkout($bookingT,$guestId);
+    payExpect((int)$checkout['can_pay_online']===0 && (int)$checkout['listing_removed']===1,'A taken-down listing still offers online payment.');
+    payExpect((int)$extras->bookingDetail($bookingT,$guestId)['can_pay_online']===0 && (int)$extras->paymentMap($guestId,'guest')[$bookingT]['can_pay_online']===0,'Booking pages still offer online payment on a taken-down listing.');
+    payRejects([$payments,'start'],[$bookingT,$guestId,'vietqr'],'đã bị gỡ','VietQR started on a taken-down listing');
+    payRejects([$payments,'start'],[$bookingT,$guestId,'vnpay'],'đã bị gỡ','VNPay started on a taken-down listing');
+    payExpect((int)payInspect($bookingT)['attempts']===0,'A refused payment left an attempt behind.');
+    payExpect((int)$payments->attempt((int)$openQr['transaction_id'],$guestId)['listing_removed']===1,'Transfer page does not know the listing was taken down.');
+    payRejects([$payments,'submitTransfer'],[(int)$openQr['transaction_id'],$guestId],'đã bị gỡ','Transfer reported on a taken-down listing');
+    $result=$payments->vnpayResult($openVnpay['reference'],'220000.00','00','00','14000030','NCB');
+    $state=payInspect($bookingR);
+    payExpect($result['result']==='ok' && $state['payment_status']==='paid' && (int)$state['admin_refund_notices']>=1 && str_contains((string)$state['admin_refund_body'],'đã gỡ'),'VNPay money on a taken-down listing was not flagged: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $payments->decideTransfer((int)$openQr['transaction_id'],$adminId,'confirm','');
+    $state=payInspect($bookingS);
+    payExpect($state['payment_status']==='paid' && (int)$state['admin_refund_notices']>=1 && str_contains((string)$state['admin_refund_body'],'đã gỡ'),'Confirmed transfer on a taken-down listing was not flagged: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    payCall('CALL sp_test_payment_listing_removed(?,?)',[$removedListing,0]);
+    payExpect((int)$payments->checkout($bookingT,$guestId)['can_pay_online']===1 && $payments->start($bookingT,$guestId,'vietqr')['status']==='pending','A listing that is back cannot be paid.');
+    $normal=payInspect($bookingG);
+    payExpect((int)$normal['admin_refund_notices']===0,'An ordinary payment asked Admins for a refund.');
+    echo "PASS taken-down listing: checkout, start and report refuse with a clear message, money already sent is recorded and flagged to Admins\n";
+
     // ---- Signing and QR links (pure PHP).
     $gateway=VnpayGateway::enabled($paymentConfig) ? $paymentConfig
         : ['vnpay_tmn_code'=>'H2HTEST1','vnpay_hash_secret'=>bin2hex(random_bytes(16)),'vnpay_pay_url'=>'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'];
@@ -494,6 +522,18 @@ try {
         payHttp($adminClient,$baseUrl,'/admin/payments/'.$bookingP.'/refund',['_token'=>$adminToken,'note'=>'Đã hoàn theo chính sách']);
         $page=payHttp($adminClient,$baseUrl,'/admin/payments?q='.$bookingP)['body'];
         payExpect(str_contains($page,'Đã hoàn 100.000đ') && str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$bookingP)['body'],'Đã hoàn 100.000 VND'),'Refunded booking does not show the policy amount.');
+        // A taken-down listing over HTTP: clear message, no way to start, no QR.
+        $bookingU=payConfirmedBooking($service,$removedListing,$guestId,$hostId,$base,74);
+        $uQr=$payments->start($bookingU,$guestId,'vietqr');
+        payCall('CALL sp_test_payment_listing_removed(?,?)',[$removedListing,1]);
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingU.'/pay')['body'];
+        payExpect(str_contains($page,'đã bị gỡ') && !str_contains($page,'/bookings/'.$bookingU.'/pay/vnpay'),'Payment page of a taken-down listing is wrong.');
+        payExpect(!str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$bookingU)['body'],'/bookings/'.$bookingU.'/pay"'),'Booking page offers payment on a taken-down listing.');
+        $response=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingU.'/pay/vnpay',['_token'=>$guestToken]);
+        payExpect($response['status']===302 && $response['location']==='/bookings/'.$bookingU.'/pay' && str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$bookingU.'/pay')['body'],'đã bị gỡ'),'Direct VNPay POST on a taken-down listing was not refused.');
+        $page=payHttp($guestClient,$baseUrl,'/payments/'.(int)$uQr['transaction_id'])['body'];
+        payExpect(str_contains($page,'đã bị gỡ') && !str_contains($page,'img.vietqr.io') && !str_contains($page,'/transferred'),'Transfer page of a taken-down listing still takes money.');
+        payCall('CALL sp_test_payment_listing_removed(?,?)',[$removedListing,0]);
         foreach ([$anonymous,$guestClient,$hostClient,$adminClient] as $client) { curl_close($client); }
         echo "PASS online payment HTTP: Guest-only pages, CSRF, QR page with account and reference, report, Admin queue/403/confirm, VNPay redirect signature, forged return/IPN 97, valid return, IPN 02/01/04\n";
     }

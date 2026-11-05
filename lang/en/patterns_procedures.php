@@ -57,5 +57,7 @@ return [
     'Booking #{id} đã được thanh toán trước đó nên khoản VNPay {amount}đ (mã {reference}) là thanh toán trùng. Admin sẽ hoàn lại khoản này cho bạn.' => 'Booking #{id} was already paid, so the VNPay payment of {amount}đ (reference {reference}) is a duplicate. An admin will refund it to you.',
     'Khoản VNPay {amount}đ (mã {reference}) của booking #{id} đã được hoàn lại. Booking vẫn được giữ là đã thanh toán.' => 'The VNPay payment of {amount}đ (reference {reference}) on booking #{id} was refunded. The booking stays paid.',
     'Đã hoàn khoản thanh toán trùng: {reason}' => 'Duplicate payment refunded: {reason}',
+    'Booking #{id} thuộc chỗ ở đã gỡ nhưng vẫn nhận {amount}đ qua chuyển khoản (mã {reference}). Vui lòng hoàn tiền cho khách.' => 'Booking #{id} belongs to a taken-down listing but still received {amount}đ by bank transfer (reference {reference}). Please refund the guest.',
+    'Booking #{id} thuộc chỗ ở đã gỡ nhưng vẫn nhận {amount}đ qua VNPay (mã {reference}). Vui lòng hoàn tiền cho khách.' => 'Booking #{id} belongs to a taken-down listing but still received {amount}đ via VNPay (reference {reference}). Please refund the guest.',
     'Booking #{id} nhận thêm {amount}đ qua VNPay (mã {reference}) sau khi đã thanh toán. Vui lòng hoàn tiền cho khách.' => 'Booking #{id} received another {amount}đ via VNPay (reference {reference}) after it was already paid. Please refund the guest.',
 ];

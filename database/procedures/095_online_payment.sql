@@ -12,7 +12,8 @@ BEGIN
     END IF;
     SELECT b.id booking_id,b.status booking_status,b.check_in,b.check_out,b.currency,l.title,
         COALESCE(pay.amount_due,b.total_amount) amount_due,COALESCE(pay.status,'unpaid') payment_status,COALESCE(pay.method,'pay_at_checkin') payment_method,
-        (COALESCE(pay.status,'unpaid')='unpaid' AND b.status='confirmed' AND b.currency='VND' AND COALESCE(pay.amount_due,b.total_amount)>0) can_pay_online,
+        (COALESCE(pay.status,'unpaid')='unpaid' AND b.status='confirmed' AND b.currency='VND' AND COALESCE(pay.amount_due,b.total_amount)>0 AND l.deleted_at IS NULL) can_pay_online,
+        (l.deleted_at IS NOT NULL) listing_removed,
         t.id transfer_id,t.reference transfer_reference,t.status transfer_status,t.amount transfer_amount,t.created_at transfer_created_at,t.submitted_at transfer_submitted_at
     FROM bookings b JOIN listings l ON l.id=b.listing_id LEFT JOIN booking_payments pay ON pay.booking_id=b.id
         LEFT JOIN payment_transactions t ON t.id=(SELECT x.id FROM payment_transactions x
@@ -33,6 +34,7 @@ BEGIN
     DECLARE v_total DECIMAL(12,2);
     DECLARE v_payment VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_due DECIMAL(12,2);
+    DECLARE v_removed DATETIME(6);
     DECLARE v_attempt BIGINT UNSIGNED;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -45,7 +47,7 @@ BEGIN
     IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_payment_start; END IF;
     IF p_provider IS NULL OR p_provider NOT IN ('vietqr','vnpay') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Phương thức thanh toán không hợp lệ.'; END IF;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=p_booking;
-    SELECT id INTO v_lock FROM listings WHERE id=v_listing FOR UPDATE;
+    SELECT id,deleted_at INTO v_lock,v_removed FROM listings WHERE id=v_listing FOR UPDATE;
     SELECT guest_id,status,currency,total_amount INTO v_guest,v_status,v_currency,v_total FROM bookings WHERE id=p_booking FOR UPDATE;
     IF v_guest IS NULL OR v_guest<>p_guest OR NOT EXISTS(SELECT 1 FROM users WHERE id=p_guest AND status='active' AND deleted_at IS NULL) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không có quyền thanh toán booking này.';
@@ -55,6 +57,7 @@ BEGIN
     SET v_due=ROUND(COALESCE(v_due,v_total),0);
     IF COALESCE(v_payment,'unpaid')<>'unpaid' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được ghi nhận thanh toán.'; END IF;
     IF v_status<>'confirmed' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ thanh toán online cho booking đã được xác nhận.'; END IF;
+    IF v_removed IS NOT NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở này đã bị gỡ nên không thể thanh toán online.'; END IF;
     IF v_currency<>'VND' OR v_due<=0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này không hỗ trợ thanh toán online.'; END IF;
     IF EXISTS(SELECT 1 FROM payment_transactions WHERE booking_id=p_booking AND status='submitted') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Bạn đã báo chuyển khoản cho booking này; vui lòng chờ Admin xác nhận.';
@@ -82,7 +85,8 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không tìm thấy giao dịch thanh toán.';
     END IF;
     SELECT t.id transaction_id,t.booking_id,t.provider,t.reference,t.amount,t.status,t.submitted_at,t.decided_at,t.note,t.created_at,
-        b.status booking_status,b.check_in,b.check_out,b.guest_id,l.title,COALESCE(pay.status,'unpaid') payment_status,COALESCE(pay.method,'pay_at_checkin') payment_method
+        b.status booking_status,b.check_in,b.check_out,b.guest_id,l.title,COALESCE(pay.status,'unpaid') payment_status,COALESCE(pay.method,'pay_at_checkin') payment_method,
+        (l.deleted_at IS NOT NULL) listing_removed
     FROM payment_transactions t JOIN bookings b ON b.id=t.booking_id JOIN listings l ON l.id=b.listing_id LEFT JOIN booking_payments pay ON pay.booking_id=b.id
     WHERE t.id=p_transaction;
 END$$
@@ -101,6 +105,7 @@ BEGIN
     DECLARE v_status VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_reference VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_amount DECIMAL(12,2);
+    DECLARE v_removed DATETIME(6);
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -112,11 +117,12 @@ BEGIN
     IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_payment_submit; END IF;
     SELECT booking_id INTO v_booking FROM payment_transactions WHERE id=p_transaction;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
-    SELECT id INTO v_lock FROM listings WHERE id=v_listing FOR UPDATE;
+    SELECT id,deleted_at INTO v_lock,v_removed FROM listings WHERE id=v_listing FOR UPDATE;
     SELECT guest_id,status INTO v_guest,v_booking_status FROM bookings WHERE id=v_booking FOR UPDATE;
     IF v_guest IS NULL OR v_guest<>p_guest OR NOT EXISTS(SELECT 1 FROM users WHERE id=p_guest AND status='active' AND deleted_at IS NULL) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không tìm thấy giao dịch thanh toán.';
     END IF;
+    IF v_removed IS NOT NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở này đã bị gỡ nên không thể thanh toán online.'; END IF;
     SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
     SELECT provider,status,reference,amount INTO v_provider,v_status,v_reference,v_amount FROM payment_transactions WHERE id=p_transaction FOR UPDATE;
     IF v_provider<>'vietqr' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ giao dịch chuyển khoản mới cần báo đã chuyển.'; END IF;
@@ -154,6 +160,7 @@ BEGIN
     DECLARE v_reference VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_amount DECIMAL(12,2);
     DECLARE v_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_removed DATETIME(6);
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -171,7 +178,7 @@ BEGIN
     END IF;
     SELECT booking_id INTO v_booking FROM payment_transactions WHERE id=p_transaction;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
-    SELECT id INTO v_lock FROM listings WHERE id=v_listing FOR UPDATE;
+    SELECT id,deleted_at INTO v_lock,v_removed FROM listings WHERE id=v_listing FOR UPDATE;
     SELECT guest_id,total_amount INTO v_guest,v_total FROM bookings WHERE id=v_booking FOR UPDATE;
     IF v_guest IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không tìm thấy giao dịch thanh toán.'; END IF;
     SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
@@ -198,6 +205,14 @@ BEGIN
         INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
             VALUES(v_guest,v_booking,'in_app','payment_paid','Đã ghi nhận thanh toán',
             CONCAT('Booking #',v_booking,' đã được xác nhận thanh toán chuyển khoản ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,').'),'sent',1,NOW(6));
+        IF v_removed IS NOT NULL THEN
+            -- The money did reach the account, so it is recorded; the stay is gone, so the Admins are asked to return it.
+            INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+                SELECT r.user_id,v_booking,'in_app','payment_refund_needed','Cần hoàn tiền',
+                    CONCAT('Booking #',v_booking,' thuộc chỗ ở đã gỡ nhưng vẫn nhận ',REPLACE(FORMAT(v_amount,0),',','.'),'đ qua chuyển khoản (mã ',v_reference,'). Vui lòng hoàn tiền cho khách.'),
+                    'sent',1,NOW(6)
+                FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='admin' AND u.status='active' AND u.deleted_at IS NULL;
+        END IF;
     ELSE
         UPDATE payment_transactions SET status='failed',decided_by=p_admin,decided_at=NOW(6),note=v_note,updated_at=NOW(6) WHERE id=p_transaction;
         INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
@@ -277,6 +292,7 @@ BEGIN
     DECLARE v_status VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_amount DECIMAL(12,2);
     DECLARE v_decided BIGINT UNSIGNED;
+    DECLARE v_removed DATETIME(6);
     DECLARE v_result VARCHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'ok';
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -292,7 +308,7 @@ BEGIN
         SET v_result='not_found';
     ELSE
         SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
-        SELECT id INTO v_lock FROM listings WHERE id=v_listing FOR UPDATE;
+        SELECT id,deleted_at INTO v_lock,v_removed FROM listings WHERE id=v_listing FOR UPDATE;
         SELECT guest_id,status INTO v_guest,v_booking_status FROM bookings WHERE id=v_booking FOR UPDATE;
         SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
         -- VNPay was asked for the whole-dong amount, even if this attempt was stored with a decimal before amounts were rounded.
@@ -325,6 +341,13 @@ BEGIN
                     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
                         SELECT r.user_id,v_booking,'in_app','payment_refund_needed','Cần hoàn tiền',
                             CONCAT('Booking #',v_booking,' đã hủy nhưng vẫn nhận ',REPLACE(FORMAT(v_amount,0),',','.'),'đ qua VNPay (mã ',p_reference,'). Vui lòng hoàn tiền cho khách.'),
+                            'sent',1,NOW(6)
+                        FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='admin' AND u.status='active' AND u.deleted_at IS NULL;
+                ELSEIF v_removed IS NOT NULL THEN
+                    -- A VNPay tab left open while the listing was taken down: same as above, the money is recorded and goes back.
+                    INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+                        SELECT r.user_id,v_booking,'in_app','payment_refund_needed','Cần hoàn tiền',
+                            CONCAT('Booking #',v_booking,' thuộc chỗ ở đã gỡ nhưng vẫn nhận ',REPLACE(FORMAT(v_amount,0),',','.'),'đ qua VNPay (mã ',p_reference,'). Vui lòng hoàn tiền cho khách.'),
                             'sent',1,NOW(6)
                         FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='admin' AND u.status='active' AND u.deleted_at IS NULL;
                 END IF;

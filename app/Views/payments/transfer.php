@@ -1,7 +1,7 @@
 <?php
 $amount = number_format((float)$attempt['amount'],0,',','.');
 $bookingPath = '/bookings/'.(int)$attempt['booking_id'];
-$payable = $attempt['status']==='pending' && $attempt['payment_status']==='unpaid' && $attempt['booking_status']==='confirmed';
+$payable = $attempt['status']==='pending' && $attempt['payment_status']==='unpaid' && $attempt['booking_status']==='confirmed' && !$attempt['listing_removed'];
 $isAdmin = \Core\Auth::hasRole('admin');
 ?>
 <section class="page-section"><div class="container narrow">
@@ -17,7 +17,7 @@ $isAdmin = \Core\Auth::hasRole('admin');
 <?php elseif($attempt['status']==='cancelled'): ?>
 <div class="alert alert-secondary" role="status"><?= e(__('Giao dịch này đã đóng.')) ?><?php if($attempt['note']): ?> <?= e(__((string)$attempt['note'])) ?><?php endif; ?></div>
 <?php elseif(!$payable): ?>
-<div class="alert alert-secondary" role="status"><?= e(__('Booking này không còn chờ thanh toán.')) ?></div>
+<div class="alert alert-secondary" role="status"><?= e($attempt['listing_removed']?__('Chỗ ở này đã bị gỡ nên không thể thanh toán online.'):__('Booking này không còn chờ thanh toán.')) ?></div>
 <?php endif; ?>
 <div class="payment-qr">
 <?php if($payable && $qrUrl!==''): ?><img src="<?= e($qrUrl) ?>" width="300" height="370" alt="<?= e(__('Mã VietQR chuyển {amount}đ, nội dung {reference}', ['amount'=>$amount, 'reference'=>$attempt['reference']])) ?>" referrerpolicy="no-referrer"><?php endif; ?>
