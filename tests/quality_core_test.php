@@ -361,6 +361,31 @@ qaSetCatalogActive($catalog,'type',2,true); qaSetCatalogActive($catalog,'amenity
 $logout();
 echo "PASS QA retired type/amenity marked on their own listing, kept on save, refused for other and new listings\n";
 
+// Upcoming trips: nothing finished, cancelled or rejected, and soonest first whatever order they were booked in.
+$tripStart=(new DateTimeImmutable('today'))->modify('+700 days');
+$farTrip=$service->create(2,3,$tripStart->modify('+30 days')->format('Y-m-d'),$tripStart->modify('+32 days')->format('Y-m-d'),1);
+$nearTrip=$service->create(2,3,$tripStart->format('Y-m-d'),$tripStart->modify('+2 days')->format('Y-m-d'),1);
+$cancelledTrip=$service->create(2,3,$tripStart->modify('+10 days')->format('Y-m-d'),$tripStart->modify('+12 days')->format('Y-m-d'),1);
+$service->cancelByGuest($cancelledTrip,3,'Quality upcoming trips fixture');
+$finishedTrip=(int)qaCall('CALL sp_test_historical_booking(?,?)',[2,3])[0]['booking_id'];
+qaCall('CALL sp_test_historical_confirmed(?)',[$finishedTrip]);
+$upcoming=$bookings->upcomingForGuest(3);
+$upcomingIds=array_map('intval',array_column($upcoming,'id'));
+$checkIns=array_column($upcoming,'check_in'); $sortedCheckIns=$checkIns; sort($sortedCheckIns);
+qaExpect($checkIns===$sortedCheckIns,'Upcoming trips are not soonest first.');
+qaExpect(array_search($nearTrip,$upcomingIds,true)<array_search($farTrip,$upcomingIds,true),'Later booking of a nearer trip was not listed first.');
+qaExpect(!in_array($cancelledTrip,$upcomingIds,true) && !in_array($finishedTrip,$upcomingIds,true),'Upcoming trips include a cancelled or finished stay.');
+foreach ($upcoming as $trip) { qaExpect(in_array($trip['status'],['pending','confirmed'],true) && $trip['check_out']>=date('Y-m-d'),'Upcoming trips include a closed stay.'); }
+$login('guest');
+$profile=$request('/profile')['body'];
+qaExpect(preg_match_all('/<div class="trip-row">/',$profile)===min(2,count($upcoming)),'Profile does not show the soonest trips.');
+qaExpect(str_contains($profile,display_date($upcoming[0]['check_in']).' → '.display_date($upcoming[0]['check_out'])),'Profile does not start with the soonest trip.');
+$logout();
+$tripGuest=(new User())->create('quality-trips-'.bin2hex(random_bytes(6)).'@home2home.test','QaTrips!'.bin2hex(random_bytes(10)),'Quality trips test',null);
+qaExpect($bookings->upcomingForGuest($tripGuest)===[],'New guest has upcoming trips.');
+foreach ([$farTrip,$nearTrip] as $tripId) { $service->cancelByGuest($tripId,3,'Quality upcoming trips cleanup'); }
+echo "PASS QA upcoming trips exclude finished and cancelled stays and list the soonest first\n";
+
 $passwordUser=new User(); $email='quality-password-'.bin2hex(random_bytes(6)).'@home2home.test';
 $oldPassword='QaOld!'.bin2hex(random_bytes(10)); $newPassword='QaNew!'.bin2hex(random_bytes(10));
 $passwordId=$passwordUser->create($email,$oldPassword,'Quality password test',null);

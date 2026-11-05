@@ -14,7 +14,7 @@ final class ProfileController extends Controller
     public function show(): void
     {
         $user = $this->requireAuth();
-        $upcoming = array_filter((new Booking())->forGuest((int)$user['id']), fn($b) => in_array($b['status'], ['pending', 'confirmed'], true));
+        $upcoming = (new Booking())->upcomingForGuest((int)$user['id']);
         $this->render('profile/show', ['title' => 'Tài khoản', 'user' => $user, 'upcoming' => $upcoming, 'old' => Session::pull('_profile_old', []),
             'verification' => (new \App\Models\Trust())->verificationStatus((int)$user['id']), 'verificationOld' => Session::pull('_verification_old', []),
             'trustBadges' => (new \App\Models\Trust())->badges([(int)$user['id']], (int)$user['id']),
