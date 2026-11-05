@@ -24,7 +24,7 @@ function expectDomainFailure(callable $operation, string $message): void
 /** Renders the login view in a child process, because APP_ENV is read when the view runs. */
 function loginViewUnderEnv(string $environment): string
 {
-    $process = proc_open([PHP_BINARY, '-r', 'require "core/bootstrap.php"; $old=[]; require "app/Views/auth/login.php";'], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, dirname(__DIR__), array_merge(getenv(), ['APP_ENV' => $environment]), ['bypass_shell' => true]);
+    $process = proc_open([PHP_BINARY, '-r', 'require "core/bootstrap.php"; $old=[]; $returnTarget="/bookings"; require "app/Views/auth/login.php";'], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, dirname(__DIR__), array_merge(getenv(), ['APP_ENV' => $environment]), ['bypass_shell' => true]);
     $output = (string) stream_get_contents($pipes[1]);
     fclose($pipes[1]); fclose($pipes[2]); proc_close($process);
     return $output;
@@ -63,6 +63,16 @@ $localLogin = loginViewUnderEnv('local'); $productionLogin = loginViewUnderEnv('
 expect(str_contains($localLogin, 'class="demo-note"') && str_contains($localLogin, 'name="password"'), 'Local login page must show the demo accounts.');
 expect(str_contains($productionLogin, 'name="password"') && !str_contains($productionLogin, 'demo-note') && !str_contains($productionLogin, '@home2home.test'), 'Demo accounts shown outside the local environment.');
 echo "PASS demo accounts appear on the login page only in the local environment\n";
+
+$returnTarget = new ReflectionMethod(\App\Controllers\AuthController::class, 'returnTarget');
+$authController = new \App\Controllers\AuthController();
+foreach (['/', '/bookings', '/listings/1?month=2030-01'] as $allowedTarget) {
+    expect($returnTarget->invoke($authController, $allowedTarget) === $allowedTarget, 'Return target refused: '.$allowedTarget);
+}
+foreach (['', 'bookings', '//evil.example', 'http://evil.example', '/login', '/login/', '/register?x=1', '/%6cogin', '/forgot-password', '/reset-password?token=x'] as $refusedTarget) {
+    expect($returnTarget->invoke($authController, $refusedTarget) === '', 'Return target accepted: '.$refusedTarget);
+}
+echo "PASS sign-in return targets refuse other sites and auth pages\n";
 
 $userModel = new User();
 $host = $userModel->findByEmail('host@home2home.test');
