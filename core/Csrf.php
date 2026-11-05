@@ -38,7 +38,7 @@ final class Csrf
             $query = (string) (parse_url($referer, PHP_URL_QUERY) ?? '');
             $refererHost = (string) (parse_url($referer, PHP_URL_HOST) ?? '');
             $requestHost = explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0];
-            if ($refererHost !== $requestHost || !str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            if ($refererHost !== $requestHost || I18n::safeReturnPath($path) !== $path) {
                 $path = '/';
                 $query = '';
             }

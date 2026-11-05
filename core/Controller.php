@@ -45,7 +45,7 @@ class Controller
         if (!$user) {
             if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
                 $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
-                if (str_starts_with($uri, '/') && !str_starts_with($uri, '//')) {
+                if (I18n::safeReturnPath($uri) === $uri) {
                     Session::put('intended_url', $uri);
                 }
             }

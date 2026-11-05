@@ -5,6 +5,7 @@ use App\Models\User;
 use Core\Auth;
 use Core\Controller;
 use Core\Csrf;
+use Core\I18n;
 use Core\Session;
 use Core\Validator;
 final class AuthController extends Controller
@@ -34,8 +35,8 @@ final class AuthController extends Controller
     /** Sends a signed-in user to the remembered page, otherwise to the home of their role. */
     private function redirectAfterAuth(): never
     {
-        $fromReferer = (string) Session::pull('referer_url', '');
-        $target = (string) Session::pull('intended_url', '');
+        $fromReferer = $this->returnTarget((string) Session::pull('referer_url', ''));
+        $target = $this->returnTarget((string) Session::pull('intended_url', ''));
         if ($target === '') { $target = $fromReferer; }
         if ($target !== '' && !str_starts_with($target, '/admin') && !str_starts_with($target, '/host')) { $this->redirect($target); }
         if (Auth::hasRole('admin')) { $this->redirect('/admin'); }
@@ -45,7 +46,7 @@ final class AuthController extends Controller
     /** The candidate when it may be returned to after signing in, otherwise ''. Auth pages never qualify, so no redirect leads back to them. */
     private function returnTarget(string $candidate): string
     {
-        if (!str_starts_with($candidate, '/') || str_starts_with($candidate, '//')) { return ''; }
+        if (I18n::safeReturnPath($candidate) !== $candidate) { return ''; }
         $path = rtrim(rawurldecode((string) (parse_url($candidate, PHP_URL_PATH) ?? '')), '/');
         return in_array($path, ['/login', '/register', '/forgot-password', '/reset-password'], true) ? '' : $candidate;
     }

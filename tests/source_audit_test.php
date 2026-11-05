@@ -69,7 +69,7 @@ $authController = new \App\Controllers\AuthController();
 foreach (['/', '/bookings', '/listings/1?month=2030-01'] as $allowedTarget) {
     expect($returnTarget->invoke($authController, $allowedTarget) === $allowedTarget, 'Return target refused: '.$allowedTarget);
 }
-foreach (['', 'bookings', '//evil.example', 'http://evil.example', '/login', '/login/', '/register?x=1', '/%6cogin', '/forgot-password', '/reset-password?token=x'] as $refusedTarget) {
+foreach (['', 'bookings', '//evil.example', 'http://evil.example', '/\evil.example', "/\r\n", "/\r\nX", "/\t/evil.example", '/login','/login/', '/register?x=1', '/%6cogin', '/forgot-password', '/reset-password?token=x'] as $refusedTarget) {
     expect($returnTarget->invoke($authController, $refusedTarget) === '', 'Return target accepted: '.$refusedTarget);
 }
 echo "PASS sign-in return targets refuse other sites and auth pages\n";

@@ -32,7 +32,7 @@ function qaSignInRedirect(string $baseUrl,string $visit,string $form,string $ref
     if ($visit!=='') { curl_setopt($curl,CURLOPT_URL,$baseUrl.$visit); curl_exec($curl); }
     curl_setopt_array($curl,[CURLOPT_URL=>$baseUrl.$form,CURLOPT_REFERER=>$referer===''?'':$baseUrl.$referer]);
     qaExpect((bool)preg_match('/name="_token" value="([^"]+)"/',(string)curl_exec($curl),$match),'Sign-in form missing: '.$form);
-    curl_setopt_array($curl,[CURLOPT_URL=>$baseUrl.$action,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query(['_token'=>$match[1]]+$fields)]);
+    curl_setopt_array($curl,[CURLOPT_URL=>$baseUrl.$action,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query($fields+['_token'=>$match[1]])]);
     curl_exec($curl); $location=(string)curl_getinfo($curl,CURLINFO_REDIRECT_URL); curl_close($curl);
     return (string)parse_url($location,PHP_URL_PATH);
 }
@@ -202,14 +202,15 @@ $login=static function(string $role) use($request,$token): void {
 $logout=static function() use($request,$token): void { $request('/logout',['_token'=>$token($request('/profile'))]); };
 $arrayLogin=$request('/login?next%5B%5D=1'); qaExpect($arrayLogin['status']===200 && str_contains($arrayLogin['body'],'name="email"'),'Array next broke the login page.');
 $guestSignIn=['email'=>'guest@home2home.test','password'=>'Password123!'];
-foreach ([['/bookings','/login','/listings/1','/bookings'],['/bookings','/login?next=/wishlist','/listings/1','/wishlist'],['','/login','/listings/1','/listings/1'],['','/login','','/'],['','/login','/register','/'],['','/login?next=/register','','/']] as [$visit,$form,$referer,$landing]) {
+foreach ([['/bookings','/login','/listings/1','/bookings'],['/bookings','/login?next=/wishlist','/listings/1','/wishlist'],['','/login','/listings/1','/listings/1'],['','/login','','/'],['','/login','/register','/'],['','/login?next=/register','','/'],['','/login?next=/%5Cevil.example','','/'],['','/login?next=/%0d%0a','','/'],['','/login?next=/%0d%0aX','','/'],['','/login','/\evil.example','/'],['','/login?next=/bookings','','/bookings']] as [$visit,$form,$referer,$landing]) {
     qaExpect(qaSignInRedirect($baseUrl,$visit,$form,$referer,$guestSignIn)===$landing,'Sign-in return target wrong: '.$visit.' '.$form.' '.$referer);
 }
 $returnEmail='audit-'.bin2hex(random_bytes(6)).'@home2home.test';
 qaExpect(qaSignInRedirect($baseUrl,'/bookings','/register','',['full_name'=>'Return audit','email'=>$returnEmail,'password'=>bin2hex(random_bytes(8))],'/register')==='/bookings','Register lost the protected page target.');
 qaCall('CALL sp_test_cleanup_user(?)',[(int)(new User())->findByEmail($returnEmail)['id']]);
 qaExpect(str_contains($request('/login?next=/bookings')['body'],'/register?next=%2Fbookings'),'Login page link to register lost next.');
-echo "PASS HTTP sign-in return target: protected page, explicit next, Referer, auth pages, register\n";
+qaExpect(qaSignInRedirect($baseUrl,'','/login','/\evil.example',['_token'=>'stale']+$guestSignIn)==='/','Stale form redirect followed an unsafe Referer.');
+echo "PASS HTTP sign-in return target: protected page, explicit next, Referer, auth pages, register, unsafe targets\n";
 $login('guest');
 foreach(['/listings/1?check_in%5B%5D=1','/articles?category%5B%5D=1'] as $path) { qaExpect($request($path)['status']===200,'Array parameter did not read as absent: '.$path); }
 foreach(['/bookings/'.$bookingId,'/notifications','/reports','/reports?listing=1','/reports?booking='.$bookingId,'/listings/1?month='.substr($first,0,7)] as $path) {
