@@ -42,6 +42,8 @@ return [
     'Chưa có chỗ ở' => 'No listings yet',
     'Hãy tạo tin đầu tiên để bắt đầu nhận booking.' => 'Create your first listing to start receiving bookings.',
     'Hiển thị' => 'Visibility',
+    'Admin đã ẩn' => 'Hidden by Admin',
+    'Chỉ Admin mới hiện lại được tin này. Hãy liên hệ Admin nếu bạn cần.' => 'Only an Admin can show this listing again. Contact an Admin if you need to.',
     'Quản lý' => 'Manage',
     'Lịch khả dụng' => 'Availability calendar',
     'Giá & đặt chỗ' => 'Pricing & booking',

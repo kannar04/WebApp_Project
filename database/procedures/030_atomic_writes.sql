@@ -243,6 +243,8 @@ CREATE OR REPLACE PROCEDURE sp_admin_listing_visibility(IN p_1 bool, IN p_2 bigi
 BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_lock BIGINT UNSIGNED;
+    DECLARE v_was_visible BOOL;
+    DECLARE v_admin_hidden BOOL DEFAULT FALSE;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -253,11 +255,20 @@ BEGIN
     SET v_own=(@@in_transaction=0);
     IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_admin_listing_visibility; END IF;
     CALL sp_admin_assert_role(p_3);
-    SELECT id INTO v_lock FROM listings WHERE id=p_2 AND deleted_at IS NULL FOR UPDATE;
+    SELECT id,is_visible INTO v_lock,v_was_visible FROM listings WHERE id=p_2 AND deleted_at IS NULL FOR UPDATE;
     IF v_lock IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở không tồn tại.'; END IF;
     IF p_1 IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Hiển thị không hợp lệ.'; END IF;
+    -- The latest of these audit rows says who holds a hidden listing: sp_listing_set_visible refuses the Host while it is hide_listing.
+    SET v_admin_hidden=(v_was_visible=0 AND COALESCE((SELECT a.action FROM admin_audit_logs a WHERE a.entity_type='listing' AND a.entity_id=p_2 AND a.action IN ('hide_listing','restore_listing') ORDER BY a.id DESC LIMIT 1),'')='hide_listing');
     UPDATE listings SET is_visible=p_1,updated_at=NOW(6) WHERE id=p_2;
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at) VALUES(p_3,IF(p_1,'restore_listing','hide_listing'),'listing',p_2,JSON_OBJECT('details',CONCAT('visibility=',p_1)),NOW(6));
+    -- A repeat click from a stale page changes nothing for the Host, so it tells them nothing either.
+    IF (p_1=0 AND NOT v_admin_hidden) OR (p_1<>0 AND v_was_visible=0) THEN
+        INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+            SELECT l.host_id,NULL,'in_app',IF(p_1,'listing_shown','listing_hidden'),IF(p_1,'Tin đăng được hiện lại','Tin đăng bị ẩn'),
+                IF(p_1,CONCAT('Admin đã hiện lại tin “',l.title,'”.'),CONCAT('Admin đã ẩn tin “',l.title,'”. Tin không hiển thị với khách cho đến khi Admin hiện lại; hãy liên hệ Admin nếu bạn cần.')),'sent',1,NOW(6)
+            FROM listings l JOIN users u ON u.id=l.host_id WHERE l.id=p_2 AND u.deleted_at IS NULL;
+    END IF;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_admin_listing_visibility; END IF;
 END$$
 

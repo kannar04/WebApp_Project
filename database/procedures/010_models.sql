@@ -97,7 +97,7 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_listing_get_by_host`(IN p_1 bigint unsigned)
 BEGIN
-    SELECT l.id,l.host_id,l.property_type_id,l.cancellation_policy_id,l.title,l.description,l.address,l.city,l.country_code,l.latitude,l.longitude,l.time_zone,l.base_nightly_rate,l.fee_amount,l.currency,l.max_guests,l.room_count,l.bedroom_count,l.bed_count,l.check_in_time,l.check_out_time,l.smoking_allowed,l.pets_allowed,l.parties_allowed,l.house_rules,l.moderation_status,l.moderation_reason,l.reviewed_by,l.reviewed_at,l.is_visible,l.created_at,l.updated_at,l.deleted_at, l.base_nightly_rate nightly_price, l.fee_amount cleaning_fee, pt.name property_type, (SELECT image_url FROM listing_photos WHERE listing_id=l.id ORDER BY sort_order,id LIMIT 1) image_url FROM listings l JOIN property_types pt ON pt.id=l.property_type_id WHERE l.host_id=p_1 AND l.deleted_at IS NULL ORDER BY l.created_at DESC;
+    SELECT l.id,l.host_id,l.property_type_id,l.cancellation_policy_id,l.title,l.description,l.address,l.city,l.country_code,l.latitude,l.longitude,l.time_zone,l.base_nightly_rate,l.fee_amount,l.currency,l.max_guests,l.room_count,l.bedroom_count,l.bed_count,l.check_in_time,l.check_out_time,l.smoking_allowed,l.pets_allowed,l.parties_allowed,l.house_rules,l.moderation_status,l.moderation_reason,l.reviewed_by,l.reviewed_at,l.is_visible,l.created_at,l.updated_at,l.deleted_at, l.base_nightly_rate nightly_price, l.fee_amount cleaning_fee, pt.name property_type, (SELECT image_url FROM listing_photos WHERE listing_id=l.id ORDER BY sort_order,id LIMIT 1) image_url, (l.is_visible=0 AND COALESCE((SELECT a.action FROM admin_audit_logs a WHERE a.entity_type='listing' AND a.entity_id=l.id AND a.action IN ('hide_listing','restore_listing') ORDER BY a.id DESC LIMIT 1),'')='hide_listing') admin_hidden FROM listings l JOIN property_types pt ON pt.id=l.property_type_id WHERE l.host_id=p_1 AND l.deleted_at IS NULL ORDER BY l.created_at DESC;
 END$$
 
 CREATE OR REPLACE PROCEDURE `sp_listing_create`(IN p_1 bigint unsigned, IN p_2 bigint unsigned, IN p_3 bigint unsigned, IN p_4 varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_5 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_6 varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_7 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_8 decimal(12,2), IN p_9 decimal(12,2), IN p_10 int, IN p_11 int, IN p_12 int, IN p_13 int, IN p_14 time, IN p_15 time, IN p_16 bool, IN p_17 bool, IN p_18 bool, IN p_19 decimal(10,6), IN p_20 decimal(10,6))
@@ -134,11 +134,32 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_listing_set_visible`(IN p_1 bool, IN p_2 bigint unsigned, IN p_3 bigint unsigned)
 BEGIN
-    IF p_1 IS NULL OR p_1 NOT IN (0,1) OR NOT EXISTS(SELECT 1 FROM listings l JOIN users u ON u.id=l.host_id JOIN user_roles r ON r.user_id=u.id WHERE l.id=p_2 AND l.host_id=p_3 AND l.deleted_at IS NULL AND u.status='active' AND r.role='host') THEN
+    DECLARE v_own BOOL DEFAULT FALSE;
+    DECLARE v_lock BIGINT UNSIGNED;
+    DECLARE v_visible BOOL;
+    DECLARE v_affected INT DEFAULT 0;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF @@in_transaction THEN
+            IF v_own THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT h2h_listing_set_visible; RELEASE SAVEPOINT h2h_listing_set_visible; END IF;
+        END IF;
+        RESIGNAL;
+    END;
+    SET v_own=(@@in_transaction=0);
+    IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_listing_set_visible; END IF;
+    -- The listing lock serializes this with sp_admin_listing_visibility.
+    SELECT id,is_visible INTO v_lock,v_visible FROM listings WHERE id=p_2 AND host_id=p_3 AND deleted_at IS NULL FOR UPDATE;
+    IF p_1 IS NULL OR p_1 NOT IN (0,1) OR v_lock IS NULL OR NOT EXISTS(SELECT 1 FROM users u JOIN user_roles r ON r.user_id=u.id WHERE u.id=p_3 AND u.status='active' AND r.role='host') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không có quyền thay đổi hiển thị chỗ ở.';
     END IF;
+    -- A hide by an Admin holds until an Admin shows the listing. Same rule as admin_hidden in sp_listing_get_by_host: with no audit row, the Host hid it.
+    IF p_1=1 AND v_visible=0 AND COALESCE((SELECT a.action FROM admin_audit_logs a WHERE a.entity_type='listing' AND a.entity_id=p_2 AND a.action IN ('hide_listing','restore_listing') ORDER BY a.id DESC LIMIT 1),'')='hide_listing' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Admin đã ẩn chỗ ở này nên chỉ Admin mới hiện lại được. Hãy liên hệ Admin nếu bạn cần.';
+    END IF;
     UPDATE listings SET is_visible=p_1 WHERE id=p_2 AND host_id=p_3;
-    SELECT ROW_COUNT() __affected,LAST_INSERT_ID() __insert_id;
+    SET v_affected=ROW_COUNT();
+    IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_listing_set_visible; END IF;
+    SELECT v_affected __affected,LAST_INSERT_ID() __insert_id;
 END$$
 
 CREATE OR REPLACE PROCEDURE `sp_listing_availability_get`(IN p_1 bigint unsigned)

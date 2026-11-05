@@ -38,6 +38,8 @@ return [
     // ---- 030_atomic_writes.sql: Host notifications about a rejected or removed listing
     'Tin “{listing}” đã bị Admin từ chối. Lý do: {reason}' => 'Admin rejected your listing “{listing}”. Reason: {reason}',
     'Admin đã gỡ chỗ ở “{listing}” khỏi hệ thống.' => 'Admin took your listing “{listing}” down.',
+    'Admin đã ẩn tin “{listing}”. Tin không hiển thị với khách cho đến khi Admin hiện lại; hãy liên hệ Admin nếu bạn cần.' => 'Admin hid your listing “{listing}”. Guests cannot see it until an Admin shows it again; contact an Admin if you need to.',
+    'Admin đã hiện lại tin “{listing}”.' => 'Admin showed your listing “{listing}” again.',
 
     // ---- 020_booking.sql: sp_booking_cancel Guest notification (now e.g. 1.500.000đ / 100; the second entry keeps older rows stored as 1500000.00 / 100.00)
     'Booking #{id} đã hủy. Khoản thanh toán đã được hoàn trước đó nên không có khoản hoàn thêm.' => 'Booking #{id} was cancelled. The payment was already refunded, so no further refund is due.',

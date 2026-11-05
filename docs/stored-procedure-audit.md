@@ -416,6 +416,8 @@ Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
 | `sp_admin_listing_moderate` | `030_atomic_writes.sql` | Khi từ chối tin: từ chối tự động các yêu cầu đang chờ (event + thông báo khách), booking đã xác nhận giữ nguyên; báo cho Host kèm lý do trong cùng transaction | procedure_flow_test, feature_trust_test |
 | `sp_admin_listing_soft_delete` | `030_atomic_writes.sql` | Dùng chung `sp_listing_reject_pending`; báo cho Host trong cùng transaction | feature_booking_extras_test, procedure_flow_test |
 | `sp_booking_transition` | `020_booking.sql` | Không cho xác nhận yêu cầu trên tin bị từ chối kiểm duyệt (tin đang duyệt lại hoặc đang ẩn vẫn xác nhận được), hoặc khi khách/Host bị khóa hay đã xóa, với mọi người thao tác kể cả Admin | procedure_flow_test |
+| `sp_listing_set_visible`, `sp_listing_get_by_host` | `010_models.sql` | Thêm transaction/savepoint và khóa dòng listing. Tin Admin đã ẩn (dòng audit cuối trong `hide_listing`/`restore_listing` là `hide_listing`) chỉ Admin hiện lại được; không có dòng audit thì xem như Host tự ẩn. Danh sách của Host trả thêm `admin_hidden` | procedure_flow_test |
+| `sp_admin_listing_visibility` | `030_atomic_writes.sql` | Báo cho Host khi Admin thật sự ẩn hoặc hiện tin, trong cùng transaction; bấm lặp từ trang cũ không gửi thêm | procedure_flow_test |
 
 ### Routine mới
 

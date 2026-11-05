@@ -64,6 +64,21 @@ function noticesFor(int $userId, ?int $bookingId, string $eventType): array
     }
     return $found;
 }
+function hostListingRow(int $hostId, int $listingId): array
+{
+    foreach ((new Listing())->hostListings($hostId) as $row) {
+        if ((int)$row['id']===$listingId) { return $row; }
+    }
+    throw new RuntimeException('The Host lost a listing from the dashboard.');
+}
+function listingNoticeCount(int $hostId, int $listingId, string $eventType): int
+{
+    $title=(string)hostListingRow($hostId,$listingId)['title']; $count=0;
+    foreach (noticesFor($hostId,null,$eventType) as $notice) {
+        if (str_contains((string)$notice['body'],$title)) { $count++; }
+    }
+    return $count;
+}
 
 $app=require dirname(__DIR__).'/config/app.php';
 $config=require dirname(__DIR__).'/config/database.php';
@@ -368,6 +383,52 @@ try {
         ensure($users->findWithRoles($demoted)['roles']===['guest'],'The role could not go after the take-down.');
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS Host role cannot be removed while listings or unfinished bookings remain, and can after the take-down\n";
+
+    // A hide by an Admin holds until an Admin shows the listing; a Host's own hide stays theirs. Everything rolls back.
+    $db->beginTransaction();
+    try {
+        $moderation=new AdminRepository(); $adminId=(int)$admin['id']; $hostId=(int)$host['id'];
+        $hiddenListing=$model->create($hostId,['title'=>'Audit fixture '.bin2hex(random_bytes(6))]+$data);
+        callRows('CALL sp_test_listing_approve(?)',[$hiddenListing]);
+
+        // Old data and a Host's own hide: no audit row, so the Host hid it and can show it.
+        $model->setVisible($hiddenListing,$hostId,false);
+        ensure(empty(hostListingRow($hostId,$hiddenListing)['admin_hidden']),'A Host\'s own hide read as an Admin hide.');
+        $model->setVisible($hiddenListing,$hostId,true);
+        ensure((int)hostListingRow($hostId,$hiddenListing)['is_visible']===1,'A Host could not show their own hidden listing.');
+        ensure(listingNoticeCount($hostId,$hiddenListing,'listing_hidden')===0 && listingNoticeCount($hostId,$hiddenListing,'listing_shown')===0,'A Host was notified of their own action.');
+
+        // Admin hides: the Host's Show is refused, and the state and the notice reach the Host.
+        $moderation->setListingVisibility($hiddenListing,$adminId,false);
+        ensure(!empty(hostListingRow($hostId,$hiddenListing)['admin_hidden']) && listingNoticeCount($hostId,$hiddenListing,'listing_hidden')===1,'An Admin hide did not reach the Host.');
+        refusedSaying([$model,'setVisible'],[$hiddenListing,$hostId,true],'chỉ Admin mới hiện lại được');
+        ensure((int)hostListingRow($hostId,$hiddenListing)['is_visible']===0,'A refused Show changed the listing.');
+        ensure($model->findPublic($hiddenListing)===null,'An Admin-hidden listing stayed public.');
+        $moderation->setListingVisibility($hiddenListing,$adminId,false);
+        ensure(listingNoticeCount($hostId,$hiddenListing,'listing_hidden')===1,'A repeat Admin hide notified the Host again.');
+
+        // Admin shows: the hold ends, and the Host's own hide and show work again.
+        $moderation->setListingVisibility($hiddenListing,$adminId,true);
+        ensure((int)hostListingRow($hostId,$hiddenListing)['is_visible']===1 && empty(hostListingRow($hostId,$hiddenListing)['admin_hidden']) && listingNoticeCount($hostId,$hiddenListing,'listing_shown')===1,'An Admin show did not reach the Host.');
+        $moderation->setListingVisibility($hiddenListing,$adminId,true);
+        ensure(listingNoticeCount($hostId,$hiddenListing,'listing_shown')===1,'A repeat Admin show notified the Host again.');
+        $model->setVisible($hiddenListing,$hostId,false);
+        ensure(empty(hostListingRow($hostId,$hiddenListing)['admin_hidden']),'A Host hide after an Admin show read as an Admin hide.');
+        $model->setVisible($hiddenListing,$hostId,true);
+        ensure((int)hostListingRow($hostId,$hiddenListing)['is_visible']===1,'A Host could not show their listing after an Admin show.');
+
+        // Admin hides what the Host had already hidden: the Admin now holds it, and an Admin show releases a Host hide too.
+        $model->setVisible($hiddenListing,$hostId,false);
+        $moderation->setListingVisibility($hiddenListing,$adminId,false);
+        ensure(listingNoticeCount($hostId,$hiddenListing,'listing_hidden')===2,'An Admin taking over a Host hide did not tell the Host.');
+        refusedSaying([$model,'setVisible'],[$hiddenListing,$hostId,true],'chỉ Admin mới hiện lại được');
+        $moderation->setListingVisibility($hiddenListing,$adminId,true);
+        ensure((int)hostListingRow($hostId,$hiddenListing)['is_visible']===1 && listingNoticeCount($hostId,$hiddenListing,'listing_shown')===2,'An Admin show after a takeover did not reach the Host.');
+
+        // The permission refusal is unchanged, and it comes first.
+        refusedSaying([$model,'setVisible'],[$hiddenListing,(int)$guest['id'],true],'Không có quyền');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS an Admin hide holds against the Host and notifies them; a Host's own hide and show keep working\n";
 
     // A Host may block a date inside a pending request; Accept then says what to do and Reject keeps working. Everything rolls back.
     $db->beginTransaction();

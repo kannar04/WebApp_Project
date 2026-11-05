@@ -507,6 +507,20 @@ try {
                 trustExpect(!str_contains($closed, $contactNote) && !str_contains($closed, $noHostPhone) && !str_contains($closed, $noGuestPhone), 'A cancelled or rejected booking still shows a contact note.');
             }
         }
+        // An Admin hide reaches the Host's dashboard in place of the button, and the POST is refused with the reason.
+        (new \App\Models\AdminRepository())->setListingVisibility($quietListing, $adminId, false);
+        $hiddenDashboard = trustHttp($quietClient, $baseUrl, '/host')['body'];
+        trustExpect(str_contains($hiddenDashboard, 'data-admin-hidden') && !str_contains($hiddenDashboard, '/host/listings/'.$quietListing.'/visibility'), 'The dashboard still offers Show on a listing an Admin hid.');
+        $undoHide = trustHttp($quietClient, $baseUrl, '/host/listings/'.$quietListing.'/visibility', ['_token' => trustToken($hiddenDashboard), 'visible' => '1']);
+        trustExpect(str_contains($undoHide['body'], 'alert-danger') && str_contains($undoHide['body'], 'chỉ Admin mới hiện lại được'), 'The Host was not told why Show was refused.');
+        trustExpect(trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$quietListing)['status'] === 404, 'A refused Show made the listing public.');
+        trustExpect(str_contains(trustHttp($quietClient, $baseUrl, '/notifications')['body'], 'Admin đã ẩn tin'), 'The Host got no notice of the Admin hide.');
+        (new \App\Models\AdminRepository())->setListingVisibility($quietListing, $adminId, true);
+        $shownDashboard = trustHttp($quietClient, $baseUrl, '/host')['body'];
+        trustExpect(!str_contains($shownDashboard, 'data-admin-hidden') && str_contains($shownDashboard, '/host/listings/'.$quietListing.'/visibility'), 'An Admin show did not give the Host the button back.');
+        trustExpect(str_contains(trustHttp($quietClient, $baseUrl, '/notifications')['body'], 'Admin đã hiện lại tin'), 'The Host got no notice of the Admin show.');
+        echo "PASS Admin hide: dashboard state in place of the button, Show refused with the reason, notices for hide and show\n";
+
         foreach ([$guestOfLeaving, $quietClient] as $client) { curl_close($client); }
         echo "PASS contact note: pending for the two parties, missing phone when confirmed, nothing when cancelled or rejected or for the Admin\n";
 
