@@ -214,7 +214,7 @@ BEGIN
     SELECT id INTO v_lock FROM listings WHERE id=p_8 AND deleted_at IS NULL FOR UPDATE;
     IF v_lock IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở không tồn tại.'; END IF;
     IF p_1 IS NULL OR TRIM(p_1)='' OR p_2 IS NULL OR TRIM(p_2)='' OR p_3 IS NULL OR TRIM(p_3)='' OR p_4 IS NULL OR TRIM(p_4)=''
-        OR p_5 IS NULL OR p_5<=0 OR p_6 IS NULL OR p_6<0 OR p_7 IS NULL OR p_7<1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Thông tin chỗ ở không hợp lệ.'; END IF;
+        OR p_5 IS NULL OR ROUND(p_5,0)<1 OR p_6 IS NULL OR p_6<0 OR p_7 IS NULL OR p_7<1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Thông tin chỗ ở không hợp lệ.'; END IF;
     UPDATE listings SET title=p_1,address=p_2,city=p_3,description=p_4,base_nightly_rate=p_5,fee_amount=p_6,max_guests=p_7,updated_at=NOW(6) WHERE id=p_8;
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at) VALUES(p_9,'update_listing','listing',p_8,JSON_OBJECT('details','Admin updated listing'),NOW(6));
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_admin_listing_update; END IF;

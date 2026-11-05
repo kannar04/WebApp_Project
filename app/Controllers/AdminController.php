@@ -174,9 +174,10 @@ final class AdminController extends Controller
             foreach (['title'=>180,'address'=>255,'city'=>100,'description'=>65535] as $field=>$maximum) {
                 if ($data[$field]==='' || mb_strlen($data[$field])>$maximum) { throw new \DomainException('Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.'); }
             }
-            if ($data['nightly_price']<=0 || $data['nightly_price']>9999999999.99 || $data['cleaning_fee']<0
+            // Prices are charged in whole dong, so a price that rounds to 0 would make the nights free.
+            if (round($data['nightly_price'])<1 || $data['nightly_price']>9999999999.99 || $data['cleaning_fee']<0
                 || $data['cleaning_fee']>9999999999.99 || $data['max_guests']<1 || $data['max_guests']>65535) {
-                throw new \DomainException('Giá phải lớn hơn 0, phụ phí không được âm và sức chứa phải hợp lệ.');
+                throw new \DomainException('Giá mỗi đêm phải từ 1đ trở lên, phụ phí không được âm và sức chứa phải hợp lệ.');
             }
             (new AdminRepository())->updateListing((int)$id,(int)$admin['id'],$data);
             Session::flash('success','Đã cập nhật chỗ ở.');

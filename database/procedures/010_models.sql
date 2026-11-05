@@ -62,7 +62,7 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_listing_create`(IN p_1 bigint unsigned, IN p_2 bigint unsigned, IN p_3 bigint unsigned, IN p_4 varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_5 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_6 varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_7 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_8 decimal(12,2), IN p_9 decimal(12,2), IN p_10 int, IN p_11 int, IN p_12 int, IN p_13 int, IN p_14 time, IN p_15 time, IN p_16 bool, IN p_17 bool, IN p_18 bool, IN p_19 decimal(10,6), IN p_20 decimal(10,6))
 BEGIN
-    IF p_8 IS NULL OR p_8<=0 OR p_9 IS NULL OR p_9<0 OR p_10<1 OR p_11<1 OR p_12<1 OR p_13<1
+    IF p_8 IS NULL OR ROUND(p_8,0)<1 OR p_9 IS NULL OR p_9<0 OR p_10<1 OR p_11<1 OR p_12<1 OR p_13<1
         OR p_4 IS NULL OR TRIM(p_4)='' OR p_5 IS NULL OR TRIM(p_5)='' OR p_6 IS NULL OR TRIM(p_6)='' OR p_7 IS NULL OR TRIM(p_7)=''
         OR NOT EXISTS(SELECT 1 FROM users u JOIN user_roles r ON r.user_id=u.id WHERE u.id=p_1 AND u.status='active' AND u.deleted_at IS NULL AND r.role='host')
         OR NOT EXISTS(SELECT 1 FROM property_types WHERE id=p_2 AND is_active=1)
@@ -78,7 +78,7 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_listing_update`(IN p_1 bigint unsigned, IN p_2 bigint unsigned, IN p_3 varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_4 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_5 varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_6 text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_7 decimal(12,2), IN p_8 decimal(12,2), IN p_9 int, IN p_10 int, IN p_11 int, IN p_12 int, IN p_13 time, IN p_14 time, IN p_15 bool, IN p_16 bool, IN p_17 bool, IN p_18 bigint unsigned, IN p_19 bigint unsigned, IN p_20 decimal(10,6), IN p_21 decimal(10,6))
 BEGIN
-    IF p_7 IS NULL OR p_7<=0 OR p_8 IS NULL OR p_8<0 OR p_9<1 OR p_10<1 OR p_11<1 OR p_12<1
+    IF p_7 IS NULL OR ROUND(p_7,0)<1 OR p_8 IS NULL OR p_8<0 OR p_9<1 OR p_10<1 OR p_11<1 OR p_12<1
         OR p_3 IS NULL OR TRIM(p_3)='' OR p_4 IS NULL OR TRIM(p_4)='' OR p_5 IS NULL OR TRIM(p_5)='' OR p_6 IS NULL OR TRIM(p_6)=''
         OR NOT EXISTS(SELECT 1 FROM listings l JOIN users u ON u.id=l.host_id JOIN user_roles r ON r.user_id=u.id WHERE l.id=p_18 AND l.host_id=p_19 AND l.deleted_at IS NULL AND u.status='active' AND r.role='host')
         OR NOT EXISTS(SELECT 1 FROM property_types pt WHERE pt.id=p_1 AND (pt.is_active=1 OR pt.id=(SELECT l.property_type_id FROM listings l WHERE l.id=p_18 AND l.host_id=p_19)))

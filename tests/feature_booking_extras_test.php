@@ -185,8 +185,10 @@ try {
 
     // ---- Host pricing rules.
     bxRejects([$extras,'saveHostSettings'],[$listingId,$guestId,'150000',null,null,null,false],'quyền','Guest changed booking settings');
-    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,'-1',null,null,null,false],'lớn hơn 0','Negative weekend price accepted');
-    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,null,'0',null,null,false],'lớn hơn 0','Free holiday nights accepted');
+    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,'-1',null,null,null,false],'từ 1đ','Negative weekend price accepted');
+    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,null,'0',null,null,false],'từ 1đ','Free holiday nights accepted');
+    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,'0.4',null,null,null,false],'từ 1đ','A weekend rate that rounds to 0 was accepted');
+    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,null,'0.49',null,null,false],'từ 1đ','A holiday rate that rounds to 0 was accepted');
     bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,null,null,'95',null,false],'0 đến 90','Discount above 90% accepted');
     bxRejects([$extras,'hostSettings'],[$listingId,$guestId],'quyền','Guest read Host booking settings');
     $extras->saveHostSettings($listingId,$hostId,'150000','300000','10','20',false);
@@ -424,6 +426,25 @@ try {
     bxCall('CALL sp_test_listing_approve(?)',[$listingId]);
     $extras->saveHostSettings($listingId,$hostId,'150000','300000','10','20',true);
     echo "PASS whole dong pricing: decimal weekend/holiday rate, fee, fixed promo and promo cap round per component; rows, total, nights and amount due agree\n";
+    // ---- A nightly price that rounds to 0 is refused everywhere; a cleaning fee may be 0, and one under 0.5 just charges nothing.
+    bxRejects([$listings,'update'],[$listingId,$hostId,array_merge($data,['nightly_price'=>'0.4'])],'không hợp lệ','A Host nightly price that rounds to 0 was accepted on update');
+    bxRejects([$listings,'create'],[$hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]+array_merge($data,['nightly_price'=>'0.49'])],'không hợp lệ','A Host nightly price that rounds to 0 was accepted on create');
+    bxRejects([new App\Models\AdminRepository(),'updateListing'],[$listingId,$adminId,array_merge($data,['nightly_price'=>'0.4'])],'không hợp lệ','An Admin nightly price that rounds to 0 was accepted');
+    bxRejects([$listings,'update'],[$listingId,$hostId,array_merge($data,['cleaning_fee'=>'-1'])],'không hợp lệ','A negative cleaning fee was accepted');
+    $extras->saveHostSettings($listingId,$hostId,null,null,null,null,true);
+    foreach (['0.4'=>0.0,'0'=>0.0,'0.5'=>1.0] as $fee=>$charged) {
+        $listings->update($listingId,$hostId,array_merge($data,['cleaning_fee'=>(string)$fee]));
+        bxCall('CALL sp_test_listing_approve(?)',[$listingId]);
+        $quote=$service->quote($listingId,$d0,$d7,1,'');
+        bxExpect((float)$quote['fee']===$charged && (float)$quote['total']===(float)$quote['subtotal']+$charged && (float)$quote['subtotal']>0,'Cleaning fee '.$fee.' quoted nonsense: '.json_encode($quote,JSON_UNESCAPED_UNICODE));
+    }
+    $listings->update($listingId,$hostId,array_merge($data,['nightly_price'=>'0.5']));
+    bxCall('CALL sp_test_listing_approve(?)',[$listingId]);
+    bxExpect((float)$service->quote($listingId,$d0,$d7,1,'')['subtotal']>0,'A nightly price of 0.5 did not round up to a real price.');
+    $listings->update($listingId,$hostId,$data);
+    bxCall('CALL sp_test_listing_approve(?)',[$listingId]);
+    $extras->saveHostSettings($listingId,$hostId,'150000','300000','10','20',true);
+    echo "PASS minimum price: a nightly, weekend or holiday price that rounds below 1 dong is refused; a cleaning fee of 0 or under 0.5 quotes correctly\n";
     // ---- Stale requests: no confirmation after the check-in date; Host and Admin can still reject and the Guest can still cancel.
     $staleListing=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]+$data);
     $extraListings[]=$staleListing;
@@ -546,6 +567,17 @@ try {
         $form=['weekend_nightly_rate'=>'150000','holiday_nightly_rate'=>'300000','weekly_discount_pct'=>'10','monthly_discount_pct'=>'20'];
         $response=bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing',$form);
         bxExpect($response['status']===302 && (int)$extras->hostSettings($listingId,$hostId)['instant_book']===1,'Pricing POST without CSRF token changed settings.');
+        // The forms say min=1; the server has to hold that line too.
+        $savedRate=(string)$extras->hostSettings($listingId,$hostId)['weekend_nightly_rate'];
+        bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing',['_token'=>$hostToken,'weekend_nightly_rate'=>'0.40']+$form);
+        bxExpect(str_contains(bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing')['body'],'Giá cuối tuần phải là số từ 1đ trở lên.') && (string)$extras->hostSettings($listingId,$hostId)['weekend_nightly_rate']===$savedRate,'Pricing POST accepted a weekend rate that rounds to 0.');
+        bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing',['_token'=>$hostToken,'holiday_nightly_rate'=>'0.49']+$form);
+        bxExpect(str_contains(bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing')['body'],'Giá ngày lễ phải là số từ 1đ trở lên.'),'Pricing POST accepted a holiday rate that rounds to 0.');
+        $priceBefore=(string)$listings->findOwned($listingId,$hostId)['nightly_price'];
+        bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId,['_token'=>$hostToken]+array_merge($data,['nightly_price'=>'0.4']));
+        bxExpect(str_contains(bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/edit')['body'],'Giá mỗi đêm phải từ 1đ trở lên') && (string)$listings->findOwned($listingId,$hostId)['nightly_price']===$priceBefore,'Host listing form accepted a nightly price that rounds to 0.');
+        bxHttp($adminClient,$baseUrl,'/admin/listings/'.$listingId,['_token'=>$adminToken]+array_merge($data,['nightly_price'=>'0.4']));
+        bxExpect(str_contains(bxHttp($adminClient,$baseUrl,'/admin/listings/'.$listingId.'/edit')['body'],'Giá mỗi đêm phải từ 1đ trở lên') && (string)$listings->findOwned($listingId,$hostId)['nightly_price']===$priceBefore,'Admin listing form accepted a nightly price that rounds to 0.');
         $response=bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing',array_merge($form,['_token'=>$hostToken,'weekly_discount_pct'=>'abc']));
         bxExpect($response['status']===302 && str_contains(bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing')['body'],'Giảm giá theo tuần phải từ 0 đến 90%'),'Invalid pricing input was not rejected with a message.');
         $response=bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing',['_token'=>$hostToken]+$form);

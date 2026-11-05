@@ -78,9 +78,10 @@ final class HostController extends Controller
                     throw new \DomainException('Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.');
                 }
             }
-            if ($data['nightly_price'] <= 0 || $data['cleaning_fee'] < 0
+            // Prices are charged in whole dong, so a price that rounds to 0 would make the nights free.
+            if (round($data['nightly_price']) < 1 || $data['cleaning_fee'] < 0
                 || $data['nightly_price'] > 9999999999.99 || $data['cleaning_fee'] > 9999999999.99) {
-                throw new \DomainException('Giá phải lớn hơn 0 và phụ phí không được âm.');
+                throw new \DomainException('Giá mỗi đêm phải từ 1đ trở lên và phụ phí không được âm.');
             }
             foreach (['max_guests', 'room_count', 'bedroom_count', 'bed_count'] as $field) {
                 if ($data[$field] < 1 || $data[$field] > 65535) {

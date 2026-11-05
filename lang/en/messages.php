@@ -122,7 +122,7 @@ return [
     'Từ chối bài đăng phải có lý do.' => 'Rejecting a listing requires a reason.',
     'Đã cập nhật kiểm duyệt bài đăng.' => 'Listing moderation updated.',
     'Không thể kiểm duyệt bài đăng. Vui lòng thử lại.' => 'Could not moderate the listing. Please try again.',
-    'Giá phải lớn hơn 0, phụ phí không được âm và sức chứa phải hợp lệ.' => 'Price must be greater than 0, the cleaning fee cannot be negative and capacity must be valid.',
+    'Giá mỗi đêm phải từ 1đ trở lên, phụ phí không được âm và sức chứa phải hợp lệ.' => 'The nightly price must be at least 1đ, the cleaning fee cannot be negative and capacity must be valid.',
     'Đã cập nhật chỗ ở.' => 'Listing updated.',
     'Đã cập nhật hiển thị listing.' => 'Listing visibility updated.',
     'Đã gỡ listing (soft delete).' => 'Listing removed (soft delete).',
@@ -131,7 +131,7 @@ return [
 
     // ---- Host listings, photos, availability (HostController)
     'Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.' => 'Please fill in all fields within the length limits.',
-    'Giá phải lớn hơn 0 và phụ phí không được âm.' => 'Price must be greater than 0 and the cleaning fee cannot be negative.',
+    'Giá mỗi đêm phải từ 1đ trở lên và phụ phí không được âm.' => 'The nightly price must be at least 1đ and the cleaning fee cannot be negative.',
     'Sức chứa, số phòng và số giường phải từ 1 đến 65535.' => 'Capacity, rooms and beds must be between 1 and 65535.',
     'Giờ nhận hoặc trả phòng không hợp lệ.' => 'Invalid check-in or check-out time.',
     'Loại chỗ ở hoặc chính sách hủy không hợp lệ.' => 'Invalid property type or cancellation policy.',
@@ -170,8 +170,8 @@ return [
     'Chỉ booking đã hoàn thành và chưa đánh giá mới được thực hiện.' => 'Only completed bookings that have not been reviewed yet can be reviewed.',
 
     // ---- Pricing, holidays, promotions, payments (BookingExtrasController)
-    'Giá cuối tuần phải là số lớn hơn 0.' => 'Weekend price must be a number greater than 0.',
-    'Giá ngày lễ phải là số lớn hơn 0.' => 'Holiday price must be a number greater than 0.',
+    'Giá cuối tuần phải là số từ 1đ trở lên.' => 'The weekend price must be a number of at least 1đ.',
+    'Giá ngày lễ phải là số từ 1đ trở lên.' => 'The holiday price must be a number of at least 1đ.',
     'Giảm giá theo tuần phải từ 0 đến 90%.' => 'Weekly discount must be between 0 and 90%.',
     'Giảm giá theo tháng phải từ 0 đến 90%.' => 'Monthly discount must be between 0 and 90%.',
     'Đã lưu giá & tùy chọn đặt chỗ. Thay đổi áp dụng cho báo giá mới, không cần Admin duyệt lại tin.' => 'Pricing and booking options saved. Changes apply to new quotes; no Admin re-approval needed.',
