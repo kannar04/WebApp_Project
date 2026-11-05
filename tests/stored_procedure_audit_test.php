@@ -27,6 +27,21 @@ foreach ($files as $file) {
 if ($violations) { throw new RuntimeException('Direct business SQL found: '.implode(', ',$violations)); }
 echo "PASS PHP scan: zero direct business SQL literals; metadata exceptions reviewed\n";
 
+// The audit doc is checked by hand against the code, so its tables and fixture counts have to stay readable and true.
+$auditLines=file($root.'/docs/stored-procedure-audit.md',FILE_IGNORE_NEW_LINES);
+$tableCells=null;
+foreach ($auditLines as $index=>$line) {
+    if (!str_starts_with($line,'|')) { $tableCells=null; continue; }
+    $cells=substr_count((string)preg_replace('/`[^`]*`/','',$line),'|')-1;
+    $tableCells??=$cells;
+    if ($cells!==$tableCells) { throw new RuntimeException('Audit doc line '.($index+1).' has '.$cells.' cells, its table has '.$tableCells.'.'); }
+}
+$paymentFixtures=substr_count((string)file_get_contents($root.'/database/procedures/testing_payment.sql'),'CREATE OR REPLACE PROCEDURE');
+if (!str_contains(implode("\n",$auditLines),'Test fixture routines mới ('.$paymentFixtures.', chỉ cài trong DB test riêng): `testing_payment.sql`')) {
+    throw new RuntimeException('Audit doc does not say testing_payment.sql has '.$paymentFixtures.' fixtures.');
+}
+echo "PASS audit doc: every table row has its header's cell count; the payment fixture count matches the file\n";
+
 // Read-only schema metadata is an explicit administrative audit exception.
 $pdo=\Core\Database::connection();
 $rows=$pdo->query('SELECT r.ROUTINE_NAME,COUNT(p.ORDINAL_POSITION) parameter_count FROM information_schema.ROUTINES r LEFT JOIN information_schema.PARAMETERS p ON p.SPECIFIC_SCHEMA=r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME=r.ROUTINE_NAME WHERE r.ROUTINE_SCHEMA=DATABASE() AND r.ROUTINE_TYPE=\'PROCEDURE\' GROUP BY r.ROUTINE_NAME')->fetchAll(PDO::FETCH_ASSOC);

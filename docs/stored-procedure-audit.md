@@ -272,7 +272,7 @@ Quy ước chung cho mọi routine ghi dữ liệu mới: tự `START TRANSACTIO
 | `sp_booking_payment_list` | `070` | Trạng thái thanh toán theo phạm vi `guest` (booking của mình) hoặc `host` (booking chỗ ở của mình) | Chỉ đọc, lọc theo actor | feature_booking_extras_test |
 | `sp_booking_payment_mark_paid` | `070` | Ghi nhận đã thu tiền khi nhận phòng | Host chủ chỗ ở hoặc Admin; booking `confirmed`/`completed`; từ ngày nhận phòng (giờ VN); chỉ một lần; khóa listing + booking + payment; tạo dòng payment nếu booking cũ chưa có; event + thông báo `payment_paid`; audit `mark_payment_paid` khi Admin | feature_booking_extras_test |
 | `sp_booking_payment_refund` | `070` | Hoàn tiền | Chỉ Admin; ghi chú bắt buộc; `paid` → `refunded`; booking đã hủy hoàn đúng `booking_cancellations.refund_amount` (0đ thì từ chối), booking khác hoàn toàn bộ; thông báo `payment_refunded`; audit `refund_payment` | feature_booking_extras_test, feature_payment_test |
-| `sp_admin_payments` / `sp_admin_payment_totals` | `070` | Danh sách thanh toán (lọc trạng thái/từ khóa, tối đa 200) và tổng tiền | `sp_admin_assert_role` | feature_booking_extras_test |
+| `sp_admin_payments` / `sp_admin_payment_totals` | `070` | Danh sách thanh toán (lọc trạng thái/từ khóa, `#N` là đúng booking N, tối đa 200) và tổng tiền | `sp_admin_assert_role` | feature_booking_extras_test, feature_payment_test |
 | `sp_identity_verification_submit` | `075_trust.sql` | Gửi xác minh họ tên, SĐT, CCCD | Khóa dòng user; SĐT `^0[35789]\d{8}`; CCCD 12 số; một yêu cầu chờ; không gửi lại sau khi đã duyệt | feature_trust_test |
 | `sp_identity_verification_status` | `075` | Trạng thái của chính mình (CCCD đã che) | Chỉ actor | feature_trust_test |
 | `sp_admin_identity_verifications` | `075` | Danh sách yêu cầu (tối đa 200); CCCD đầy đủ chỉ khi đang chờ | `sp_admin_assert_role` | feature_trust_test |
@@ -299,7 +299,7 @@ Quy ước chung cho mọi routine ghi dữ liệu mới: tự `START TRANSACTIO
 | `sp_admin_article_save` | `090` | Tạo/sửa bài; kiểm tra chuyên mục, tiêu đề 5–200, slug, tóm tắt, nội dung 20–50000; slug tự sinh thêm `-2`, `-3`… | Admin; `FOR UPDATE`; audit `create_article`/`update_article` | feature_content_test |
 | `sp_admin_article_set_status` / `sp_admin_article_delete` | `090` | Xuất bản/ẩn, xóa mềm | Admin; `FOR UPDATE`; audit `publish_article`/`unpublish_article`/`delete_article` | feature_content_test |
 
-Test fixture routines mới (24, chỉ cài bằng `--include-tests` trong DB test riêng): 9 `testing_booking_extras.sql`, 5 `testing_trust.sql`, 4 `testing_conversation.sql`, 4 `testing_discovery.sql`, 2 `testing_content.sql`.
+Test fixture routines mới (25, chỉ cài bằng `--include-tests` trong DB test riêng): 10 `testing_booking_extras.sql`, 5 `testing_trust.sql`, 4 `testing_conversation.sql`, 4 `testing_discovery.sql`, 2 `testing_content.sql`.
 
 Giới hạn giữ nguyên từ báo cáo các nhánh: VNPay/MoMo chưa tích hợp (đã bổ sung VietQR + VNPay ngày 2026-10-15, xem mục dưới); booking tạo trước tính năng chưa có dòng thanh toán cho đến khi được đánh dấu đã thu; gợi ý tính trực tiếp mỗi lần, không cache; huy hiệu Host uy tín tính trong SQL mỗi lần tải trang.
 
@@ -328,13 +328,13 @@ Thanh toán online (VietQR chuyển khoản do Admin xác nhận, VNPay sandbox)
 | `sp_payment_start` | `095` | Tạo lần thanh toán `vietqr`/`vnpay`, mã `H2H<booking>X<5 hex>`; VietQR cùng số tiền thì dùng lại mã đang mở | Transaction/savepoint; khóa listing → booking → payment; booking confirmed, chưa thu, VND; chặn khi đã báo chuyển khoản | feature_payment_test |
 | `sp_payment_transaction_get` | `095` | Một lần thanh toán cho trang chuyển khoản | Chỉ đọc; Guest của booking hoặc Admin | feature_payment_test |
 | `sp_payment_transfer_submit` | `095` | Khách báo đã chuyển khoản → `submitted`, thông báo mọi Admin | Transaction; khóa như trên; chỉ Guest, chỉ VietQR `pending`, booking confirmed chưa thu | feature_payment_test |
-| `sp_admin_payment_transfer_decide` | `095` | Admin `confirm` (booking_payments `paid`/`vietqr`, event, thông báo khách, đóng các lần mở khác) hoặc `reject` (lý do ≥ 5 ký tự, thông báo khách) | Admin (`sp_admin_assert_role`); khóa như trên; một lần; audit `confirm_bank_transfer`/`reject_bank_transfer` | feature_payment_test |
-| `sp_payment_vnpay_result` | `095` | Ghi kết quả VNPay đã kiểm chữ ký: `ok` / `not_found` / `invalid_amount` / `already` (IPN trả 00/01/04/02) | Transaction; khóa như trên; đối chiếu số tiền; gọi lại an toàn; tiền về sau khi đã thanh toán (`payment_duplicate`) hoặc sau khi khách hủy (`payment_refund_needed`) thì báo Admin hoàn tiền | feature_payment_test |
+| `sp_admin_payment_transfer_decide` | `095` | Admin `confirm` (booking_payments `paid`/`vietqr`, event, thông báo khách, đóng các lần mở khác) hoặc `reject` (lý do ≥ 5 ký tự, thông báo khách); booking đã thu thì `reject` đóng khoản trùng (`cancelled`), trả `duplicate_closed` | Admin (`sp_admin_assert_role`); khóa như trên; một lần; audit `confirm_bank_transfer`/`reject_bank_transfer`/`close_duplicate_transfer` | feature_payment_test |
+| `sp_payment_vnpay_result` | `095` | Ghi kết quả VNPay đã kiểm chữ ký: `ok` / `not_found` / `invalid_amount` / `already` (IPN trả 00/01/04/02); trả thêm trạng thái hiện tại cho thông báo của khách | Transaction; khóa như trên; đối chiếu số tiền; gọi lại an toàn; thành công có chữ ký sau một lần không thành công vẫn được ghi nhận; tiền về sau khi đã thanh toán (`payment_duplicate`) hoặc sau khi khách hủy (`payment_refund_needed`) thì báo Admin hoàn tiền và báo khách | feature_payment_test |
 | `sp_payment_booking_transactions` | `095` | Lịch sử thanh toán online của một booking (20 lần gần nhất) | Chỉ đọc; `sp_quality_assert_booking` (Guest, Host chủ chỗ ở, Admin) | feature_payment_test |
-| `sp_admin_payment_duplicate_resolve` | `095` | Admin ghi nhận đã hoàn một khoản VNPay trùng: chỉ đóng giao dịch đó (`cancelled`, ghi chú bắt buộc), booking vẫn `paid`; thông báo khách, audit log | `App\Models\Payment::resolveDuplicate` |
+| `sp_admin_payment_duplicate_resolve` | `095` | Admin ghi nhận đã hoàn một khoản VNPay trùng: chỉ đóng giao dịch đó (`cancelled`, ghi chú bắt buộc), trạng thái thanh toán của booking không đổi và được trả về; thông báo khách, audit log | Transaction/savepoint; Admin (`sp_admin_assert_role`); khóa như trên; một lần | feature_payment_test |
 | `sp_admin_payment_transfers` | `095` | Hàng chờ Admin: chuyển khoản khách đã báo, rồi mã QR đang mở của booking chưa thu | Chỉ đọc; Admin | feature_payment_test |
 
-Test fixture routines mới (3, chỉ cài trong DB test riêng): `testing_payment.sql` (`sp_test_payment_inspect`, `sp_test_payment_attempt`, `sp_test_payment_cleanup` — chỉ xóa listing `Audit fixture PAY %` ở thành phố `Audit`).
+Test fixture routines mới (7, chỉ cài trong DB test riêng): `testing_payment.sql` (`sp_test_payment_inspect`, `sp_test_payment_attempt`, `sp_test_payment_set_amount`, `sp_test_payment_listing_removed`, `sp_test_payment_finish_stay`, `sp_test_payment_old_refund`, `sp_test_payment_cleanup` — chỉ xóa listing `Audit fixture PAY %` ở thành phố `Audit`).
 
 ## Đồng bộ giờ nhận phòng, huy hiệu xác minh và họ tên — 2026-10-17
 
@@ -372,6 +372,34 @@ Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
 | Routine | File | Mục đích | Transaction / khóa / quyền | Test |
 |---|---|---|---|---|
 | `sp_listing_catalog_choices` | `060_quality_community.sql` | Lựa chọn trong form Host: mục đang hoạt động cộng với mục đã ngừng mà tin của chính Host vẫn dùng (`p_listing=0` là tin mới) | Chỉ đọc; mục đã ngừng chỉ hiện khi tin thuộc đúng `p_host` | procedure_flow_test, quality_core_test |
+
+## Sửa lỗi tiền hoàn, doanh thu và thanh toán online — 2026-11-05
+
+Các routine dưới đây sửa lỗi tại chỗ; không đổi schema, không thêm routine production. Số tiền đã hoàn thật lấy từ dòng audit `refund_payment` mới nhất (dòng cũ không có số thì dùng `amount_due`); `booking_cancellations.refund_amount` chỉ là số còn phải hoàn.
+
+### Routine đã có bị thay đổi
+
+| Routine | File | Thay đổi | Test |
+|---|---|---|---|
+| `sp_listing_create` / `sp_listing_update` | `010_models.sql` | Từ chối giá mỗi đêm làm tròn dưới 1đ; phụ phí 0 vẫn hợp lệ | feature_booking_extras_test |
+| `sp_admin_total_revenue` / `sp_host_stats` | `010_models.sql` | Doanh thu trừ số tiền đã hoàn thật, số đơn hoàn thành giữ nguyên | feature_booking_extras_test |
+| `sp_booking_cancel` | `020_booking.sql` | `refund_amount` là số còn phải hoàn: 0 khi chưa thu hoặc đã hoàn trước khi hủy; thông báo đúng từng trường hợp | feature_payment_test |
+| `sp_admin_listing_update` | `030_atomic_writes.sql` | Từ chối giá mỗi đêm làm tròn dưới 1đ | feature_booking_extras_test |
+| `sp_booking_refund_preview` | `050_quality_core.sql` | Không hứa hoàn thêm cho booking đã hoàn | feature_payment_test |
+| `sp_admin_booking_search` | `050_quality_core.sql` | `#N` là đúng booking N, vẫn theo bộ lọc trạng thái; số trần và `#abc` vẫn tìm như chữ | quality_core_test |
+| `sp_host_monthly_revenue` | `050_quality_core.sql` | Doanh thu tháng trừ số tiền đã hoàn thật | feature_booking_extras_test |
+| `sp_host_booking_settings_save` | `070_booking_extras.sql` | Từ chối giá cuối tuần/ngày lễ làm tròn dưới 1đ | feature_booking_extras_test |
+| `sp_booking_extras_detail` | `070_booking_extras.sql` | Trả thêm `refunded_amount`; `can_pay_online` cho phép chuyến đã kết thúc trên tin đã gỡ | feature_payment_test |
+| `sp_booking_payment_list` | `070_booking_extras.sql` | `can_pay_online` theo cùng quy tắc tin đã gỡ | feature_payment_test |
+| `sp_booking_payment_refund` | `070_booking_extras.sql` | Chỉ thêm chú thích nơi đọc số tiền đã hoàn; không đổi hành vi | feature_payment_test |
+| `sp_admin_payments` | `070_booking_extras.sql` | Trả thêm `refunded_amount`; `#N` là đúng booking N | feature_payment_test |
+| `sp_admin_payment_totals` | `070_booking_extras.sql` | Tổng đã hoàn dùng số tiền hoàn thật; `paid_count` đếm mọi booking tạo nên số đã thu | feature_payment_test |
+| `sp_payment_checkout` / `sp_payment_start` / `sp_payment_transaction_get` / `sp_payment_transfer_submit` | `095_online_payment.sql` | Tin đã gỡ chỉ chặn chuyến chưa kết thúc; chuyến đã kết thúc thanh toán bình thường | feature_payment_test |
+| `sp_admin_payment_transfer_decide` | `095_online_payment.sql` | Booking đã thu: `reject` đóng khoản trùng (`cancelled`, event `payment_duplicate_transfer_closed`, audit `close_duplicate_transfer`), báo khách đúng sự thật và trả `duplicate_closed` | feature_payment_test |
+| `sp_admin_payment_duplicate_resolve` | `095_online_payment.sql` | Trả `payment_status`; thông báo khách đúng cả khi khoản chính đã được hoàn trước đó | feature_payment_test |
+| `sp_payment_vnpay_result` | `095_online_payment.sql` | Trả thêm `duplicate_refunded`, `payment_status`, `return_reason`, `refund_owed`; ghi nhận thành công sau một lần không thành công; báo khách khi tiền về booking đã hủy hoặc tin đã gỡ | feature_payment_test |
+
+Test fixture routines mới (3, chỉ cài trong DB test riêng): `sp_test_booking_extras_refund_audit` (`testing_booking_extras.sql`), `sp_test_payment_finish_stay`, `sp_test_payment_old_refund` (`testing_payment.sql`). `sp_test_payment_inspect` trả thêm nội dung thông báo cho khách và số audit đóng khoản trùng.
 
 ## Run / reproduce
 
