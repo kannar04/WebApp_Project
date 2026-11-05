@@ -19,10 +19,14 @@
 .surface-card { min-width: 0; max-width: 100%; }
 .table-responsive { display: block; width: 100%; max-width: 100%; overflow-x: auto; }
 .action-row { flex-wrap: wrap; }
-.action-row > a { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+/* Only a link wider than its whole row breaks, such as a long unbroken name in Admin's profile links. In a table the labels stay whole and the table scrolls sideways; anywhere let a narrow cell squeeze them down to single letters. */
+.action-row > a { max-width: 100%; overflow-wrap: break-word; white-space: normal; }
+td .action-row > a { white-space: nowrap; }
 /* One unbroken title must not widen its table and push the actions away. The cap only acts on a title longer than it, so ordinary rows keep their layout; anywhere would squeeze them at narrow widths. */
 .table-title { max-width: 16rem; overflow-wrap: break-word; }
 .article-table .table-title { max-width: 22rem; }
+/* A name or email keeps its one line however narrow the table gets, and one longer than the cap wraps at the cap instead of widening the table. */
+.table-person { display: inline-block; width: max-content; max-width: 20rem; overflow-wrap: break-word; }
 /* The second selector outweighs Bootstrap's .btn:not(:disabled) pointer. Dimmed because a touch screen shows no cursor; the buttons stay enabled so they keep their name and value in the request. */
 form[aria-busy="true"] button, form[aria-busy="true"] .btn:not(:disabled) { cursor: progress; opacity: .65; }
 /* Filter layout uses Bootstrap 4 form-group/grid structure, not offset corrections. */

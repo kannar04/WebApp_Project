@@ -277,6 +277,41 @@ function Check-LongTableTitle([string]$Path, [switch]$IfPresent) {
     if ($desktop.wider -gt 1 -or $desktop.over -gt 0 -or $phone.over -gt 0) { throw "Long title widens the table on $($Path): desktop $($desktop | ConvertTo-Json -Compress), phone $($phone | ConvertTo-Json -Compress)" }
 }
 
+function Check-LongPersonCell([string]$Path, [switch]$IfPresent) {
+    # One unbroken name or email wraps at its cap: the table stays inside its box at desktop width, and at 375 it scrolls inside itself. Put into the real cells, so no fixture rows are needed.
+    $fill="(function(){const people=document.querySelectorAll('.table-person');let wider=0;let widest=0;for(const person of people){person.textContent='W'.repeat(200);}for(const person of people){const table=person.closest('table');wider=Math.max(wider,table.getBoundingClientRect().width-table.closest('.table-responsive').getBoundingClientRect().width);widest=Math.max(widest,person.getBoundingClientRect().width);}return {found:people.length,wider:wider,widest:widest,cap:20*parseFloat(getComputedStyle(document.documentElement).fontSize),over:document.documentElement.scrollWidth-window.innerWidth};})()"
+    Navigate $Path
+    $desktop=Evaluate $fill
+    if ($desktop.found -lt 1) {
+        if ($IfPresent) { Write-Output "SKIP browser long name cell on $($Path): no rows"; return }
+        throw "No name or email cell on $Path"
+    }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=375;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    Navigate $Path
+    $phone=Evaluate $fill
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    if ($desktop.wider -gt 1 -or $desktop.over -gt 0 -or $phone.over -gt 0 -or $desktop.widest -gt $desktop.cap -or $phone.widest -gt $phone.cap) { throw "Long name widens the table on $($Path): desktop $($desktop | ConvertTo-Json -Compress), phone $($phone | ConvertTo-Json -Compress)" }
+}
+
+function Check-TableTextWhole([string[]]$Paths) {
+    # Table action links, ordinary names and emails keep one line and no number or date breaks, at any width in either language: the table scrolls sideways instead.
+    $read="(function(){const lineCount=function(range){return new Set(Array.from(range.getClientRects()).filter(function(box){return box.width>0;}).map(function(box){return Math.round(box.top+box.height/2);})).size;};const broken=[];for(const el of document.querySelectorAll('.table-person, td .action-row > a')){const range=document.createRange();range.selectNodeContents(el);if(lineCount(range)>1){broken.push(el.textContent.trim());}}for(const table of document.querySelectorAll('table')){const walker=document.createTreeWalker(table,NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode()){if(node.parentElement.closest('.sr-only,option,script,style')){continue;}for(const token of node.textContent.matchAll(/\S*\d\S*/g)){const range=document.createRange();range.setStart(node,token.index);range.setEnd(node,token.index+token[0].length);if(lineCount(range)>1){broken.push(token[0]);}}}}return {broken:broken,over:document.documentElement.scrollWidth-window.innerWidth};})()"
+    foreach ($language in 1,2) {
+        foreach ($width in 320,375,768,992,1024,1440) {
+            Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+            foreach ($path in $Paths) {
+                Navigate $path
+                $whole=Evaluate $read
+                if (@($whole.broken).Count -or $whole.over -gt 0) { throw "Table text broken on $path at $width px: $($whole | ConvertTo-Json -Compress)" }
+            }
+        }
+        $current=Evaluate "document.documentElement.lang"
+        Evaluate "document.querySelector('.locale-toggle').click();true" | Out-Null
+        Wait-FilterPage "document.documentElement.lang!=='$current'&&document.readyState==='complete'"
+    }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+}
+
 function Check-LongText([string]$Path, [string]$Selector, [switch]$IfPresent) {
     # A pasted URL in a title or description must wrap at 375 instead of widening the page. Put into the real elements, so no fixture rows are needed.
     Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=375;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
@@ -533,6 +568,8 @@ try {
     Write-Output 'PASS browser Enter picks no action on the Host availability form'
     Check-LongText '/host/listings/1/availability' '.section-title h1, .section-title p'
     Check-LongTableTitle '/host'
+    Check-LongPersonCell '/host' -IfPresent
+    Check-TableTextWhole @('/host')
     Check-HeaderRows
     Write-Output 'PASS browser a long unbroken title wraps in its cell on the Host tables'
     Write-Output 'PASS browser long unbroken text wraps at 375 on Host pages'
@@ -557,6 +594,10 @@ try {
     Check-LongTableTitle '/admin/payments' -IfPresent
     Check-LongTableTitle '/admin/articles' -IfPresent
     Write-Output 'PASS browser a long unbroken title wraps in its cell on the Admin tables'
+    Check-LongPersonCell '/admin'
+    Check-LongPersonCell '/admin/payments' -IfPresent
+    Check-TableTextWhole @('/admin','/admin/payments','/admin/promotions')
+    Write-Output 'PASS browser long names and emails wrap at their cap, ordinary ones, action links, numbers and dates stay whole from 320 to 1440 px in both languages'
     Check-LongText '/admin/reports' 'article.surface-card h2'
     Write-Output 'PASS browser long unbroken text wraps at 375 on Admin pages, wide tables scroll inside themselves'
     Check-SeveralActions '/admin' 'form.moderation-form' '[name=note]' @('action=approved','action=rejected')
