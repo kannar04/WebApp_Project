@@ -101,6 +101,21 @@ function csrf_field(): string { return '<input type="hidden" name="_token" value
 /** Interface text: Vietnamese source in, current-locale text out (see core/I18n.php). */
 function __(string $text, array $params = []): string { return \Core\I18n::translate($text, $params); }
 
+/**
+ * One cancellation policy's refund terms in words, from a row of cancellation_policies or a booking's snapshot.
+ * A cutoff no booking can reach (the strict policy stores 99999 hours, past 10 years here) reads as the policy's own text, never as a number of hours.
+ */
+function policy_terms(array $policy, ?string $description = null): string
+{
+    $name = isset($policy['name']) ? __((string) $policy['name']) : __('Chính sách đã lưu');
+    $hours = (int) ($policy['cutoff_hours'] ?? 0);
+    $late = (float) ($policy['late_refund_pct'] ?? 0);
+    if ($hours < 87600) {
+        return __('{policy}: trước giờ nhận phòng ít nhất {hours} giờ hoàn {early}%; sau mốc đó hoàn {late}%.', ['policy' => $name, 'hours' => $hours, 'early' => (float) ($policy['early_refund_pct'] ?? 0), 'late' => $late]);
+    }
+    return $description !== null && $description !== '' ? $name . ': ' . __($description) : __('{policy}: hủy lúc nào cũng hoàn {late}%.', ['policy' => $name, 'late' => $late]);
+}
+
 /** Display label for a stored status code (booking, listing, user, review); unknown codes are shown as stored. */
 function status_label(?string $code): string
 {

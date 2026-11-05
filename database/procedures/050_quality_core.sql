@@ -130,8 +130,9 @@ END$$
 CREATE OR REPLACE PROCEDURE sp_booking_detail(IN p_booking BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED)
 BEGIN
     CALL sp_quality_assert_booking(p_booking,p_actor);
-    -- current_*: the listing's check-in time now; the refund deadline keeps the time stored in policy_snapshot.
+    -- current_*: the listing's check-in time now; the refund deadline keeps the time stored in policy_snapshot. policy_description: the snapshot holds the terms but not their words, and policy names are unique.
     SELECT b.*,l.title,l.address,l.city,l.host_id,u.full_name guest_name,h.full_name host_name,
+        (SELECT cp.description FROM cancellation_policies cp WHERE cp.name=CONVERT(JSON_VALUE(b.policy_snapshot,'$.name') USING utf8mb4) COLLATE utf8mb4_unicode_ci) policy_description,
         TIME_FORMAT(l.check_in_time,'%H:%i') current_check_in_time,l.time_zone current_time_zone,
         (l.moderation_status='approved' AND l.is_visible=1 AND l.deleted_at IS NULL AND h.status='active' AND h.deleted_at IS NULL) listing_public,
         CASE WHEN b.status IN ('confirmed','completed') OR EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='admin') THEN h.phone END host_phone,

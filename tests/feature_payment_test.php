@@ -1016,6 +1016,25 @@ try {
             $page=payHttp($client,$baseUrl,'/bookings/'.$checkingRefused)['body'];
             payExpect(str_contains($page,$directText) && !str_contains($page,$checkingText),'A refused transfer left the panel saying it is being checked.');
         }
+        // A strict policy reads as its own text, never as a number of hours; a real cutoff keeps its figures; and a cutoff with no text left still reads plainly.
+        $strictStay=payConfirmedBooking($service,$policyListings[0],$guestId,$hostId,$base,238);
+        $moderateStay=payConfirmedBooking($service,$policyListings[50],$guestId,$hostId,$base,238);
+        foreach ([$guestClient,$hostClient,$adminClient] as $client) {
+            $page=payHttp($client,$baseUrl,'/bookings/'.$strictStay)['body'];
+            payExpect(str_contains($page,'Nghiêm ngặt: Không hoàn tiền sau khi booking được xác nhận.') && !str_contains($page,'99999 giờ'),'The strict policy still reads as a number of hours.');
+            payExpect(str_contains(payHttp($client,$baseUrl,'/bookings/'.$moderateStay)['body'],'Trung bình: trước giờ nhận phòng ít nhất 120 giờ hoàn 50%; sau mốc đó hoàn 0%.'),'A policy with a real cutoff lost its figures.');
+        }
+        $saidWithoutText=policy_terms(['name'=>'Gói cũ','cutoff_hours'=>99999,'early_refund_pct'=>0,'late_refund_pct'=>0],null);
+        payExpect($saidWithoutText==='Gói cũ: hủy lúc nào cũng hoàn 0%.','A cutoff with no text left reads wrong: '.$saidWithoutText);
+        payExpect(!str_contains(policy_terms([],null),'99999'),'An empty snapshot breaks the policy sentence.');
+        // The Host choosing a policy reads each one's terms beside the choice, from the policy rows, on the new and the edit form.
+        foreach (['/host/listings/create','/host/listings/'.$policyListings[0].'/edit'] as $path) {
+            $page=payHttp($hostClient,$baseUrl,$path)['body'];
+            payExpect(str_contains($page,'id="cancellation-policy-terms"') && !str_contains($page,'99999 giờ'),$path.' shows no refund terms beside the policy choice.');
+            foreach ($listings->policies() as $policy) {
+                payExpect(str_contains($page,'<li class="mb-1">'.e(policy_terms($policy,$policy['description']).' '.((int)$policy['refund_fees']?'Phụ phí được tính trong cơ sở hoàn tiền.':'Phụ phí không nằm trong cơ sở hoàn tiền.'))),$path.' does not show the terms of '.$policy['name']);
+            }
+        }
         // A refunded booking offers no further refund, before or after cancelling, and keeps the figure that went back; a row refunded by older code too.
         $refundedOpen=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,104,'14000052');
         payHttp($adminClient,$baseUrl,'/admin/payments/'.$refundedOpen.'/refund',['_token'=>$adminToken,'note'=>'Hoàn trước khi hủy']);

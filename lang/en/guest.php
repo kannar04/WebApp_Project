@@ -98,6 +98,7 @@ return [
     'Ghi nhận đã hoàn {amount} {currency} cho khách? Thao tác được lưu vào nhật ký quản trị.' => 'Record a refund of {amount} {currency} to the guest? This action is saved in the admin log.',
     'Ghi nhận hoàn tiền' => 'Record refund',
     'Chính sách hủy tại thời điểm đặt' => 'Cancellation policy at the time of booking',
+    '{policy}: hủy lúc nào cũng hoàn {late}%.' => '{policy}: {late}% refund whenever you cancel.',
     '{policy}: trước giờ nhận phòng ít nhất {hours} giờ hoàn {early}%; sau mốc đó hoàn {late}%.' => '{policy}: {early}% refund if cancelled at least {hours} hours before check-in; {late}% after that.',
     'Chính sách đã lưu' => 'Saved policy',
     'Phụ phí được tính trong cơ sở hoàn tiền.' => 'Fees count toward the refundable amount.',
