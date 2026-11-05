@@ -121,7 +121,7 @@ final class BookingService
         $statement = $this->db->prepare('CALL sp_booking_cancel(?,?,?)');
         $statement->execute([$bookingId, $guestId, trim($reason)]);
         $refund = $statement->fetch();
-        return ['refund_percent'=>(float) $refund['refund_percent'], 'refund_amount'=>(float) $refund['refund_amount']];
+        return ['refund_percent'=>(float) $refund['refund_percent'], 'refund_amount'=>(float) $refund['refund_amount'], 'was_paid'=>(bool) $refund['was_paid']];
     }
 
     private function validateDates(string $checkIn, string $checkOut, int $guests): void

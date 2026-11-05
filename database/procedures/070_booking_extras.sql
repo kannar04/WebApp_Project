@@ -366,8 +366,10 @@ BEGIN
         -- Online payment (095_online_payment.sql): only the Guest of a confirmed, unpaid VND booking may pay online.
         (b.guest_id=p_actor AND COALESCE(pay.status,'unpaid')='unpaid' AND b.status='confirmed' AND b.currency='VND' AND COALESCE(pay.amount_due,b.total_amount)>0) can_pay_online,
         t.id open_transfer_id,t.status open_transfer_status,t.reference open_transfer_reference,t.amount open_transfer_amount,
-        pay.paid_at,pay.refunded_at,pay.note payment_note,payer.full_name paid_by_name,refunder.full_name refunded_by_name
+        pay.paid_at,pay.refunded_at,pay.note payment_note,payer.full_name paid_by_name,refunder.full_name refunded_by_name,
+        COALESCE(c.refund_amount,pay.amount_due,b.total_amount) refund_amount
     FROM bookings b LEFT JOIN booking_price_breakdowns bp ON bp.booking_id=b.id LEFT JOIN booking_payments pay ON pay.booking_id=b.id
+        LEFT JOIN booking_cancellations c ON c.booking_id=b.id
         LEFT JOIN users payer ON payer.id=pay.paid_by LEFT JOIN users refunder ON refunder.id=pay.refunded_by
         LEFT JOIN payment_transactions t ON t.id=(SELECT x.id FROM payment_transactions x
             WHERE x.booking_id=b.id AND x.provider='vietqr' AND x.status IN ('pending','submitted') ORDER BY x.id DESC LIMIT 1)
@@ -452,7 +454,8 @@ BEGIN
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_payment_paid; END IF;
 END$$
 
--- Admin only: a collected payment is marked refunded with a mandatory note.
+-- Admin only: a collected payment is marked refunded with a mandatory note. A cancelled booking refunds the amount its policy
+-- recorded at cancellation; any other paid booking returns the full payment.
 CREATE OR REPLACE PROCEDURE sp_booking_payment_refund(IN p_booking BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED,
     IN p_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
@@ -462,6 +465,7 @@ BEGIN
     DECLARE v_guest BIGINT UNSIGNED;
     DECLARE v_payment VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_due DECIMAL(12,2);
+    DECLARE v_refund DECIMAL(12,2);
     DECLARE v_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -481,12 +485,15 @@ BEGIN
     IF v_note IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Vui lòng ghi chú lý do hoàn tiền.'; END IF;
     SELECT status,amount_due INTO v_payment,v_due FROM booking_payments WHERE booking_id=p_booking FOR UPDATE;
     IF v_payment IS NULL OR v_payment<>'paid' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ hoàn tiền cho booking đã ghi nhận thanh toán.'; END IF;
+    SELECT refund_amount INTO v_refund FROM booking_cancellations WHERE booking_id=p_booking;
+    SET v_refund=COALESCE(v_refund,v_due);
+    IF v_refund<=0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Theo chính sách hủy, booking này không có khoản hoàn nên không thể ghi nhận hoàn tiền.'; END IF;
     UPDATE booking_payments SET status='refunded',refunded_at=NOW(6),refunded_by=p_actor,note=v_note,updated_at=NOW(6) WHERE booking_id=p_booking;
     INSERT INTO booking_payment_events(booking_id,actor_id,from_status,to_status,note,created_at) VALUES(p_booking,p_actor,'paid','refunded',v_note,NOW(6));
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
-        VALUES(v_guest,p_booking,'in_app','payment_refunded','Đã hoàn tiền',CONCAT('Booking #',p_booking,' đã được ghi nhận hoàn tiền ',REPLACE(FORMAT(v_due,0),',','.'),'đ.'),'sent',1,NOW(6));
+        VALUES(v_guest,p_booking,'in_app','payment_refunded','Đã hoàn tiền',CONCAT('Booking #',p_booking,' đã được ghi nhận hoàn tiền ',REPLACE(FORMAT(v_refund,0),',','.'),'đ.'),'sent',1,NOW(6));
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
-        VALUES(p_actor,'refund_payment','booking',p_booking,JSON_OBJECT('amount',v_due,'note',v_note),NOW(6));
+        VALUES(p_actor,'refund_payment','booking',p_booking,JSON_OBJECT('amount',v_refund,'note',v_note),NOW(6));
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_payment_refund; END IF;
 END$$
 
@@ -503,9 +510,10 @@ BEGIN
             CASE WHEN COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('rejected','cancelled') THEN 'not_required' ELSE COALESCE(pay.status,'unpaid') END payment_state,
             (COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('confirmed','completed') AND b.check_in<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) can_mark_paid,
             pay.paid_at,pay.refunded_at,pay.note payment_note,COALESCE(bp.promotion_code,'') promotion_code,
-            dup.id duplicate_id,dup.reference duplicate_reference,dup.amount duplicate_amount
+            dup.id duplicate_id,dup.reference duplicate_reference,dup.amount duplicate_amount,COALESCE(c.refund_amount,pay.amount_due,b.total_amount) refund_amount
         FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id JOIN users h ON h.id=l.host_id
             LEFT JOIN booking_payments pay ON pay.booking_id=b.id LEFT JOIN booking_price_breakdowns bp ON bp.booking_id=b.id
+            LEFT JOIN booking_cancellations c ON c.booking_id=b.id
             LEFT JOIN payment_transactions dup ON dup.id=(SELECT MAX(d.id) FROM payment_transactions d
                 WHERE d.booking_id=b.id AND d.provider='vnpay' AND d.status='succeeded' AND d.note IS NOT NULL)
     ) x
@@ -518,13 +526,13 @@ END$$
 CREATE OR REPLACE PROCEDURE sp_admin_payment_totals(IN p_actor BIGINT UNSIGNED)
 BEGIN
     CALL sp_admin_assert_role(p_actor);
-    SELECT COALESCE(SUM(CASE WHEN pay.status='paid' THEN pay.amount_due END),0) collected_amount,
+    SELECT COALESCE(SUM(CASE WHEN pay.status='paid' THEN pay.amount_due WHEN pay.status='refunded' THEN pay.amount_due-COALESCE(c.refund_amount,pay.amount_due) END),0) collected_amount,
         COALESCE(SUM(pay.status='paid'),0) paid_count,
-        COALESCE(SUM(CASE WHEN pay.status='refunded' THEN pay.amount_due END),0) refunded_amount,
+        COALESCE(SUM(CASE WHEN pay.status='refunded' THEN COALESCE(c.refund_amount,pay.amount_due) END),0) refunded_amount,
         COALESCE(SUM(pay.status='refunded'),0) refunded_count,
         COALESCE(SUM(CASE WHEN COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('confirmed','completed') THEN COALESCE(pay.amount_due,b.total_amount) END),0) outstanding_amount,
         COALESCE(SUM(COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('confirmed','completed')),0) outstanding_count
-    FROM bookings b LEFT JOIN booking_payments pay ON pay.booking_id=b.id;
+    FROM bookings b LEFT JOIN booking_payments pay ON pay.booking_id=b.id LEFT JOIN booking_cancellations c ON c.booking_id=b.id;
 END$$
 
 DELIMITER ;

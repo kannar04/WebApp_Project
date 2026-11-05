@@ -284,6 +284,7 @@ return [
     'Số tiền VNPay trả về không khớp với giao dịch.' => 'The amount returned by VNPay does not match the transaction.',
     'Đã báo chuyển khoản. Admin sẽ kiểm tra tài khoản và xác nhận thanh toán.' => 'Transfer reported. An Admin will check the account and confirm the payment.',
     'Đã xác nhận nhận được tiền chuyển khoản.' => 'Bank transfer receipt confirmed.',
+    'Đã hủy booking. Theo chính sách hủy, khoản đã thanh toán không được hoàn.' => 'Booking cancelled. Under the cancellation policy, the payment is not refunded.',
     'Đã ghi nhận hoàn khoản thanh toán trùng. Booking vẫn ở trạng thái đã thanh toán.' => 'Duplicate payment refund recorded. The booking stays paid.',
     'Đã báo khách chưa nhận được tiền chuyển khoản.' => 'The guest was told the transfer has not arrived.',
     'Không xác định được địa chỉ trang web để VNPay trả kết quả.' => 'Could not determine the site address for VNPay to return to.',

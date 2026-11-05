@@ -213,6 +213,7 @@ BEGIN
     DECLARE v_percent DECIMAL(5,2);
     DECLARE v_base DECIMAL(12,2);
     DECLARE v_refund DECIMAL(12,2);
+    DECLARE v_payment VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_default_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_default_time TIME;
@@ -233,6 +234,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking không tồn tại hoặc không thuộc về bạn.';
     END IF;
     IF v_status NOT IN ('pending','confirmed') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking ở trạng thái này không thể hủy.'; END IF;
+    SELECT status INTO v_payment FROM booking_payments WHERE booking_id=p_booking FOR UPDATE;
     IF v_status='pending' THEN SET v_percent=100; SET v_base=v_total;
     ELSE
         SET v_zone=COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.time_zone')),'null'),v_default_zone);
@@ -252,9 +254,20 @@ BEGIN
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
         VALUES(v_host,p_booking,'in_app','booking_cancelled','Cập nhật booking','Khách đã hủy booking.','sent',1,NOW(6));
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
-        VALUES(v_guest,p_booking,'in_app','booking_cancelled','Đã hủy booking',CONCAT('Booking #',p_booking,' đã hủy. Mức hoàn: ',REPLACE(FORMAT(v_refund,0),',','.'),'đ (',TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM v_percent)),'%).'),'sent',1,NOW(6));
+        VALUES(v_guest,p_booking,'in_app','booking_cancelled','Đã hủy booking',
+        IF(v_payment='paid' AND v_refund=0,CONCAT('Booking #',p_booking,' đã hủy. Theo chính sách hủy, khoản đã thanh toán không được hoàn.'),
+            CONCAT('Booking #',p_booking,' đã hủy. Mức hoàn: ',REPLACE(FORMAT(v_refund,0),',','.'),'đ (',TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM v_percent)),'%).')),'sent',1,NOW(6));
+    IF v_payment='paid' THEN
+        -- Money was collected: every Admin learns what is owed, in the same transaction as the cancellation.
+        INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+            SELECT r.user_id,p_booking,'in_app',IF(v_refund>0,'payment_refund_needed','payment_cancelled_paid'),IF(v_refund>0,'Cần hoàn tiền','Booking đã thanh toán bị hủy'),
+                IF(v_refund>0,CONCAT('Booking #',p_booking,' đã hủy khi đã thanh toán. Cần hoàn ',REPLACE(FORMAT(v_refund,0),',','.'),'đ cho khách theo chính sách (',TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM v_percent)),'%).'),
+                    CONCAT('Booking #',p_booking,' đã hủy khi đã thanh toán. Theo chính sách hủy, khoản hoàn là 0đ nên không cần hoàn tiền.')),
+                'sent',1,NOW(6)
+            FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='admin' AND u.status='active' AND u.deleted_at IS NULL;
+    END IF;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_booking_cancel; END IF;
-    SELECT v_percent refund_percent,v_refund refund_amount;
+    SELECT v_percent refund_percent,v_refund refund_amount,COALESCE(v_payment='paid',0) was_paid;
 END$$
 
 DELIMITER ;

@@ -64,6 +64,15 @@ function payConfirmedBooking(BookingService $service, int $listingId, int $guest
     return $bookingId;
 }
 
+/** payConfirmedBooking on $listingId, paid through VNPay. */
+function payPaidBooking(BookingService $service, Payment $payments, int $listingId, int $guestId, int $hostId, DateTimeImmutable $base, int $offset, string $transactionNo): int
+{
+    $bookingId=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,$offset);
+    $attempt=$payments->start($bookingId,$guestId,'vnpay');
+    $payments->vnpayResult($attempt['reference'],(string)$attempt['amount'],'00','00',$transactionNo,'NCB');
+    return $bookingId;
+}
+
 /** The vnp_* fields VNPay sends back for an attempt, signed with $secret (a wrong secret forges the result). */
 function payVnpayResult(array $attempt, string $tmnCode, string $secret, string $responseCode, string $amountVnd, string $transactionNo): array
 {
@@ -119,7 +128,7 @@ $host=$users->findByEmail('host@home2home.test'); $guest=$users->findByEmail('gu
 payExpect($host && $guest && $admin,'Local seed accounts required.');
 $hostId=(int)$host['id']; $guestId=(int)$guest['id']; $adminId=(int)$admin['id'];
 $listings=new Listing(); $payments=new Payment(); $service=new BookingService();
-$listingId=null; $completed=false;
+$listingId=null; $completed=false; $policyListings=[];
 $base=new DateTimeImmutable('today +4300 days');
 
 try {
@@ -297,6 +306,45 @@ try {
     payExpect(payAttempt($waitingQrId)['status']==='failed' && $state['payment_status']==='paid' && (int)$state['payment_events']===1,'Closing the duplicate transfer changed the booking: '.json_encode($state));
     echo "PASS duplicate payments: transfer report closes VNPay, late payment flagged to Guest and Admin, Admin confirm refused, Admin closes only that transaction, replay cannot reopen\n";
 
+    // ---- Cancelling a paid booking: Admins learn the refund owed in the same transaction; the refund records the policy amount.
+    foreach ($listings->policies() as $policy) {
+        $policyListing=$listings->create($hostId,array_merge($data,['cancellation_policy_id'=>(int)$policy['id'],'title'=>'Audit fixture PAY '.bin2hex(random_bytes(6))]));
+        $policyListings[(int)$policy['early_refund_pct']]=$policyListing;
+        payCall('CALL sp_test_listing_approve(?)',[$policyListing]);
+    }
+    payExpect(isset($policyListings[50],$policyListings[0]),'Seed policies with 50% and 0% refunds required.');
+    $extras=new BookingExtras();
+    $bookingM=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,50,'14000020');
+    $db=ProcedureConnection::connection();
+    $db->beginTransaction();
+    $service->cancelByGuest($bookingM,$guestId,'Audit fixture rolled back');
+    payExpect((int)payInspect($bookingM)['admin_refund_notices']>=1,'Cancelling a paid booking did not notify Admins.');
+    $db->rollBack();
+    $state=payInspect($bookingM);
+    payExpect((int)$state['admin_refund_notices']===0 && $state['booking_status']==='confirmed' && $state['cancel_refund']===null,'Admin notices are not in the cancellation transaction: '.json_encode($state));
+    $cancelled=$service->cancelByGuest($bookingM,$guestId,'Audit fixture half refund');
+    $state=payInspect($bookingM);
+    payExpect($cancelled['was_paid'] && $cancelled['refund_amount']===100000.0 && (int)$state['admin_refund_notices']>=1 && str_contains((string)$state['admin_refund_body'],'100.000đ')
+        && str_contains((string)$state['admin_refund_body'],'50%') && (float)$state['cancel_refund']===100000.0,'Admin notice does not state the refund owed: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $row=$extras->adminPayments($adminId,'',(string)$bookingM)[0];
+    payExpect((float)$row['refund_amount']===100000.0 && (float)$row['amount_due']===220000.0 && (float)$extras->bookingDetail($bookingM,$adminId)['refund_amount']===100000.0,'Admin views do not show the policy refund.');
+    $totalsBefore=$extras->adminPaymentTotals($adminId);
+    $extras->refund($bookingM,$adminId,'Đã hoàn theo chính sách');
+    $state=payInspect($bookingM);
+    $totalsAfter=$extras->adminPaymentTotals($adminId);
+    payExpect($state['payment_status']==='refunded' && (float)$state['refund_audit_amount']===100000.0 && str_contains((string)$state['guest_refund_body'],'100.000đ'),'Refund did not record the policy amount: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    payExpect((float)$totalsAfter['refunded_amount']-(float)$totalsBefore['refunded_amount']===100000.0 && (float)$totalsBefore['collected_amount']-(float)$totalsAfter['collected_amount']===100000.0,'Admin totals count the full payment as refunded.');
+    $bookingN=payPaidBooking($service,$payments,$policyListings[0],$guestId,$hostId,$base,50,'14000021');
+    $cancelled=$service->cancelByGuest($bookingN,$guestId,'Audit fixture no refund');
+    $state=payInspect($bookingN);
+    payExpect($cancelled['was_paid'] && $cancelled['refund_amount']===0.0 && (int)$state['admin_cancelled_paid_notices']>=1 && (int)$state['admin_refund_notices']===0
+        && str_contains((string)$state['admin_refund_body'],'0đ') && str_contains((string)$state['guest_cancel_body'],'không được hoàn'),'A paid booking with no refund is not reported clearly: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    payRejects([$extras,'refund'],[$bookingN,$adminId,'Không có khoản hoàn'],'không có khoản hoàn','A refund of nothing was recorded');
+    payExpect(payInspect($bookingN)['payment_status']==='paid','A refused refund changed the payment.');
+    $bookingO=payConfirmedBooking($service,$policyListings[50],$guestId,$hostId,$base,55);
+    payExpect(!$service->cancelByGuest($bookingO,$guestId,'Audit fixture unpaid')['was_paid'] && (int)payInspect($bookingO)['admin_refund_notices']===0,'Cancelling an unpaid booking asked Admins for a refund.');
+    echo "PASS cancel after payment: Admin notice with the refund owed in the same transaction, refund and totals use the policy amount, zero refund shown clearly and refused\n";
+
     // ---- Signing and QR links (pure PHP).
     $gateway=VnpayGateway::enabled($paymentConfig) ? $paymentConfig
         : ['vnpay_tmn_code'=>'H2HTEST1','vnpay_hash_secret'=>bin2hex(random_bytes(16)),'vnpay_pay_url'=>'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'];
@@ -425,11 +473,39 @@ try {
             $page=payHttp($adminClient,$baseUrl,$path)['body'];
             payExpect(str_contains($page,'Đóng giao dịch trùng') && !preg_match('/transfers\/'.(int)$lQr['transaction_id'].'"(?:(?!<\/form>).)*value="confirm"/s',$page),'Admin was offered a confirmation on a paid booking: '.$path);
         }
+        // Policy refund on the Admin list and the booking page; a zero refund offers no form.
+        $bookingP=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,60,'15000020');
+        $bookingQ=payPaidBooking($service,$payments,$policyListings[0],$guestId,$hostId,$base,60,'15000021');
+        foreach ([$bookingP,$bookingQ] as $paidBooking) {
+            $response=payHttp($guestClient,$baseUrl,'/bookings/'.$paidBooking.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
+            payExpect($response['status']===302 && payInspect($paidBooking)['booking_status']==='cancelled','Guest could not cancel a paid booking over HTTP.');
+        }
+        payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings')['body'],'không được hoàn'),'Cancelling with no refund does not say so.');
+        $page=payHttp($adminClient,$baseUrl,'/admin/payments?q='.$bookingP)['body'];
+        payExpect(str_contains($page,'Cần hoàn 100.000đ') && str_contains($page,'Ghi nhận đã hoàn 100.000đ') && str_contains($page,'/admin/payments/'.$bookingP.'/refund'),'Admin list does not show the policy refund.');
+        $page=payHttp($adminClient,$baseUrl,'/bookings/'.$bookingP)['body'];
+        payExpect(str_contains($page,'Số tiền hoàn theo chính sách: 100.000 VND') && str_contains($page,'/admin/payments/'.$bookingP.'/refund'),'Booking page does not show the policy refund.');
+        $page=payHttp($adminClient,$baseUrl,'/admin/payments?q='.$bookingQ)['body'];
+        payExpect(str_contains($page,'Không hoàn tiền theo chính sách') && !str_contains($page,'/admin/payments/'.$bookingQ.'/refund'),'Admin list offers a refund of nothing.');
+        foreach ([$adminClient,$guestClient] as $client) {
+            $page=payHttp($client,$baseUrl,'/bookings/'.$bookingQ)['body'];
+            payExpect(str_contains($page,'booking này không được hoàn tiền') && !str_contains($page,'/admin/payments/'.$bookingQ.'/refund'),'Booking page does not show the zero refund clearly.');
+        }
+        payHttp($adminClient,$baseUrl,'/admin/payments/'.$bookingP.'/refund',['_token'=>$adminToken,'note'=>'Đã hoàn theo chính sách']);
+        $page=payHttp($adminClient,$baseUrl,'/admin/payments?q='.$bookingP)['body'];
+        payExpect(str_contains($page,'Đã hoàn 100.000đ') && str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$bookingP)['body'],'Đã hoàn 100.000 VND'),'Refunded booking does not show the policy amount.');
         foreach ([$anonymous,$guestClient,$hostClient,$adminClient] as $client) { curl_close($client); }
         echo "PASS online payment HTTP: Guest-only pages, CSRF, QR page with account and reference, report, Admin queue/403/confirm, VNPay redirect signature, forged return/IPN 97, valid return, IPN 02/01/04\n";
     }
     $completed=true;
 } finally {
+    foreach ($policyListings as $policyListing) {
+        try { payCall('CALL sp_test_payment_cleanup(?)',[$policyListing]); }
+        catch (Throwable $exception) {
+            fwrite(STDERR,'Online payment cleanup failed: '.$exception->getMessage()."\n");
+            if ($completed) { throw new RuntimeException('Online payment fixture cleanup failed.'); }
+        }
+    }
     if ($listingId!==null) {
         try { payCall('CALL sp_test_payment_cleanup(?)',[$listingId]); }
         catch (Throwable $exception) {

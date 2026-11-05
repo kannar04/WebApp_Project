@@ -236,6 +236,7 @@ return [
     'Giao dịch này đã đóng; vui lòng tải lại trang thanh toán.' => 'This transaction is closed; please reload the payment page.',
     'Quyết định chuyển khoản không hợp lệ.' => 'Invalid transfer decision.',
     'Vui lòng nhập lý do chưa nhận được tiền (ít nhất 5 ký tự).' => 'Please enter why the money was not received (at least 5 characters).',
+    'Theo chính sách hủy, booking này không có khoản hoàn nên không thể ghi nhận hoàn tiền.' => 'Under the cancellation policy this booking has nothing to refund, so no refund can be recorded.',
     'Chỉ xác nhận giao dịch chuyển khoản VietQR.' => 'Only VietQR bank transfers can be confirmed here.',
     'Giao dịch chuyển khoản này đã được xử lý.' => 'This bank transfer has already been handled.',
     'Booking này đã được ghi nhận thanh toán; hãy từ chối giao dịch trùng và hoàn tiền cho khách.' => 'A payment is already recorded for this booking; reject the duplicate transfer and refund the guest.',
@@ -247,6 +248,7 @@ return [
     'Khách báo đã chuyển khoản' => 'Guest reported a bank transfer',
     'Chưa xác nhận được chuyển khoản' => 'Bank transfer not confirmed',
     'Cần hoàn tiền' => 'Refund needed',
+    'Booking đã thanh toán bị hủy' => 'Paid booking cancelled',
     'Thanh toán trùng' => 'Duplicate payment',
     'Đã hoàn khoản thanh toán trùng' => 'Duplicate payment refunded',
 ];

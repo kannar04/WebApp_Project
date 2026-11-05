@@ -15,6 +15,14 @@ BEGIN
             WHERE n.booking_id=b.id AND n.event_type='payment_duplicate') admin_duplicate_notices,
         (SELECT COUNT(*) FROM notifications n JOIN user_roles r ON r.user_id=n.user_id AND r.role='admin'
             WHERE n.booking_id=b.id AND n.event_type='payment_refund_needed') admin_refund_notices,
+        (SELECT COUNT(*) FROM notifications n JOIN user_roles r ON r.user_id=n.user_id AND r.role='admin'
+            WHERE n.booking_id=b.id AND n.event_type='payment_cancelled_paid') admin_cancelled_paid_notices,
+        (SELECT n.body FROM notifications n JOIN user_roles r ON r.user_id=n.user_id AND r.role='admin'
+            WHERE n.booking_id=b.id AND n.event_type IN ('payment_refund_needed','payment_cancelled_paid') ORDER BY n.id DESC LIMIT 1) admin_refund_body,
+        (SELECT n.body FROM notifications n WHERE n.booking_id=b.id AND n.user_id=b.guest_id AND n.event_type='booking_cancelled') guest_cancel_body,
+        (SELECT n.body FROM notifications n WHERE n.booking_id=b.id AND n.user_id=b.guest_id AND n.event_type='payment_refunded') guest_refund_body,
+        (SELECT refund_amount FROM booking_cancellations WHERE booking_id=b.id) cancel_refund,
+        (SELECT JSON_UNQUOTE(JSON_EXTRACT(change_summary,'$.amount')) FROM admin_audit_logs WHERE entity_type='booking' AND entity_id=b.id AND action='refund_payment' ORDER BY id DESC LIMIT 1) refund_audit_amount,
         (SELECT COUNT(*) FROM notifications WHERE booking_id=b.id AND user_id=b.guest_id AND event_type='payment_duplicate') guest_duplicate_notices,
         (SELECT COUNT(*) FROM notifications WHERE booking_id=b.id AND user_id=b.guest_id AND event_type='payment_duplicate_refunded') guest_duplicate_refunded_notices,
         (SELECT COUNT(*) FROM admin_audit_logs WHERE entity_type='booking' AND entity_id=b.id AND action='resolve_duplicate_payment') duplicate_audits,
