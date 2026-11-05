@@ -341,11 +341,22 @@ try {
         $notices=noticesFor($hostId,null,'listing_rejected');
         ensure(count($notices)===$rejected+1 && str_contains($notices[0]['body'],$reason) && str_contains($notices[0]['body'],$data['title']),'The Host was not told the rejection reason.');
         ensure($model->findOwned($listingId,$hostId)['moderation_reason']===$reason,'The rejection reason did not reach the owned listing.');
+        // Approval is the Host's latest word too: once per real change, and not when an approved listing is approved again.
+        $approved=count(noticesFor($hostId,null,'listing_approved'));
+        $moderation->moderate($listingId,$adminId,'approved','');
+        $notices=noticesFor($hostId,null,'listing_approved');
+        ensure(count($notices)===$approved+1 && str_contains($notices[0]['body'],$data['title']) && str_contains($notices[0]['body'],'đã được Admin duyệt') && count(noticesFor($hostId,null,'listing_rejected'))===$rejected+1,'Approving a rejected listing did not tell the Host.');
+        $moderation->moderate($listingId,$adminId,'approved','A new note');
+        ensure(count(noticesFor($hostId,null,'listing_approved'))===$approved+1,'Approving an approved listing again notified the Host.');
+        $model->update($listingId,$hostId,$data);
+        ensure($model->findOwned($listingId,$hostId)['moderation_status']==='pending','A Host edit did not send the listing back to review.');
+        $moderation->moderate($listingId,$adminId,'approved','');
+        ensure(count(noticesFor($hostId,null,'listing_approved'))===$approved+2,'Approving a listing back from review did not tell the Host.');
         $moderation->softDeleteListing($listingId,$adminId);
         $notices=noticesFor($hostId,null,'listing_removed');
         ensure(count($notices)===$removed+1 && str_contains($notices[0]['body'],$data['title']),'The Host was not told about the take-down.');
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
-    echo "PASS the Host is notified with the reason on rejection and on take-down, in the same transaction, and not on approval or a refused rejection\n";
+    echo "PASS the Host is notified with the reason on rejection and on take-down, in the same transaction, on approval only when it changes something, and not on a refused rejection\n";
 
     // Deleting an account: refused while a confirmed stay is unfinished, otherwise its requests close with a notice to the other party; everything rolls back.
     $db->beginTransaction();

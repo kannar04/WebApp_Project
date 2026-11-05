@@ -45,6 +45,7 @@ return [
 
     // ---- 030_atomic_writes.sql: Host notifications about a rejected or removed listing
     'Tin “{listing}” đã bị Admin từ chối. Lý do: {reason}' => 'Admin rejected your listing “{listing}”. Reason: {reason}',
+    'Tin “{listing}” đã được Admin duyệt.' => 'Admin approved your listing “{listing}”.',
     'Admin đã gỡ chỗ ở “{listing}” khỏi hệ thống.' => 'Admin took your listing “{listing}” down.',
     'Admin đã ẩn tin “{listing}”. Tin không hiển thị với khách cho đến khi Admin hiện lại; hãy liên hệ Admin nếu bạn cần.' => 'Admin hid your listing “{listing}”. Guests cannot see it until an Admin shows it again; contact an Admin if you need to.',
     'Admin đã hiện lại tin “{listing}”.' => 'Admin showed your listing “{listing}” again.',

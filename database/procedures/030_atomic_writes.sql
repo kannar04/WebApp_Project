@@ -185,6 +185,7 @@ CREATE OR REPLACE PROCEDURE sp_admin_listing_moderate(IN p_1 bigint unsigned, IN
 BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_lock BIGINT UNSIGNED;
+    DECLARE v_old_status VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_rejected INT DEFAULT 0;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -199,7 +200,7 @@ BEGIN
     IF NOT EXISTS(SELECT 1 FROM users u JOIN user_roles r ON r.user_id=u.id WHERE u.id=p_2 AND u.status='active' AND r.role='admin') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Bạn không có quyền kiểm duyệt.';
     END IF;
-    SELECT id INTO v_lock FROM listings WHERE id=p_1 AND deleted_at IS NULL FOR UPDATE;
+    SELECT id,moderation_status INTO v_lock,v_old_status FROM listings WHERE id=p_1 AND deleted_at IS NULL FOR UPDATE;
     IF v_lock IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở không tồn tại.'; END IF;
     IF p_3 IS NULL OR p_3 NOT IN ('approved','rejected') OR (p_3='rejected' AND (p_4 IS NULL OR TRIM(p_4)='')) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Quyết định kiểm duyệt hoặc lý do không hợp lệ.';
@@ -212,6 +213,11 @@ BEGIN
         CALL sp_listing_reject_pending(p_1,p_2,'Admin từ chối tin đăng nên yêu cầu bị từ chối tự động.','chỗ ở không được duyệt',v_rejected);
         INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
             SELECT host_id,NULL,'in_app','listing_rejected','Tin đăng bị từ chối',CONCAT('Tin “',title,'” đã bị Admin từ chối. Lý do: ',TRIM(p_4)),'sent',1,NOW(6) FROM listings WHERE id=p_1;
+    END IF;
+    -- Approving again with a new note changes nothing for the Host, so it tells them nothing. The text says approved, not public: the listing may be hidden.
+    IF p_3='approved' AND v_old_status<>'approved' THEN
+        INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+            SELECT host_id,NULL,'in_app','listing_approved','Tin đăng được duyệt',CONCAT('Tin “',title,'” đã được Admin duyệt.'),'sent',1,NOW(6) FROM listings WHERE id=p_1;
     END IF;
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
         VALUES(p_2,'moderate_listing','listing',p_1,JSON_OBJECT('details',CONCAT(p_3,': ',p_4),'rejected_pending',v_rejected),NOW(6));
