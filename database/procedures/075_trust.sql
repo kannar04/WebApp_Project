@@ -144,6 +144,8 @@ BEGIN
         (m.is_host=1 AND m.review_count>=v_min_reviews AND m.average_rating>=v_min_rating
             AND (m.decided_requests<v_min_decided OR m.host_side_cancellations*100<=v_max_cancel_pct*m.decided_requests)) is_trusted_host,
         m.review_count,ROUND(m.average_rating,2) average_rating,
+        -- ROUND can reach the minimum from below, so the page reads these two to judge and show a rating.
+        m.average_rating>=v_min_rating rating_met,TRUNCATE(m.average_rating,2) average_rating_floor,
         CASE WHEN m.user_id=p_actor OR v_admin THEN m.decided_requests END decided_requests,
         CASE WHEN m.user_id=p_actor OR v_admin THEN m.host_side_cancellations END host_side_cancellations,
         CASE WHEN m.user_id=p_actor OR v_admin THEN ROUND(100*m.host_side_cancellations/NULLIF(m.decided_requests,0),1) END cancel_pct,

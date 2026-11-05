@@ -274,6 +274,24 @@ try {
     $users->updateProfile($guestId, 'Nguyễn Văn Tín', '0922222222', null);
     echo "PASS trust Host badge: >=3 visible reviews, avg >=4.5, hidden reviews ignored, <3 decided requests skip the cancellation rule, 11.1% fails, 10% passes, guest cancellations ignored, metrics private\n";
 
+    // Eleven reviews averaging 4.4545: the rule stays exact, and the figure beside it does not round up to the minimum.
+    $nearEmail = sprintf($emailFor, 'near');
+    $nearHost = $users->adminCreate(['email' => $nearEmail, 'password' => $password, 'full_name' => 'Trust Near Host', 'phone' => ''], ['guest', 'host']);
+    $nearListing = $listings->create($nearHost, ['title' => 'Audit fixture trust '.$tag.' near'] + $listingData);
+    trustCall('CALL sp_test_listing_approve(?)', [$nearListing]);
+    foreach ([4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5] as $index => $rating) {
+        $nearStay = (int) trustCall('CALL sp_test_trust_completed_booking(?,?,?)', [$nearListing, $guestId, 400 + 3 * $index])[0]['booking_id'];
+        trustExpect($reviews->create($nearStay, $guestId, $rating, 'Kỳ nghỉ kiểm thử gần ngưỡng'), 'Near-threshold review failed.');
+    }
+    $nearMetrics = trustBadge($trust, $nearHost, $nearHost);
+    trustExpect((int) $nearMetrics['review_count'] === 11 && (int) $nearMetrics['rating_met'] === 0 && (int) $nearMetrics['is_trusted_host'] === 0, 'An average of 4.4545 met the 4.5 minimum.');
+    trustExpect(display_trust_rating($nearMetrics) === '4,45', 'An average just under the minimum still rounds up to it.');
+    // Two decimals rounded to the nearest would read 4,50 at 4.496, so they round down; everywhere else one decimal is enough.
+    trustExpect(display_trust_rating(['average_rating' => 4.5, 'average_rating_floor' => 4.49, 'rating_met' => 0, 'min_rating' => 4.5]) === '4,49', 'A two-decimal average just under the minimum reads as the minimum.');
+    trustExpect(display_trust_rating(['average_rating' => 4.5, 'average_rating_floor' => 4.5, 'rating_met' => 1, 'min_rating' => 4.5]) === '4,5', 'An average at the minimum changed format.');
+    trustExpect(display_trust_rating(['average_rating' => 3.24, 'average_rating_floor' => 3.24, 'rating_met' => 0, 'min_rating' => 4.5]) === '3,2' && display_trust_rating(['average_rating' => 4.96, 'average_rating_floor' => 4.96, 'rating_met' => 1, 'min_rating' => 4.5]) === '5,0', 'An average far from the minimum changed format.');
+    echo "PASS trust rating near the minimum: the rule stays exact and the panel never reads 4,5 against a 4,5 minimum as unmet\n";
+
     // G. Check-in guide: owner-only editing, entitlement by booking status and participant.
     $guide = ['arrival_instructions' => 'Lấy chìa khóa ở hộp khóa cạnh cổng xanh, đi thang bộ lên tầng 2.', 'door_code' => 'K-4821',
         'wifi_name' => 'H2H-Trust', 'wifi_password' => 'pw-'.$tag, 'note' => 'Giữ yên lặng sau 22:00.'];
@@ -431,6 +449,9 @@ try {
         trustExpect(!str_contains(trustHttp($adminClient, $baseUrl, '/bookings/'.$stayId)['body'], 'K-4821'), 'Admin booking detail leaked the codes before the window.');
 
         $hostClient = trustLogin($baseUrl, sprintf($emailFor, 'host'), $password);
+        $nearPanel = trustHttp(trustLogin($baseUrl, $nearEmail, $password), $baseUrl, '/host')['body'];
+        trustExpect(str_contains($nearPanel, '4,45★ / cần ≥ 4,5★ · Chưa đạt'), 'The trust panel contradicts itself just under the minimum.');
+        trustExpect(str_contains(trustHttp($adminClient, $baseUrl, '/admin?q='.rawurlencode($nearEmail))['body'], '11/3 đánh giá · 4,45★'), 'The Admin row rounds an unmet rating up to the minimum.');
         $hostDashboard = trustHttp($hostClient, $baseUrl, '/host');
         trustExpect(str_contains($hostDashboard['body'], 'Huy hiệu Host uy tín') && str_contains($hostDashboard['body'], '3/3 đánh giá') && str_contains($hostDashboard['body'], '/checkin-guide'), 'Host dashboard lacks trust progress or the guide link.');
         $editor = trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/checkin-guide');

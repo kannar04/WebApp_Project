@@ -142,6 +142,15 @@ function display_decimal(float $value, int $decimals = 1, bool $trim = false): s
     return $trim && $decimals > 0 ? rtrim(rtrim($text, '0'), $point) : $text;
 }
 
+/** A Host's average beside the Trusted Host minimum: just under it, one decimal would round up to the minimum itself, so show two decimals rounded down. */
+function display_trust_rating(array $metrics): string
+{
+    $average = (float) $metrics['average_rating'];
+    return empty($metrics['rating_met']) && round($average, 1) >= (float) $metrics['min_rating']
+        ? display_decimal((float) $metrics['average_rating_floor'], 2)
+        : display_decimal($average);
+}
+
 /** Resolve database image paths under the configured app base, preserving remote URLs. */
 function image_url(?string $path): string
 {
