@@ -188,6 +188,11 @@ try {
         ensure(count($reports->forUser($repeatReporter))===$before+1,'A report under investigation did not count as the open one.');
         $reports->resolve((int)$reports->forUser($repeatReporter)[0]['id'],(int)$admin['id'],'resolved','Closed');
         ensure($reports->create($repeatReporter,$listingId,null,'other',$body)===true,'A closed report blocked a new one.');
+        // The Admin's list knows a listing was taken down, so the card offers no preview link that would answer 404.
+        $newest=$reports->adminPage((int)$admin['id'],1,0)['reports'][0];
+        ensure((int)$newest['listing_id']===$listingId && $newest['listing_deleted_at']===null,'The Admin report list lost the listing.');
+        (new AdminRepository())->softDeleteListing($listingId,(int)$admin['id']);
+        ensure($reports->adminPage((int)$admin['id'],1,0)['reports'][0]['listing_deleted_at']!==null,'The Admin report list does not know the listing was taken down.');
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS repeated report on an open or investigated target saves nothing; other reporters and closed reports are unaffected\n";
 

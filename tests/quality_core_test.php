@@ -278,6 +278,9 @@ qaExpect($request('/api/listings?amenities%5B%5D=999999')['status']===422,'Bad f
 $api=json_decode($request('/api/listings?amenities%5B%5D=5')['body'],true);
 qaExpect($api['success'] && $api['data']['total']===1 && $api['data']['page']===1,'HTTP search metadata incorrect.');
   $page=$request('/reports?listing=1');
+  qaExpect(preg_match('/value="misleading"\s+selected/',$page['body'])===1,'A listing report lost its default category.');
+  $complaintForm=$request('/reports?booking='.$bookingId);
+  qaExpect(preg_match('/value="complaint"\s+selected/',$complaintForm['body'])===1 && preg_match('/value="misleading"\s+selected/',$complaintForm['body'])===0,'A booking complaint did not open as Khiếu nại.');
   $invalidReport=$request('/reports',['_token'=>$token($page),'listing_id'=>1,'category'=>'fraud','description'=>'short']);
   qaExpect(str_contains($invalidReport['body'],'>short</textarea>') && preg_match('/value="fraud"\s+selected/',$invalidReport['body'])===1,'Invalid report erased description/category.');
   qaExpect(count($reports->forUser(3))===1,'Invalid report changed saved data.');
@@ -323,6 +326,10 @@ $reviews->moderate($reviewId,1,'visible');
 $page=$request('/admin/reports'); $latest=(int)$reports->forUser(3)[0]['id'];
 $request('/admin/reports/'.$latest.'/resolve',['_token'=>$token($page),'status'=>'resolved','resolution'=>'HTTP verified resolution.']);
 qaExpect($reports->forUser(3)[0]['status']==='resolved','HTTP report closure failed.');
+// A complaint's card names its booking and links to it and to the listing, on the Admin's list and the reporter's.
+$reports->create(3,null,$bookingId,'complaint','HTTP complaint about one booking.');
+$complaintCard=$request('/admin/reports')['body'];
+qaExpect(preg_match('~<a href="[^"]*/bookings/'.$bookingId.'">Booking #'.$bookingId.'</a>~',$complaintCard)===1 && preg_match('~<a href="[^"]*/admin/listings/\d+/preview">Xem chỗ ở</a>~u',$complaintCard)===1,'The Admin report card does not name the booking or link to the listing.');
 // More reports than one page holds: every row is reachable, and the Admin stays on the page after acting on a report.
 $reportTotal=$reports->adminPage(1,1,0)['total'];
 for ($row=1; $row<=21; $row++) {

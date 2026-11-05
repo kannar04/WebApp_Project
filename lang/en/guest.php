@@ -233,6 +233,7 @@ return [
     'Để gửi báo cáo, mở chi tiết chỗ ở hoặc booking và chọn Báo cáo/Khiếu nại.' => 'To file a report, open a listing or booking and use its Report link.',
     'Kết quả:' => 'Outcome:',
     'Người gửi:' => 'Submitted by:',
+    'Xem chỗ ở' => 'View listing',
     'Kết luận (bắt buộc khi đóng)' => 'Resolution (required when closing)',
     'Lưu xử lý' => 'Save decision',
 

@@ -97,7 +97,7 @@ CREATE OR REPLACE PROCEDURE sp_admin_reports(IN p_actor BIGINT UNSIGNED, IN p_li
 BEGIN
     CALL sp_admin_assert_role(p_actor);
     IF p_limit IS NULL OR p_offset IS NULL OR p_limit<1 OR p_limit>100 OR p_offset<0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Phân trang không hợp lệ.'; END IF;
-    SELECT SQL_CALC_FOUND_ROWS r.*,l.title,u.full_name reporter_name FROM reports r LEFT JOIN listings l ON l.id=r.listing_id
+    SELECT SQL_CALC_FOUND_ROWS r.*,l.title,l.deleted_at listing_deleted_at,u.full_name reporter_name FROM reports r LEFT JOIN listings l ON l.id=r.listing_id
     JOIN users u ON u.id=r.reporter_id ORDER BY r.created_at DESC,r.id DESC LIMIT p_limit OFFSET p_offset;
     SELECT FOUND_ROWS() __total;
 END$$
