@@ -46,6 +46,15 @@ BEGIN
     UPDATE listings SET is_visible=0,deleted_at=NOW(6) WHERE id=p_listing;
 END$$
 
+-- Leaves the refund audit row of a fixture booking holding p_amount: a partial refund, which the app itself only writes on a cancelled booking.
+CREATE OR REPLACE PROCEDURE sp_test_booking_extras_refund_audit(IN p_booking BIGINT UNSIGNED, IN p_amount DECIMAL(12,2))
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=p_booking AND l.city='Audit' AND l.title LIKE 'Audit fixture BX %') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to change a non-fixture booking.';
+    END IF;
+    UPDATE admin_audit_logs SET change_summary=JSON_SET(change_summary,'$.amount',p_amount) WHERE action='refund_payment' AND entity_type='booking' AND entity_id=p_booking;
+END$$
+
 CREATE OR REPLACE PROCEDURE sp_test_booking_extras_forget_payment(IN p_booking BIGINT UNSIGNED)
 BEGIN
     IF NOT EXISTS(SELECT 1 FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=p_booking AND l.city='Audit' AND l.title LIKE 'Audit fixture BX %') THEN

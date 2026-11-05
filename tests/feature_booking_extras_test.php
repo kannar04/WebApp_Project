@@ -54,6 +54,13 @@ function bxInspect(int $bookingId): array
     return $rows[0];
 }
 
+/** The three revenue figures: Host stats, Host monthly revenue added up, Admin total. */
+function bxRevenue(int $hostId): array
+{
+    $host=new App\Models\HostRepository();
+    return [(float)$host->stats($hostId)['revenue'],array_sum(array_map('floatval',array_column($host->monthlyRevenue($hostId),'revenue'))),(float)(new AdminRepository())->stats()['revenue']];
+}
+
 function bxBookingCount(int $listingId): int
 {
     return count(bxCall('CALL sp_test_booking_extras_listing_bookings(?)',[$listingId]));
@@ -373,6 +380,27 @@ try {
     $late=$service->cancelByGuest($inProgress['booking_id'],$guestId,'Audit fixture leaving early');
     bxExpect($late['was_paid'] && $late['refund_percent']===0.0 && $late['refund_amount']===0.0 && bxInspect($inProgress['booking_id'])['status']==='cancelled','A stay in progress did not follow the late refund.');
     echo "PASS guest cancel window: refused from the check-out day (Host can still complete), stay in progress keeps the policy's late refund\n";
+
+    // ---- Refunded money is not revenue: a full refund takes the booking out, a partial one only its part, in all three revenue figures.
+    $refundedStay=$service->book($listingId,$guestId,bxDay($monday,75),bxDay($monday,76),1)['booking_id'];
+    $partialStay=$service->book($listingId,$guestId,bxDay($monday,77),bxDay($monday,78),1)['booking_id'];
+    foreach ([$refundedStay,$partialStay] as $stay) {
+        bxCall('CALL sp_test_booking_extras_backdate(?)',[$stay]);
+        $extras->markPaid($stay,$hostId,false,'');
+        $service->hostTransition($stay,$hostId,'completed');
+    }
+    $stayTotal=(float)bxInspect($refundedStay)['total_amount'];
+    $before=bxRevenue($hostId);
+    $countBefore=(int)(new App\Models\HostRepository())->stats($hostId)['completed'];
+    $extras->refund($refundedStay,$adminId,'Audit fixture refund after the stay');
+    $after=bxRevenue($hostId);
+    bxExpect($stayTotal>0 && $after===[$before[0]-$stayTotal,$before[1]-$stayTotal,$before[2]-$stayTotal],'A fully refunded completed booking still counts as revenue: '.json_encode([$before,$after]));
+    bxExpect((int)(new App\Models\HostRepository())->stats($hostId)['completed']===$countBefore,'A refund changed the count of completed stays.');
+    $extras->refund($partialStay,$adminId,'Audit fixture partial refund after the stay');
+    bxCall('CALL sp_test_booking_extras_refund_audit(?,?)',[$partialStay,'30000']);
+    $partial=bxRevenue($hostId);
+    bxExpect($partial===[$after[0]-30000.0,$after[1]-30000.0,$after[2]-30000.0],'A partial refund did not subtract only the refunded part: '.json_encode([$after,$partial]));
+    echo "PASS revenue: Host stats, monthly revenue and Admin total exclude refunded money, full or partial, and keep the completed count\n";
 
     // ---- VND has no fractions: decimal rates, fee and promo values price in whole dong, and the rows add up.
     $extras->saveHostSettings($listingId,$hostId,'150000.40','300000.60','10','20',false);

@@ -184,9 +184,10 @@ END$$
 CREATE OR REPLACE PROCEDURE sp_host_monthly_revenue(IN p_actor BIGINT UNSIGNED)
 BEGIN
     IF NOT EXISTS(SELECT 1 FROM users u JOIN user_roles r ON r.user_id=u.id WHERE u.id=p_actor AND u.status='active' AND r.role='host') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không có quyền Host.'; END IF;
-    -- Month of completed stay's check-out, not request/confirmation date.
-    SELECT DATE_FORMAT(b.check_out,'%Y-%m') revenue_month,COUNT(*) completed_count,SUM(b.total_amount) revenue
-    FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE l.host_id=p_actor AND b.status='completed'
+    -- Month of completed stay's check-out, not request/confirmation date. Refunded money is not revenue (see sp_booking_payment_refund).
+    SELECT DATE_FORMAT(b.check_out,'%Y-%m') revenue_month,COUNT(*) completed_count,
+        SUM(GREATEST(0,b.total_amount-CASE WHEN pay.status='refunded' THEN COALESCE((SELECT CAST(JSON_VALUE(a.change_summary,'$.amount') AS DECIMAL(12,2)) FROM admin_audit_logs a WHERE a.action='refund_payment' AND a.entity_type='booking' AND a.entity_id=b.id ORDER BY a.id DESC LIMIT 1),pay.amount_due) ELSE 0 END)) revenue
+    FROM bookings b JOIN listings l ON l.id=b.listing_id LEFT JOIN booking_payments pay ON pay.booking_id=b.id WHERE l.host_id=p_actor AND b.status='completed'
     GROUP BY DATE_FORMAT(b.check_out,'%Y-%m') ORDER BY revenue_month DESC;
 END$$
 

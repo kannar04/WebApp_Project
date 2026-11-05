@@ -468,7 +468,8 @@ END$$
 -- recorded at cancellation; any other paid booking returns the full payment.
 -- Two different facts: booking_cancellations.refund_amount is what is owed under the policy; the 'refund_payment' audit row
 -- written here is what was really refunded (older code refunded the full amount_due and stored that there too). Everything that
--- reports refunded money reads that row, falling back to amount_due: sp_booking_extras_detail, sp_admin_payments, sp_admin_payment_totals.
+-- reports refunded money reads that row, falling back to amount_due: sp_booking_extras_detail, sp_admin_payments, sp_admin_payment_totals,
+-- and the revenue figures sp_admin_total_revenue, sp_host_stats, sp_host_monthly_revenue.
 CREATE OR REPLACE PROCEDURE sp_booking_payment_refund(IN p_booking BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED,
     IN p_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN

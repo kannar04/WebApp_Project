@@ -56,7 +56,7 @@ return [
     'Xác nhận đã thu {amount}đ của booking #{id}?' => 'Confirm that you received {amount}đ for booking #{id}?',
     '⚡ Đặt ngay' => '⚡ Instant Book',
     'Doanh thu theo tháng' => 'Monthly revenue',
-    'Chỉ đơn hoàn thành, nhóm theo tháng trả phòng; gồm phụ phí.' => 'Completed bookings only, grouped by check-out month; fees included.',
+    'Chỉ đơn hoàn thành, nhóm theo tháng trả phòng; gồm phụ phí, đã trừ tiền đã hoàn.' => 'Completed bookings only, grouped by check-out month; fees included, refunds deducted.',
     'Chưa có đơn hoàn thành.' => 'No completed bookings yet.',
     'Đơn hoàn thành' => 'Completed bookings',
 

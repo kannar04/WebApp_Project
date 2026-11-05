@@ -153,7 +153,9 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_admin_total_revenue`()
 BEGIN
-    SELECT COALESCE(SUM(total_amount),0) FROM bookings WHERE status='completed';
+    -- Refunded money is not revenue; the refund audit row holds what really went back (see sp_booking_payment_refund).
+    SELECT COALESCE(SUM(GREATEST(0,b.total_amount-CASE WHEN pay.status='refunded' THEN COALESCE((SELECT CAST(JSON_VALUE(a.change_summary,'$.amount') AS DECIMAL(12,2)) FROM admin_audit_logs a WHERE a.action='refund_payment' AND a.entity_type='booking' AND a.entity_id=b.id ORDER BY a.id DESC LIMIT 1),pay.amount_due) ELSE 0 END)),0)
+    FROM bookings b LEFT JOIN booking_payments pay ON pay.booking_id=b.id WHERE b.status='completed';
 END$$
 
 CREATE OR REPLACE PROCEDURE `sp_admin_listings`()
@@ -175,7 +177,7 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_host_stats`(IN p_1 bigint unsigned)
 BEGIN
-    SELECT COUNT(DISTINCT CASE WHEN l.deleted_at IS NULL THEN l.id END) listings,COUNT(DISTINCT b.id) bookings,COALESCE(SUM(b.status='completed'),0) completed,COALESCE(SUM(CASE WHEN b.status='completed' THEN b.total_amount ELSE 0 END),0) revenue FROM listings l LEFT JOIN bookings b ON b.listing_id=l.id WHERE l.host_id=p_1;
+    SELECT COUNT(DISTINCT CASE WHEN l.deleted_at IS NULL THEN l.id END) listings,COUNT(DISTINCT b.id) bookings,COALESCE(SUM(b.status='completed'),0) completed,COALESCE(SUM(CASE WHEN b.status='completed' THEN GREATEST(0,b.total_amount-CASE WHEN pay.status='refunded' THEN COALESCE((SELECT CAST(JSON_VALUE(a.change_summary,'$.amount') AS DECIMAL(12,2)) FROM admin_audit_logs a WHERE a.action='refund_payment' AND a.entity_type='booking' AND a.entity_id=b.id ORDER BY a.id DESC LIMIT 1),pay.amount_due) ELSE 0 END) ELSE 0 END),0) revenue FROM listings l LEFT JOIN bookings b ON b.listing_id=l.id LEFT JOIN booking_payments pay ON pay.booking_id=b.id WHERE l.host_id=p_1;
 END$$
 
 CREATE OR REPLACE PROCEDURE `sp_wishlist_contains`(IN p_1 bigint unsigned, IN p_2 bigint unsigned)
