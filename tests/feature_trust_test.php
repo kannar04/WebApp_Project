@@ -446,6 +446,16 @@ try {
         trustExpect($users->findByEmail($leavingEmail)['status'] === 'active', 'A refused delete changed the account.');
         echo "PASS refused account delete shows the Admin the count on the dashboard\n";
 
+        // Removing the Host role: both Admin forms show why it was refused. The account has live listings here.
+        $hostWithRoles = $users->findWithRoles($hostId)['roles'];
+        $refusedRole = trustHttp($adminClient, $baseUrl, '/admin/users/'.$hostId.'/roles', ['_token' => trustToken(trustHttp($adminClient, $baseUrl, '/admin')['body']), 'roles' => ['guest']]);
+        trustExpect($refusedRole['status'] === 200 && $refusedRole['path'] === '/admin' && str_contains($refusedRole['body'], 'alert-danger') && str_contains($refusedRole['body'], 'Không thể bỏ vai trò Host'), 'The dashboard roles form hid why the Host role stayed.');
+        $editPage = trustHttp($adminClient, $baseUrl, '/admin/users/'.$hostId.'/edit');
+        $refusedEdit = trustHttp($adminClient, $baseUrl, '/admin/users/'.$hostId, ['_token' => trustToken($editPage['body']), 'email' => sprintf($emailFor, 'host'), 'full_name' => 'Trust Host '.$tag, 'phone' => '', 'password' => '', 'roles' => ['guest']]);
+        trustExpect($refusedEdit['status'] === 200 && $refusedEdit['path'] === '/admin/users/'.$hostId.'/edit' && str_contains($refusedEdit['body'], 'alert-danger') && str_contains($refusedEdit['body'], 'Không thể bỏ vai trò Host'), 'The user edit form hid why the Host role stayed.');
+        trustExpect($users->findWithRoles($hostId)['roles'] === $hostWithRoles, 'A refused role change changed the roles.');
+        echo "PASS refused Host role removal shows the Admin the reason on the dashboard and on the user edit page\n";
+
         foreach ([$anonymous, $guestClient, $otherClient, $adminClient, $hostClient, $otherHostClient] as $client) { curl_close($client); }
         echo "PASS trust HTTP: login/403/404 guards, CSRF 419 on verification and decision, profile submit/duplicate, Admin queue+approval+masked history+badges, Host progress/guide save/validation, public pages without secrets\n";
     }

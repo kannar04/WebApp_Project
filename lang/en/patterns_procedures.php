@@ -29,6 +29,9 @@ return [
     'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì tài khoản Host đã bị xóa.' => 'Booking request #{id} for “{listing}” was rejected because the Host account was deleted.',
     'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì tài khoản khách đã bị xóa.' => 'Booking request #{id} for “{listing}” was rejected because the guest account was deleted.',
 
+    // ---- 030_atomic_writes.sql: sp_user_roles_replace refusal
+    'Không thể bỏ vai trò Host: tài khoản còn {listings} chỗ ở và {bookings} booking chưa kết thúc. Hãy gỡ chỗ ở và xử lý booking trước.' => 'The Host role cannot be removed: this account still has {listings} listing(s) and {bookings} unfinished booking(s). Take the listings down and handle the bookings first.',
+
     // ---- 030_atomic_writes.sql: Host notifications about a rejected or removed listing
     'Tin “{listing}” đã bị Admin từ chối. Lý do: {reason}' => 'Admin rejected your listing “{listing}”. Reason: {reason}',
     'Admin đã gỡ chỗ ở “{listing}” khỏi hệ thống.' => 'Admin took your listing “{listing}” down.',

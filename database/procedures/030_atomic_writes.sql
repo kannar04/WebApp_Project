@@ -30,6 +30,9 @@ BEGIN
     DECLARE v_i INT DEFAULT 0;
     DECLARE v_lock BIGINT UNSIGNED;
     DECLARE v_role VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_listings INT DEFAULT 0;
+    DECLARE v_bookings INT DEFAULT 0;
+    DECLARE v_message VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -42,6 +45,15 @@ BEGIN
     
     IF p_2 IS NULL OR NOT JSON_VALID(p_2) OR JSON_TYPE(p_2)<>'ARRAY' OR JSON_LENGTH(p_2)<1 OR JSON_LENGTH(p_2)>3 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Vai trò không hợp lệ.';
+    END IF;
+    -- Without the Host role nobody can answer the listing's requests, so it stays until the listings and their bookings are dealt with.
+    IF NOT JSON_CONTAINS(p_2,'"host"') AND EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_1 AND role='host') THEN
+        SELECT COUNT(*) INTO v_listings FROM listings WHERE host_id=p_1 AND deleted_at IS NULL FOR UPDATE;
+        SELECT COUNT(*) INTO v_bookings FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE l.host_id=p_1 AND b.status IN ('pending','confirmed') FOR UPDATE;
+        IF v_listings>0 OR v_bookings>0 THEN
+            SET v_message=CONCAT('Không thể bỏ vai trò Host: tài khoản còn ',v_listings,' chỗ ở và ',v_bookings,' booking chưa kết thúc. Hãy gỡ chỗ ở và xử lý booking trước.');
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=v_message;
+        END IF;
     END IF;
     SELECT id INTO v_lock FROM users WHERE id=p_1 AND deleted_at IS NULL FOR UPDATE;
     IF v_lock IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản không tồn tại.'; END IF;

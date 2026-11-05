@@ -341,6 +341,32 @@ try {
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS confirm refused for a suspended guest or Host for any actor; reject still works and confirmed stays are unchanged\n";
 
+    // The Host role stays while the account has listings or unfinished bookings as Host; everything rolls back.
+    $db->beginTransaction();
+    try {
+        $service=new BookingService(); $moderation=new AdminRepository(); $adminId=(int)$admin['id']; $guestId=(int)$guest['id']; $tag=bin2hex(random_bytes(6));
+        $demoted=$users->adminCreate(['email'=>'audit-'.$tag.'-host@home2home.test','password'=>bin2hex(random_bytes(16)),'full_name'=>'Audit demoted host','phone'=>''],['guest','host']);
+        $users->replaceRoles($demoted,['guest']);
+        ensure($users->findWithRoles($demoted)['roles']===['guest'],'A Host with nothing to answer for could not lose the role.');
+        $users->replaceRoles($demoted,['guest','host']);
+        $demotedListing=$model->create($demoted,['title'=>'Audit fixture '.$tag]+$data);
+        callRows('CALL sp_test_listing_approve(?)',[$demotedListing]);
+        refusedSaying([$users,'replaceRoles'],[$demoted,['guest']],'tài khoản còn 1 chỗ ở và 0 booking');
+        $request=$service->create($demotedListing,$guestId,$start,$end,1);
+        refusedSaying([$users,'replaceRoles'],[$demoted,['guest','admin']],'tài khoản còn 1 chỗ ở và 1 booking');
+        ensure($users->findWithRoles($demoted)['roles']===['guest','host'],'A refused role change changed the roles.');
+        $users->replaceRoles($demoted,['guest','host','admin']);
+        ensure(in_array('admin',$users->findWithRoles($demoted)['roles'],true),'Keeping the Host role was refused.');
+        $users->replaceRoles($demoted,['guest','host']);
+
+        // Take the listing down first, as the message says: the request closes and the role can go.
+        $moderation->softDeleteListing($demotedListing,$adminId);
+        ensure(bookingState($request)['status']==='rejected','The take-down left the request open.');
+        $users->replaceRoles($demoted,['guest']);
+        ensure($users->findWithRoles($demoted)['roles']===['guest'],'The role could not go after the take-down.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS Host role cannot be removed while listings or unfinished bookings remain, and can after the take-down\n";
+
     for ($i=0;$i<2;$i++) {
         $pipes=[];
         $process=proc_open([PHP_BINARY,__FILE__,'--worker',(string)$listingId,(string)$guest['id'],$start,$end],

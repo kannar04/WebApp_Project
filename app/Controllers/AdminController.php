@@ -118,8 +118,9 @@ final class AdminController extends Controller
             Session::flash('success', 'Đã cập nhật tài khoản.');
         } catch (\Throwable $exception) {
             if ($database->inTransaction()) { $database->rollBack(); }
-            $message = $exception instanceof \PDOException && $exception->getCode() === '23000'
-                ? 'Email đã được sử dụng.' : 'Không thể cập nhật tài khoản. Vui lòng thử lại.';
+            $message = $exception instanceof \DomainException ? $exception->getMessage()
+                : ($exception instanceof \PDOException && $exception->getCode() === '23000'
+                ? 'Email đã được sử dụng.' : 'Không thể cập nhật tài khoản. Vui lòng thử lại.');
             Session::old(array_diff_key($data, ['password'=>1]) + ['roles'=>$roles]);
             Session::flash('error', $message);
             $this->redirect('/admin/users/'.$userId.'/edit');
