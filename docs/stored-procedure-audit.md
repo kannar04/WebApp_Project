@@ -422,6 +422,7 @@ Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
 | `sp_admin_listing_visibility` | `030_atomic_writes.sql` | Báo cho Host khi Admin thật sự ẩn hoặc hiện tin, trong cùng transaction; bấm lặp từ trang cũ không gửi thêm | procedure_flow_test |
 | `sp_user_roles_replace` | `030_atomic_writes.sql` | Thêm tham số `p_3` (Admin thực hiện, NULL với fixture và lúc tạo tài khoản). Ghi audit `remove_host_role`/`grant_host_role` khi vai trò Host thật sự đổi | procedure_flow_test, feature_trust_test |
 | `sp_user_grant_host` | `010_models.sql` | Thêm transaction/savepoint và khóa dòng users. Từ chối khi dòng audit cuối trong hai action trên là `remove_host_role` | procedure_flow_test, feature_trust_test |
+| `sp_trust_badges` | `075_trust.sql` | Tỷ lệ Host từ chối/hủy chỉ tính yêu cầu có `booking_events` từ chối do chính Host; yêu cầu bị từ chối tự động hoặc do Admin không vào cả tử số lẫn mẫu số | feature_trust_test |
 
 ### Routine mới
 

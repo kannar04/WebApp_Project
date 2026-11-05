@@ -157,12 +157,14 @@ BEGIN
                 WHERE l.host_id=u.id AND rv.moderation_status='visible') review_count,
             COALESCE((SELECT AVG(rv.rating) FROM reviews rv JOIN bookings b ON b.id=rv.booking_id JOIN listings l ON l.id=b.listing_id
                 WHERE l.host_id=u.id AND rv.moderation_status='visible'),0) average_rating,
+            -- booking_events says who rejected: a request closed automatically or by an Admin is neither a Host refusal nor a Host decision.
             (SELECT COUNT(*) FROM bookings b JOIN listings l ON l.id=b.listing_id
-                WHERE l.host_id=u.id AND b.status<>'pending' AND b.created_at>=NOW(6)-INTERVAL v_window_months MONTH) decided_requests,
+                WHERE l.host_id=u.id AND b.status<>'pending' AND b.created_at>=NOW(6)-INTERVAL v_window_months MONTH
+                    AND (b.status<>'rejected' OR EXISTS(SELECT 1 FROM booking_events e WHERE e.booking_id=b.id AND e.to_status='rejected' AND e.actor_id=l.host_id))) decided_requests,
             (SELECT COUNT(*) FROM bookings b JOIN listings l ON l.id=b.listing_id
                 WHERE l.host_id=u.id AND b.created_at>=NOW(6)-INTERVAL v_window_months MONTH
-                    AND (b.status='rejected' OR (b.status='cancelled'
-                        AND EXISTS(SELECT 1 FROM booking_cancellations c WHERE c.booking_id=b.id AND c.cancelled_by=l.host_id)))) host_side_cancellations
+                    AND ((b.status='rejected' AND EXISTS(SELECT 1 FROM booking_events e WHERE e.booking_id=b.id AND e.to_status='rejected' AND e.actor_id=l.host_id))
+                        OR (b.status='cancelled' AND EXISTS(SELECT 1 FROM booking_cancellations c WHERE c.booking_id=b.id AND c.cancelled_by=l.host_id)))) host_side_cancellations
         FROM users u WHERE FIND_IN_SET(u.id,p_user_ids)>0 AND u.status='active' AND u.deleted_at IS NULL
     ) m ORDER BY m.user_id;
 END$$

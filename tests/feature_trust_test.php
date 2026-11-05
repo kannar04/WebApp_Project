@@ -239,6 +239,27 @@ try {
     $service->cancelByGuest($guestCancelled, $otherGuestId, 'Guest cancellation is not Host-side');
     $metrics = trustBadge($trust, $hostId, $hostId);
     trustExpect((int) $metrics['decided_requests'] === 11 && (int) $metrics['host_side_cancellations'] === 1 && (int) $metrics['is_trusted_host'] === 1, 'Guest cancellation counted against the Host.');
+    // Only what the Host did counts: a request closed by an Admin or automatically is neither a Host refusal nor a Host decision.
+    $moderation = new \App\Models\AdminRepository();
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $service->adminTransition($service->create($listingId, $otherGuestId, $checkIn, $checkOut, 1), $adminId, 'rejected');
+    $departingGuest = $users->adminCreate(['email' => sprintf($emailFor, 'departing'), 'password' => bin2hex(random_bytes(16)), 'full_name' => 'Trust Departing Guest', 'phone' => ''], ['guest']);
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $service->create($listingId, $departingGuest, $checkIn, $checkOut, 1);
+    $users->softDelete($departingGuest);
+    $moderatedListing = $listings->create($hostId, ['title' => 'Audit fixture trust '.$tag.' moderated'] + $listingData);
+    trustCall('CALL sp_test_listing_approve(?)', [$moderatedListing]);
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $service->create($moderatedListing, $otherGuestId, $checkIn, $checkOut, 1);
+    $moderation->moderate($moderatedListing, $adminId, 'rejected', 'Trust rate fixture');
+    $takenDownListing = $listings->create($hostId, ['title' => 'Audit fixture trust '.$tag.' taken down'] + $listingData);
+    trustCall('CALL sp_test_listing_approve(?)', [$takenDownListing]);
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $service->create($takenDownListing, $otherGuestId, $checkIn, $checkOut, 1);
+    $moderation->softDeleteListing($takenDownListing, $adminId);
+    $metrics = trustBadge($trust, $hostId, $hostId);
+    trustExpect((int) $metrics['decided_requests'] === 11 && (int) $metrics['host_side_cancellations'] === 1 && abs((float) $metrics['cancel_pct'] - 9.1) < 0.01 && (int) $metrics['is_trusted_host'] === 1, 'A rejection the Host did not make changed the Host rate.');
+    trustExpect((int) trustBadge($trust, $hostId, null)['is_trusted_host'] === 1 && (int) trustBadge($trust, $hostId, $adminId)['host_side_cancellations'] === 1, 'The public badge or the Admin figure disagrees with the Host rate.');
     $reviewBadges = $trust->reviewBadges($listingId);
     trustExpect(count($reviewBadges) === 3 && !in_array(false, $reviewBadges, true), 'Verified reviewer badge missing on visible reviews.');
     $users->updateProfile($guestId, 'Nguyễn Văn Tín', '0933000000', null);
