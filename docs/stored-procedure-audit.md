@@ -365,7 +365,7 @@ Thanh toán online (VietQR chuyển khoản do Admin xác nhận, VNPay sandbox)
 | `sp_admin_payment_duplicate_resolve` | `095` | Admin ghi nhận đã hoàn một khoản VNPay trùng: chỉ đóng giao dịch đó (`cancelled`, ghi chú bắt buộc), trạng thái thanh toán của booking không đổi và được trả về; thông báo khách, audit log | Transaction/savepoint; Admin (`sp_admin_assert_role`); khóa như trên; một lần | feature_payment_test |
 | `sp_admin_payment_transfers` | `095` | Hàng chờ Admin: chuyển khoản khách đã báo, rồi mã QR đang mở của booking chưa thu | Chỉ đọc; Admin | feature_payment_test |
 
-Test fixture routines mới (9, chỉ cài trong DB test riêng): `testing_payment.sql` (`sp_test_payment_inspect`, `sp_test_payment_attempt`, `sp_test_payment_set_amount`, `sp_test_payment_listing_removed`, `sp_test_payment_old_snapshot`, `sp_test_payment_host_state`, `sp_test_payment_finish_stay`, `sp_test_payment_old_refund`, `sp_test_payment_cleanup` — chỉ xóa listing `Audit fixture PAY %` ở thành phố `Audit`).
+Test fixture routines mới (10, chỉ cài trong DB test riêng): `testing_payment.sql` (`sp_test_payment_inspect`, `sp_test_payment_attempt`, `sp_test_payment_set_amount`, `sp_test_payment_listing_removed`, `sp_test_payment_old_snapshot`, `sp_test_payment_snapshot_value`, `sp_test_payment_host_state`, `sp_test_payment_finish_stay`, `sp_test_payment_old_refund`, `sp_test_payment_cleanup` — chỉ xóa listing `Audit fixture PAY %` ở thành phố `Audit`).
 
 ## Đồng bộ giờ nhận phòng, huy hiệu xác minh và họ tên — 2026-10-17
 
