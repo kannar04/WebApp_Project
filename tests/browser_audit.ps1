@@ -148,6 +148,27 @@ function Check-SubmitGuards([string]$BookingPath) {
     Write-Output 'PASS browser message guard covers button and Ctrl+Enter, released for retry with the text kept'
 }
 
+function Check-FilterResetLoads {
+    # Reset is a real page load from every address, repeated clicks too: typed values and errors go, the applied search stays, and it lands on the results.
+    $cases=@(
+        @{path='/';applied=@{}},
+        @{path='/?location=&check_in=&check_out=&guests=1';applied=@{guests='1'}},
+        @{path='/?location=Da&check_in=&check_out=&guests=2';applied=@{location='Da';guests='2'}},
+        @{path='/?min_price=2000000&max_price=1000000';applied=@{}},
+        @{path='/?check_in=2020-01-01&check_out=2020-01-02&location=Da';applied=@{location='Da'}}
+    )
+    foreach ($case in $cases) {
+        Navigate $case.path
+        foreach ($click in 1,2) {
+            Evaluate "window.__beforeReset=true;const f=document.querySelector('[data-filter-form]');f.elements.min_price.value='2000000';f.elements.max_price.value='1000000';f.elements.max_price.dispatchEvent(new Event('input',{bubbles:true}));f.querySelector('input[name=""amenities[]""]').checked=true;f.elements.sort.value='price_asc';document.querySelector('[data-filter-reset]').click();true" | Out-Null
+            Wait-FilterPage "!window.__beforeReset&&document.readyState==='complete'"
+            $state=Evaluate "new Promise(function(resolve){setTimeout(function(){const f=document.querySelector('[data-filter-form]');const s=document.querySelector('[data-search-form]');const q=new URLSearchParams(location.search);resolve({hash:location.hash,panel:[f.elements.min_price.value,f.elements.max_price.value,f.elements.sort.value,f.elements.type.value,f.elements.bedrooms.value].join(''),ticked:f.querySelectorAll('input[name=""amenities[]""]:checked').length,error:document.querySelectorAll('[data-filter-error],.is-invalid').length,location:s.elements.location.value,checkIn:s.elements.check_in.value,guests:s.elements.guests.value,top:document.getElementById('listing-results').getBoundingClientRect().top,line:document.querySelector('.site-header').getBoundingClientRect().bottom,advanced:['min_price','max_price','sort','type','bedrooms','amenities[]','page'].filter(function(name){return q.has(name);}).length});},700);})"
+            $kept=$state.location -eq [string]$case.applied.location -and $state.checkIn -eq '' -and $state.guests -eq $(if ($case.applied.guests) { $case.applied.guests } else { '1' })
+            if ($state.hash -ne '#listing-results' -or $state.panel -ne '' -or $state.ticked -ne 0 -or $state.error -ne 0 -or $state.advanced -ne 0 -or !$kept -or $state.top -lt $state.line) { throw "Reset click $click from $($case.path) left: $($state | ConvertTo-Json -Compress)" }
+        }
+    }
+}
+
 function Check-SubmitStopRelease([string]$Selector, [string]$Path, [string]$Fill) {
     # Pressing Stop fires no event, so the search and booking buttons must come back on the timer. Events only, so nothing is sent.
     Navigate $Path
@@ -537,6 +558,8 @@ try {
     if (!$quoteRecovery) { throw 'Quote error recovery/reset failed' }
     Write-Output 'PASS quote error recovery and clearing stale totals'
     Check-FilterResubmit
+    Check-FilterResetLoads
+    Write-Output 'PASS browser filter reset is a real load from every address and lands on the results'
     Check-SubmitStopRelease '[data-search-form]' '/' "f.elements.location.value='Stop test'"
     Check-SubmitStopRelease '[data-filter-form]' '/' "f.elements.min_price.value='7000'"
     Write-Output 'PASS browser search and filter guards release on the timer after Stop'

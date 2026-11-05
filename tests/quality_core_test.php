@@ -787,6 +787,13 @@ qaExpect(count($fragmentTargets)>=7,'The #fragment scan found too few targets.')
 foreach (array_keys($fragmentTargets) as $fragmentTarget) { qaExpect(str_contains(rtrim($fragmentRule[1]).',','#'.$fragmentTarget.','),'No scroll margin for #'.$fragmentTarget); }
 echo "PASS QA every in-app #fragment target has the scroll margin that clears the sticky header\n";
 
+// Filter reset is never a same-page jump, keeps the applied search and drops what an error is about.
+foreach ([['/','/?reset=1#listing-results'],['/?reset=1','/#listing-results'],['/?location=Da','/?location=Da&amp;reset=1#listing-results'],['/?location=Da&reset=1','/?location=Da#listing-results'],
+    ['/?location=Da&min_price=5&max_price=1','/?location=Da#listing-results'],['/?check_in=2020-01-01&check_out=2020-01-02&guests=2','/?guests=2#listing-results'],['/?guests=abc','/#listing-results']] as [$resetFrom,$resetTo]) {
+    qaExpect(preg_match('~href="([^"]*)" data-filter-reset~',$request($resetFrom)['body'],$resetLink)===1 && str_ends_with($resetLink[1],$resetTo),'Filter reset from '.$resetFrom.' points at '.($resetLink[1]??'nothing'));
+}
+echo "PASS QA filter reset always reloads and lands on the results\n";
+
 // More than one UI page, with real approval and filter-preserving navigation.
 $paginationFixtures=[]; $paginationData=$listings->findOwned(1,2); $paginationData['city']='QualityPagination';
 try {

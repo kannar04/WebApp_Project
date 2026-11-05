@@ -2,8 +2,11 @@
 $filterErrors=$filterErrors??[];
 $filterInvalid=static fn(string $name): string => isset($filterErrors[$name])?' is-invalid':'';
 $filterAria=static fn(string $name): string => isset($filterErrors[$name])?' aria-invalid="true" aria-describedby="filter-error-'.e($name).'"':'';
-$resetFilters=array_intersect_key($filters,array_flip(['location','check_in','check_out','guests']));
-$resetUrl=url('/'.($resetFilters?'?'.http_build_query($resetFilters):'').'#listing-results');
+// Reset keeps the applied place, dates and guests, unless one of them is what the error is about.
+$resetQuery=http_build_query(array_diff_key(array_intersect_key($filters,array_flip(['location','check_in','check_out','guests'])),$filterErrors,isset($filterErrors['dates'])?['check_in'=>true,'check_out'=>true]:[]));
+// A link that differs from this address only by its #fragment would not reload, and what was typed would stay.
+if ((string)($_SERVER['QUERY_STRING']??'')===$resetQuery) { $resetQuery.=($resetQuery===''?'':'&').'reset=1'; }
+$resetUrl=url('/'.($resetQuery===''?'':'?'.$resetQuery).'#listing-results');
 ?>
 <section class="hero">
     <div class="container">
