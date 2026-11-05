@@ -121,6 +121,8 @@ function auditReturnTargets(string $server, string $base): void
     $page = auditRequest($browser, $server.$base.'/listings/1')['body'];
     expect((bool) preg_match('/name="return_to" value="([^"]+)"/', $page, $match) && $match[1] === '/listings/1', 'Language switch must return to an app path: '.$base);
     expect(auditRequest($browser, $server.$base.'/locale', ['_token' => auditFormToken($page), 'locale' => 'vi', 'return_to' => $match[1]])['location'] === $base.'/listings/1', 'Language switch left the page: '.$base);
+    expect(auditRequest(auditBrowser(), $server.$base.'/locale', ['_token' => 'stale', 'locale' => 'vi', 'return_to' => '/listings/1?guests=2'])['location'] === $base.'/listings/1?guests=2', 'A stale language switch without a Referer left the page: '.$base);
+    expect(auditRequest(auditBrowser(), $server.$base.'/locale', ['_token' => 'stale', 'locale' => 'vi', 'return_to' => '//evil.example/x'])['location'] === $base.'/', 'A stale language switch followed a forged path: '.$base);
     // Signing in from the home page goes to the role's home; only an explicit next=/ asks for the home page.
     foreach (['host@home2home.test' => $base.'/host', 'admin@home2home.test' => $base.'/admin', 'guest@home2home.test' => $base.'/'] as $email => $roleHome) {
         $browser = auditBrowser();
@@ -431,6 +433,21 @@ try {
             expect(auditRequest(auditBrowser(), $url.'/reset-password', ['_token' => 'stale', 'token' => $malformed])['location'] === '/', 'A stale form with a malformed token must go home.');
         }
         expect(auditRequest(auditBrowser(), $url.'/reset-password', ['_token' => 'stale', 'token' => $rawToken], 'https://evil.example/x')['location'] === $resetReturn, 'A foreign Referer must not take the redirect.');
+        // The language switch on that page has no Referer either, and returns the same way; the path it carries is checked, so a forged one goes home.
+        expect(str_contains($staleReturn, 'name="return_to" value="'.$resetReturn.'"'), 'The language switch must return to the reset form.');
+        $staleSwitcher = auditBrowser();
+        expect(auditRequest($staleSwitcher, $url.'/locale', ['_token' => 'stale', 'locale' => 'en', 'return_to' => $resetReturn])['location'] === $resetReturn, 'A stale language switch must return to the reset form.');
+        $switchReturn = auditRequest($staleSwitcher, $url.$resetReturn)['body'];
+        expect(str_contains($switchReturn, 'Phiên biểu mẫu đã hết hạn') && str_contains($switchReturn, 'name="token" value="'.$rawToken.'"') && $passwordModel->findByEmail($fixtureEmail)['password_hash'] === $fixtureHash, 'A stale language switch must keep the reset form and spend nothing.');
+        expect(auditRequest($staleSwitcher, $url.'/locale', ['_token' => auditFormToken($switchReturn), 'locale' => 'en', 'return_to' => $resetReturn])['location'] === $resetReturn, 'The language switch must work on the second try.');
+        expect(str_contains(auditRequest($staleSwitcher, $url.$resetReturn)['body'], '<html lang="en"'), 'The second try did not switch the language.');
+        foreach (['//evil.example/x', 'https://evil.example/x', '/\\evil.example', 'evil.example', '', "/x\r\nX-Evil: 1", "/\t/evil.example", '/'.str_repeat('a', 2100), ['/listings/1']] as $forgedReturn) {
+            foreach (['stale', auditFormToken($switchReturn)] as $switchToken) {
+                expect(auditRequest($staleSwitcher, $url.'/locale', ['_token' => $switchToken, 'locale' => 'en', 'return_to' => $forgedReturn])['location'] === '/', 'A forged language return path must go home.');
+            }
+        }
+        expect(auditRequest(auditBrowser(), $url.'/locale', ['_token' => 'stale', 'locale' => 'en', 'return_to' => '/listings/1'], 'https://evil.example/x')['location'] === '/listings/1', 'A foreign Referer must not take a stale language switch.');
+        expect(auditRequest(auditBrowser(), $url.'/locale', ['_token' => 'stale', 'locale' => 'en', 'return_to' => '/listings/1'], $url.'/listings?location=x')['location'] === '/listings?location=x', 'A stale language switch must go back to the Referer it has.');
         $exact = str_repeat('E', 72);
         auditRequest($admin, $url.'/admin/users/'.$fixtureId, ['_token' => $adminToken, 'full_name' => 'Audit password fixture', 'email' => $fixtureEmail, 'phone' => '', 'password' => '', 'roles' => ['guest']]);
         expect($passwordModel->findByEmail($fixtureEmail)['password_hash'] === $fixtureHash, 'A blank password on admin edit must keep the current one.');
