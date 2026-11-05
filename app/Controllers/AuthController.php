@@ -11,11 +11,11 @@ use Core\Session;
 use Core\Validator;
 final class AuthController extends Controller
 {
-    public function loginForm(): void {if(Auth::check()){$this->redirect('/');}$this->rememberReturnTarget();$this->render('auth/login',['title'=>'Đăng nhập','old'=>Session::pullOld('login'),'returnTarget'=>(string)($_SESSION['intended_url']??'')],'layouts/auth');}
-    public function login(): never {Csrf::ensure();$email=trim(input_text($_POST,'email'));$password=input_password($_POST,'password');if(!filter_var($email,FILTER_VALIDATE_EMAIL)||$password===''){Session::old(['email'=>$email],'login');Session::flash('error','Email hoặc mật khẩu không hợp lệ.');$this->redirect('/login');}if(!Auth::attempt($email,$password)){Session::old(['email'=>$email],'login');Session::flash('error','Thông tin đăng nhập không đúng hoặc tài khoản đã bị khóa.');$this->redirect('/login');}Session::flash('success','Chào mừng bạn trở lại Home2Home.');$this->redirectAfterAuth();}
-    public function registerForm(): void {if(Auth::check()){$this->redirect('/');}$this->rememberReturnTarget();$this->render('auth/register',['title'=>'Tạo tài khoản','old'=>Session::pullOld('register'),'returnTarget'=>(string)($_SESSION['intended_url']??'')],'layouts/auth');}
+    public function loginForm(): void {if(Auth::check()){$this->redirectSignedIn();}$this->render('auth/login',['title'=>'Đăng nhập','old'=>Session::pullOld('login'),'returnTarget'=>$this->rememberReturnTarget()],'layouts/auth');}
+    public function login(): never {Csrf::ensure();$email=trim(input_text($_POST,'email'));$password=input_password($_POST,'password');if(!filter_var($email,FILTER_VALIDATE_EMAIL)||$password===''){Session::old(['email'=>$email],'login');Session::flash('error','Email hoặc mật khẩu không hợp lệ.');$this->backToForm('/login');}if(!Auth::attempt($email,$password)){Session::old(['email'=>$email],'login');Session::flash('error','Thông tin đăng nhập không đúng hoặc tài khoản đã bị khóa.');$this->backToForm('/login');}Session::flash('success','Chào mừng bạn trở lại Home2Home.');$this->redirectAfterAuth();}
+    public function registerForm(): void {if(Auth::check()){$this->redirectSignedIn();}$this->render('auth/register',['title'=>'Tạo tài khoản','old'=>Session::pullOld('register'),'returnTarget'=>$this->rememberReturnTarget()],'layouts/auth');}
     // Several validation sentences are joined into one flash, so each is translated before joining (Vietnamese is unchanged).
-    public function register(): never {Csrf::ensure();$data=['full_name'=>trim(input_text($_POST,'full_name')),'email'=>trim(input_text($_POST,'email')),'phone'=>trim(input_text($_POST,'phone')),'password'=>input_password($_POST,'password')];$errors=Validator::required($data,['full_name'=>'Họ tên','email'=>'Email']);if(!filter_var($data['email'],FILTER_VALIDATE_EMAIL)){$errors['email']='Email không hợp lệ.';}if(!Validator::passwordAllowed($data['password'])){$errors['password']=Validator::PASSWORD_RULE;}if(!Trust::phoneAllowed($data['phone'])){$errors['phone']=Trust::PHONE_RULE;}if(mb_strlen($data['full_name'])>150||strlen($data['phone'])>20||strlen($data['email'])>254){$errors['length']='Thông tin tài khoản vượt giới hạn độ dài.';}if($errors){Session::old(array_diff_key($data,['password'=>1]),'register');Session::flash('error',implode(' ',array_map('__',array_values($errors))));$this->redirect('/register');}try{(new User())->create($data['email'],$data['password'],$data['full_name'],$data['phone']);Auth::attempt($data['email'],$data['password']);Session::flash('success','Tài khoản đã được tạo.');$this->redirectAfterAuth();}catch(\PDOException $e){Session::old(array_diff_key($data,['password'=>1]),'register');Session::flash('error',$e->getCode()==='23000'?$this->duplicateEmailMessage($data['email']):'Không thể tạo tài khoản.');$this->redirect('/register');}}
+    public function register(): never {Csrf::ensure();$data=['full_name'=>trim(input_text($_POST,'full_name')),'email'=>trim(input_text($_POST,'email')),'phone'=>trim(input_text($_POST,'phone')),'password'=>input_password($_POST,'password')];$errors=Validator::required($data,['full_name'=>'Họ tên','email'=>'Email']);if(!filter_var($data['email'],FILTER_VALIDATE_EMAIL)){$errors['email']='Email không hợp lệ.';}if(!Validator::passwordAllowed($data['password'])){$errors['password']=Validator::PASSWORD_RULE;}if(!Trust::phoneAllowed($data['phone'])){$errors['phone']=Trust::PHONE_RULE;}if(mb_strlen($data['full_name'])>150||strlen($data['phone'])>20||strlen($data['email'])>254){$errors['length']='Thông tin tài khoản vượt giới hạn độ dài.';}if($errors){Session::old(array_diff_key($data,['password'=>1]),'register');Session::flash('error',implode(' ',array_map('__',array_values($errors))));$this->backToForm('/register');}try{(new User())->create($data['email'],$data['password'],$data['full_name'],$data['phone']);Auth::attempt($data['email'],$data['password']);Session::flash('success','Tài khoản đã được tạo.');$this->redirectAfterAuth();}catch(\PDOException $e){Session::old(array_diff_key($data,['password'=>1]),'register');Session::flash('error',$e->getCode()==='23000'?$this->duplicateEmailMessage($data['email']):'Không thể tạo tài khoản.');$this->backToForm('/register');}}
     public function logout(): never {Csrf::ensure();Auth::logout();Session::start();Session::flash('success','Bạn đã đăng xuất.');$this->redirect('/');}
     /** A soft-deleted account keeps its email, so say why the address is taken and who can restore it. */
     private function duplicateEmailMessage(string $email): string
@@ -24,34 +24,51 @@ final class AuthController extends Controller
             ? 'Email này thuộc về một tài khoản đã bị xóa. Vui lòng liên hệ quản trị viên để khôi phục.'
             : 'Email đã được sử dụng.';
     }
-    /** Remembers where to return after signing in: an explicit next wins, a protected page's stored target stays, and the Referer only fills in when neither exists. */
-    private function rememberReturnTarget(): void
+    /**
+     * Where this sign-in form returns, for its hidden next and its links. An explicit next wins but stays with the page that carries it: kept in the session it would steer every later sign-in to an abandoned page, and each tab would overwrite the others.
+     * Otherwise a protected page's stored target stays, and the Referer only fills in when neither exists.
+     */
+    private function rememberReturnTarget(): string
     {
-        $next = input_text($_GET, 'next');
-        if ($next !== '') {
-            $target = $this->returnTarget($next);
-            if ($target !== '') { Session::put('intended_url', $target); }
-            return;
-        }
-        if (($_SESSION['intended_url'] ?? '') !== '') { return; }
+        $next = $this->returnTarget(input_text($_GET, 'next'));
+        if ($next !== '') { return $next; }
+        if (($_SESSION['intended_url'] ?? '') !== '') { return (string) $_SESSION['intended_url']; }
         $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
         $requestHost = explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0];
-        if ((string) (parse_url($referer, PHP_URL_HOST) ?? '') !== $requestHost) { return; }
+        if ((string) (parse_url($referer, PHP_URL_HOST) ?? '') !== $requestHost) { return ''; }
         $target = $this->returnTarget((string) app_path((string) (parse_url($referer, PHP_URL_PATH) ?? '')));
         // The home page is where sign-in links start, not a page to return to; it also replaces an older Referer, and each role then goes to its own home.
-        if ($target === '/') { Session::pull('referer_url'); return; }
+        if ($target === '/') { Session::pull('referer_url'); return ''; }
         if ($target !== '') { Session::put('referer_url', $target); }
+        return '';
     }
-    /** Sends a signed-in user to the remembered page, otherwise to the home of their role. */
+    /** Back to a refused form, which still returns where it was going. */
+    private function backToForm(string $path): never
+    {
+        $target = $this->returnTarget(input_text($_POST, 'next'));
+        $this->redirect($path . ($target !== '' ? '?next=' . rawurlencode($target) : ''));
+    }
+    /** Already signed in, in another tab for instance: a valid next still leads to the chosen page, anything else to the home page. */
+    private function redirectSignedIn(): never
+    {
+        $target = $this->returnTarget(input_text($_GET, 'next'));
+        $this->redirect($this->mayFollow($target) ? $target : '/');
+    }
+    /** Sends a signed-in user to the page their form was returning to, otherwise the remembered one, otherwise to the home of their role. */
     private function redirectAfterAuth(): never
     {
         $fromReferer = $this->returnTarget((string) Session::pull('referer_url', ''));
         $target = $this->returnTarget((string) Session::pull('intended_url', ''));
-        if ($target === '') { $target = $fromReferer; }
-        if ($target !== '' && !str_starts_with($target, '/admin') && !str_starts_with($target, '/host')) { $this->redirect($target); }
+        $fromForm = $this->returnTarget(input_text($_POST, 'next'));
+        $target = $fromForm !== '' ? $fromForm : ($target !== '' ? $target : $fromReferer);
+        if ($this->mayFollow($target)) { $this->redirect($target); }
         if (Auth::hasRole('admin')) { $this->redirect('/admin'); }
         if (Auth::hasRole('host')) { $this->redirect('/host'); }
         $this->redirect('/');
+    }
+    private function mayFollow(string $target): bool
+    {
+        return $target !== '' && !str_starts_with($target, '/admin') && !str_starts_with($target, '/host');
     }
     /** The candidate when it may be returned to after signing in, otherwise ''. Auth pages never qualify, so no redirect leads back to them. */
     private function returnTarget(string $candidate): string
@@ -64,7 +81,7 @@ final class AuthController extends Controller
     }
     public function forgotForm(): void
     {
-        $this->render('auth/forgot',['title'=>'Khôi phục mật khẩu','mailReady'=>(new \App\Services\PasswordRecoveryService())->configured()],'layouts/auth');
+        $this->render('auth/forgot',['title'=>'Khôi phục mật khẩu','mailReady'=>(new \App\Services\PasswordRecoveryService())->configured(),'returnTarget'=>$this->returnTarget(input_text($_GET,'next'))],'layouts/auth');
     }
     public function forgot(): never
     {
@@ -74,7 +91,7 @@ final class AuthController extends Controller
             (new \App\Services\PasswordRecoveryService())->request($email);
             Session::flash('success','Nếu tài khoản đang hoạt động và dịch vụ gửi mail được cấu hình, bạn sẽ nhận hướng dẫn khôi phục. Kiểm tra thư rác hoặc liên hệ quản trị viên nếu chưa nhận được.');
         } catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
-        $this->redirect('/forgot-password');
+        $this->backToForm('/forgot-password');
     }
     public function resetForm(): void
     {

@@ -100,7 +100,9 @@ function auditFormToken(string $html): string
 /** Signs in on the form the browser already has open, and returns where the app sends the user. */
 function auditSignIn(CurlHandle $browser, string $base, string $formHtml, string $email): string
 {
-    return auditRequest($browser, $base.'/login', ['_token' => auditFormToken($formHtml), 'email' => $email, 'password' => 'Password123!'])['location'];
+    // A browser posts the form's hidden next along with what was typed.
+    $next = preg_match('/name="next" value="([^"]*)"/', $formHtml, $field) ? ['next' => html_entity_decode($field[1], ENT_QUOTES, 'UTF-8')] : [];
+    return auditRequest($browser, $base.'/login', ['_token' => auditFormToken($formHtml), 'email' => $email, 'password' => 'Password123!'] + $next)['location'];
 }
 
 /** Protected page, Referer, expired form and language switch all land inside the app, with its base exactly once. */

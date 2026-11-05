@@ -31,10 +31,45 @@ function qaSignInRedirect(string $baseUrl,string $visit,string $form,string $ref
     $curl=curl_init(); curl_setopt_array($curl,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_COOKIEFILE=>'',CURLOPT_TIMEOUT=>15]);
     if ($visit!=='') { curl_setopt($curl,CURLOPT_URL,$baseUrl.$visit); curl_exec($curl); }
     curl_setopt_array($curl,[CURLOPT_URL=>$baseUrl.$form,CURLOPT_REFERER=>$referer===''?'':$baseUrl.$referer]);
-    qaExpect((bool)preg_match('/name="_token" value="([^"]+)"/',(string)curl_exec($curl),$match),'Sign-in form missing: '.$form);
-    curl_setopt_array($curl,[CURLOPT_URL=>$baseUrl.$action,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query($fields+['_token'=>$match[1]])]);
+    $page=(string)curl_exec($curl);
+    qaExpect((bool)preg_match('/name="_token" value="([^"]+)"/',$page,$match),'Sign-in form missing: '.$form);
+    curl_setopt_array($curl,[CURLOPT_URL=>$baseUrl.$action,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query($fields+qaFormNext($page)+['_token'=>$match[1]])]);
     curl_exec($curl); $location=(string)curl_getinfo($curl,CURLINFO_REDIRECT_URL); curl_close($curl);
     return (string)parse_url($location,PHP_URL_PATH);
+}
+/** The hidden next of a sign-in page: a browser posts it along with what was typed. */
+function qaFormNext(string $page): array
+{
+    return preg_match('/name="next" value="([^"]*)"/',$page,$field) ? ['next'=>html_entity_decode($field[1],ENT_QUOTES,'UTF-8')] : [];
+}
+/**
+ * One browser session opens each page of $pages ([path,referer path], like tabs: the session is shared, each form stays as it was served) and submits the form of page $formIndex.
+ * $refusedFirst is posted before $fields, and the second try then comes from the page the refusal leads to. Returns where it lands, path and query.
+ */
+function qaSignInWalk(string $baseUrl,array $pages,int $formIndex,array $fields,string $action='/login',array $refusedFirst=[]): string
+{
+    $curl=curl_init(); curl_setopt_array($curl,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_COOKIEFILE=>'',CURLOPT_TIMEOUT=>15]);
+    $forms=[];
+    foreach ($pages as [$path,$referer]) {
+        curl_setopt_array($curl,[CURLOPT_URL=>$baseUrl.$path,CURLOPT_HTTPGET=>true,CURLOPT_REFERER=>$referer===''?'':$baseUrl.$referer]);
+        $forms[]=(string)curl_exec($curl);
+    }
+    $form=$forms[$formIndex];
+    if ($refusedFirst!==[]) {
+        $location=qaPostForm($curl,$baseUrl.$action,$form,$refusedFirst);
+        curl_setopt_array($curl,[CURLOPT_URL=>$location,CURLOPT_HTTPGET=>true]);
+        $form=(string)curl_exec($curl);
+    }
+    $location=qaPostForm($curl,$baseUrl.$action,$form,$fields); curl_close($curl);
+    $query=(string)parse_url($location,PHP_URL_QUERY);
+    return (string)parse_url($location,PHP_URL_PATH).($query!==''?'?'.$query:'');
+}
+function qaPostForm(CurlHandle $curl,string $action,string $form,array $fields): string
+{
+    qaExpect((bool)preg_match('/name="_token" value="([^"]+)"/',$form,$match),'Sign-in form missing.');
+    curl_setopt_array($curl,[CURLOPT_URL=>$action,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query($fields+qaFormNext($form)+['_token'=>$match[1]])]);
+    curl_exec($curl);
+    return (string)curl_getinfo($curl,CURLINFO_REDIRECT_URL);
 }
 function qaIssueRefused(\App\Models\PasswordReset $recovery,int $userId): bool
 {
@@ -248,6 +283,61 @@ qaCall('CALL sp_test_cleanup_user(?)',[(int)(new User())->findByEmail($returnEma
 qaExpect(str_contains($request('/login?next=/bookings')['body'],'/register?next=%2Fbookings'),'Login page link to register lost next.');
 qaExpect(qaSignInRedirect($baseUrl,'','/login','/\evil.example',['_token'=>'stale']+$guestSignIn)==='/','Stale form redirect followed an unsafe Referer.');
 echo "PASS HTTP sign-in return target: protected page, explicit next, Referer, auth pages, register, unsafe targets\n";
+// An explicit next stays with the page that carries it: an abandoned one steers no later sign-in, each tab's form keeps its own, a refused form keeps it.
+$chosenStay='/listings/1?check_in=2035-07-10&guests=2';
+$withStay='/login?next='.rawurlencode($chosenStay);
+$otherListing='/login?next='.rawurlencode('/listings/3?guests=2');
+foreach ([
+    ['Abandoned next, later plain link',[[$withStay,'/listings/1'],['/login','/listings/2']],1,'/listings/2'],
+    ['Abandoned next, header on the home page',[[$withStay,'/listings/1'],['/login','/']],1,'/'],
+    ['Abandoned next, address typed',[[$withStay,'/listings/1'],['/login','']],1,'/'],
+    ['Older tab with next, newer plain tab',[[$withStay,'/listings/1'],['/login','/listings/2']],0,$chosenStay],
+    ['Older plain tab, newer tab with next',[['/login','/listings/2'],[$withStay,'/listings/1']],0,'/listings/2'],
+    ['Two tabs with next, the older',[[$withStay,'/listings/1'],[$otherListing,'/listings/3']],0,$chosenStay],
+    ['Two tabs with next, the newer',[[$withStay,'/listings/1'],[$otherListing,'/listings/3']],1,'/listings/3?guests=2'],
+    ['Protected page, then next',[['/bookings',''],[$withStay,'/listings/1']],1,$chosenStay],
+    ['Protected page, abandoned next, plain link',[['/bookings',''],[$withStay,'/listings/1'],['/login','/listings/2']],2,'/bookings'],
+    ['Forged next is a plain visit',[['/login?next=//evil.example/x','/listings/2']],0,'/listings/2'],
+] as [$walkName,$walkPages,$walkForm,$walkLanding]) {
+    $walked=qaSignInWalk($baseUrl,$walkPages,$walkForm,$guestSignIn);
+    qaExpect($walked===$walkLanding,$walkName.': landed on '.$walked);
+}
+$wrongPassword=['email'=>'guest@home2home.test','password'=>'not-the-password'];
+qaExpect(qaSignInWalk($baseUrl,[[$withStay,'/listings/1']],0,$guestSignIn,'/login',$wrongPassword)===$chosenStay,'A wrong password lost the chosen stay.');
+qaExpect(qaSignInWalk($baseUrl,[['/bookings',''],['/login','']],1,$guestSignIn,'/login',$wrongPassword)==='/bookings','A wrong password lost the protected page.');
+qaExpect(qaSignInWalk($baseUrl,[['/listings/2',''],['/login','/listings/2']],1,$guestSignIn,'/login',$wrongPassword)==='/listings/2','A wrong password lost the Referer.');
+$registerStay='/register?next='.rawurlencode($chosenStay);
+foreach ([
+    ['Register next',[[$registerStay,'/listings/1']],0,$chosenStay,[]],
+    ['Register refused, next kept',[[$registerStay,'/listings/1']],0,$chosenStay,['full_name'=>'Return audit','email'=>'not-an-email','password'=>'short']],
+    ['Abandoned register next, later plain link',[[$registerStay,'/listings/1'],['/register','/listings/2']],1,'/listings/2',[]],
+    ['Older tab with register next, newer plain tab',[[$registerStay,'/listings/1'],['/register','/listings/2']],0,$chosenStay,[]],
+] as [$walkName,$walkPages,$walkForm,$walkLanding,$walkRefused]) {
+    $walkEmail='audit-'.bin2hex(random_bytes(6)).'@home2home.test';
+    $walked=qaSignInWalk($baseUrl,$walkPages,$walkForm,['full_name'=>'Return audit','email'=>$walkEmail,'password'=>bin2hex(random_bytes(8))],'/register',$walkRefused);
+    qaCall('CALL sp_test_cleanup_user(?)',[(int)(new User())->findByEmail($walkEmail)['id']]);
+    qaExpect($walked===$walkLanding,$walkName.': landed on '.$walked);
+}
+// Reaching the other auth pages and coming back keeps the target, in the links and in the refused forgot form.
+$withStayPage=$request($withStay)['body'];
+$encodedStay=e(rawurlencode($chosenStay));
+qaExpect(str_contains($withStayPage,'/register?next='.$encodedStay) && str_contains($withStayPage,'/forgot-password?next='.$encodedStay),'Login page links lost the chosen stay.');
+$forgotStay=$request('/forgot-password?next='.rawurlencode($chosenStay));
+qaExpect(str_contains($forgotStay['body'],'/login?next='.$encodedStay),'Forgot page link lost the chosen stay.');
+$forgedForgot=$request('/forgot-password?next=//evil.example/x')['body'];
+qaExpect(qaFormNext($forgedForgot)===[] && !str_contains($forgedForgot,'/login?next='),'Forgot page carried a forged next.');
+// Already signed in, in another tab: a valid next goes there, anything else home as before. The validation of next is the same.
+$signedIn=curl_init(); curl_setopt_array($signedIn,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_COOKIEFILE=>'',CURLOPT_TIMEOUT=>15,CURLOPT_URL=>$baseUrl.'/login']);
+qaExpect(qaPostForm($signedIn,$baseUrl.'/login',(string)curl_exec($signedIn),$guestSignIn)===$baseUrl.'/','Signed-in fixture failed.');
+foreach ([
+    [$withStay,$chosenStay],[$registerStay,$chosenStay],['/login',''],['/register',''],['/login?next=//evil.example/x',''],['/login?next=https://evil.example/x',''],['/register?next=/%5Cevil.example',''],
+    ['/login?next=/%0d%0aX:1',''],['/login?next=/login',''],['/login?next=/register',''],['/register?next=/reset-password',''],['/login?next=/admin',''],['/register?next=/host/listings/1/edit',''],['/login?next=/foo:80',''],['/login?next%5B%5D=/bookings',''],
+] as [$signedInPath,$signedInLanding]) {
+    curl_setopt_array($signedIn,[CURLOPT_URL=>$baseUrl.$signedInPath,CURLOPT_HTTPGET=>true]); curl_exec($signedIn);
+    qaExpect((int)curl_getinfo($signedIn,CURLINFO_RESPONSE_CODE)===302 && (string)curl_getinfo($signedIn,CURLINFO_REDIRECT_URL)===$baseUrl.($signedInLanding===''?'/':$signedInLanding),'Signed-in visitor wrong for '.$signedInPath);
+}
+curl_close($signedIn);
+echo "PASS HTTP sign-in explicit next: abandoned next steers nothing, each tab keeps its own, refused login and register keep it, signed-in visitor follows a valid next\n";
 $deletedUsers=new User(); $deletedEmail='audit-'.bin2hex(random_bytes(6)).'@home2home.test'; $deletedPassword=bin2hex(random_bytes(8));
 $deletedId=$deletedUsers->create($deletedEmail,$deletedPassword,'Deleted audit',null); $deletedUsers->softDelete($deletedId);
 $refused=$request('/register',['_token'=>$token($request('/register')),'full_name'=>'Second owner','email'=>$deletedEmail,'password'=>$deletedPassword]);
