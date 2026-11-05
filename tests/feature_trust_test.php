@@ -292,6 +292,29 @@ try {
     trustExpect(display_trust_rating(['average_rating' => 3.24, 'average_rating_floor' => 3.24, 'rating_met' => 0, 'min_rating' => 4.5]) === '3,2' && display_trust_rating(['average_rating' => 4.96, 'average_rating_floor' => 4.96, 'rating_met' => 1, 'min_rating' => 4.5]) === '5,0', 'An average far from the minimum changed format.');
     echo "PASS trust rating near the minimum: the rule stays exact and the panel never reads 4,5 against a 4,5 minimum as unmet\n";
 
+    // 21 Host refusals in 209 decided requests is 10.05%, the fewest requests where one decimal reads 10,0: the rule stays exact, and the figure beside it does not round down to the maximum.
+    $nearRateEmail = sprintf($emailFor, 'nearrate');
+    $nearRateHost = $users->adminCreate(['email' => $nearRateEmail, 'password' => $password, 'full_name' => 'Trust Rate Host', 'phone' => ''], ['guest', 'host']);
+    $nearRateListing = $listings->create($nearRateHost, ['title' => 'Audit fixture trust '.$tag.' near rate'] + $listingData);
+    trustCall('CALL sp_test_listing_approve(?)', [$nearRateListing]);
+    for ($i = 0; $i < 21; $i++) {
+        [$checkIn, $checkOut] = trustDates($slot++);
+        $service->hostTransition($service->create($nearRateListing, $otherGuestId, $checkIn, $checkOut, 1), $nearRateHost, 'rejected');
+    }
+    for ($i = 0; $i < 188; $i++) {
+        trustCall('CALL sp_test_trust_completed_booking(?,?,?)', [$nearRateListing, $guestId, 10 + $i]);
+    }
+    $nearRateMetrics = trustBadge($trust, $nearRateHost, $nearRateHost);
+    trustExpect((int) $nearRateMetrics['decided_requests'] === 209 && (int) $nearRateMetrics['host_side_cancellations'] === 21 && abs((float) $nearRateMetrics['cancel_pct'] - 10.0) < 0.01 && (int) $nearRateMetrics['cancel_met'] === 0, 'A rate of 10.05% met the 10% maximum.');
+    trustExpect(display_trust_cancel($nearRateMetrics) === '10,05', 'A rate just over the maximum still rounds down to it.');
+    trustExpect(trustBadge($trust, $nearRateHost, null)['cancel_met'] === null && trustBadge($trust, $nearRateHost, null)['cancel_pct_ceil'] === null && trustBadge($trust, $nearRateHost, $otherHostId)['cancel_pct_ceil'] === null, 'The cancellation figures reached someone other than the Host or an Admin.');
+    trustExpect(trustBadge($trust, $nearRateHost, $adminId)['cancel_pct_ceil'] !== null, 'The Admin lost the cancellation figure.');
+    // Two decimals rounded to the nearest would read 10,00 at 10.004, so they round up; everywhere else one decimal is enough.
+    trustExpect(display_trust_cancel(['cancel_pct' => 10.0, 'cancel_pct_ceil' => 10.01, 'cancel_met' => 0, 'max_cancel_pct' => 10.0]) === '10,01', 'A two-decimal rate just over the maximum reads as the maximum.');
+    trustExpect(display_trust_cancel(['cancel_pct' => 10.0, 'cancel_pct_ceil' => 10.0, 'cancel_met' => 1, 'max_cancel_pct' => 10.0]) === '10,0', 'A rate at the maximum changed format.');
+    trustExpect(display_trust_cancel(['cancel_pct' => 33.3, 'cancel_pct_ceil' => 33.34, 'cancel_met' => 0, 'max_cancel_pct' => 10.0]) === '33,3' && display_trust_cancel(['cancel_pct' => 9.1, 'cancel_pct_ceil' => 9.1, 'cancel_met' => 1, 'max_cancel_pct' => 10.0]) === '9,1', 'A rate far from the maximum changed format.');
+    echo "PASS trust rate near the maximum: the rule stays exact and the panel never reads 10,0 against a 10 maximum as met\n";
+
     // Closing a request whose check-in has passed is not a refusal: Accept is already impossible and Reject is the only tidy-up the site offers.
     $rateHost = $users->adminCreate(['email' => sprintf($emailFor, 'rate'), 'password' => $password, 'full_name' => 'Trust Rate Host', 'phone' => ''], ['guest', 'host']);
     $rateListing = $listings->create($rateHost, ['title' => 'Audit fixture trust '.$tag.' rate'] + $listingData);
@@ -535,6 +558,13 @@ try {
         $nearPanel = trustHttp(trustLogin($baseUrl, $nearEmail, $password), $baseUrl, '/host')['body'];
         trustExpect(str_contains($nearPanel, '4,45★ / cần ≥ 4,5★ · Chưa đạt'), 'The trust panel contradicts itself just under the minimum.');
         trustExpect(str_contains(trustHttp($adminClient, $baseUrl, '/admin?q='.rawurlencode($nearEmail))['body'], '11/3 đánh giá · 4,45★'), 'The Admin row rounds an unmet rating up to the minimum.');
+        $nearRateClient = trustLogin($baseUrl, $nearRateEmail, $password);
+        $nearRatePanel = trustHttp($nearRateClient, $baseUrl, '/host')['body'];
+        trustExpect(str_contains($nearRatePanel, '10,05 % (21/209 yêu cầu) / cần ≤ 10 % · Chưa đạt') && str_contains($nearRatePanel, 'is-unmet"><span><span aria-hidden="true">✗</span> Tỷ lệ Host từ chối/hủy'), 'The trust panel contradicts itself just over the maximum.');
+        trustExpect(str_contains(trustHttp($adminClient, $baseUrl, '/admin?q='.rawurlencode($nearRateEmail))['body'], 'từ chối/hủy 10,05%'), 'The Admin row rounds an unmet rate down to the maximum.');
+        // One more decided request makes it exactly 10%, which the rule allows, in the usual one decimal.
+        trustCall('CALL sp_test_trust_completed_booking(?,?,?)', [$nearRateListing, $guestId, 10]);
+        trustExpect((int) trustBadge($trust, $nearRateHost, $nearRateHost)['cancel_met'] === 1 && str_contains(trustHttp($nearRateClient, $baseUrl, '/host')['body'], '10,0 % (21/210 yêu cầu) / cần ≤ 10 % · Đạt'), 'Exactly 10% no longer reads as met.');
         $hostDashboard = trustHttp($hostClient, $baseUrl, '/host');
         trustExpect(str_contains($hostDashboard['body'], 'Huy hiệu Host uy tín') && str_contains($hostDashboard['body'], '3/3 đánh giá') && str_contains($hostDashboard['body'], '/checkin-guide'), 'Host dashboard lacks trust progress or the guide link.');
         $editor = trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/checkin-guide');

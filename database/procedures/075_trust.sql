@@ -151,6 +151,9 @@ BEGIN
         CASE WHEN m.user_id=p_actor OR v_admin THEN m.decided_requests END decided_requests,
         CASE WHEN m.user_id=p_actor OR v_admin THEN m.host_side_cancellations END host_side_cancellations,
         CASE WHEN m.user_id=p_actor OR v_admin THEN ROUND(100*m.host_side_cancellations/NULLIF(m.decided_requests,0),1) END cancel_pct,
+        -- ROUND can reach the maximum from above, so the page reads these two to judge and show a rate; whole-number arithmetic keeps the round-up exact.
+        CASE WHEN m.user_id=p_actor OR v_admin THEN m.host_side_cancellations*100<=v_max_cancel_pct*m.decided_requests END cancel_met,
+        CASE WHEN m.user_id=p_actor OR v_admin THEN ((10000*m.host_side_cancellations+m.decided_requests-1) DIV NULLIF(m.decided_requests,0))/100 END cancel_pct_ceil,
         v_min_reviews min_reviews,v_min_rating min_rating,v_max_cancel_pct max_cancel_pct,v_min_decided min_decided_requests,v_window_months window_months
     FROM (
         SELECT u.id user_id,

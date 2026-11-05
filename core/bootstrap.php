@@ -151,6 +151,15 @@ function display_trust_rating(array $metrics): string
         : display_decimal($average);
 }
 
+/** A Host's refusal rate beside the Trusted Host maximum: just over it, one decimal would round down to the maximum itself, so show two decimals rounded up. */
+function display_trust_cancel(array $metrics): string
+{
+    $rate = (float) $metrics['cancel_pct'];
+    return empty($metrics['cancel_met']) && $rate <= (float) $metrics['max_cancel_pct']
+        ? display_decimal((float) $metrics['cancel_pct_ceil'], 2)
+        : display_decimal($rate);
+}
+
 /** Resolve database image paths under the configured app base, preserving remote URLs. */
 function image_url(?string $path): string
 {

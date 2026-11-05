@@ -6,5 +6,5 @@ $hostTrust = ($trustBadges ?? [])[(int)$user['id']] ?? null;
     'reviews' => (int)$hostTrust['review_count'],
     'min' => (int)$hostTrust['min_reviews'],
     'rating' => (int)$hostTrust['review_count'] > 0 ? display_trust_rating($hostTrust).'★' : __('chưa có điểm'),
-    'cancel' => $hostTrust['cancel_pct'] !== null ? display_decimal((float)$hostTrust['cancel_pct']).'%' : __('chưa áp dụng'),
+    'cancel' => $hostTrust['cancel_pct'] !== null ? display_trust_cancel($hostTrust).'%' : __('chưa áp dụng'),
 ])) ?></small><?php endif; ?>
