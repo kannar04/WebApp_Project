@@ -84,6 +84,8 @@ final class PaymentController extends Controller
         }
         if ($result['result'] === 'invalid_amount') {
             Session::flash('error', 'Số tiền VNPay trả về không khớp với giao dịch.');
+        } elseif ((int) ($result['duplicate_payment'] ?? 0) === 1) {
+            Session::flash('error', 'Booking #'.$bookingId.' đã được thanh toán trước đó nên khoản VNPay vừa rồi là thanh toán trùng. Admin sẽ hoàn lại khoản này cho bạn.');
         } elseif ($result['transaction_status'] === 'succeeded') {
             Session::flash('success', 'Thanh toán VNPay thành công cho booking #'.$bookingId.'.');
         } else {
@@ -144,7 +146,7 @@ final class PaymentController extends Controller
         Csrf::ensure(); $admin = $this->requireRole('admin');
         $decision = ($_POST['decision'] ?? '') === 'reject' ? 'reject' : 'confirm';
         $note = is_string($_POST['note'] ?? null) ? mb_substr(trim($_POST['note']), 0, 501) : '';
-        $returnTo = ($_POST['return_to'] ?? '') === 'detail' && ctype_digit((string) ($_POST['booking_id'] ?? '')) ? '/bookings/'.(int) $_POST['booking_id'] : '/admin/payments';
+        $returnTo = self::adminReturnPath();
         try {
             if (mb_strlen($note) > 500) { throw new \DomainException('Ghi chú tối đa 500 ký tự.'); }
             (new Payment())->decideTransfer((int) $id, (int) $admin['id'], $decision, $note);
@@ -153,6 +155,26 @@ final class PaymentController extends Controller
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }
         $this->redirect($returnTo);
+    }
+
+    public function adminResolveDuplicate(string $id): never
+    {
+        Csrf::ensure(); $admin = $this->requireRole('admin');
+        $note = is_string($_POST['note'] ?? null) ? mb_substr(trim($_POST['note']), 0, 501) : '';
+        $returnTo = self::adminReturnPath();
+        try {
+            if ($note === '' || mb_strlen($note) > 500) { throw new \DomainException('Vui lòng ghi chú lý do hoàn tiền (tối đa 500 ký tự).'); }
+            (new Payment())->resolveDuplicate((int) $id, (int) $admin['id'], $note);
+            Session::flash('success', 'Đã ghi nhận hoàn khoản thanh toán trùng. Booking vẫn ở trạng thái đã thanh toán.');
+        } catch (\Throwable $exception) {
+            Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
+        }
+        $this->redirect($returnTo);
+    }
+
+    private static function adminReturnPath(): string
+    {
+        return ($_POST['return_to'] ?? '') === 'detail' && ctype_digit((string) ($_POST['booking_id'] ?? '')) ? '/bookings/'.(int) $_POST['booking_id'] : '/admin/payments';
     }
 
     /** Shared by the return URL and the IPN: plain strings only, amount converted back from VNPay's ×100. */

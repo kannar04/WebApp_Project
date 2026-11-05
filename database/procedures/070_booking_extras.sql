@@ -502,9 +502,12 @@ BEGIN
             COALESCE(pay.method,'pay_at_checkin') payment_method,COALESCE(pay.amount_due,b.total_amount) amount_due,COALESCE(pay.status,'unpaid') payment_status,
             CASE WHEN COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('rejected','cancelled') THEN 'not_required' ELSE COALESCE(pay.status,'unpaid') END payment_state,
             (COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('confirmed','completed') AND b.check_in<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) can_mark_paid,
-            pay.paid_at,pay.refunded_at,pay.note payment_note,COALESCE(bp.promotion_code,'') promotion_code
+            pay.paid_at,pay.refunded_at,pay.note payment_note,COALESCE(bp.promotion_code,'') promotion_code,
+            dup.id duplicate_id,dup.reference duplicate_reference,dup.amount duplicate_amount
         FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id JOIN users h ON h.id=l.host_id
             LEFT JOIN booking_payments pay ON pay.booking_id=b.id LEFT JOIN booking_price_breakdowns bp ON bp.booking_id=b.id
+            LEFT JOIN payment_transactions dup ON dup.id=(SELECT MAX(d.id) FROM payment_transactions d
+                WHERE d.booking_id=b.id AND d.provider='vnpay' AND d.status='succeeded' AND d.note IS NOT NULL)
     ) x
     WHERE (p_status='' OR x.payment_state=p_status)
         AND (p_query='' OR CAST(x.booking_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci=p_query OR x.title LIKE CONCAT('%',p_query,'%')

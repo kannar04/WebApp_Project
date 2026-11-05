@@ -240,10 +240,13 @@ return [
     'Giao dịch chuyển khoản này đã được xử lý.' => 'This bank transfer has already been handled.',
     'Booking này đã được ghi nhận thanh toán; hãy từ chối giao dịch trùng và hoàn tiền cho khách.' => 'A payment is already recorded for this booking; reject the duplicate transfer and refund the guest.',
     'Booking đã được thanh toán bằng giao dịch khác.' => 'The booking was paid by another transaction.',
+    'Khách đã chọn chuyển khoản nên giao dịch VNPay này đã đóng.' => 'The guest chose a bank transfer, so this VNPay transaction was closed.',
+    'Giao dịch này không phải thanh toán trùng đang chờ xử lý.' => 'This transaction is not an open duplicate payment.',
     'Thanh toán trùng: booking đã được thanh toán trước đó, cần hoàn tiền cho khách.' => 'Duplicate payment: the booking was already paid, so the guest needs a refund.',
     // Notification titles
     'Khách báo đã chuyển khoản' => 'Guest reported a bank transfer',
     'Chưa xác nhận được chuyển khoản' => 'Bank transfer not confirmed',
     'Cần hoàn tiền' => 'Refund needed',
     'Thanh toán trùng' => 'Duplicate payment',
+    'Đã hoàn khoản thanh toán trùng' => 'Duplicate payment refunded',
 ];

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__).'/core/bootstrap.php';
 
+use App\Models\BookingExtras;
 use App\Models\Listing;
 use App\Models\Payment;
 use App\Models\User;
@@ -247,6 +248,55 @@ try {
     payExpect((float)payInspect($bookingH)['amount_due']===220001.0,'Confirming a decimal transfer did not record whole dong.');
     echo "PASS whole dong: decimal bookings pay one rounded figure on VietQR and VNPay, correct amount never invalid, different amount still invalid, refund whole dong\n";
 
+    // ---- VietQR plus VNPay on one booking: only one counts, a late second payment is reported and closed alone.
+    $bookingI=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,39);
+    $lateVnpay=$payments->start($bookingI,$guestId,'vnpay');
+    $lateQr=$payments->start($bookingI,$guestId,'vietqr');
+    $lateVnpayId=(int)$lateVnpay['transaction_id']; $lateQrId=(int)$lateQr['transaction_id'];
+    $payments->submitTransfer($lateQrId,$guestId);
+    payExpect(payAttempt($lateVnpayId)['status']==='cancelled' && payInspect($bookingI)['attempt_states']==='vnpay:cancelled,vietqr:submitted','Reporting a transfer left the VNPay attempt open.');
+    $payments->decideTransfer($lateQrId,$adminId,'confirm','');
+    $result=$payments->vnpayResult($lateVnpay['reference'],'220000.00','00','00','14000012','NCB');
+    $state=payInspect($bookingI);
+    payExpect($result['result']==='ok' && (int)$result['duplicate_payment']===1 && $state['payment_status']==='paid' && $state['payment_method']==='vietqr' && (int)$state['payment_events']===1
+        && (int)$state['paid_notices']===1 && (int)$state['guest_duplicate_notices']===1 && (int)$state['admin_duplicate_notices']>=1,'Second payment was not reported as a duplicate: '.json_encode($state));
+    $result=$payments->vnpayResult($lateVnpay['reference'],'220000.00','00','00','14000012','NCB');
+    payExpect($result['result']==='already' && (int)$result['duplicate_payment']===1 && (int)payInspect($bookingI)['guest_duplicate_notices']===1,'Repeating a duplicate result lost the flag or notified twice.');
+    $listed=(new BookingExtras())->adminPayments($adminId,'',(string)$bookingI);
+    payExpect(count($listed)===1 && (int)$listed[0]['duplicate_id']===$lateVnpayId && $listed[0]['payment_state']==='paid','Admin payments list does not show the open duplicate.');
+    $attemptRows=$payments->bookingAttempts($bookingI,$adminId);
+    payExpect((int)$attemptRows[0]['transaction_id']===$lateQrId && (int)$attemptRows[0]['is_open_duplicate']===0 && (int)$attemptRows[1]['is_open_duplicate']===1,'Booking attempts do not mark the open duplicate.');
+    payRejects([$payments,'resolveDuplicate'],[$lateVnpayId,$guestId,'Đã hoàn'],'quyền quản trị','Guest closed a duplicate');
+    payRejects([$payments,'resolveDuplicate'],[$lateVnpayId,$hostId,'Đã hoàn'],'quyền quản trị','Host closed a duplicate');
+    payRejects([$payments,'resolveDuplicate'],[$lateVnpayId,$adminId,'   '],'ghi chú','Closing a duplicate without a note accepted');
+    payRejects([$payments,'resolveDuplicate'],[$lateQrId,$adminId,'Đã hoàn'],'không phải thanh toán trùng','The payment that counts was closed as a duplicate');
+    payRejects([$payments,'resolveDuplicate'],[(int)$v2['transaction_id'],$adminId,'Đã hoàn'],'không phải thanh toán trùng','A first VNPay success was closed as a duplicate');
+    $payments->resolveDuplicate($lateVnpayId,$adminId,'Đã hoàn qua ngân hàng');
+    $stored=payAttempt($lateVnpayId); $state=payInspect($bookingI);
+    payExpect($stored['status']==='cancelled' && (int)$stored['decided_by']===$adminId && $stored['note']==='Đã hoàn khoản thanh toán trùng: Đã hoàn qua ngân hàng' && $state['payment_status']==='paid'
+        && (int)$state['payment_events']===1 && (int)$state['guest_duplicate_refunded_notices']===1 && (int)$state['duplicate_audits']===1,'Closing the duplicate changed more than that transaction: '.json_encode($state));
+    payExpect((new BookingExtras())->adminPayments($adminId,'',(string)$bookingI)[0]['duplicate_id']===null,'A closed duplicate is still listed as open.');
+    payRejects([$payments,'resolveDuplicate'],[$lateVnpayId,$adminId,'Đã hoàn'],'không phải thanh toán trùng','A duplicate was closed twice');
+    payExpect($payments->vnpayResult($lateVnpay['reference'],'220000.00','00','00','14000012','NCB')['result']==='already' && payAttempt($lateVnpayId)['status']==='cancelled','Replaying the result reopened a closed duplicate.');
+    // VNPay lands first while the transfer waits: the Admin cannot confirm a second success, and closing the transfer leaves the booking paid.
+    $bookingJ=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,42);
+    $firstVnpay=$payments->start($bookingJ,$guestId,'vnpay');
+    $waitingQr=$payments->start($bookingJ,$guestId,'vietqr');
+    $waitingQrId=(int)$waitingQr['transaction_id'];
+    $payments->submitTransfer($waitingQrId,$guestId);
+    $result=$payments->vnpayResult($firstVnpay['reference'],'220000.00','00','00','14000013','NCB');
+    payExpect($result['transaction_status']==='succeeded' && (int)$result['duplicate_payment']===0 && payInspect($bookingJ)['payment_status']==='paid','A first payment was reported as a duplicate.');
+    payRejects([$payments,'decideTransfer'],[$waitingQrId,$adminId,'confirm',''],'đã được ghi nhận thanh toán','Admin confirmed a second success');
+    $state=payInspect($bookingJ);
+    payExpect(payAttempt($waitingQrId)['status']==='submitted' && (int)$state['payment_events']===1 && $state['payment_method']==='vnpay','A refused confirmation changed the booking.');
+    $queued=[];
+    foreach ($payments->adminTransfers($adminId) as $row) { if ((int)$row['transaction_id']===$waitingQrId) { $queued=$row; } }
+    payExpect(($queued['payment_status']??'')==='paid','Admin queue does not show the booking is already paid.');
+    $payments->decideTransfer($waitingQrId,$adminId,'reject','Booking đã thanh toán qua VNPay');
+    $state=payInspect($bookingJ);
+    payExpect(payAttempt($waitingQrId)['status']==='failed' && $state['payment_status']==='paid' && (int)$state['payment_events']===1,'Closing the duplicate transfer changed the booking: '.json_encode($state));
+    echo "PASS duplicate payments: transfer report closes VNPay, late payment flagged to Guest and Admin, Admin confirm refused, Admin closes only that transaction, replay cannot reopen\n";
+
     // ---- Signing and QR links (pure PHP).
     $gateway=VnpayGateway::enabled($paymentConfig) ? $paymentConfig
         : ['vnpay_tmn_code'=>'H2HTEST1','vnpay_hash_secret'=>bin2hex(random_bytes(16)),'vnpay_pay_url'=>'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'];
@@ -342,6 +392,39 @@ try {
         payExpect((json_decode(payHttp($anonymous,$baseUrl,'/payments/vnpay/ipn?'.http_build_query($unknown))['body'],true)['RspCode']??'')==='01','Unknown IPN reference did not answer 01.');
         $wrongAmount=payVnpayResult($vnpay,$paymentConfig['vnpay_tmn_code'],$paymentConfig['vnpay_hash_secret'],'00','1','15000003');
         payExpect((json_decode(payHttp($anonymous,$baseUrl,'/payments/vnpay/ipn?'.http_build_query($wrongAmount))['body'],true)['RspCode']??'')==='04','Wrong IPN amount did not answer 04.');
+        // A second payment: distinct Guest message, Admin form on the list and the booking page, CSRF and role guards.
+        $bookingK=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,45);
+        $kVnpay=$payments->start($bookingK,$guestId,'vnpay');
+        $kQr=$payments->start($bookingK,$guestId,'vietqr');
+        $payments->submitTransfer((int)$kQr['transaction_id'],$guestId);
+        $payments->decideTransfer((int)$kQr['transaction_id'],$adminId,'confirm','');
+        $signedK=payVnpayResult($kVnpay,$paymentConfig['vnpay_tmn_code'],$paymentConfig['vnpay_hash_secret'],'00','220000','15000010');
+        $response=payHttp($guestClient,$baseUrl,'/payments/vnpay/return?'.http_build_query($signedK));
+        payExpect($response['status']===302 && $response['location']==='/bookings/'.$bookingK,'Duplicate VNPay return did not open the booking.');
+        $detail=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingK)['body'];
+        payExpect(str_contains($detail,'thanh toán trùng') && str_contains($detail,'Admin sẽ hoàn lại') && !str_contains($detail,'Thanh toán VNPay thành công'),'Guest got a plain success for a duplicate payment.');
+        $ipn=json_decode(payHttp($anonymous,$baseUrl,'/payments/vnpay/ipn?'.http_build_query($signedK))['body'],true);
+        payExpect(($ipn['RspCode']??'')==='02','Repeating a duplicate over IPN did not answer 02.');
+        $duplicatePath='/admin/payments/duplicates/'.(int)$kVnpay['transaction_id'];
+        payExpect(str_contains(payHttp($adminClient,$baseUrl,'/admin/payments?q='.$bookingK)['body'],$duplicatePath) && str_contains(payHttp($adminClient,$baseUrl,'/bookings/'.$bookingK)['body'],$duplicatePath),'Admin cannot reach the duplicate form.');
+        payExpect(!str_contains($detail,$duplicatePath),'Guest was shown the Admin duplicate form.');
+        payExpect(payHttp($guestClient,$baseUrl,$duplicatePath,['_token'=>$guestToken,'note'=>'Tự hoàn'])['status']===403,'Guest posted the Admin duplicate action.');
+        payHttp($adminClient,$baseUrl,$duplicatePath,['note'=>'Thiếu mã CSRF']);
+        payExpect(payAttempt((int)$kVnpay['transaction_id'])['status']==='succeeded','Duplicate action without CSRF token was accepted.');
+        $response=payHttp($adminClient,$baseUrl,$duplicatePath,['_token'=>$adminToken,'note'=>'Đã hoàn qua ngân hàng','return_to'=>'detail','booking_id'=>(string)$bookingK]);
+        $state=payInspect($bookingK);
+        payExpect($response['status']===302 && $response['location']==='/bookings/'.$bookingK && payAttempt((int)$kVnpay['transaction_id'])['status']==='cancelled' && $state['payment_status']==='paid',
+            'Admin could not close the duplicate over HTTP: '.json_encode($state));
+        // A transfer still open on a paid booking offers closing it, not confirming it.
+        $bookingL=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,48);
+        $lVnpay=$payments->start($bookingL,$guestId,'vnpay');
+        $lQr=$payments->start($bookingL,$guestId,'vietqr');
+        $payments->submitTransfer((int)$lQr['transaction_id'],$guestId);
+        $payments->vnpayResult($lVnpay['reference'],'220000.00','00','00','15000011','NCB');
+        foreach (['/admin/payments','/bookings/'.$bookingL,'/payments/'.(int)$lQr['transaction_id']] as $path) {
+            $page=payHttp($adminClient,$baseUrl,$path)['body'];
+            payExpect(str_contains($page,'Đóng giao dịch trùng') && !preg_match('/transfers\/'.(int)$lQr['transaction_id'].'"(?:(?!<\/form>).)*value="confirm"/s',$page),'Admin was offered a confirmation on a paid booking: '.$path);
+        }
         foreach ([$anonymous,$guestClient,$hostClient,$adminClient] as $client) { curl_close($client); }
         echo "PASS online payment HTTP: Guest-only pages, CSRF, QR page with account and reference, report, Admin queue/403/confirm, VNPay redirect signature, forged return/IPN 97, valid return, IPN 02/01/04\n";
     }

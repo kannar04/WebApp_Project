@@ -67,6 +67,7 @@ $router->get('/payments/vnpay/ipn',[\App\Controllers\PaymentController::class,'v
 $router->get('/payments/{id}',[\App\Controllers\PaymentController::class,'transfer']);
 $router->post('/payments/{id}/transferred',[\App\Controllers\PaymentController::class,'submitTransfer']);
 $router->post('/admin/payments/transfers/{id}',[\App\Controllers\PaymentController::class,'adminDecideTransfer']);
+$router->post('/admin/payments/duplicates/{id}',[\App\Controllers\PaymentController::class,'adminResolveDuplicate']);
 
 // Nice-to-have trust: identity verification, trusted Host badge, check-in guide
 $router->post('/profile/verification',[\App\Controllers\TrustController::class,'submitVerification']);

@@ -125,6 +125,9 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giao dịch này đã đóng; vui lòng tải lại trang thanh toán.';
     END IF;
     UPDATE payment_transactions SET status='submitted',submitted_at=NOW(6),updated_at=NOW(6) WHERE id=p_transaction;
+    -- The Guest chose this transfer: an abandoned VNPay tab must not stay open as a second way to pay.
+    UPDATE payment_transactions SET status='cancelled',decided_at=NOW(6),note='Khách đã chọn chuyển khoản nên giao dịch VNPay này đã đóng.',updated_at=NOW(6)
+        WHERE booking_id=v_booking AND provider='vnpay' AND status='pending';
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
         SELECT r.user_id,v_booking,'in_app','payment_transfer_submitted','Khách báo đã chuyển khoản',
             CONCAT('Booking #',v_booking,': khách báo đã chuyển ',REPLACE(FORMAT(v_amount,0),',','.'),'đ với nội dung ',v_reference,'. Vui lòng kiểm tra tài khoản và xác nhận.'),
@@ -208,6 +211,53 @@ BEGIN
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_transfer_decide; END IF;
 END$$
 
+-- Admin records that one duplicate VNPay payment went back to the Guest. Only that transaction closes: the booking stays paid.
+CREATE OR REPLACE PROCEDURE sp_admin_payment_duplicate_resolve(IN p_transaction BIGINT UNSIGNED, IN p_admin BIGINT UNSIGNED,
+    IN p_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
+BEGIN
+    DECLARE v_own BOOL DEFAULT FALSE;
+    DECLARE v_booking BIGINT UNSIGNED;
+    DECLARE v_listing BIGINT UNSIGNED;
+    DECLARE v_lock BIGINT UNSIGNED;
+    DECLARE v_guest BIGINT UNSIGNED;
+    DECLARE v_provider VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_status VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_reference VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_amount DECIMAL(12,2);
+    DECLARE v_stored_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF @@in_transaction THEN
+            IF v_own THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT h2h_duplicate_resolve; RELEASE SAVEPOINT h2h_duplicate_resolve; END IF;
+        END IF;
+        RESIGNAL;
+    END;
+    SET v_own=(@@in_transaction=0);
+    IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_duplicate_resolve; END IF;
+    CALL sp_admin_assert_role(p_admin);
+    SET v_note=NULLIF(TRIM(COALESCE(p_note,'')),'');
+    IF v_note IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Vui lòng ghi chú lý do hoàn tiền.'; END IF;
+    SELECT booking_id INTO v_booking FROM payment_transactions WHERE id=p_transaction;
+    SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
+    SELECT id INTO v_lock FROM listings WHERE id=v_listing FOR UPDATE;
+    SELECT guest_id INTO v_guest FROM bookings WHERE id=v_booking FOR UPDATE;
+    SELECT provider,status,reference,ROUND(amount,0),note INTO v_provider,v_status,v_reference,v_amount,v_stored_note FROM payment_transactions WHERE id=p_transaction FOR UPDATE;
+    -- A first VNPay success stores no note; only the duplicate branch of sp_payment_vnpay_result leaves succeeded + note.
+    IF v_guest IS NULL OR v_provider<>'vnpay' OR v_status<>'succeeded' OR v_stored_note IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giao dịch này không phải thanh toán trùng đang chờ xử lý.';
+    END IF;
+    UPDATE payment_transactions SET status='cancelled',decided_by=p_admin,decided_at=NOW(6),
+        note=LEFT(CONCAT('Đã hoàn khoản thanh toán trùng: ',v_note),500),updated_at=NOW(6) WHERE id=p_transaction;
+    INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+        VALUES(v_guest,v_booking,'in_app','payment_duplicate_refunded','Đã hoàn khoản thanh toán trùng',
+        CONCAT('Khoản VNPay ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,') của booking #',v_booking,' đã được hoàn lại. Booking vẫn được giữ là đã thanh toán.'),'sent',1,NOW(6));
+    INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
+        VALUES(p_admin,'resolve_duplicate_payment','booking',v_booking,JSON_OBJECT('transaction_id',p_transaction,'reference',v_reference,'amount',v_amount,'note',v_note),NOW(6));
+    SELECT 1 __affected,p_transaction __insert_id;
+    IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_duplicate_resolve; END IF;
+END$$
+
 -- Records a VNPay result whose signature PHP has already verified (return URL and IPN share it; safe to repeat).
 -- result: ok | not_found | invalid_amount | already — the IPN answers VNPay with 00 / 01 / 04 / 02.
 CREATE OR REPLACE PROCEDURE sp_payment_vnpay_result(IN p_reference VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
@@ -226,6 +276,7 @@ BEGIN
     DECLARE v_payment VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_status VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_amount DECIMAL(12,2);
+    DECLARE v_decided BIGINT UNSIGNED;
     DECLARE v_result VARCHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'ok';
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -245,10 +296,11 @@ BEGIN
         SELECT guest_id,status INTO v_guest,v_booking_status FROM bookings WHERE id=v_booking FOR UPDATE;
         SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
         -- VNPay was asked for the whole-dong amount, even if this attempt was stored with a decimal before amounts were rounded.
-        SELECT status,ROUND(amount,0) INTO v_status,v_amount FROM payment_transactions WHERE id=v_attempt FOR UPDATE;
+        SELECT status,ROUND(amount,0),decided_by INTO v_status,v_amount,v_decided FROM payment_transactions WHERE id=v_attempt FOR UPDATE;
         IF p_amount IS NULL OR p_amount<>v_amount THEN
             SET v_result='invalid_amount';
-        ELSEIF v_status NOT IN ('pending','cancelled') THEN
+        ELSEIF v_status NOT IN ('pending','cancelled') OR v_decided IS NOT NULL THEN
+            -- decided_by is only set on a VNPay attempt when an Admin closed it as a refunded duplicate.
             SET v_result='already';
         ELSEIF p_response_code='00' AND p_transaction_status='00' THEN
             IF COALESCE(v_payment,'unpaid')='unpaid' THEN
@@ -286,6 +338,9 @@ BEGIN
                         CONCAT('Booking #',v_booking,' nhận thêm ',REPLACE(FORMAT(v_amount,0),',','.'),'đ qua VNPay (mã ',p_reference,') sau khi đã thanh toán. Vui lòng hoàn tiền cho khách.'),
                         'sent',1,NOW(6)
                     FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='admin' AND u.status='active' AND u.deleted_at IS NULL;
+                INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+                    VALUES(v_guest,v_booking,'in_app','payment_duplicate','Thanh toán trùng',
+                    CONCAT('Booking #',v_booking,' đã được thanh toán trước đó nên khoản VNPay ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',p_reference,') là thanh toán trùng. Admin sẽ hoàn lại khoản này cho bạn.'),'sent',1,NOW(6));
             END IF;
         ELSE
             UPDATE payment_transactions SET status='failed',gateway_transaction_no=NULLIF(p_transaction_no,''),gateway_response_code=p_response_code,
@@ -293,7 +348,9 @@ BEGIN
         END IF;
     END IF;
     SELECT v_result result,v_booking booking_id,(SELECT status FROM payment_transactions WHERE id=v_attempt) transaction_status,
-        (SELECT gateway_response_code FROM payment_transactions WHERE id=v_attempt) response_code;
+        (SELECT gateway_response_code FROM payment_transactions WHERE id=v_attempt) response_code,
+        -- Also true when the IPN recorded the duplicate first and the return URL only repeats it. A first success stores no note.
+        (SELECT gateway_response_code='00' AND note IS NOT NULL FROM payment_transactions WHERE id=v_attempt) duplicate_payment;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_vnpay_result; END IF;
 END$$
 
@@ -302,7 +359,8 @@ CREATE OR REPLACE PROCEDURE sp_payment_booking_transactions(IN p_booking BIGINT 
 BEGIN
     CALL sp_quality_assert_booking(p_booking,p_actor);
     SELECT t.id transaction_id,t.provider,t.reference,t.amount,t.status,t.gateway_transaction_no,t.gateway_response_code,t.bank_code,
-        t.submitted_at,t.decided_at,t.note,t.created_at,a.full_name decided_by_name
+        t.submitted_at,t.decided_at,t.note,t.created_at,a.full_name decided_by_name,
+        (t.provider='vnpay' AND t.status='succeeded' AND t.note IS NOT NULL) is_open_duplicate
     FROM payment_transactions t LEFT JOIN users a ON a.id=t.decided_by
     WHERE t.booking_id=p_booking ORDER BY t.id DESC LIMIT 20;
 END$$
