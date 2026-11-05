@@ -97,7 +97,7 @@ final class Trust
             (string) ($data['wifi_name'] ?? ''), (string) ($data['wifi_password'] ?? ''), (string) ($data['note'] ?? '')]);
     }
 
-    /** Null unless the actor is entitled: the booking's Guest, the listing Host or an Admin, and the booking is confirmed/completed. */
+    /** Null unless the actor is entitled: the booking's Guest, the listing Host or an Admin, and the booking is confirmed/completed. Door code and Wi-Fi are null outside their window; codes_state and codes_from say why. */
     public function guideForBooking(int $bookingId, int $actorId): ?array
     {
         $statement = $this->db->prepare('CALL sp_checkin_guide_for_booking(?,?)');

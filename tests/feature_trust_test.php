@@ -4,7 +4,9 @@ declare(strict_types=1);
 // Runs on the owned fresh_setup database or a per-workspace dev database; every fixture row is tagged and removed in finally.
 require dirname(__DIR__).'/core/bootstrap.php';
 
+use App\Models\CheckInReminder;
 use App\Models\Listing;
+use App\Models\Notification;
 use App\Models\Review;
 use App\Models\Trust;
 use App\Models\User;
@@ -46,6 +48,13 @@ function trustBadge(Trust $trust, int $userId, ?int $actorId): array
 function trustIsTrusted(Trust $trust, int $hostId): bool
 {
     return (int) trustBadge($trust, $hostId, $hostId)['is_trusted_host'] === 1;
+}
+
+/** $guide null: the row must carry no door code or Wi-Fi at all. */
+function trustCodesAre(?array $row, string $state, ?array $guide): bool
+{
+    return $row !== null && $row['codes_state'] === $state && $row['door_code'] === ($guide['door_code'] ?? null)
+        && $row['wifi_name'] === ($guide['wifi_name'] ?? null) && $row['wifi_password'] === ($guide['wifi_password'] ?? null);
 }
 
 function trustDates(int $slot): array
@@ -258,13 +267,56 @@ try {
         trustExpect($trust->guideForBooking($stayId, $actor) === null, 'Guide visible on a pending booking.');
     }
     $service->hostTransition($stayId, $hostId, 'confirmed');
-    trustExpect(($trust->guideForBooking($stayId, $guestId)['door_code'] ?? null) === 'K-4821', 'Confirmed Guest cannot read the guide.');
-    trustExpect($trust->guideForBooking($stayId, $hostId) !== null && $trust->guideForBooking($stayId, $adminId) !== null, 'Host/Admin cannot read the confirmed guide.');
+    // Confirmed but far from check-in: the guide text only; the codes wait for their window and the Guest is told when.
+    $earlyGuide = $trust->guideForBooking($stayId, $guestId);
+    trustExpect(($earlyGuide['arrival_instructions'] ?? null) === $guide['arrival_instructions'] && $earlyGuide['note'] === null, 'Confirmed Guest cannot read the guide text.');
+    trustExpect(trustCodesAre($earlyGuide, 'upcoming', null) && $earlyGuide['codes_from'] === (new DateTimeImmutable($checkIn))->modify('-1 day')->format('Y-m-d'), 'Guest got door code or Wi-Fi before the window.');
+    trustExpect(trustCodesAre($trust->guideForBooking($stayId, $adminId), 'upcoming', null), 'Admin got door code or Wi-Fi before the window.');
+    trustExpect(trustCodesAre($trust->guideForBooking($stayId, $hostId), 'open', $guide), 'The listing Host lost the guide they wrote.');
     trustExpect($trust->guideForBooking($stayId, $otherGuestId) === null && $trust->guideForBooking($stayId, $otherHostId) === null, 'Unrelated account read the guide.');
-    trustExpect($trust->guideForBooking($stays[400], $guestId) !== null, 'Completed-stay Guest cannot read the guide.');
+    // The window opens as far ahead as the check-in reminder and closes after the check-out date (fixture stay: 2 nights).
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $windowStay = $service->create($listingId, $guestId, $checkIn, $checkOut, 1);
+    $service->hostTransition($windowStay, $hostId, 'confirmed');
+    $lead = CheckInReminder::DEFAULT_DAYS;
+    foreach ([$lead + 1 => 'upcoming', $lead => 'open', 0 => 'open', -1 => 'open', -2 => 'open', -3 => 'ended'] as $offset => $state) {
+        trustCall('CALL sp_test_trust_move_booking(?,?)', [$windowStay, $offset]);
+        $expected = $state === 'open' ? $guide : null;
+        trustExpect(trustCodesAre($trust->guideForBooking($windowStay, $guestId), $state, $expected), 'Guest window wrong '.$offset.' days from check-in.');
+        trustExpect(trustCodesAre($trust->guideForBooking($windowStay, $adminId), $state, $expected), 'Admin window wrong '.$offset.' days from check-in.');
+        trustExpect(trustCodesAre($trust->guideForBooking($windowStay, $hostId), 'open', $guide), 'Host lost the codes '.$offset.' days from check-in.');
+    }
+    // Completing on the check-out date ends the codes even though the date is still inside the window.
+    trustCall('CALL sp_test_trust_move_booking(?,?)', [$windowStay, -2]);
+    $service->hostTransition($windowStay, $hostId, 'completed');
+    trustExpect(trustCodesAre($trust->guideForBooking($windowStay, $guestId), 'ended', null), 'Completed stay kept door code or Wi-Fi.');
+    trustExpect(trustCodesAre($trust->guideForBooking($stays[400], $guestId), 'ended', null), 'Old completed stay kept door code or Wi-Fi.');
+    trustExpect(trustCodesAre($trust->guideForBooking($stays[400], $hostId), 'open', $guide), 'Host lost the guide on a completed stay.');
+    // Cancelling inside the window takes the guide away, as for the instant-book guest who cancels after reading it.
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $cancelledStay = $service->create($listingId, $guestId, $checkIn, $checkOut, 1);
+    $service->hostTransition($cancelledStay, $hostId, 'confirmed');
+    trustCall('CALL sp_test_trust_move_booking(?,?)', [$cancelledStay, 0]);
+    trustExpect(trustCodesAre($trust->guideForBooking($cancelledStay, $guestId), 'open', $guide), 'Guest cannot read the codes on check-in day.');
+    $service->cancelByGuest($cancelledStay, $guestId, 'Trust test');
+    trustExpect($trust->guideForBooking($cancelledStay, $guestId) === null && $trust->guideForBooking($cancelledStay, $adminId) === null, 'Cancelled booking exposed the guide.');
+    // A guide without codes promises nothing, and no notification ever repeats a code.
+    $otherListingId = $listings->create($hostId, ['title' => 'Audit fixture trust '.$tag.' no codes'] + $listingData);
+    trustCall('CALL sp_test_listing_approve(?)', [$otherListingId]);
+    $trust->saveGuide($otherListingId, $hostId, ['door_code' => '', 'wifi_name' => '', 'wifi_password' => ''] + $guide);
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $noCodesStay = $service->create($otherListingId, $guestId, $checkIn, $checkOut, 1);
+    $service->hostTransition($noCodesStay, $hostId, 'confirmed');
+    trustExpect(($trust->guideForBooking($noCodesStay, $guestId)['codes_state'] ?? null) === 'none', 'Guide without codes promised codes.');
+    (new CheckInReminder())->run($lead, null);
+    foreach ([$guestId, $hostId] as $recipient) {
+        foreach ((new Notification())->forUser($recipient) as $notification) {
+            trustExpect(!str_contains((string) $notification['body'], 'K-4821') && !str_contains((string) $notification['body'], 'pw-'.$tag), 'A notification carried a door code or Wi-Fi password.');
+        }
+    }
     trustExpect($trust->guideForBooking($rejectedBooking, $otherGuestId) === null, 'Rejected booking exposed the guide.');
     trustExpect($trust->guideForBooking(999999999, $guestId) === null, 'Unknown booking returned a guide.');
-    echo "PASS trust check-in guide: owner-only edit/read, validation, upsert/clear, pending hidden from everyone, confirmed/completed Guest+Host+Admin only\n";
+    echo "PASS trust check-in guide: owner-only edit/read, validation, upsert/clear, pending hidden from everyone, confirmed/completed Guest+Host+Admin only, door code and Wi-Fi only inside the stay window (Host always)\n";
 
     $baseUrl = rtrim((string) getenv('HOME2HOME_TEST_URL'), '/');
     if ($baseUrl !== '') {
@@ -283,7 +335,16 @@ try {
         trustExpect(trustHttp($guestClient, $baseUrl, '/admin/verifications')['status'] === 403, 'Guest reached Admin verifications.');
         trustExpect(trustHttp($guestClient, $baseUrl, '/host/listings/'.$listingId.'/checkin-guide')['status'] === 403, 'Guest reached the guide editor.');
         $confirmedPage = trustHttp($guestClient, $baseUrl, '/bookings/'.$stayId);
-        trustExpect($confirmedPage['status'] === 200 && str_contains($confirmedPage['body'], 'K-4821') && str_contains($confirmedPage['body'], 'Hướng dẫn nhận phòng'), 'Confirmed Guest page lacks the guide.');
+        trustExpect($confirmedPage['status'] === 200 && !str_contains($confirmedPage['body'], 'K-4821') && !str_contains($confirmedPage['body'], 'pw-'.$tag) && str_contains($confirmedPage['body'], 'Hướng dẫn nhận phòng') && str_contains($confirmedPage['body'], 'sẽ hiển thị từ ngày'), 'Confirmed Guest page must show the guide and say when the codes appear.');
+        [$checkIn, $checkOut] = trustDates($slot++);
+        $openStay = $service->create($listingId, $guestId, $checkIn, $checkOut, 1);
+        $service->hostTransition($openStay, $hostId, 'confirmed');
+        trustCall('CALL sp_test_trust_move_booking(?,?)', [$openStay, 0]);
+        $openPage = trustHttp($guestClient, $baseUrl, '/bookings/'.$openStay);
+        trustExpect($openPage['status'] === 200 && str_contains($openPage['body'], 'K-4821') && !str_contains($openPage['body'], 'sẽ hiển thị từ ngày'), 'Guest page lacks the codes on check-in day.');
+        $endedPage = trustHttp($guestClient, $baseUrl, '/bookings/'.$windowStay);
+        trustExpect($endedPage['status'] === 200 && !str_contains($endedPage['body'], 'K-4821') && str_contains($endedPage['body'], 'không còn hiển thị'), 'Completed-stay Guest page must not show the codes.');
+        trustExpect(!str_contains(trustHttp($guestClient, $baseUrl, '/notifications')['body'], 'K-4821'), 'Notifications page carried the door code.');
         [$checkIn, $checkOut] = trustDates($slot++);
         $pendingId = $service->create($listingId, $guestId, $checkIn, $checkOut, 1);
         $pendingPage = trustHttp($guestClient, $baseUrl, '/bookings/'.$pendingId);
@@ -314,7 +375,8 @@ try {
         $dashboard = trustHttp($adminClient, $baseUrl, '/admin?'.http_build_query(['q' => 'audit-trust-'.$tag]));
         trustExpect($dashboard['status'] === 200 && str_contains($dashboard['body'], '/admin/verifications') && str_contains($dashboard['body'], 'Host uy tín') && str_contains($dashboard['body'], 'Đã xác minh'), 'Admin user list lacks trust badges.');
         trustExpect(str_contains(trustHttp($adminClient, $baseUrl, '/admin/users/'.$hostId.'/edit')['body'], 'Host uy tín'), 'Admin user edit lacks the Host badge.');
-        trustExpect(str_contains(trustHttp($adminClient, $baseUrl, '/bookings/'.$stayId)['body'], 'K-4821'), 'Admin booking detail lacks the guide.');
+        trustExpect(str_contains(trustHttp($adminClient, $baseUrl, '/bookings/'.$openStay)['body'], 'K-4821'), 'Admin booking detail lacks the codes inside the window.');
+        trustExpect(!str_contains(trustHttp($adminClient, $baseUrl, '/bookings/'.$stayId)['body'], 'K-4821'), 'Admin booking detail leaked the codes before the window.');
 
         $hostClient = trustLogin($baseUrl, sprintf($emailFor, 'host'), $password);
         $hostDashboard = trustHttp($hostClient, $baseUrl, '/host');

@@ -244,7 +244,7 @@ return [
     'Không thể lưu quyết định. Vui lòng thử lại.' => 'Could not save the decision. Please try again.',
     'Không có quyền quản lý chỗ ở.' => 'You do not have permission to manage this listing.',
     'Một số trường không hợp lệ hoặc vượt giới hạn độ dài.' => 'Some fields are invalid or too long.',
-    'Đã lưu hướng dẫn nhận phòng. Khách chỉ thấy sau khi booking được xác nhận.' => 'Check-in guide saved. Guests only see it after their booking is confirmed.',
+    'Đã lưu hướng dẫn nhận phòng. Khách thấy hướng dẫn sau khi booking được xác nhận; mã cửa và Wi-Fi hiển thị từ 1 ngày trước ngày nhận phòng.' => 'Check-in guide saved. Guests see it after their booking is confirmed; the door code and Wi-Fi appear from 1 day before check-in.',
     'Không thể lưu hướng dẫn. Vui lòng thử lại.' => 'Could not save the guide. Please try again.',
 
     // ---- Articles (AdminArticleController); the save message is built from two sentences, so all four results are listed

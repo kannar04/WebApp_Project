@@ -226,13 +226,23 @@ END$$
 CREATE OR REPLACE PROCEDURE sp_checkin_guide_for_booking(IN p_booking BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED)
 BEGIN
     -- No row unless the booking is confirmed/completed and the actor is its Guest, the listing Host or an Admin.
-    SELECT g.arrival_instructions,g.door_code,g.wifi_name,g.wifi_password,g.note,g.updated_at
-    FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN listing_checkin_guides g ON g.listing_id=b.listing_id
-        JOIN users a ON a.id=p_actor
-    WHERE b.id=p_booking AND b.status IN ('confirmed','completed') AND a.status='active' AND a.deleted_at IS NULL
-        AND (b.guest_id=p_actor
-            OR (l.host_id=p_actor AND EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='host'))
-            OR EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='admin'));
+    -- Door code and Wi-Fi come back only while the booking is confirmed, from the day before check-in (the lead time of
+    -- CheckInReminder::DEFAULT_DAYS) through the check-out date, Vietnam time. Only the listing Host, who wrote them, always gets them.
+    DECLARE v_today DATE DEFAULT DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR);
+    SELECT s.arrival_instructions,IF(s.codes_state='open',s.door_code,NULL) door_code,IF(s.codes_state='open',s.wifi_name,NULL) wifi_name,
+        IF(s.codes_state='open',s.wifi_password,NULL) wifi_password,s.note,s.updated_at,s.codes_state,s.codes_from
+    FROM (SELECT g.arrival_instructions,g.door_code,g.wifi_name,g.wifi_password,g.note,g.updated_at,b.check_in-INTERVAL 1 DAY codes_from,
+            CASE WHEN g.door_code IS NULL AND g.wifi_name IS NULL AND g.wifi_password IS NULL THEN 'none'
+                WHEN l.host_id=p_actor AND EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='host') THEN 'open'
+                WHEN b.status<>'confirmed' OR v_today>b.check_out THEN 'ended'
+                WHEN v_today<b.check_in-INTERVAL 1 DAY THEN 'upcoming'
+                ELSE 'open' END codes_state
+        FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN listing_checkin_guides g ON g.listing_id=b.listing_id
+            JOIN users a ON a.id=p_actor
+        WHERE b.id=p_booking AND b.status IN ('confirmed','completed') AND a.status='active' AND a.deleted_at IS NULL
+            AND (b.guest_id=p_actor
+                OR (l.host_id=p_actor AND EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='host'))
+                OR EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='admin'))) s;
 END$$
 
 DELIMITER ;

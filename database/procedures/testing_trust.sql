@@ -45,6 +45,23 @@ BEGIN
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_test_trust_stay; END IF;
 END$$
 
+-- Moves a tagged booking so that it checks in p_offset days from today (Vietnam date), keeping its length.
+CREATE OR REPLACE PROCEDURE sp_test_trust_move_booking(IN p_booking BIGINT UNSIGNED, IN p_offset INT)
+BEGIN
+    DECLARE v_days INT;
+    CALL sp_test_trust_assert_database();
+    IF NOT EXISTS(SELECT 1 FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=p_booking AND l.city='Audit' AND l.title LIKE 'Audit fixture trust %') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to move a non-fixture booking.';
+    END IF;
+    SELECT DATEDIFF(DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)+INTERVAL p_offset DAY,check_in) INTO v_days FROM bookings WHERE id=p_booking;
+    IF v_days>0 THEN
+        UPDATE booking_nights SET stay_date=stay_date+INTERVAL v_days DAY WHERE booking_id=p_booking ORDER BY stay_date DESC;
+    ELSE
+        UPDATE booking_nights SET stay_date=stay_date+INTERVAL v_days DAY WHERE booking_id=p_booking ORDER BY stay_date;
+    END IF;
+    UPDATE bookings SET check_in=check_in+INTERVAL v_days DAY,check_out=check_out+INTERVAL v_days DAY WHERE id=p_booking;
+END$$
+
 CREATE OR REPLACE PROCEDURE sp_test_trust_verification_inspect(IN p_id BIGINT UNSIGNED)
 BEGIN
     CALL sp_test_trust_assert_database();

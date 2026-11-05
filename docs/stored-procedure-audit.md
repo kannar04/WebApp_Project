@@ -279,7 +279,7 @@ Quy ước chung cho mọi routine ghi dữ liệu mới: tự `START TRANSACTIO
 | `sp_trust_badges` | `075` | Huy hiệu “Đã xác minh” và “Host uy tín” (≥3 đánh giá hiển thị, TB ≥4,5, tỷ lệ Host từ chối/hủy ≤10% trong 12 tháng, chỉ xét từ 3 yêu cầu đã quyết định) | Chỉ đọc; số liệu chi tiết chỉ trả cho chính người đó hoặc Admin | feature_trust_test |
 | `sp_trust_review_badges` | `075` | Đánh dấu người viết đánh giá đã xác minh | Chỉ đọc, chỉ đánh giá đang hiển thị | feature_trust_test |
 | `sp_checkin_guide_for_host` / `sp_checkin_guide_save` | `075` | Đọc/lưu hướng dẫn nhận phòng của chỗ ở | Chủ chỗ ở; save `FOR UPDATE` | feature_trust_test |
-| `sp_checkin_guide_for_booking` | `075` | Hướng dẫn hiển thị trên booking | Booking `confirmed`/`completed` và actor là Guest của booking, Host chủ chỗ ở hoặc Admin | feature_trust_test |
+| `sp_checkin_guide_for_booking` | `075` | Hướng dẫn hiển thị trên booking; mã cửa và Wi-Fi chỉ trả về khi booking `confirmed` và hôm nay từ 1 ngày trước nhận phòng đến hết ngày trả phòng (Host chủ chỗ ở luôn thấy) | Booking `confirmed`/`completed` và actor là Guest của booking, Host chủ chỗ ở hoặc Admin | feature_trust_test |
 | `sp_booking_message_assert` / `sp_booking_message_state` | `080_conversation.sql` | Kiểm tra người tham gia (Guest, Host còn vai trò host) và trạng thái được gửi: `pending`/`confirmed` mở; `completed` mở đến 14 ngày sau trả phòng; `rejected`/`cancelled` chỉ xem | Chỉ đọc; SIGNAL nếu không tham gia | feature_conversation_test |
 | `sp_booking_message_send` | `080` | Gửi tin 1–2000 ký tự | Booking `FOR UPDATE`; chống dồn: mỗi người nhận tối đa một thông báo tin nhắn chưa đọc/booking (`FOR UPDATE` trên notifications) | feature_conversation_test |
 | `sp_booking_messages_thread` | `080` | Hội thoại (500 tin gần nhất), đánh dấu đã đọc | Người tham gia; tin bị ẩn trả nội dung NULL | feature_conversation_test |
@@ -298,7 +298,7 @@ Quy ước chung cho mọi routine ghi dữ liệu mới: tự `START TRANSACTIO
 | `sp_admin_article_save` | `090` | Tạo/sửa bài; kiểm tra chuyên mục, tiêu đề 5–200, slug, tóm tắt, nội dung 20–50000; slug tự sinh thêm `-2`, `-3`… | Admin; `FOR UPDATE`; audit `create_article`/`update_article` | feature_content_test |
 | `sp_admin_article_set_status` / `sp_admin_article_delete` | `090` | Xuất bản/ẩn, xóa mềm | Admin; `FOR UPDATE`; audit `publish_article`/`unpublish_article`/`delete_article` | feature_content_test |
 
-Test fixture routines mới (22, chỉ cài bằng `--include-tests` trong DB test riêng): 8 `testing_booking_extras.sql`, 4 `testing_trust.sql`, 4 `testing_conversation.sql`, 4 `testing_discovery.sql`, 2 `testing_content.sql`.
+Test fixture routines mới (23, chỉ cài bằng `--include-tests` trong DB test riêng): 8 `testing_booking_extras.sql`, 5 `testing_trust.sql`, 4 `testing_conversation.sql`, 4 `testing_discovery.sql`, 2 `testing_content.sql`.
 
 Giới hạn giữ nguyên từ báo cáo các nhánh: VNPay/MoMo chưa tích hợp (đã bổ sung VietQR + VNPay ngày 2026-10-15, xem mục dưới); booking tạo trước tính năng chưa có dòng thanh toán cho đến khi được đánh dấu đã thu; gợi ý tính trực tiếp mỗi lần, không cache; huy hiệu Host uy tín tính trong SQL mỗi lần tải trang.
 

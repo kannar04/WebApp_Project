@@ -91,7 +91,7 @@ final class TrustController extends Controller
         try {
             if (!$valid) { throw new \DomainException('Một số trường không hợp lệ hoặc vượt giới hạn độ dài.'); }
             (new Trust())->saveGuide((int) $id, (int) $user['id'], $data);
-            Session::flash('success', 'Đã lưu hướng dẫn nhận phòng. Khách chỉ thấy sau khi booking được xác nhận.');
+            Session::flash('success', 'Đã lưu hướng dẫn nhận phòng. Khách thấy hướng dẫn sau khi booking được xác nhận; mã cửa và Wi-Fi hiển thị từ 1 ngày trước ngày nhận phòng.');
         } catch (\Throwable $exception) {
             Session::put('_checkin_guide_old', $data);
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể lưu hướng dẫn. Vui lòng thử lại.');

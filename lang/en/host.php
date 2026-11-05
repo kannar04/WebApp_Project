@@ -159,8 +159,8 @@ return [
 
     // Check-in guide editor
     'HOST · HƯỚNG DẪN NHẬN PHÒNG' => 'HOST · CHECK-IN GUIDE',
-    'Chỉ khách có booking đã xác nhận hoặc đã hoàn thành, bạn và Admin xem được. Không bao giờ hiển thị công khai.'
-        => 'Only guests with a confirmed or completed booking, you and Admin can see it. It is never shown publicly.',
+    'Khách có booking đã xác nhận hoặc đã hoàn thành, bạn và Admin xem được; khách chỉ thấy mã cửa và Wi-Fi từ 1 ngày trước ngày nhận phòng đến hết ngày trả phòng. Không bao giờ hiển thị công khai.'
+        => 'Guests with a confirmed or completed booking, you and Admin can see this; guests only see the door code and Wi-Fi from 1 day before check-in through the check-out date. It is never shown publicly.',
     'Hướng dẫn đến và nhận phòng' => 'Directions and check-in instructions',
     '10–3000 ký tự: cách tìm đường, chỗ để xe, cách lấy chìa khóa, giờ yên tĩnh…' => '10–3000 characters: how to find the place, parking, how to get the key, quiet hours…',
     'Mã cửa / hộp khóa (không bắt buộc)' => 'Door / lockbox code (optional)',
