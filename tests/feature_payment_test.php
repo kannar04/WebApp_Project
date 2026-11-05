@@ -749,7 +749,17 @@ try {
         payExpect(str_contains($page,'Số tiền hoàn nếu hủy lúc này') && str_contains($page,'Hủy booking theo mức hoàn đang áp dụng?') && str_contains($page,'Chính sách hủy tại thời điểm đặt'),'A paid booking lost its refund figure.');
         payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
         payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings')['body'],'Mức hoàn dự kiến: 100'),'A paid cancel lost its refund flash.');
-        payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ)['body'],'Số tiền hoàn đã ghi nhận'),'A paid cancelled booking lost its recorded refund.');
+        // Until the Admin marks it refunded the money is only owed: the page says "due", never "recorded".
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ)['body'];
+        payExpect(str_contains($page,'Số tiền cần hoàn (Admin chưa ghi nhận đã hoàn)') && !str_contains($page,'Số tiền hoàn đã ghi nhận') && payInspect($bookingZ)['payment_status']==='paid','A paid cancelled booking does not say the refund is still due.');
+        payHttp($adminClient,$baseUrl,'/admin/payments/'.$bookingZ.'/refund',['_token'=>$adminToken,'note'=>'Audit fixture']);
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ)['body'];
+        payExpect(!str_contains($page,'Số tiền cần hoàn') && str_contains($page,'Đã hoàn ') && payInspect($bookingZ)['payment_status']==='refunded','A refunded booking still says its refund is due.');
+        // Nothing is due under a 0% policy, so the page does not show a 0đ refund as owed.
+        $bookingNoRefund=payPaidBooking($service,$payments,$policyListings[0],$guestId,$hostId,$base,131,'14000081');
+        payHttp($guestClient,$baseUrl,'/bookings/'.$bookingNoRefund.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingNoRefund)['body'];
+        payExpect(!str_contains($page,'Số tiền cần hoàn') && str_contains($page,'Theo chính sách hủy, booking này không được hoàn tiền.'),'A 0% paid cancelled booking still shows a refund due.');
         // A refunded booking offers no further refund, before or after cancelling, and keeps the figure that went back; a row refunded by older code too.
         $refundedOpen=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,104,'14000052');
         payHttp($adminClient,$baseUrl,'/admin/payments/'.$refundedOpen.'/refund',['_token'=>$adminToken,'note'=>'Hoàn trước khi hủy']);

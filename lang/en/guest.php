@@ -99,7 +99,7 @@ return [
     'Phụ phí không nằm trong cơ sở hoàn tiền.' => 'Fees do not count toward the refundable amount.',
     'Giờ nhận phòng {time} ({zone}).' => 'Check-in time {time} ({zone}).',
     'Mốc hoàn tiền vẫn tính theo giờ nhận phòng lúc đặt ({time}).' => 'The refund deadline still counts from the check-in time at booking ({time}).',
-    'Số tiền hoàn đã ghi nhận' => 'Recorded refund',
+    'Số tiền cần hoàn (Admin chưa ghi nhận đã hoàn)' => 'Refund due (not yet recorded as refunded by Admin)',
     'Số tiền hoàn nếu hủy lúc này' => 'Refund if cancelled now',
     'Đây là mức hoàn theo chính sách; không phải xác nhận đã chuyển tiền. Khi hủy, máy chủ tính lại theo thời điểm thực hiện.' => 'This is the refund under the policy, not a confirmation that money has been sent. When you cancel, the server recalculates it for that moment.',
     'Lý do hủy' => 'Cancellation reason',
