@@ -456,6 +456,23 @@ try {
         trustExpect($users->findWithRoles($hostId)['roles'] === $hostWithRoles, 'A refused role change changed the roles.');
         echo "PASS refused Host role removal shows the Admin the reason on the dashboard and on the user edit page\n";
 
+        // The link to the public listing is only offered while that page exists, for every party.
+        $guestOfLeaving = trustLogin($baseUrl, $leavingEmail, $password);
+        $linkLabel = 'Xem chỗ ở công khai';
+        $bookingPath = '/bookings/'.$leavingStay;
+        foreach ([$guestOfLeaving, $hostClient, $adminClient] as $party) {
+            trustExpect(str_contains(trustHttp($party, $baseUrl, $bookingPath)['body'], $linkLabel), 'A public listing lost its link on the booking page.');
+        }
+        trustExpect(trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$listingId)['status'] === 200, 'The public listing fixture is not public.');
+        trustExpect(trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/visibility', ['_token' => trustToken(trustHttp($hostClient, $baseUrl, '/host')['body']), 'visible' => '0'])['status'] === 200, 'The Host could not hide the listing.');
+        trustExpect(trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$listingId)['status'] === 404, 'A hidden listing stayed public.');
+        foreach ([$guestOfLeaving, $hostClient, $adminClient] as $party) {
+            trustExpect(!str_contains(trustHttp($party, $baseUrl, $bookingPath)['body'], $linkLabel), 'The booking page links to a hidden listing.');
+        }
+        trustExpect(trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/visibility', ['_token' => trustToken(trustHttp($hostClient, $baseUrl, '/host')['body']), 'visible' => '1'])['status'] === 200, 'The Host could not show the listing again.');
+        trustExpect(str_contains(trustHttp($guestOfLeaving, $baseUrl, $bookingPath)['body'], $linkLabel), 'The link did not come back with the listing.');
+        echo "PASS booking page links to the public listing only while it is public, for guest, Host and Admin\n";
+
         foreach ([$anonymous, $guestClient, $otherClient, $adminClient, $hostClient, $otherHostClient] as $client) { curl_close($client); }
         echo "PASS trust HTTP: login/403/404 guards, CSRF 419 on verification and decision, profile submit/duplicate, Admin queue+approval+masked history+badges, Host progress/guide save/validation, public pages without secrets\n";
     }

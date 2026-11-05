@@ -68,7 +68,7 @@ $extras=$extras??[];
         <?php endforeach; ?></div><?php endif; ?>
         <?php if($actorId===(int)$booking['guest_id']): ?><p class="mt-3"><a href="<?= e(url('/reports?booking='.$booking['id'])) ?>"><?= e(__('Gửi khiếu nại booking này')) ?></a></p><?php endif; ?><h2 class="h4 mt-4"><?= e(__('Lịch sử trạng thái')) ?></h2>
         <ol><?php foreach($booking['events'] as $event): ?><li><?= e(display_date($event['created_at'],true)) ?> — <?= e($labels[$event['to_status']]??$event['to_status']) ?>: <?= e(__((string)$event['reason'])) ?></li><?php endforeach; ?></ol>
-        <a class="btn btn-ghost" href="<?= e(url('/listings/'.$booking['listing_id'])) ?>"><?= e(__('Xem chỗ ở công khai')) ?></a>
+        <?php if(!empty($booking['listing_public'])): ?><a class="btn btn-ghost" href="<?= e(url('/listings/'.$booking['listing_id'])) ?>"><?= e(__('Xem chỗ ở công khai')) ?></a><?php endif; ?>
     </article>
     <?php require __DIR__.'/../messages/thread.php'; ?>
 </div></section>
