@@ -187,6 +187,26 @@ function Check-AdminFilterCarry {
     Write-Output 'PASS browser admin user search and booking filter keep each other'
 }
 
+function Check-LongText([string]$Path, [string]$Selector, [switch]$IfPresent) {
+    # A pasted URL in a title or description must wrap at 375 instead of widening the page. Put into the real elements, so no fixture rows are needed.
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=375;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    Navigate $Path
+    $selectorJson=ConvertTo-Json $Selector -Compress
+    $long=Evaluate "(function(){const found=document.querySelectorAll($selectorJson);for(const el of found){el.textContent='https://example.com/'+'a'.repeat(105);}const root=document.documentElement;return {found:found.length,over:root.scrollWidth-root.clientWidth};})()"
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    if ($long.found -lt 1 -and !$IfPresent) { throw "No $Selector on $Path to test long text with" }
+    if ($long.over -gt 0) { throw "Long text widens $Path by $($long.over) px at 375" }
+}
+
+function Check-LongReport {
+    # The same through a real report, which /reports then lists and /admin/reports gets checked with.
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=375;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    Navigate '/reports?listing=2'
+    Evaluate "(function(){const f=document.querySelector('[data-report-form]');f.elements.category.value='other';f.elements.description.value='https://example.com/'+'a'.repeat(105);f.requestSubmit();return true;})()" | Out-Null
+    Wait-FilterPage "!document.querySelector('[data-report-form]')&&!!document.querySelector('article.surface-card')&&document.documentElement.scrollWidth<=document.documentElement.clientWidth"
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+}
+
 function Check-FlashReveal {
     # A refused save redirects to /profile#personal: the result sits on screen below the navbar with focus, while a plain fragment link keeps its scroll.
     foreach ($width in @(375,1440)) {
@@ -326,6 +346,12 @@ try {
     Check-SubmitStopRelease '[data-booking-form]' '/listings/1' "f.elements.check_in.value='2035-05-10';f.elements.check_out.value='2035-05-12'"
     Write-Output 'PASS browser booking guard releases on the timer after Stop'
     Check-BookingRefusal
+    Check-LongText '/' '.card-body h3 a'
+    Check-LongText '/listings/1' '.detail-heading h1, .detail-heading p, .detail-page .col-lg-8 p'
+    Check-LongText '/bookings' '.booking-info h2, .booking-info p' -IfPresent
+    Check-LongText '/profile' '.trip-row strong' -IfPresent
+    Check-LongReport
+    Write-Output 'PASS browser long unbroken text wraps at 375 on Guest pages'
     Check-BookingDateWidth
     Check-FlashReveal
     Check-PostGuardEvents
@@ -337,6 +363,8 @@ try {
         foreach ($path in @('/host','/host/reviews','/host/listings/1/edit','/host/listings/1/checkin-guide','/messages','/host/listings/1/pricing','/host/listings/1/availability')) { Navigate $path; Check-Page "Host $path $width" }
         if ($width -eq 375 -or $width -eq 1440) { Capture-Page "host-calendar-$width" }
     }
+    Check-LongText '/host/listings/1/availability' '.section-title h1, .section-title p'
+    Write-Output 'PASS browser long unbroken text wraps at 375 on Host pages'
     Check-CalendarNavigation '/host/listings/1/availability'
     Logout-Role
     if ((Login-Role 'admin') -ne '/admin') { throw 'Admin login redirect failed' }
@@ -352,6 +380,9 @@ try {
             if ($path -eq '/admin' -and ($width -eq 375 -or $width -eq 1440)) { Capture-Page "admin-dashboard-$width" }
         }
     }
+    Check-LongText '/admin' 'table tbody td:nth-child(2)'
+    Check-LongText '/admin/reports' 'article.surface-card h2'
+    Write-Output 'PASS browser long unbroken text wraps at 375 on Admin pages, wide tables scroll inside themselves'
     Check-AdminFilterCarry
     Check-AdminCreateDoubleClick
     Check-CalendarNavigation '/admin/listings/1/preview'

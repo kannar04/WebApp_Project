@@ -132,6 +132,11 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .message-item.is-mine .message-bubble { background: #e9f5ef; border-color: #cfe6d9; }
 .message-meta { margin: 0 0 4px; font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
 .message-body { margin: 0; overflow-wrap: anywhere; }
+/* A pasted URL or other long unbroken text wraps instead of widening the page. */
+body { overflow-wrap: break-word; }
+.section-title > div, .section-title > h1, .detail-heading > div, .booking-info, .trip-row strong, .card-body h3 { overflow-wrap: anywhere; }
+/* Holds the absolutely positioned .sr-only labels inside a wide table, so they cannot widen the page. */
+.table-responsive { position: relative; }
 .message-hidden, .thread-empty { margin: 0 0 14px; color: var(--muted); font-style: italic; }
 .message-bubble .message-hidden { margin: 0; }
 .message-receipt { margin: 4px 0 0; font-size: .72rem; color: var(--muted); text-align: right; }
