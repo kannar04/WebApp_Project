@@ -30,9 +30,10 @@ final class Session
         return $message;
     }
 
-    public static function old(array $input): void
+    /** Keeps refused input for the form it came from; $scope names that form's record (listing:5, new-listing) so no other form takes it. */
+    public static function old(array $input, ?string $scope = null): void
     {
-        $_SESSION['_old'] = $input;
+        $_SESSION['_old'] = ['scope' => $scope, 'input' => $input];
     }
 
     /** Called when a session ends or a login starts: one person's refused forms and messages must not reach whoever signs in next on this browser. */
@@ -57,11 +58,11 @@ final class Session
         return $value;
     }
 
-    public static function pullOld(): array
+    /** The kept input, once: to the form of its own scope, dropped for any other. Input kept with no scope is tied to no record and goes to whichever form asks. */
+    public static function pullOld(?string $scope = null): array
     {
-        $old = $_SESSION['_old'] ?? [];
-        unset($_SESSION['_old']);
-        return $old;
+        $kept = self::pull('_old', []);
+        return ($kept['scope'] ?? null) === null || $kept['scope'] === $scope ? ($kept['input'] ?? []) : [];
     }
 }
 

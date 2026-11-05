@@ -71,7 +71,7 @@ final class TrustController extends Controller
         $listing = (new Listing())->findOwned((int) $id, (int) $user['id']);
         if (!$listing) { http_response_code(404); $this->render('errors/404', ['title' => 'Không tìm thấy chỗ ở']); return; }
         $this->render('host/checkin-guide', ['title' => 'Hướng dẫn nhận phòng', 'listing' => $listing,
-            'guide' => (new Trust())->guideForHost((int) $id, (int) $user['id']), 'old' => Session::pull('_checkin_guide_old', [])]);
+            'guide' => (new Trust())->guideForHost((int) $id, (int) $user['id']), 'old' => Session::pullOld('guide:'.(int)$id)]);
     }
 
     public function guideSave(string $id): never
@@ -93,7 +93,7 @@ final class TrustController extends Controller
             (new Trust())->saveGuide((int) $id, (int) $user['id'], $data);
             Session::flash('success', 'Đã lưu hướng dẫn nhận phòng. Khách thấy hướng dẫn sau khi booking được xác nhận; mã cửa và Wi-Fi hiển thị từ 1 ngày trước ngày nhận phòng.');
         } catch (\Throwable $exception) {
-            Session::put('_checkin_guide_old', $data);
+            Session::old($data, 'guide:'.(int)$id);
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể lưu hướng dẫn. Vui lòng thử lại.');
         }
         $this->redirect('/host/listings/'.(int) $id.'/checkin-guide');

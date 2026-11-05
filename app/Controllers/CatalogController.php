@@ -11,7 +11,7 @@ final class CatalogController extends Controller
     public function index(): void
     {
         $user=$this->requireRole('admin'); $model=new Catalog();
-        $this->render('admin/catalog',['title'=>'Danh mục chỗ ở và tiện nghi','catalogs'=>['type'=>$model->all((int)$user['id'],'type'),'amenity'=>$model->all((int)$user['id'],'amenity')],'old'=>Session::pullOld()]);
+        $this->render('admin/catalog',['title'=>'Danh mục chỗ ở và tiện nghi','catalogs'=>['type'=>$model->all((int)$user['id'],'type'),'amenity'=>$model->all((int)$user['id'],'amenity')],'old'=>Session::pullOld('catalog')]);
     }
     public function save(): never
     {
@@ -28,6 +28,6 @@ final class CatalogController extends Controller
     private function keepInput(): void
     {
         Session::old(['kind'=>input_text($_POST,'kind'),'id'=>(int)filter_var($_POST['id']??0,FILTER_VALIDATE_INT),'name'=>mb_substr(input_text($_POST,'name'),0,80),
-            'detail'=>mb_substr(input_text($_POST,'detail'),0,5000),'active'=>($_POST['active']??'')==='1']);
+            'detail'=>mb_substr(input_text($_POST,'detail'),0,5000),'active'=>($_POST['active']??'')==='1'],'catalog');
     }
 }

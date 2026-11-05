@@ -12,8 +12,8 @@ use Core\Session;
 final class HostController extends Controller
 {
     public function dashboard(): void {$u=$this->requireRole('host');$this->render('host/dashboard',['title'=>'Không gian Host','stats'=>(new HostRepository())->stats((int)$u['id']),'monthlyRevenue'=>(new HostRepository())->monthlyRevenue((int)$u['id']),'listings'=>(new Listing())->hostListings((int)$u['id']),'bookings'=>(new Booking())->forHost((int)$u['id']),'trustStatus'=>(new \App\Models\Trust())->badges([(int)$u['id']],(int)$u['id'])[(int)$u['id']]??null,'payments'=>(new \App\Models\BookingExtras())->paymentMap((int)$u['id'],'host')]);}
-    public function createForm(): void {$this->requireRole('host');$m=new Listing();$this->render('host/listing-form',['title'=>'Đăng chỗ ở','listing'=>null,'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>[],'old'=>Session::pullOld()]);}
-    public function editForm(string $id): void {$u=$this->requireRole('host');$m=new Listing();$listing=$m->findOwned((int)$id,(int)$u['id']);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('host/listing-form',['title'=>'Chỉnh sửa chỗ ở','listing'=>$listing,'photos'=>$m->photos((int)$id,(int)$u['id']),'types'=>$m->catalogChoices('type',(int)$id,(int)$u['id']),'policies'=>$m->policies(),'amenities'=>$m->catalogChoices('amenity',(int)$id,(int)$u['id']),'selectedAmenities'=>$m->amenityIds((int)$id),'old'=>Session::pullOld()]);}
+    public function createForm(): void {$this->requireRole('host');$m=new Listing();$this->render('host/listing-form',['title'=>'Đăng chỗ ở','listing'=>null,'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>[],'old'=>Session::pullOld('new-listing')]);}
+    public function editForm(string $id): void {$u=$this->requireRole('host');$m=new Listing();$listing=$m->findOwned((int)$id,(int)$u['id']);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('host/listing-form',['title'=>'Chỉnh sửa chỗ ở','listing'=>$listing,'photos'=>$m->photos((int)$id,(int)$u['id']),'types'=>$m->catalogChoices('type',(int)$id,(int)$u['id']),'policies'=>$m->policies(),'amenities'=>$m->catalogChoices('amenity',(int)$id,(int)$u['id']),'selectedAmenities'=>$m->amenityIds((int)$id),'old'=>Session::pullOld('listing:'.(int)$id)]);}
     public function availabilityPage(string $id): void
     {
         $user=$this->requireRole('host'); $model=new Listing();
@@ -69,6 +69,7 @@ final class HostController extends Controller
         $data += self::coordinateInput($_POST);
         $listingModel = new Listing();
         $returnPath = $listingId ? '/host/listings/'.$listingId.'/edit' : '/host/listings/create';
+        $oldScope = $listingId ? 'listing:'.$listingId : 'new-listing'; // Fixed here: a failed create rolls back the id it was given and returns to the blank form.
         $database = \Core\Database::connection();
         try {
             if ($listingId && !$listingModel->findOwned($listingId, $hostId)) {
@@ -117,7 +118,7 @@ final class HostController extends Controller
             $this->redirect('/host');
         } catch (\Throwable $exception) {
             if ($database->inTransaction()) { $database->rollBack(); }
-            Session::old($data + ['amenities' => is_array($_POST['amenities'] ?? null) ? array_map('intval', $_POST['amenities']) : []]);
+            Session::old($data + ['amenities' => is_array($_POST['amenities'] ?? null) ? array_map('intval', $_POST['amenities']) : []], $oldScope);
             Session::flash('error', $exception instanceof \DomainException
                 ? $exception->getMessage() : 'Không thể lưu chỗ ở. Vui lòng thử lại.');
             $this->redirect($returnPath);

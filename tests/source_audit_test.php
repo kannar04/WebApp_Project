@@ -447,6 +447,52 @@ try {
     }
     echo "PASS a session that ends or a login that starts clears flash and every form bag, and messages set afterwards survive\n";
 
+    // Kept input belongs to one form: its own scope gets it once, any other drops it, and a call with no scope works as it always did.
+    \Core\Session::old(['kept' => 1], 'listing:5');
+    expect(\Core\Session::pullOld('listing:1') === [] && !isset($_SESSION['_old']), 'Another scope must drop the kept input.');
+    \Core\Session::old(['kept' => 1], 'listing:5');
+    expect(\Core\Session::pullOld() === [] && !isset($_SESSION['_old']), 'A form with no scope must drop scoped input.');
+    \Core\Session::old(['kept' => 1], 'listing:5');
+    expect(\Core\Session::pullOld('listing:5') === ['kept' => 1] && \Core\Session::pullOld('listing:5') === [], 'The same scope gets the input once.');
+    \Core\Session::old(['kept' => 1]);
+    expect(\Core\Session::pullOld() === ['kept' => 1], 'A call with no scope must keep working.');
+    \Core\Session::old(['kept' => 1]);
+    expect(\Core\Session::pullOld('listing:5') === ['kept' => 1], 'Input kept with no scope is tied to no record.');
+    $_SESSION = [];
+    // A refused save whose redirect never loaded (a Stop, or a record deleted in another tab) must not fill a different record's form, where saving would overwrite that record.
+    $scopeHost = auditBrowser();
+    auditSignIn($scopeHost, $url, auditRequest($scopeHost, $url.'/login')['body'], 'host@home2home.test');
+    $scopeHostToken = auditFormToken(auditRequest($scopeHost, $url.'/profile')['body']);
+    $typed = 'Typedforanother';
+    $listingInput = ['title' => $typed, 'description' => 'x', 'address' => 'x', 'city' => 'x', 'district' => 'x', 'property_type_id' => '0', 'price_per_night' => '1', 'max_guests' => '1', 'bedrooms' => '1', 'beds' => '1', 'bathrooms' => '1', 'cancellation_policy_id' => '0'];
+    $articleInput = ['title' => $typed, 'body' => 'short', 'category' => 'none'];
+    $guideInput = ['arrival_instructions' => str_repeat('x', 3001), 'door_code' => $typed, 'wifi_name' => '', 'wifi_password' => '', 'note' => ''];
+    $promotionInput = ['code' => strtoupper($typed), 'description' => '', 'discount_type' => 'percent', 'discount_value' => '1'];
+    $userInput = ['full_name' => $typed, 'email' => 'host@home2home.test', 'phone' => '', 'password' => '', 'roles' => ['guest']];
+    $scopedForms = [
+        'admin user' => [$admin, $adminToken, '/admin/users/3', $userInput, '/admin/users/3/edit', ['/admin/users/2/edit', '/admin']],
+        'host listing' => [$scopeHost, $scopeHostToken, '/host/listings/1', $listingInput, '/host/listings/1/edit', ['/host/listings/2/edit', '/host/listings/create']],
+        'new host listing' => [$scopeHost, $scopeHostToken, '/host/listings/create', $listingInput, '/host/listings/create', ['/host/listings/2/edit']],
+        'admin listing' => [$admin, $adminToken, '/admin/listings/1', $listingInput, '/admin/listings/1/edit', ['/admin/listings/2/edit']],
+        'article' => [$admin, $adminToken, '/admin/articles/1', $articleInput, '/admin/articles/1/edit', ['/admin/articles/2/edit', '/admin/articles/create']],
+        'new article' => [$admin, $adminToken, '/admin/articles', $articleInput, '/admin/articles/create', ['/admin/articles/2/edit']],
+        'check-in guide' => [$scopeHost, $scopeHostToken, '/host/listings/1/checkin-guide', $guideInput, '/host/listings/1/checkin-guide', ['/host/listings/2/checkin-guide']],
+        'pricing' => [$scopeHost, $scopeHostToken, '/host/listings/1/pricing', ['weekend_nightly_rate' => $typed], '/host/listings/1/pricing', ['/host/listings/2/pricing']],
+        'promotion' => [$admin, $adminToken, '/admin/promotions', ['id' => '1'] + $promotionInput, '/admin/promotions?edit=1', ['/admin/promotions', '/admin/promotions?edit=99999']],
+        'new promotion' => [$admin, $adminToken, '/admin/promotions', $promotionInput, '/admin/promotions', ['/admin/promotions?edit=1']],
+    ];
+    foreach ($scopedForms as $formName => [$formBrowser, $formToken, $saveTo, $fields, $ownForm, $otherForms]) {
+        foreach ($otherForms as $otherForm) {
+            auditRequest($formBrowser, $url.$saveTo, ['_token' => $formToken] + $fields);
+            expect(stripos(auditRequest($formBrowser, $url.$otherForm)['body'], $typed) === false, "$formName: refused input filled $otherForm.");
+        }
+        auditRequest($formBrowser, $url.$saveTo, ['_token' => $formToken] + $fields);
+        expect(stripos(auditRequest($formBrowser, $url.$ownForm)['body'], $typed) !== false, "$formName: its own form lost the refused input.");
+    }
+    auditRequest($scopeHost, $url.'/host/listings/99999', ['_token' => $scopeHostToken] + $listingInput);
+    expect(auditRequest($scopeHost, $url.'/host/listings/99999/edit')['status'] === 404 && stripos(auditRequest($scopeHost, $url.'/host/listings/1/edit')['body'], $typed) === false, 'A save refused on a missing listing filled another listing\'s form.');
+    echo 'PASS refused input returns only to the form of its own record across '.count($scopedForms)." forms, and a call with no scope still works\n";
+
     auditOversizedPost(['display_startup_errors' => '1', 'output_buffering' => '4096'], true);
     auditOversizedPost(['display_startup_errors' => '0', 'output_buffering' => '0'], false);
     echo "PASS a POST over post_max_size says so with the limit, returns to its page and changes nothing\n";

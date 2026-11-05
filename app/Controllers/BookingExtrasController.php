@@ -20,7 +20,7 @@ final class BookingExtrasController extends Controller
         catch (\DomainException $exception) {
             http_response_code(404); $this->render('errors/404', ['title'=>'Không tìm thấy chỗ ở']); return;
         }
-        $this->render('host/pricing', ['title'=>'Giá & đặt chỗ', 'settings'=>$settings, 'old'=>Session::pullOld(),
+        $this->render('host/pricing', ['title'=>'Giá & đặt chỗ', 'settings'=>$settings, 'old'=>Session::pullOld('pricing:'.(int)$id),
             'holidays'=>(new BookingExtras())->upcomingHolidays(8)]);
     }
 
@@ -39,7 +39,7 @@ final class BookingExtrasController extends Controller
             (new BookingExtras())->saveHostSettings((int) $id, (int) $user['id'], $weekend, $holiday, $weekly, $monthly, $input['instant_book']);
             Session::flash('success', 'Đã lưu giá & tùy chọn đặt chỗ. Thay đổi áp dụng cho báo giá mới, không cần Admin duyệt lại tin.');
         } catch (\Throwable $exception) {
-            Session::old($input);
+            Session::old($input, 'pricing:'.(int) $id);
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }
         $this->redirect('/host/listings/'.(int) $id.'/pricing');
@@ -55,7 +55,7 @@ final class BookingExtrasController extends Controller
     public function adminHolidays(): void
     {
         $user = $this->requireRole('admin');
-        $this->render('admin/holidays', ['title'=>'Ngày lễ', 'holidays'=>(new BookingExtras())->holidays((int) $user['id']), 'old'=>Session::pullOld()]);
+        $this->render('admin/holidays', ['title'=>'Ngày lễ', 'holidays'=>(new BookingExtras())->holidays((int) $user['id']), 'old'=>Session::pullOld('new-holiday')]);
     }
 
     public function adminHolidaySave(): never
@@ -68,7 +68,7 @@ final class BookingExtrasController extends Controller
             (new BookingExtras())->saveHoliday((int) $user['id'], $date, $input['name']);
             Session::flash('success', 'Đã lưu ngày lễ '.date('d/m/Y', (int) strtotime($date)).'. Giá ngày lễ áp dụng cho báo giá mới.');
         } catch (\Throwable $exception) {
-            Session::old($input);
+            Session::old($input, 'new-holiday');
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }
         $this->redirect('/admin/holidays');
@@ -93,7 +93,7 @@ final class BookingExtrasController extends Controller
         $editId = (int) filter_var($_GET['edit'] ?? 0, FILTER_VALIDATE_INT, ['options'=>['default'=>0, 'min_range'=>1]]);
         $editing = null;
         foreach ($promotions as $promotion) { if ((int) $promotion['id'] === $editId) { $editing = $promotion; } }
-        $this->render('admin/promotions', ['title'=>'Mã khuyến mãi', 'promotions'=>$promotions, 'editing'=>$editing, 'old'=>Session::pullOld()]);
+        $this->render('admin/promotions', ['title'=>'Mã khuyến mãi', 'promotions'=>$promotions, 'editing'=>$editing, 'old'=>Session::pullOld($editId > 0 ? 'promotion:'.$editId : 'new-promotion')]);
     }
 
     public function adminPromotionSave(): never
@@ -122,7 +122,7 @@ final class BookingExtrasController extends Controller
             Session::flash('success', 'Đã lưu mã khuyến mãi '.$data['code'].'.');
             $returnPath = '/admin/promotions';
         } catch (\Throwable $exception) {
-            Session::old($input);
+            Session::old($input, $promotionId > 0 ? 'promotion:'.$promotionId : 'new-promotion');
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }
         $this->redirect($returnPath);
