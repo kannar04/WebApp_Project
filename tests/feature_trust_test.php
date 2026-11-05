@@ -461,6 +461,25 @@ try {
         $endedPage = trustHttp($guestClient, $baseUrl, '/bookings/'.$windowStay);
         trustExpect($endedPage['status'] === 200 && !str_contains($endedPage['body'], 'K-4821') && str_contains($endedPage['body'], 'không còn hiển thị'), 'Completed-stay Guest page must not show the codes.');
         trustExpect(!str_contains(trustHttp($guestClient, $baseUrl, '/notifications')['body'], 'K-4821'), 'Notifications page carried the door code.');
+        // A completed stay's detail page leads to the review form on the trips page; a stay waiting for the Host says why there is no form yet.
+        $reviewHref = '/bookings#review-'.$httpReviewStay.'"';
+        $completedHint = 'sau khi Host đánh dấu hoàn tất';
+        $reviewable = trustHttp($guestClient, $baseUrl, '/bookings/'.$httpReviewStay)['body'];
+        trustExpect(str_contains($reviewable, $reviewHref) && !str_contains($reviewable, $completedHint), 'A completed stay offers no way to review from its detail page.');
+        trustExpect(str_contains(trustHttp($guestClient, $baseUrl, '/bookings')['body'], 'id="review-'.$httpReviewStay.'"'), 'The review link has no form to land on.');
+        [$checkIn, $checkOut] = trustDates($slot++);
+        $waitingStay = $service->create($rateListing, $guestId, $checkIn, $checkOut, 1);
+        $service->hostTransition($waitingStay, $rateHost, 'confirmed');
+        trustExpect(!str_contains(trustHttp($guestClient, $baseUrl, '/bookings/'.$waitingStay)['body'], $completedHint), 'A stay before its check-out says reviewing waits for the Host.');
+        trustCall('CALL sp_test_trust_move_booking(?,?)', [$waitingStay, -5]);
+        $waiting = trustHttp($guestClient, $baseUrl, '/bookings/'.$waitingStay)['body'];
+        trustExpect(str_contains($waiting, $completedHint) && !str_contains($waiting, '#review-'.$waitingStay), 'A stay past check-out does not say reviewing waits for the Host.');
+        $reviewAdmin = trustLogin($baseUrl, sprintf($emailFor, 'admin'), $password);
+        trustExpect(!str_contains(trustHttp(trustLogin($baseUrl, sprintf($emailFor, 'rate'), $password), $baseUrl, '/bookings/'.$waitingStay)['body'], $completedHint) && !str_contains(trustHttp($reviewAdmin, $baseUrl, '/bookings/'.$waitingStay)['body'], $completedHint), 'The review hint reached someone who is not the Guest.');
+        trustExpect(!str_contains(trustHttp($reviewAdmin, $baseUrl, '/bookings/'.$httpReviewStay)['body'], $reviewHref), 'The review link reached someone who is not the Guest.');
+        $service->hostTransition($waitingStay, $rateHost, 'completed');
+        $done = trustHttp($guestClient, $baseUrl, '/bookings/'.$waitingStay)['body'];
+        trustExpect(str_contains($done, '#review-'.$waitingStay) && !str_contains($done, $completedHint), 'Completing the stay did not open the review link.');
         // Over-long review comments come back as a friendly error with the input kept, also past the database packet limit (1 MiB), which used to answer 500.
         $trips = trustHttp($guestClient, $baseUrl, '/bookings');
         $tooLong = trustHttp($guestClient, $baseUrl, '/bookings/'.$httpReviewStay.'/review', ['_token' => trustToken($trips['body']), 'rating' => 4, 'comment' => str_repeat('x', Review::MAX_COMMENT_LENGTH + 1)]);
@@ -472,6 +491,8 @@ try {
         }
         $accepted = trustHttp($guestClient, $baseUrl, '/bookings/'.$httpReviewStay.'/review', ['_token' => trustToken($trips['body']), 'rating' => 5, 'comment' => 'Kỳ nghỉ rất tốt']);
         trustExpect($accepted['path'] === '/bookings' && str_contains($accepted['body'], 'alert-success'), 'Normal review comment refused.');
+        $reviewed = trustHttp($guestClient, $baseUrl, '/bookings/'.$httpReviewStay)['body'];
+        trustExpect(!str_contains($reviewed, $reviewHref) && str_contains($reviewed, 'Bạn đã đánh giá chuyến đi này'), 'A reviewed stay still offers to review.');
         [$checkIn, $checkOut] = trustDates($slot++);
         $pendingId = $service->create($listingId, $guestId, $checkIn, $checkOut, 1);
         $pendingPage = trustHttp($guestClient, $baseUrl, '/bookings/'.$pendingId);

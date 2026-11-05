@@ -135,6 +135,7 @@ BEGIN
         (SELECT cp.description FROM cancellation_policies cp WHERE cp.name=CONVERT(JSON_VALUE(b.policy_snapshot,'$.name') USING utf8mb4) COLLATE utf8mb4_unicode_ci) policy_description,
         TIME_FORMAT(l.check_in_time,'%H:%i') current_check_in_time,l.time_zone current_time_zone,
         (l.moderation_status='approved' AND l.is_visible=1 AND l.deleted_at IS NULL AND h.status='active' AND h.deleted_at IS NULL) listing_public,
+        EXISTS(SELECT 1 FROM reviews r WHERE r.booking_id=b.id) has_review,
         CASE WHEN b.status IN ('confirmed','completed') OR EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='admin') THEN h.phone END host_phone,
         CASE WHEN b.status IN ('confirmed','completed') OR EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='admin') THEN u.phone END guest_phone
     FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id JOIN users h ON h.id=l.host_id WHERE b.id=p_booking;

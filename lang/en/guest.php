@@ -60,6 +60,8 @@ return [
     'Chia sẻ trải nghiệm' => 'Share your experience',
     'Gửi đánh giá' => 'Submit review',
     'Bạn đã đánh giá chuyến đi này. Cảm ơn bạn!' => 'You have reviewed this stay. Thank you!',
+    'Viết đánh giá cho chuyến đi này' => 'Review this stay',
+    'Bạn có thể đánh giá chuyến đi sau khi Host đánh dấu hoàn tất.' => 'You can review this stay once the Host marks it complete.',
 
     // bookings/show.php
     'CHI TIẾT BOOKING #{id}' => 'BOOKING #{id} DETAILS',
