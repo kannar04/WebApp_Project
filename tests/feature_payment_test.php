@@ -14,7 +14,7 @@ use Core\ProcedureConnection;
 /*
  * Online payment: VietQR bank transfer (Guest reports it, Admin confirms or rejects) and VNPay (signed return URL and IPN).
  * Works on the workspace dev database directly and inside fresh_setup_test.php, which gives the server a fake receiving
- * account and a per-run VNPay secret. Fixture dates are today+4300..4400 days. Everything created here is removed in `finally`.
+ * account and a per-run VNPay secret. Fixture dates are today+4300..4500 days. Everything created here is removed in `finally`.
  */
 
 /** Admin payment rows of one booking. The Admin search also matches titles, and fixture titles hold random digits. */
@@ -416,6 +416,48 @@ try {
     payExpect(payInspect($bookingX)['payment_status']==='refunded','Admin could not refund a late transfer.');
     echo "PASS unpaid cancel: pending and confirmed record 0 and say nothing about a refund, late VNPay or transfer money is owed back whole\n";
 
+    // ---- Owed and refunded are two facts: cancelling after a refund owes nothing more and keeps the figure that was refunded.
+    $refundedFirst=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,98,'14000050');
+    $totalsBefore=$extras->adminPaymentTotals($adminId);
+    $extras->refund($refundedFirst,$adminId,'Hoàn toàn bộ trước khi hủy');
+    payExpect((float)$bookingModel->detail($refundedFirst,$guestId)['refund']['refund_amount']===0.0,'A refunded booking still previews a further refund.');
+    $cancelled=$service->cancelByGuest($refundedFirst,$guestId,'Audit fixture cancelled after the refund');
+    $state=payInspect($refundedFirst);
+    payExpect(!$cancelled['was_paid'] && $cancelled['refund_amount']===0.0 && (float)$state['cancel_refund']===0.0 && (float)$state['refund_audit_amount']===220000.0
+        && (int)$state['admin_refund_notices']===0 && str_contains((string)$state['guest_cancel_body'],'không có khoản hoàn thêm') && !str_contains((string)$state['guest_cancel_body'],'Mức hoàn'),
+        'Cancelling after a refund re-applied the policy: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $detail=$extras->bookingDetail($refundedFirst,$guestId);
+    $row=payAdminRows($adminId,$refundedFirst)[0];
+    payExpect((float)$detail['refund_amount']===0.0 && (float)$detail['refunded_amount']===220000.0 && (float)$row['refunded_amount']===220000.0,'Cancelling after a refund changed the refunded figure.');
+    $totals=$extras->adminPaymentTotals($adminId);
+    payExpect((float)$totals['collected_amount']-(float)$totalsBefore['collected_amount']===-220000.0 && (float)$totals['refunded_amount']-(float)$totalsBefore['refunded_amount']===220000.0,
+        'Totals moved when a refunded booking was cancelled: '.json_encode([$totalsBefore,$totals]));
+    payRejects([$extras,'refund'],[$refundedFirst,$adminId,'Lần nữa'],'Chỉ hoàn tiền','A refunded booking was refunded again after cancelling');
+
+    // A policy-share refund reports the share; a row refunded by older code (full amount_due, policy share in the cancellation) reports what really went back.
+    $oldShape=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,101,'14000051');
+    $service->cancelByGuest($oldShape,$guestId,'Audit fixture old refund');
+    $totalsBefore=$extras->adminPaymentTotals($adminId);
+    $extras->refund($oldShape,$adminId,'Hoàn theo chính sách');
+    $detail=$extras->bookingDetail($oldShape,$guestId);
+    $totals=$extras->adminPaymentTotals($adminId);
+    payExpect((float)$detail['refund_amount']===100000.0 && (float)$detail['refunded_amount']===100000.0 && (float)$totals['refunded_amount']-(float)$totalsBefore['refunded_amount']===100000.0
+        && (float)$totals['collected_amount']-(float)$totalsBefore['collected_amount']===-100000.0,'A policy-share refund is reported wrongly: '.json_encode([$detail['refunded_amount'],$totalsBefore,$totals]));
+    payCall('CALL sp_test_payment_old_refund(?,?)',[$oldShape,1]);
+    $state=payInspect($oldShape);
+    payExpect((float)$state['cancel_refund']===100000.0 && (float)$state['refund_audit_amount']===220000.0 && $state['payment_status']==='refunded','The old-shape fixture is wrong: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $detail=$extras->bookingDetail($oldShape,$guestId);
+    $row=payAdminRows($adminId,$oldShape)[0];
+    $totals=$extras->adminPaymentTotals($adminId);
+    payExpect((float)$detail['refund_amount']===100000.0 && (float)$detail['refunded_amount']===220000.0 && (float)$row['refund_amount']===100000.0 && (float)$row['refunded_amount']===220000.0,
+        'A row refunded by older code shows the policy share: '.json_encode($row,JSON_UNESCAPED_UNICODE));
+    payExpect((float)$totals['refunded_amount']-(float)$totalsBefore['refunded_amount']===220000.0 && (float)$totals['collected_amount']-(float)$totalsBefore['collected_amount']===-220000.0,
+        'Totals of a row refunded by older code are wrong: '.json_encode([$totalsBefore,$totals]));
+    payCall('CALL sp_test_payment_old_refund(?,?)',[$oldShape,0]);
+    payExpect((float)$extras->bookingDetail($oldShape,$guestId)['refunded_amount']===220000.0 && (float)$extras->adminPaymentTotals($adminId)['refunded_amount']===(float)$totals['refunded_amount'],'A refund without an audit row is not read as the full amount.');
+    payExpect($extras->bookingDetail($bookingG,$guestId)['refunded_amount']===null,'A booking that was not refunded reports a refunded figure.');
+    echo "PASS owed vs refunded: cancelling after a refund owes nothing and keeps the figure; policy-share refunds and rows refunded by older code report what really went back\n";
+
     // ---- Signing and QR links (pure PHP).
     $gateway=VnpayGateway::enabled($paymentConfig) ? $paymentConfig
         : ['vnpay_tmn_code'=>'H2HTEST1','vnpay_hash_secret'=>bin2hex(random_bytes(16)),'vnpay_pay_url'=>'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'];
@@ -596,6 +638,22 @@ try {
         payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
         payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings')['body'],'Mức hoàn dự kiến: 100'),'A paid cancel lost its refund flash.');
         payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ)['body'],'Số tiền hoàn đã ghi nhận'),'A paid cancelled booking lost its recorded refund.');
+        // A refunded booking offers no further refund, before or after cancelling, and keeps the figure that went back; a row refunded by older code too.
+        $refundedOpen=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,104,'14000052');
+        payHttp($adminClient,$baseUrl,'/admin/payments/'.$refundedOpen.'/refund',['_token'=>$adminToken,'note'=>'Hoàn trước khi hủy']);
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$refundedOpen)['body'];
+        payExpect(str_contains($page,'Đã hoàn 220.000 VND') && !str_contains($page,'Số tiền hoàn') && !str_contains($page,'Hủy booking theo mức hoàn đang áp dụng?') && str_contains($page,'Bạn chắc chắn muốn hủy booking này?'),'A refunded booking still offers a further refund.');
+        payHttp($guestClient,$baseUrl,'/bookings/'.$refundedOpen.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
+        foreach ([$guestClient,$adminClient] as $client) {
+            $page=payHttp($client,$baseUrl,'/bookings/'.$refundedOpen)['body'];
+            payExpect(str_contains($page,'Đã hoàn 220.000 VND') && !str_contains($page,'Số tiền hoàn'),'Cancelling after a refund changed the booking page.');
+        }
+        payExpect(str_contains(payHttp($adminClient,$baseUrl,'/admin/payments?q='.$refundedOpen)['body'],'Đã hoàn 220.000đ'),'Admin list lost the refunded figure after the cancellation.');
+        $refundedOld=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,107,'14000053');
+        payHttp($guestClient,$baseUrl,'/bookings/'.$refundedOld.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
+        payHttp($adminClient,$baseUrl,'/admin/payments/'.$refundedOld.'/refund',['_token'=>$adminToken,'note'=>'Hoàn kiểu cũ']);
+        payCall('CALL sp_test_payment_old_refund(?,?)',[$refundedOld,1]);
+        payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$refundedOld)['body'],'Đã hoàn 220.000 VND') && str_contains(payHttp($adminClient,$baseUrl,'/admin/payments?q='.$refundedOld)['body'],'Đã hoàn 220.000đ'),'A row refunded by older code shows the wrong figure.');
         // The reject note cannot confirm: all three pages render a textarea, and only an explicit decision counts.
         $bookingK=payConfirmedBooking($service,$policyListings[100],$guestId,$hostId,$base,95);
         $noteTransfer=(int)$payments->start($bookingK,$guestId,'vietqr')['transaction_id'];

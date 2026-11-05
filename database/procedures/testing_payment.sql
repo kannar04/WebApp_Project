@@ -57,6 +57,22 @@ BEGIN
     UPDATE listings SET deleted_at=IF(p_removed,NOW(6),NULL) WHERE id=p_listing;
 END$$
 
+-- Puts a refunded fixture booking in the shape older code left: that code refunded the full amount_due whatever the policy owed,
+-- so its audit row holds amount_due while booking_cancellations keeps the policy share. p_keep_audit=0 removes the audit row too.
+CREATE OR REPLACE PROCEDURE sp_test_payment_old_refund(IN p_booking BIGINT UNSIGNED, IN p_keep_audit BOOL)
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=p_booking AND l.city='Audit' AND l.title LIKE 'Audit fixture PAY %') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to change a non-fixture booking.';
+    END IF;
+    IF p_keep_audit THEN
+        UPDATE admin_audit_logs a JOIN booking_payments pay ON pay.booking_id=a.entity_id
+        SET a.change_summary=JSON_OBJECT('amount',pay.amount_due,'note',pay.note)
+        WHERE a.action='refund_payment' AND a.entity_type='booking' AND a.entity_id=p_booking;
+    ELSE
+        DELETE FROM admin_audit_logs WHERE action='refund_payment' AND entity_type='booking' AND entity_id=p_booking;
+    END IF;
+END$$
+
 -- Removes every booking of a fixture listing (with children, payment attempts included), then the listing itself.
 CREATE OR REPLACE PROCEDURE sp_test_payment_cleanup(IN p_listing BIGINT UNSIGNED)
 BEGIN

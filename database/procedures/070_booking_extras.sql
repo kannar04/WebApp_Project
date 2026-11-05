@@ -376,7 +376,8 @@ BEGIN
         (b.guest_id=p_actor AND COALESCE(pay.status,'unpaid')='unpaid' AND b.status='confirmed' AND b.currency='VND' AND COALESCE(pay.amount_due,b.total_amount)>0 AND l.deleted_at IS NULL) can_pay_online,
         t.id open_transfer_id,t.status open_transfer_status,t.reference open_transfer_reference,t.amount open_transfer_amount,
         pay.paid_at,pay.refunded_at,pay.note payment_note,payer.full_name paid_by_name,refunder.full_name refunded_by_name,
-        COALESCE(c.refund_amount,pay.amount_due,b.total_amount) refund_amount
+        COALESCE(c.refund_amount,pay.amount_due,b.total_amount) refund_amount,
+        CASE WHEN pay.status='refunded' THEN COALESCE((SELECT CAST(JSON_VALUE(a.change_summary,'$.amount') AS DECIMAL(12,2)) FROM admin_audit_logs a WHERE a.action='refund_payment' AND a.entity_type='booking' AND a.entity_id=b.id ORDER BY a.id DESC LIMIT 1),pay.amount_due) END refunded_amount
     FROM bookings b JOIN listings l ON l.id=b.listing_id LEFT JOIN booking_price_breakdowns bp ON bp.booking_id=b.id LEFT JOIN booking_payments pay ON pay.booking_id=b.id
         LEFT JOIN booking_cancellations c ON c.booking_id=b.id
         LEFT JOIN users payer ON payer.id=pay.paid_by LEFT JOIN users refunder ON refunder.id=pay.refunded_by
@@ -465,6 +466,9 @@ END$$
 
 -- Admin only: a collected payment is marked refunded with a mandatory note. A cancelled booking refunds the amount its policy
 -- recorded at cancellation; any other paid booking returns the full payment.
+-- Two different facts: booking_cancellations.refund_amount is what is owed under the policy; the 'refund_payment' audit row
+-- written here is what was really refunded (older code refunded the full amount_due and stored that there too). Everything that
+-- reports refunded money reads that row, falling back to amount_due: sp_booking_extras_detail, sp_admin_payments, sp_admin_payment_totals.
 CREATE OR REPLACE PROCEDURE sp_booking_payment_refund(IN p_booking BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED,
     IN p_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
@@ -519,7 +523,8 @@ BEGIN
             CASE WHEN COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('rejected','cancelled') THEN 'not_required' ELSE COALESCE(pay.status,'unpaid') END payment_state,
             (COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('confirmed','completed') AND b.check_in<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) can_mark_paid,
             pay.paid_at,pay.refunded_at,pay.note payment_note,COALESCE(bp.promotion_code,'') promotion_code,
-            dup.id duplicate_id,dup.reference duplicate_reference,dup.amount duplicate_amount,COALESCE(c.refund_amount,pay.amount_due,b.total_amount) refund_amount
+            dup.id duplicate_id,dup.reference duplicate_reference,dup.amount duplicate_amount,COALESCE(c.refund_amount,pay.amount_due,b.total_amount) refund_amount,
+            CASE WHEN pay.status='refunded' THEN COALESCE((SELECT CAST(JSON_VALUE(a.change_summary,'$.amount') AS DECIMAL(12,2)) FROM admin_audit_logs a WHERE a.action='refund_payment' AND a.entity_type='booking' AND a.entity_id=b.id ORDER BY a.id DESC LIMIT 1),pay.amount_due) END refunded_amount
         FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id JOIN users h ON h.id=l.host_id
             LEFT JOIN booking_payments pay ON pay.booking_id=b.id LEFT JOIN booking_price_breakdowns bp ON bp.booking_id=b.id
             LEFT JOIN booking_cancellations c ON c.booking_id=b.id
@@ -535,13 +540,17 @@ END$$
 CREATE OR REPLACE PROCEDURE sp_admin_payment_totals(IN p_actor BIGINT UNSIGNED)
 BEGIN
     CALL sp_admin_assert_role(p_actor);
-    SELECT COALESCE(SUM(CASE WHEN pay.status='paid' THEN pay.amount_due WHEN pay.status='refunded' THEN pay.amount_due-COALESCE(c.refund_amount,pay.amount_due) END),0) collected_amount,
-        COALESCE(SUM(pay.status='paid'),0) paid_count,
-        COALESCE(SUM(CASE WHEN pay.status='refunded' THEN COALESCE(c.refund_amount,pay.amount_due) END),0) refunded_amount,
-        COALESCE(SUM(pay.status='refunded'),0) refunded_count,
-        COALESCE(SUM(CASE WHEN COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('confirmed','completed') THEN COALESCE(pay.amount_due,b.total_amount) END),0) outstanding_amount,
-        COALESCE(SUM(COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('confirmed','completed')),0) outstanding_count
-    FROM bookings b LEFT JOIN booking_payments pay ON pay.booking_id=b.id LEFT JOIN booking_cancellations c ON c.booking_id=b.id;
+    SELECT COALESCE(SUM(CASE WHEN x.payment_status='paid' THEN x.amount_due WHEN x.payment_status='refunded' THEN x.amount_due-x.refunded END),0) collected_amount,
+        COALESCE(SUM(x.payment_status='paid'),0) paid_count,
+        COALESCE(SUM(x.refunded),0) refunded_amount,
+        COALESCE(SUM(x.payment_status='refunded'),0) refunded_count,
+        COALESCE(SUM(CASE WHEN COALESCE(x.payment_status,'unpaid')='unpaid' AND x.booking_status IN ('confirmed','completed') THEN COALESCE(x.amount_due,x.total_amount) END),0) outstanding_amount,
+        COALESCE(SUM(COALESCE(x.payment_status,'unpaid')='unpaid' AND x.booking_status IN ('confirmed','completed')),0) outstanding_count
+    FROM (
+        SELECT b.status booking_status,b.total_amount,pay.status payment_status,pay.amount_due,
+            CASE WHEN pay.status='refunded' THEN COALESCE((SELECT CAST(JSON_VALUE(a.change_summary,'$.amount') AS DECIMAL(12,2)) FROM admin_audit_logs a WHERE a.action='refund_payment' AND a.entity_type='booking' AND a.entity_id=b.id ORDER BY a.id DESC LIMIT 1),pay.amount_due) END refunded
+        FROM bookings b LEFT JOIN booking_payments pay ON pay.booking_id=b.id
+    ) x;
 END$$
 
 DELIMITER ;

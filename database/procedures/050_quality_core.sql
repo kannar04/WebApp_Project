@@ -155,7 +155,7 @@ BEGIN
     IF v_status='cancelled' THEN
         SELECT refund_amount,calculation_details,reason,created_at FROM booking_cancellations WHERE booking_id=p_booking;
     ELSE
-        IF COALESCE(v_payment,'unpaid')='unpaid' THEN SET v_percent=0; SET v_base=0; -- Nothing collected yet, nothing to refund.
+        IF COALESCE(v_payment,'unpaid') IN ('unpaid','refunded') THEN SET v_percent=0; SET v_base=0; -- Nothing held (not collected, or already refunded), nothing to refund.
         ELSEIF v_status='pending' THEN SET v_percent=100; SET v_base=v_total;
         ELSEIF v_status='confirmed' THEN
             SET v_zone=JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.time_zone'));

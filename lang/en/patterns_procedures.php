@@ -24,6 +24,7 @@ return [
     'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì chỗ ở đã được gỡ khỏi hệ thống.' => 'Booking request #{id} for “{listing}” was rejected because the listing has been taken down.',
 
     // ---- 020_booking.sql: sp_booking_cancel Guest notification (now e.g. 1.500.000đ / 100; the second entry keeps older rows stored as 1500000.00 / 100.00)
+    'Booking #{id} đã hủy. Khoản thanh toán đã được hoàn trước đó nên không có khoản hoàn thêm.' => 'Booking #{id} was cancelled. The payment was already refunded, so no further refund is due.',
     'Booking #{id} đã hủy. Theo chính sách hủy, khoản đã thanh toán không được hoàn.' => 'Booking #{id} was cancelled. Under the cancellation policy, the payment is not refunded.',
     'Booking #{id} đã hủy khi đã thanh toán. Cần hoàn {amount}đ cho khách theo chính sách ({percent}%).' => 'Booking #{id} was cancelled after payment. Refund {amount}đ to the guest under the policy ({percent}%).',
     'Booking #{id} đã hủy khi đã thanh toán. Theo chính sách hủy, khoản hoàn là 0đ nên không cần hoàn tiền.' => 'Booking #{id} was cancelled after payment. Under the cancellation policy the refund is 0đ, so nothing needs refunding.',
