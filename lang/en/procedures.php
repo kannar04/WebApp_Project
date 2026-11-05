@@ -81,6 +81,7 @@ return [
     'Thông tin chỗ ở không hợp lệ.' => 'Invalid listing details.',
     'Hiển thị không hợp lệ.' => 'Invalid visibility.',
     'Tin đăng bị từ chối' => 'Listing rejected',
+    'Cập nhật báo cáo' => 'Report update',
     'Tin đăng bị ẩn' => 'Listing hidden',
     'Tin đăng được hiện lại' => 'Listing shown again',
     'Chỗ ở đã bị gỡ' => 'Listing taken down',

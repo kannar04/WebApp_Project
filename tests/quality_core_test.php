@@ -330,6 +330,13 @@ qaExpect($reports->forUser(3)[0]['status']==='resolved','HTTP report closure fai
 $reports->create(3,null,$bookingId,'complaint','HTTP complaint about one booking.');
 $complaintCard=$request('/admin/reports')['body'];
 qaExpect(preg_match('~<a href="[^"]*/bookings/'.$bookingId.'">Booking #'.$bookingId.'</a>~',$complaintCard)===1 && preg_match('~<a href="[^"]*/admin/listings/\d+/preview">Xem chỗ ở</a>~u',$complaintCard)===1,'The Admin report card does not name the booking or link to the listing.');
+// The reporter reads the outcome in a notification that links to the report, and finds the reports from the profile.
+$request('/admin/reports/'.(int)$reports->forUser(3)[0]['id'].'/resolve',['_token'=>$token($request('/admin/reports')),'status'=>'dismissed','resolution'=>'HTTP complaint conclusion <b>.']);
+$logout(); $login('guest');
+$outcomeNotice=$request('/notifications')['body'];
+qaExpect(str_contains($outcomeNotice,'không được chấp nhận. Kết luận: HTTP complaint conclusion &lt;b&gt;.') && preg_match('~<a class="btn btn-outline-primary" href="[^"]*/reports">Xem báo cáo</a>~u',$outcomeNotice)===1,'The reporter did not get the outcome with a link.');
+qaExpect(str_contains($request('/reports')['body'],'HTTP complaint conclusion &lt;b&gt;.') && preg_match('~href="[^"]*/reports">Báo cáo và khiếu nại</a>~u',$request('/profile')['body'])===1,'The reporter cannot find the outcome.');
+$logout(); $login('admin');
 // More reports than one page holds: every row is reachable, and the Admin stays on the page after acting on a report.
 $reportTotal=$reports->adminPage(1,1,0)['total'];
 for ($row=1; $row<=21; $row++) {

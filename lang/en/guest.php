@@ -172,6 +172,7 @@ return [
     'Chưa đọc' => 'Unread',
     'Xem tin nhắn' => 'View messages',
     'Xem booking' => 'View booking',
+    'Xem báo cáo' => 'View report',
     'Đánh dấu đã đọc' => 'Mark as read',
 
     // profile/show.php

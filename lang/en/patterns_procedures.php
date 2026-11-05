@@ -35,6 +35,14 @@ return [
     // ---- 030_atomic_writes.sql: sp_user_roles_replace refusal
     'Không thể bỏ vai trò Host: tài khoản còn {listings} chỗ ở và {bookings} booking chưa kết thúc. Hãy gỡ chỗ ở và xử lý booking trước.' => 'The Host role cannot be removed: this account still has {listings} listing(s) and {bookings} unfinished booking(s). Take the listings down and handle the bookings first.',
 
+    // ---- 060_quality_community.sql: sp_admin_report_resolve notifications to the reporter ({reason} is the Admin's own text)
+    'Báo cáo #{id} về “{listing}” đã được giải quyết. Kết luận: {reason}' => 'Report #{id} about “{listing}” was resolved. Conclusion: {reason}',
+    'Báo cáo #{id} về “{listing}” không được chấp nhận. Kết luận: {reason}' => 'Report #{id} about “{listing}” was dismissed. Conclusion: {reason}',
+    'Admin đang xử lý báo cáo #{id} về “{listing}”. Ghi chú: {reason}' => 'Admin is looking into report #{id} about “{listing}”. Note: {reason}',
+    'Admin đang xử lý báo cáo #{id} về “{listing}”.' => 'Admin is looking into report #{id} about “{listing}”.',
+    'Báo cáo #{id} về “{listing}” đang chờ Admin xử lý. Ghi chú: {reason}' => 'Report #{id} about “{listing}” is waiting for Admin. Note: {reason}',
+    'Báo cáo #{id} về “{listing}” đang chờ Admin xử lý.' => 'Report #{id} about “{listing}” is waiting for Admin.',
+
     // ---- 030_atomic_writes.sql: Host notifications about a rejected or removed listing
     'Tin “{listing}” đã bị Admin từ chối. Lý do: {reason}' => 'Admin rejected your listing “{listing}”. Reason: {reason}',
     'Admin đã gỡ chỗ ở “{listing}” khỏi hệ thống.' => 'Admin took your listing “{listing}” down.',

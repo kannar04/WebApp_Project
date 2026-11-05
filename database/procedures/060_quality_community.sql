@@ -107,6 +107,9 @@ CREATE OR REPLACE PROCEDURE sp_admin_report_resolve(IN p_id BIGINT UNSIGNED, IN 
 BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_lock BIGINT UNSIGNED;
+    DECLARE v_old_status VARCHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_old_resolution TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_resolution TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN IF v_own THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT h2h_report_resolve; RELEASE SAVEPOINT h2h_report_resolve; END IF; END IF;
@@ -115,15 +118,32 @@ BEGIN
     SET v_own=(@@in_transaction=0);
     IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_report_resolve; END IF;
     CALL sp_admin_assert_role(p_actor);
-    SELECT id INTO v_lock FROM reports WHERE id=p_id FOR UPDATE;
+    SELECT id,status,resolution INTO v_lock,v_old_status,v_old_resolution FROM reports WHERE id=p_id FOR UPDATE;
     IF v_lock IS NULL OR p_status IS NULL OR p_status NOT IN ('open','investigating','resolved','dismissed')
         OR CHAR_LENGTH(COALESCE(p_resolution,''))>5000
         OR (p_status IN ('resolved','dismissed') AND TRIM(COALESCE(p_resolution,''))='') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Trạng thái hoặc kết luận xử lý không hợp lệ.';
     END IF;
-    UPDATE reports SET status=p_status,assigned_admin_id=p_actor,resolution=NULLIF(TRIM(p_resolution),''),
+    SET v_resolution=NULLIF(TRIM(p_resolution),'');
+    UPDATE reports SET status=p_status,assigned_admin_id=p_actor,resolution=v_resolution,
         resolved_at=IF(p_status IN ('resolved','dismissed'),NOW(6),NULL) WHERE id=p_id;
     CALL sp_admin_audit_add(p_actor,'resolve_report','report',p_id,JSON_OBJECT('status',p_status));
+    -- The reporter hears each real change once. Re-saving the same form says nothing new; the binary compare still sees a corrected accent. An Admin's own report needs no notice.
+    IF v_old_status<>p_status OR COALESCE(v_old_resolution,'') COLLATE utf8mb4_bin<>COALESCE(v_resolution,'') COLLATE utf8mb4_bin THEN
+        INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+        SELECT r.reporter_id,r.booking_id,'in_app',CONCAT('report_',p_status),'Cập nhật báo cáo',
+            CASE p_status
+                WHEN 'resolved' THEN CONCAT('Báo cáo #',r.id,' về “',l.title,'” đã được giải quyết. Kết luận: ',v_resolution)
+                WHEN 'dismissed' THEN CONCAT('Báo cáo #',r.id,' về “',l.title,'” không được chấp nhận. Kết luận: ',v_resolution)
+                WHEN 'investigating' THEN CONCAT('Admin đang xử lý báo cáo #',r.id,' về “',l.title,'”.',IF(v_resolution IS NULL,'',CONCAT(' Ghi chú: ',v_resolution)))
+                ELSE CONCAT('Báo cáo #',r.id,' về “',l.title,'” đang chờ Admin xử lý.',IF(v_resolution IS NULL,'',CONCAT(' Ghi chú: ',v_resolution)))
+            END,'sent',1,NOW(6)
+        FROM reports r
+        LEFT JOIN bookings b ON b.id=r.booking_id
+        JOIN listings l ON l.id=COALESCE(r.listing_id,b.listing_id)
+        JOIN users u ON u.id=r.reporter_id
+        WHERE r.id=p_id AND r.reporter_id<>p_actor AND u.deleted_at IS NULL;
+    END IF;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_report_resolve; END IF;
 END$$
 

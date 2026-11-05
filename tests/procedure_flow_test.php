@@ -196,6 +196,56 @@ try {
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS repeated report on an open or investigated target saves nothing; other reporters and closed reports are unaffected\n";
 
+    // The reporter hears each real change with the Admin's words, once, in the same transaction; everything rolls back with the outer transaction.
+    $db->beginTransaction();
+    try {
+        $reports=new Report(); $reporter=(int)$guest['id']; $adminId=(int)$admin['id'];
+        (new AdminRepository())->moderate($listingId,$adminId,'approved','Procedure report fixture');
+        $count=[]; foreach (['open','investigating','resolved','dismissed'] as $state) { $count[$state]=count(noticesFor($reporter,null,'report_'.$state)); }
+        ensure($reports->create($reporter,$listingId,null,'other','Procedure outcome report')===true,'Outcome report was not saved.');
+        $reportId=(int)$reports->forUser($reporter)[0]['id'];
+        refused([$reports,'resolve'],[$reportId,$adminId,'resolved','   ']);
+        ensure(count(noticesFor($reporter,null,'report_resolved'))===$count['resolved'],'A refused resolve notified the reporter.');
+        $reports->resolve($reportId,$adminId,'open','');
+        ensure(count(noticesFor($reporter,null,'report_open'))===$count['open'],'A save that changed nothing notified the reporter.');
+        $reports->resolve($reportId,$adminId,'investigating','');
+        $notices=noticesFor($reporter,null,'report_investigating');
+        ensure(count($notices)===$count['investigating']+1 && str_contains($notices[0]['body'],'Admin đang xử lý báo cáo #'.$reportId) && str_contains($notices[0]['body'],$data['title']) && !str_contains($notices[0]['body'],'Ghi chú'),'Marking a report as investigating did not tell the reporter.');
+        $reports->resolve($reportId,$adminId,'investigating','Đang gọi cho Host');
+        $notices=noticesFor($reporter,null,'report_investigating');
+        ensure(count($notices)===$count['investigating']+2 && str_contains($notices[0]['body'],'Ghi chú: Đang gọi cho Host'),'A new note did not reach the reporter.');
+        $conclusion='Đã kiểm tra & sửa thông tin 🏠';
+        $reports->resolve($reportId,$adminId,'resolved',$conclusion);
+        $notices=noticesFor($reporter,null,'report_resolved');
+        ensure(count($notices)===$count['resolved']+1 && str_contains($notices[0]['body'],'đã được giải quyết. Kết luận: '.$conclusion) && $notices[0]['title']==='Cập nhật báo cáo','The reporter was not told the conclusion.');
+        $reports->resolve($reportId,$adminId,'resolved','  '.$conclusion.' ');
+        ensure(count(noticesFor($reporter,null,'report_resolved'))===$count['resolved']+1,'Saving the same conclusion again notified the reporter again.');
+        // A corrected accent is a new conclusion, although the column's collation calls the two equal.
+        $reports->resolve($reportId,$adminId,'resolved','Da kiem tra');
+        $reports->resolve($reportId,$adminId,'resolved','Đã kiểm tra');
+        $notices=noticesFor($reporter,null,'report_resolved');
+        ensure(count($notices)===$count['resolved']+3 && str_contains($notices[0]['body'],'Đã kiểm tra'),'A corrected conclusion did not reach the reporter.');
+        $reports->resolve($reportId,$adminId,'dismissed','Không đủ căn cứ');
+        $notices=noticesFor($reporter,null,'report_dismissed');
+        ensure(count($notices)===$count['dismissed']+1 && str_contains($notices[0]['body'],'không được chấp nhận. Kết luận: Không đủ căn cứ'),'Dismissing did not tell the reporter.');
+        $reports->resolve($reportId,$adminId,'open','');
+        $notices=noticesFor($reporter,null,'report_open');
+        ensure(count($notices)===$count['open']+1 && str_contains($notices[0]['body'],'đang chờ Admin xử lý.'),'Reopening did not tell the reporter.');
+        // A complaint's notice also opens its booking, whether or not the report named the listing itself.
+        $complaintStart=(new DateTimeImmutable('today'))->modify('+5400 days')->format('Y-m-d');
+        $complaintBooking=(new BookingService())->create($listingId,$reporter,$complaintStart,(new DateTimeImmutable($complaintStart))->modify('+2 days')->format('Y-m-d'),1);
+        ensure($reports->create($reporter,null,$complaintBooking,'complaint','Procedure outcome complaint')===true,'Outcome complaint was not saved.');
+        $reports->resolve((int)$reports->forUser($reporter)[0]['id'],$adminId,'resolved','Đã làm việc với Host');
+        $notices=noticesFor($reporter,$complaintBooking,'report_resolved');
+        ensure(count($notices)===1 && (int)$notices[0]['can_open_booking']===1 && str_contains($notices[0]['body'],$data['title']),'A complaint notice lost its booking.');
+        // An Admin closing their own report is not told about it.
+        $adminNotices=count(noticesFor($adminId,null,'report_resolved'));
+        ensure($reports->create($adminId,$listingId,null,'other','Procedure Admin own report')===true,'The Admin report was not saved.');
+        $reports->resolve((int)$reports->forUser($adminId)[0]['id'],$adminId,'resolved','Own report closed');
+        ensure(count(noticesFor($adminId,null,'report_resolved'))===$adminNotices,'An Admin was notified of their own action.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS the reporter is told each real change with the Admin's words, once; a repeat save and an Admin's own report say nothing\n";
+
     // Admin report paging; the fixtures roll back with the outer transaction.
     $db->beginTransaction();
     try {
