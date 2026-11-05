@@ -284,6 +284,35 @@ function Check-SearchStayToListing {
     if (!$links.Count -or @($links | Where-Object { $_ -notmatch ('^/listings/\d+\?'+[regex]::Escape($stay)+'$') }).Count) { throw "Map links lost the stay: $($links -join ' ')" }
 }
 
+function Check-DetailHeart {
+    # The detail page heart is the card heart: one state on card, detail page and wishlist, after Back too, so a click never does the opposite of what it shows.
+    $heart="document.querySelector('[data-favorite=""3""]')"
+    Navigate '/'
+    $before=[bool](Evaluate "$heart.classList.contains('is-saved')")
+    $flipped=if ($before) { 'false' } else { 'true' }
+    Evaluate "document.querySelector('.listing-card a[href^=""/listings/3""]').click();true" | Out-Null
+    Wait-FilterPage "location.pathname==='/listings/3'"
+    $shown=Evaluate "({count:document.querySelectorAll('[data-favorite]').length,saved:$heart.classList.contains('is-saved'),pressed:$heart.getAttribute('aria-pressed'),label:$heart.getAttribute('aria-label'),type:$heart.type})"
+    if ($shown.count -ne 1 -or $shown.saved -ne $before -or $shown.pressed -ne ([string]$before).ToLower() -or !$shown.label -or $shown.type -ne 'button') { throw "Detail heart wrong: $($shown | ConvertTo-Json -Compress)" }
+    Evaluate "$heart.click();true" | Out-Null
+    Wait-FilterPage "!$heart.disabled&&$heart.getAttribute('aria-pressed')==='$flipped'&&$heart.classList.contains('is-saved')===$flipped"
+    $history=Send-Cdp 'Page.getNavigationHistory'
+    Send-Cdp 'Page.navigateToHistoryEntry' @{entryId=$history.entries[$history.currentIndex-1].id} | Out-Null
+    Wait-FilterPage "location.pathname==='/'&&$heart.getAttribute('aria-pressed')==='$flipped'&&$heart.classList.contains('is-saved')===$flipped"
+    Navigate '/wishlist'
+    if ([bool](Evaluate "!!$heart") -ne ($flipped -eq 'true')) { throw 'Wishlist disagrees with the detail heart' }
+    Navigate '/listings/3'
+    if ((Evaluate "$heart.getAttribute('aria-pressed')") -ne $flipped) { throw 'Detail heart lost its state on reload' }
+    Evaluate "$heart.click();true" | Out-Null
+    Wait-FilterPage "!$heart.disabled&&$heart.classList.contains('is-saved')===$(([string]$before).ToLower())"
+    # Dates in the address, a long title and a phone leave the heart where it can be tapped.
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=320;height=800;deviceScaleFactor=1;mobile=$false} | Out-Null
+    Navigate '/listings/3?check_in=2035-08-10&check_out=2035-08-12'
+    $fit=Evaluate "(function(){document.querySelector('.detail-heading h1').textContent='W'.repeat(200);const box=$heart.getBoundingClientRect();return {left:box.left,right:box.right,width:box.width,overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth};})()"
+    if ($fit.left -lt 0 -or $fit.right -gt 320 -or $fit.width -ne 38 -or $fit.overflow -gt 0) { throw "Detail heart does not fit a phone: $($fit | ConvertTo-Json -Compress)" }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+}
+
 function Check-LoginCarriesBooking {
     # Signed out, the sign-in link takes the chosen stay along: same site, encoded, following the form. After signing in the listing has it back and quotes it.
     Navigate '/listings/1'
@@ -647,6 +676,8 @@ try {
     Write-Output 'PASS browser search and filter guards release on the timer after Stop'
     Check-RegisterDoubleClick
 
+    Navigate '/listings/3'
+    if (Evaluate "document.querySelectorAll('[data-favorite]').length") { throw 'Signed-out visitors see a detail page heart' }
     Check-SearchStayToListing
     Write-Output 'PASS browser search dates and guests reach the listing from cards and the map, quote by themselves and survive month arrows and sign-in; plain links stay plain'
     Check-LoginCarriesBooking
@@ -663,6 +694,8 @@ try {
     $favorite = Evaluate "(async()=>{const button=document.querySelector('[data-favorite]');const before=button.classList.contains('is-saved');button.click();await new Promise(r=>setTimeout(r,500));const changed=button.classList.contains('is-saved')!==before;button.click();await new Promise(r=>setTimeout(r,500));return changed&&button.classList.contains('is-saved')===before&&!button.disabled;})()"
     if (!$favorite) { throw 'Favorite toggle failed' }
     Write-Output 'PASS browser favorite toggle and restore'
+    Check-DetailHeart
+    Write-Output 'PASS browser detail page heart keeps one state with cards and the wishlist, after Back too'
     Navigate '/bookings'
     $bookingPath=Evaluate 'document.querySelector(''a[href*="/bookings/"]'')?.getAttribute(''href'')'
     if ($bookingPath) {
@@ -760,6 +793,7 @@ try {
     Check-AdminCreateDoubleClick
     Check-CalendarNavigation '/admin/listings/1/preview'
     Check-CalendarArrows '/admin/listings/1/preview'
+    if (Evaluate "document.querySelectorAll('[data-favorite]').length") { throw 'Admin preview shows a heart' }
     if ($VisualUX) { Test-VisualPages 'after' }
     if ($script:javascriptErrors.Count) { throw "Browser reported $($script:javascriptErrors.Count) JavaScript exceptions" }
     Write-Output 'PASS no browser JavaScript exceptions'

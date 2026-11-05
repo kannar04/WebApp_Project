@@ -813,6 +813,30 @@ $plainListing=$request('/listings/1')['body'];
 qaExpect(preg_match_all('~\?month=\d{4}-\d{2}#availability-calendar"~',$plainListing)===2 && preg_match('~href="([^"]*)" data-login-next~',$plainListing,$signInLink)===1 && str_ends_with($signInLink[1],'/login'),'Plain listing links changed.');
 echo "PASS QA listing page keeps a stay from the URL through month arrows and the sign-in link\n";
 
+// The listing page heart follows the wishlist for anyone who may save. Signed-out visitors and the Admin preview get none, as with cards.
+qaExpect(!str_contains($plainListing,'data-favorite='),'Signed-out listing page shows a heart.');
+$savedIds=$request('/api/wishlist');
+qaExpect($savedIds['status']===401 && json_decode($savedIds['body'],true)['success']===false,'Saved ids answered a signed-out visitor.');
+$signedIn=$request('/login',['_token'=>$token($request('/login')),'email'=>'guest@home2home.test','password'=>'Password123!']);
+qaExpect($signedIn['status']===200 && !str_contains($signedIn['url'],'/api/wishlist'),'The background saved-ids request became the page to return to after sign-in.');
+$detailHeart=static function() use($request): array {
+    $saved=in_array(1,json_decode($request('/api/wishlist')['body'],true)['data']['ids'],true);
+    preg_match_all('~<button class="favorite-button ([a-z-]*)" type="button" data-favorite="1"[^>]*aria-pressed="(true|false)"~',$request('/listings/1')['body'],$found,PREG_SET_ORDER);
+    qaExpect(count($found)===1 && ($found[0][1]==='is-saved')===$saved && ($found[0][2]==='true')===$saved,'Listing page heart disagrees with the wishlist.');
+    return [$saved];
+};
+[$savedBefore]=$detailHeart();
+$saveToken=$token($request('/listings/1'));
+$request('/api/wishlist/1',['_token'=>$saveToken]);
+qaExpect($detailHeart()===[!$savedBefore],'Listing page heart did not follow a save.');
+$request('/api/wishlist/1',['_token'=>$saveToken]);
+qaExpect($detailHeart()===[$savedBefore],'Listing page heart did not follow a removal.');
+$logout();
+$login('admin');
+qaExpect(!str_contains($request('/admin/listings/1/preview')['body'],'data-favorite='),'Admin preview shows a heart.');
+$logout();
+echo "PASS QA listing page heart follows the wishlist; none for signed-out visitors or the Admin preview\n";
+
 // More than one UI page, with real approval and filter-preserving navigation.
 $paginationFixtures=[]; $paginationData=$listings->findOwned(1,2); $paginationData['city']='QualityPagination';
 try {

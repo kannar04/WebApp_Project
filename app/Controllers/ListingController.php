@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 use App\Models\BookingExtras;
 use App\Models\Listing;
+use App\Models\Wishlist;
 use App\Services\BookingService;
 use Core\Controller;
 final class ListingController extends Controller
@@ -18,6 +19,7 @@ final class ListingController extends Controller
         catch (\DomainException $exception) { \Core\Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
         $this->render('listings/show',['title'=>$listing['title'],'listing'=>$listing,'calendar'=>$calendar,
             'calendarDays'=>$model->calendar((int)$id,0,$calendar['start'],$calendar['end']),'calendarPath'=>'/listings/'.$id,'calendarStay'=>$this->bookingFromQuery(),'preview'=>false,'old'=>$old,
+            'isSaved'=>\Core\Auth::check() && in_array((int)$id,(new Wishlist())->ids((int)\Core\Auth::id()),true),
             'trustBadges'=>(new \App\Models\Trust())->badges([(int)$listing['host_id']],\Core\Auth::id()),'reviewBadges'=>(new \App\Models\Trust())->reviewBadges((int)$id),
             'bookingRules'=>(new BookingExtras())->listingRules((int)$id),'upcomingHolidays'=>(new BookingExtras())->upcomingHolidays(6)]);
     }

@@ -387,6 +387,8 @@ html[data-theme="dark"] .search-bar { background: var(--card); border-color: #3c
 html[data-theme="dark"] .search-field { border-right-color: #34423a; }
 html[data-theme="dark"] .lead-copy, html[data-theme="dark"] .article-lead { color: #c9d3cb; }
 html[data-theme="dark"] .avatar { background: #23392c; color: var(--accent); }
+.detail-actions { display: flex; flex-shrink: 0; align-items: center; gap: 10px; }
+.detail-actions .favorite-button { position: static; flex-shrink: 0; }
 html[data-theme="dark"] .favorite-button { background: rgba(28,36,31,.94); color: var(--text); box-shadow: 0 3px 12px rgba(0,0,0,.45); }
 html[data-theme="dark"] .favorite-button.is-saved { background: #407c5b; color: #fff; }
 html[data-theme="dark"] .eyebrow, html[data-theme="dark"] .article-category, html[data-theme="dark"] .article-card-title a:hover { color: var(--accent); }

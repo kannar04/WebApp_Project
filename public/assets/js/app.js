@@ -212,6 +212,29 @@
         flash.focus({preventScroll: true});
     }
 
+    function markHeart(heart, saved) {
+        heart.classList.toggle('is-saved', saved);
+        heart.setAttribute('aria-pressed', String(saved));
+    }
+
+    // A page out of the back/forward cache shows its hearts as they were when it was left, and a click would then do the opposite of what it shows.
+    async function refreshRestoredHearts(event) {
+        const hearts = document.querySelectorAll('[data-favorite]');
+        if (!event.persisted || hearts.length === 0) { return; }
+        const baseUrl = document.querySelector('meta[name="app-base-url"]')?.content.replace(/\/$/, '') || '';
+        try {
+            const response = await fetch(`${baseUrl}/api/wishlist`, {headers: {'Accept': 'application/json'}});
+            const result = await response.json();
+            if (!response.ok || !result.success) { return; }
+            for (let index = 0; index < hearts.length; index++) {
+                markHeart(hearts[index], result.data.ids.includes(Number(hearts[index].dataset.favorite)));
+            }
+        } catch (error) {
+            // Nothing to tell the visitor yet: the hearts stay as they were, and the next click reports its own failure.
+            console.warn(error);
+        }
+    }
+
     function initialize() {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const baseUrl = document.querySelector('meta[name="app-base-url"]')?.content.replace(/\/$/, '') || '';
@@ -289,8 +312,7 @@
                         failure.fromServer = true;
                         throw failure;
                     }
-                    this.classList.toggle('is-saved', result.data.saved);
-                    this.setAttribute('aria-pressed', String(result.data.saved));
+                    markHeart(this, result.data.saved);
                 } catch (error) {
                     // Network and JSON errors carry the browser's own (untranslated) text, so show the fallback instead.
                     alert(error.fromServer ? error.message : h2hT('Không thể cập nhật yêu thích. Vui lòng thử lại.'));
@@ -299,6 +321,8 @@
                 }
             });
         });
+
+        window.addEventListener('pageshow', refreshRestoredHearts);
 
         const bookingForm = document.querySelector('[data-booking-form]');
         if (bookingForm) {
