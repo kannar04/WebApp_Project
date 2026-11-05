@@ -249,6 +249,7 @@ return [
     'Tin nhắn mới nhất' => 'Latest messages',
     'Hiển thị {count} tin nhắn mới nhất' => 'Showing the {count} latest message(s)',
     'Chi tiết booking' => 'Booking details',
+    'tài khoản đã xóa' => 'account deleted',
     'Không có tin nhắn phù hợp' => 'No matching messages',
     'Booking này chưa có tin nhắn hoặc không tồn tại.' => 'This booking has no messages yet or does not exist.',
     'Thử từ khóa, mã booking hoặc người dùng khác.' => 'Try a different keyword, booking ID or user.',

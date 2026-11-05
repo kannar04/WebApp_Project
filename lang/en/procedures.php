@@ -195,6 +195,7 @@ return [
 
     // ---- 080_conversation.sql
     'Bạn không tham gia cuộc trò chuyện của booking này.' => 'You are not part of the conversation for this booking.',
+    'Tài khoản của người nhận không còn tồn tại nên cuộc trò chuyện chỉ còn để xem.' => 'The recipient’s account no longer exists, so the conversation is read-only.',
     'Booking đã bị từ chối hoặc hủy nên cuộc trò chuyện chỉ còn để xem.' => 'This booking was rejected or cancelled, so the conversation is read-only.',
     'Cuộc trò chuyện đã đóng sau 14 ngày kể từ ngày trả phòng.' => 'The conversation closed 14 days after the check-out date.',
     'Booking ở trạng thái này không nhận tin nhắn.' => 'A booking in this status cannot receive messages.',

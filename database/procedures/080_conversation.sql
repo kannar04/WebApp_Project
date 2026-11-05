@@ -23,8 +23,9 @@ BEGIN
     SELECT IF(b.guest_id=p_actor,'guest','host') my_role,
         IF(b.guest_id=p_actor,l.host_id,b.guest_id) other_id,
         IF(b.guest_id=p_actor,h.full_name,g.full_name) other_name,
+        IF(b.guest_id=p_actor,h.deleted_at,g.deleted_at) IS NOT NULL other_deleted,
         b.status,b.check_out+INTERVAL 14 DAY closes_on,
-        IF(b.status IN ('pending','confirmed') OR (b.status='completed' AND v_today<=b.check_out+INTERVAL 14 DAY),1,0) can_send
+        IF(IF(b.guest_id=p_actor,h.deleted_at,g.deleted_at) IS NULL AND (b.status IN ('pending','confirmed') OR (b.status='completed' AND v_today<=b.check_out+INTERVAL 14 DAY)),1,0) can_send
     FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users g ON g.id=b.guest_id JOIN users h ON h.id=l.host_id
     WHERE b.id=p_booking;
 END$$
@@ -36,6 +37,7 @@ BEGIN
     DECLARE v_guest BIGINT UNSIGNED;
     DECLARE v_host BIGINT UNSIGNED;
     DECLARE v_recipient BIGINT UNSIGNED;
+    DECLARE v_recipient_deleted DATETIME(6);
     DECLARE v_id BIGINT UNSIGNED;
     DECLARE v_unread INT DEFAULT 0;
     DECLARE v_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -59,6 +61,12 @@ BEGIN
         OR NOT (v_guest=p_actor OR (v_host=p_actor AND EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='host'))) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Bạn không tham gia cuộc trò chuyện của booking này.';
     END IF;
+    SET v_recipient=IF(p_actor=v_guest,v_host,v_guest);
+    -- Nobody can read what is sent to a deleted account. Worked out live, so restoring the account reopens the thread.
+    SELECT deleted_at INTO v_recipient_deleted FROM users WHERE id=v_recipient LOCK IN SHARE MODE;
+    IF v_recipient_deleted IS NOT NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản của người nhận không còn tồn tại nên cuộc trò chuyện chỉ còn để xem.';
+    END IF;
     IF v_status IN ('rejected','cancelled') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking đã bị từ chối hoặc hủy nên cuộc trò chuyện chỉ còn để xem.';
     END IF;
@@ -72,7 +80,6 @@ BEGIN
     IF CHAR_LENGTH(v_body)<1 OR CHAR_LENGTH(v_body)>2000 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tin nhắn cần từ 1 đến 2000 ký tự.';
     END IF;
-    SET v_recipient=IF(p_actor=v_guest,v_host,v_guest);
     INSERT INTO booking_messages(booking_id,sender_id,recipient_id,body,created_at) VALUES(p_booking,p_actor,v_recipient,v_body,NOW(6));
     SET v_id=LAST_INSERT_ID();
     -- Anti-flood: a recipient keeps at most one unread message notification per booking.
@@ -164,6 +171,7 @@ BEGIN
     -- Admin reading never changes read receipts.
     SELECT t.* FROM (
         SELECT m.id,m.booking_id,l.title,b.status booking_status,g.full_name guest_name,h.full_name host_name,
+            g.deleted_at IS NOT NULL guest_deleted,h.deleted_at IS NOT NULL host_deleted,
             m.sender_id,s.full_name sender_name,IF(m.sender_id=b.guest_id,'guest','host') sender_role,
             m.body,m.created_at,m.read_at,m.hidden_at,m.hidden_reason,a.full_name hidden_by_name
         FROM booking_messages m JOIN bookings b ON b.id=m.booking_id JOIN listings l ON l.id=b.listing_id

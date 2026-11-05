@@ -111,6 +111,7 @@ $reminders = new CheckInReminder();
 $bookingService = new BookingService();
 $listingId = null;
 $outsiderId = null;
+$leaverId = null;
 $tag = bin2hex(random_bytes(5));
 $today = new DateTimeImmutable('today');
 
@@ -206,6 +207,30 @@ try {
     $closed = conversationRejects([$messages, 'send'], [$bookingG, $guestId, 'Còn ai không?'], 'Message accepted 15 days after check-out.');
     conversationExpect(str_contains($closed, '14 ngày'), 'Closed conversation message unclear.');
     echo "PASS guards: participants only (Admin/outsider/missing booking refused), rejected/cancelled read-only, completed open through check-out + 14 days\n";
+
+    // A deleted account: the thread says so and is read-only, nothing is delivered, and restoring the account reopens it.
+    $leaverId = $users->create('audit-'.$tag.'-leaver@home2home.test', bin2hex(random_bytes(16)), 'Audit leaver', null);
+    $leaverStay = $bookingService->create($listingId, $leaverId, $far->modify('+40 days')->format('Y-m-d'), $far->modify('+41 days')->format('Y-m-d'), 1);
+    $bookingService->hostTransition($leaverStay, $hostId, 'confirmed');
+    conversationComplete($leaverStay, 3);
+    $messages->send($leaverStay, $leaverId, 'Cảm ơn Host trước khi rời đi.');
+    $openState = $messages->state($leaverStay, $hostId);
+    conversationExpect((int) $openState['can_send'] === 1 && (int) $openState['other_deleted'] === 0, 'A live account read as deleted.');
+    $users->softDelete($leaverId);
+    $goneState = $messages->state($leaverStay, $hostId);
+    conversationExpect((int) $goneState['can_send'] === 0 && (int) $goneState['other_deleted'] === 1, 'A deleted account left the thread open.');
+    $goneBefore = conversationInspect($leaverStay, $leaverId);
+    $gone = conversationRejects([$messages, 'send'], [$leaverStay, $hostId, 'Bạn còn đó không?'], 'A message to a deleted account was accepted.');
+    conversationExpect(str_contains($gone, 'không còn tồn tại'), 'The refusal does not say the account is gone.');
+    $goneAfter = conversationInspect($leaverStay, $leaverId);
+    conversationExpect((int) $goneAfter['messages'] === (int) $goneBefore['messages'] && (int) $goneAfter['message_notifications'] === (int) $goneBefore['message_notifications'], 'A refused message reached the deleted account.');
+    conversationExpect(count($messages->thread($leaverStay, $hostId)) === 1, 'The thread is no longer readable after the other account was deleted.');
+    $goneThread = $messages->adminThread($adminId, $leaverStay);
+    conversationExpect((int) $goneThread[0]['guest_deleted'] === 1 && (int) $goneThread[0]['host_deleted'] === 0, 'The Admin thread does not mark the deleted account.');
+    $users->setStatus($leaverId, 'restore');
+    conversationExpect((int) $messages->state($leaverStay, $hostId)['can_send'] === 1 && (int) $messages->adminThread($adminId, $leaverStay)[0]['guest_deleted'] === 0, 'Restoring the account did not reopen the thread.');
+    $users->softDelete($leaverId);
+    echo "PASS deleted account: thread read-only and says so, no message or notification, Admin sees it, restoring reopens\n";
 
     // Inbox: newest conversation first, other party, snippet and unread counts.
     $messages->send($bookingA, $hostId, 'Nhắn thêm: nhớ mang giấy tờ tùy thân nhé.');
@@ -369,6 +394,14 @@ try {
         conversationExpect(str_contains(conversationHttp($adminClient, $baseUrl, '/bookings/'.$bookingA)['body'], 'Mở cuộc trò chuyện (quản trị)'), 'Admin booking page lacks the admin thread link.');
         $hostOnAdmin = conversationHttp($hostClient, $baseUrl, '/admin/messages/'.$first.'/moderate', ['_token' => conversationToken(conversationHttp($hostClient, $baseUrl, '/messages')['body']), 'action' => 'unhide', 'reason' => 'Host không có quyền']);
         conversationExpect($hostOnAdmin['status'] === 403 && $messages->adminThread($adminId, $bookingA)[0]['hidden_at'] !== null, 'Host moderated over HTTP.');
+        // The deleted account from above: the Host's page says so without a form, a direct POST is refused, the Admin's header marks it.
+        $goneNote = 'Tài khoản của Audit leaver không còn tồn tại nên cuộc trò chuyện chỉ còn để xem.';
+        $gonePage = conversationHttp($hostClient, $baseUrl, '/bookings/'.$leaverStay)['body'];
+        conversationExpect(str_contains($gonePage, $goneNote) && !str_contains($gonePage, 'data-message-form') && str_contains($gonePage, 'Cảm ơn Host trước khi rời đi.'), 'The Host page does not say the account is gone.');
+        $goneBefore = (int) conversationInspect($leaverStay, $leaverId)['messages'];
+        $gonePost = conversationHttp($hostClient, $baseUrl, '/bookings/'.$leaverStay.'/messages', ['_token' => conversationToken($gonePage), 'body' => 'Bạn còn đó không?']);
+        conversationExpect($gonePost['status'] === 302 && (int) conversationInspect($leaverStay, $leaverId)['messages'] === $goneBefore, 'A direct POST reached a deleted account.');
+        conversationExpect(str_contains(conversationHttp($adminClient, $baseUrl, '/admin/messages?booking='.$leaverStay)['body'], 'Audit leaver (tài khoản đã xóa)'), 'The Admin header does not mark the deleted account.');
         foreach ([$anonymous, $guestClient, $hostClient, $adminClient] as $client) { curl_close($client); }
         echo "PASS HTTP: login redirects/403, CSRF on send and moderation, escaped nl2br thread, badge, flash errors, read-only form, Zalo links, reminders page, admin search/hide\n";
     }
@@ -377,6 +410,7 @@ try {
     $database->beginTransaction();
     if ($listingId !== null) { $database->prepare('CALL sp_test_conversation_cleanup(?)')->execute([$listingId]); }
     if ($outsiderId !== null) { $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$outsiderId]); }
+    if ($leaverId !== null) { $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$leaverId]); }
     $database->commit();
 }
 echo "PASS conversation fixtures removed\n";

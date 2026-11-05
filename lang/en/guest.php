@@ -151,6 +151,7 @@ return [
     'Gửi tin nhắn' => 'Send message',
     'Bạn có thể nhắn tin đến hết ngày {date} (14 ngày sau trả phòng).' => 'You can send messages until the end of {date} (14 days after check-out).',
     'Booking đã bị từ chối hoặc hủy nên cuộc trò chuyện chỉ còn để xem.' => 'This booking was rejected or cancelled, so the conversation is read-only.',
+    'Tài khoản của {name} không còn tồn tại nên cuộc trò chuyện chỉ còn để xem.' => '{name}’s account no longer exists, so the conversation is read-only.',
     'Cuộc trò chuyện đã đóng sau 14 ngày kể từ ngày trả phòng; bạn vẫn có thể xem lại.' => 'The conversation closed 14 days after check-out; you can still read it.',
     'Tin nhắn booking' => 'Booking messages',
     'Quản trị viên xem cuộc trò chuyện giữa Guest và Host ở trang quản trị, không làm thay đổi trạng thái đã đọc.' => 'Administrators read the Guest–Host conversation on the admin page, without changing its read status.',
