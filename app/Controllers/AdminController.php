@@ -9,6 +9,7 @@ use Core\Controller;
 use Core\Csrf;
 use Core\Database;
 use Core\Session;
+use Core\Validator;
 final class AdminController extends Controller
 {
     public function dashboard(): void
@@ -58,10 +59,11 @@ final class AdminController extends Controller
             'phone'=>trim(input_text($_POST,'phone')),'password'=>input_text($_POST,'password')];
         $roles=$_POST['roles']??['guest'];
         if ($data['full_name']==='' || mb_strlen($data['full_name'])>150 || !filter_var($data['email'],FILTER_VALIDATE_EMAIL)
-            || strlen($data['email'])>254 || strlen($data['phone'])>20 || strlen($data['password'])<8
+            || strlen($data['email'])>254 || strlen($data['phone'])>20
             || !$this->rolesAreValid($roles)) {
             Session::flash('error','Thông tin tài khoản mới không hợp lệ.'); $this->redirect('/admin');
         }
+        if (!Validator::passwordAllowed($data['password'])) { Session::flash('error',Validator::PASSWORD_RULE); $this->redirect('/admin'); }
         $database=Database::connection(); $database->beginTransaction();
         try {
             $newId=(new User())->adminCreate($data,$roles);
@@ -92,10 +94,14 @@ final class AdminController extends Controller
         ];
         if ($data['full_name'] === '' || mb_strlen($data['full_name']) > 150
             || !filter_var($data['email'], FILTER_VALIDATE_EMAIL) || strlen($data['email']) > 254
-            || strlen($data['phone']) > 20
-            || ($data['password'] !== '' && strlen($data['password']) < 8)) {
+            || strlen($data['phone']) > 20) {
             Session::old(array_diff_key($data, ['password'=>1]));
-            Session::flash('error', 'Thông tin cập nhật không hợp lệ; mật khẩu mới cần ít nhất 8 ký tự.');
+            Session::flash('error', 'Thông tin cập nhật không hợp lệ.');
+            $this->redirect('/admin/users/'.$userId.'/edit');
+        }
+        if ($data['password'] !== '' && !Validator::passwordAllowed($data['password'])) {
+            Session::old(array_diff_key($data, ['password'=>1]));
+            Session::flash('error', Validator::PASSWORD_RULE);
             $this->redirect('/admin/users/'.$userId.'/edit');
         }
         $roles = $_POST['roles'] ?? ['guest'];

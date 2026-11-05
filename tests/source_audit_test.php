@@ -256,6 +256,54 @@ try {
     $invalidPromo = auditRequest($anonymous, $url.'/api/listings/1/quote?check_in=2099-02-01&check_out=2099-02-03&guests=1&promo_code=%ff');
     expect(trim($invalidPromo['body']) !== '' && is_array(json_decode($invalidPromo['body'], true)), 'A quote with an invalid promo byte must still answer in JSON.');
     echo "PASS json() always emits valid JSON, never a blank body\n";
+
+    expect(!\Core\Validator::passwordAllowed(str_repeat('a', 7)) && \Core\Validator::passwordAllowed(str_repeat('a', 8)) && \Core\Validator::passwordAllowed(str_repeat('a', 72)) && !\Core\Validator::passwordAllowed(str_repeat('a', 73)) && !\Core\Validator::passwordAllowed("abcdefgh\0ijkl") && !\Core\Validator::passwordAllowed(str_repeat('é', 36).'x'), 'Password rule must be 8-72 bytes without NUL.');
+    $passwordModel = new User();
+    $tooLong = str_repeat('Z', 73);
+    $withNul = "abcdefgh\0ijkl";
+    $tag = bin2hex(random_bytes(5));
+    foreach (['long' => $tooLong, 'nul' => $withNul] as $name => $badPassword) {
+        $email = "audit-$name-$tag@home2home.test";
+        $browser = auditBrowser();
+        $form = auditRequest($browser, $url.'/register')['body'];
+        $result = auditRequest($browser, $url.'/register', ['_token' => auditFormToken($form), 'full_name' => 'Audit', 'email' => $email, 'password' => $badPassword]);
+        expect($result['location'] === '/register' && $passwordModel->findByEmail($email) === null, "Register accepted a bad password: $name");
+        expect(str_contains(auditRequest($browser, $url.'/register')['body'], \Core\Validator::PASSWORD_RULE), 'Register must state the password rule.');
+        $result = auditRequest($admin, $url.'/admin/users', ['_token' => $adminToken, 'full_name' => 'Audit', 'email' => $email, 'password' => $badPassword, 'roles' => ['guest']]);
+        expect($result['location'] === '/admin' && $passwordModel->findByEmail($email) === null, "Admin create accepted a bad password: $name");
+    }
+    $legacyPassword = str_repeat('L', 80);
+    $fixtureEmail = "audit-password-$tag@home2home.test";
+    $fixtureId = $passwordModel->create($fixtureEmail, $legacyPassword, 'Audit password fixture', null);
+    try {
+        $fixtureHash = $passwordModel->findByEmail($fixtureEmail)['password_hash'];
+        $legacy = auditBrowser();
+        $form = auditRequest($legacy, $url.'/login')['body'];
+        expect(auditRequest($legacy, $url.'/login', ['_token' => auditFormToken($form), 'email' => $fixtureEmail, 'password' => $legacyPassword])['location'] === '/', 'A longer existing password must still log in.');
+        $profileToken = auditFormToken(auditRequest($legacy, $url.'/profile')['body']);
+        foreach ([$tooLong, $withNul] as $badPassword) {
+            auditRequest($legacy, $url.'/profile/password', ['_token' => $profileToken, 'current_password' => $legacyPassword, 'new_password' => $badPassword, 'password_confirmation' => $badPassword]);
+            auditRequest($admin, $url.'/admin/users/'.$fixtureId, ['_token' => $adminToken, 'full_name' => 'Audit password fixture', 'email' => $fixtureEmail, 'phone' => '', 'password' => $badPassword, 'roles' => ['guest']]);
+            expect($passwordModel->findByEmail($fixtureEmail)['password_hash'] === $fixtureHash, 'Change or admin edit accepted a bad password.');
+        }
+        expect(str_contains(auditRequest($legacy, $url.'/profile')['body'], \Core\Validator::PASSWORD_RULE), 'Change password must state the rule.');
+        $rawToken = bin2hex(random_bytes(32));
+        (new \App\Models\PasswordReset())->issue($fixtureId, $rawToken);
+        $reader = auditBrowser();
+        $resetForm = auditRequest($reader, $url.'/reset-password?token='.$rawToken)['body'];
+        foreach ([$tooLong, $withNul, 'short'] as $badPassword) {
+            auditRequest($reader, $url.'/reset-password', ['_token' => auditFormToken($resetForm), 'token' => $rawToken, 'password' => $badPassword, 'password_confirmation' => $badPassword]);
+            expect($passwordModel->findByEmail($fixtureEmail)['password_hash'] === $fixtureHash, 'Reset accepted a bad password.');
+        }
+        $exact = str_repeat('E', 72);
+        auditRequest($admin, $url.'/admin/users/'.$fixtureId, ['_token' => $adminToken, 'full_name' => 'Audit password fixture', 'email' => $fixtureEmail, 'phone' => '', 'password' => '', 'roles' => ['guest']]);
+        expect($passwordModel->findByEmail($fixtureEmail)['password_hash'] === $fixtureHash, 'A blank password on admin edit must keep the current one.');
+        expect(auditRequest($reader, $url.'/reset-password', ['_token' => auditFormToken($resetForm), 'token' => $rawToken, 'password' => $exact, 'password_confirmation' => $exact])['location'] === '/login', 'A 72-byte password must be accepted.');
+        expect(password_verify($exact, $passwordModel->findByEmail($fixtureEmail)['password_hash']), 'Reset did not save the new password.');
+    } finally {
+        $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$fixtureId]);
+    }
+    echo "PASS password rule 8-72 bytes without NUL on register, admin create and edit, change and reset; login stays lenient\n";
 } finally {
     auditServerStop($rootServer); auditServerStop($subfolderServer);
 }

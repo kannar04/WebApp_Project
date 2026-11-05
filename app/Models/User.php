@@ -110,7 +110,8 @@ final class User
         if (!$user || (int)$user['id']!==$id || $user['status']!=='active' || !password_verify($current,$user['password_hash'])) {
             throw new \DomainException('Mật khẩu hiện tại không đúng.');
         }
-        if (strlen($new)<8 || strlen($new)>72 || $current===$new) { throw new \DomainException('Mật khẩu mới phải khác mật khẩu cũ và dài 8–72 ký tự.'); }
+        if (!\Core\Validator::passwordAllowed($new)) { throw new \DomainException(\Core\Validator::PASSWORD_RULE); }
+        if ($current===$new) { throw new \DomainException('Mật khẩu mới phải khác mật khẩu cũ.'); }
         $this->db->prepare('CALL sp_user_password_change(?,?,?)')->execute([$id,$user['password_hash'],password_hash($new,PASSWORD_DEFAULT)]);
     }
 
