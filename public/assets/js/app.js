@@ -1,6 +1,9 @@
 (function () {
     'use strict';
 
+    const SUBMIT_RELEASE_MS = 20000;
+    const SELF_GUARDED_FORMS = '[data-report-form], [data-booking-form], [data-message-form]';
+
     // Nice-to-have i18n: Vietnamese source text is the key; the layout emits English strings as JSON (empty in Vietnamese).
     let scriptDictionary = null;
     function h2hT(text, params) {
@@ -61,12 +64,30 @@
         form.removeAttribute('aria-busy');
     }
 
+    // Stopping the page load fires no event, so give the form back in case the request never left.
+    function scheduleFormRelease(form) {
+        window.clearTimeout(Number(form.dataset.releaseTimer));
+        form.dataset.releaseTimer = String(window.setTimeout(releaseFormBusy, SUBMIT_RELEASE_MS, form));
+    }
+
     function handleReportSubmit(event) {
         const form = event.currentTarget;
         if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
         markFormBusy(form, h2hT('Đang gửi…'));
-        // Stopping the page load fires no event, so give the form back in case the report never left.
-        window.setTimeout(releaseFormBusy, 20000, form);
+        scheduleFormRelease(form);
+    }
+
+    // Any other POST form: a double click would send it twice while the first request is still loading.
+    // Runs at the document, after the form's own handlers; a dismissed confirm() or an invalid form never gets here.
+    // The buttons stay as they are: a button disabled during submit would drop its name and value from the request.
+    function guardPostSubmit(event) {
+        const form = event.target;
+        if (event.defaultPrevented || !(form instanceof HTMLFormElement)) { return; }
+        if ((form.getAttribute('method') || '').toLowerCase() !== 'post' || form.hasAttribute('target') || form.matches(SELF_GUARDED_FORMS)) { return; }
+        if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
+        form.dataset.submitting = 'true';
+        form.setAttribute('aria-busy', 'true');
+        scheduleFormRelease(form);
     }
 
     // Result messages print at the top of the page, so after a redirect to a #fragment the browser lands far below them.
@@ -114,6 +135,7 @@
 
         document.querySelectorAll('[data-filter-form], [data-search-form]').forEach(watchSearchSubmit);
         document.querySelector('[data-report-form]')?.addEventListener('submit', handleReportSubmit);
+        document.addEventListener('submit', guardPostSubmit);
 
         // The browser's own fragment scroll keeps running until the page has loaded.
         if (document.readyState === 'complete') {
@@ -123,7 +145,9 @@
         }
 
         // Back/forward cache must not leave a restored search/booking button disabled.
-        window.addEventListener('pageshow', () => {
+        // The first pageshow of a page is its own load, which can land while a click on it is still being sent.
+        window.addEventListener('pageshow', event => {
+            if (event.persisted === false) { return; }
             document.querySelectorAll('button[data-idle-label]').forEach(button => {
                 button.disabled = false;
                 button.textContent = button.dataset.idleLabel;

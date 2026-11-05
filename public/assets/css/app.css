@@ -20,6 +20,7 @@
 .table-responsive { display: block; width: 100%; max-width: 100%; overflow-x: auto; }
 .action-row { flex-wrap: wrap; }
 .action-row > a { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+form[aria-busy="true"] button { cursor: progress; }
 /* Filter layout uses Bootstrap 4 form-group/grid structure, not offset corrections. */
 #listing-results, #personal { scroll-margin-top: 100px; }
 .filter-panel { background: var(--surface); }

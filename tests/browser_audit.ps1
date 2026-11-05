@@ -165,10 +165,59 @@ function Check-FlashReveal {
         Navigate '/profile'
         Evaluate "(function(){const f=document.querySelector('#personal').closest('section,form').querySelector('[name=full_name]').form;f.elements.full_name.required=false;f.elements.full_name.value='';f.submit();return true;})()" | Out-Null
         Wait-FilterPage "location.hash==='#personal'&&(function(){const a=document.querySelector('[data-flash]');if(!a||document.activeElement!==a){return false;}const r=a.getBoundingClientRect();return r.top>=document.querySelector('.site-header').getBoundingClientRect().bottom-1&&r.bottom<=innerHeight;})()"
+        Navigate '/wishlist'
         Navigate '/profile#verification'
         Wait-FilterPage "scrollY>100&&!document.querySelector('[data-flash]')&&document.activeElement===document.body"
     }
     Write-Output 'PASS browser result message shown and focused after a fragment redirect, plain fragment scroll kept'
+}
+
+function Send-DoubleClick([string]$Selector) {
+    # A real double click through the browser's input pipeline, the way a mouse sends it.
+    $selectorJson=ConvertTo-Json $Selector -Compress
+    $point=Evaluate "(function(){const b=document.querySelector($selectorJson);b.scrollIntoView({block:'center',behavior:'instant'});const r=b.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()"
+    foreach ($count in 1,2) {
+        foreach ($type in 'mousePressed','mouseReleased') { Send-Cdp 'Input.dispatchMouseEvent' @{type=$type;x=$point.x;y=$point.y;button='left';clickCount=$count} | Out-Null }
+    }
+}
+
+function Check-PostGuardEvents {
+    # Events only, so nothing is posted. The timer is captured to release the form without waiting for it.
+    Navigate '/profile'
+    $generic=Evaluate "(function(){const f=document.querySelector('form[action`$=`"/profile/password`"]');const send=function(){const e=new Event('submit',{cancelable:true,bubbles:true});f.dispatchEvent(e);return e.defaultPrevented;};const realTimeout=window.setTimeout;const timers=[];window.setTimeout=function(callback,delay,form){timers.push({callback,delay,form});return 0;};const first=send();const second=send();window.setTimeout=realTimeout;const locked=f.dataset.submitting==='true'&&f.getAttribute('aria-busy')==='true';const buttons=f.querySelectorAll('button:disabled').length;timers[0].callback(timers[0].form);const timerReleased=!f.dataset.submitting&&!f.hasAttribute('aria-busy');const third=send();const stillLocked=send();window.dispatchEvent(new Event('pageshow'));const shown=!f.dataset.submitting;const cancel=function(e){e.preventDefault();};f.addEventListener('submit',cancel);const cancelled=send();const notLockedByCancel=!f.dataset.submitting;f.removeEventListener('submit',cancel);const search=document.createElement('form');search.setAttribute('method','get');document.body.append(search);const getEvent=new Event('submit',{cancelable:true,bubbles:true});search.dispatchEvent(getEvent);const getTouched=!!search.dataset.submitting||getEvent.defaultPrevented;search.remove();const open=document.createElement('form');open.setAttribute('method','post');open.setAttribute('target','_blank');document.body.append(open);const openEvent=new Event('submit',{cancelable:true,bubbles:true});open.dispatchEvent(openEvent);const openTouched=!!open.dataset.submitting;open.remove();return {first,second,locked,buttons,delay:timers[0].delay,timerReleased,third,stillLocked,shown,cancelled,notLockedByCancel,getTouched,openTouched};})()"
+    if ($generic.first -or !$generic.second -or !$generic.locked -or $generic.buttons -or $generic.delay -ne 20000 -or !$generic.timerReleased -or $generic.third -or !$generic.stillLocked -or !$generic.shown -or !$generic.cancelled -or !$generic.notLockedByCancel -or $generic.getTouched -or $generic.openTouched) { throw "Generic POST guard failed: $($generic | ConvertTo-Json -Compress)" }
+    # The forms with their own guard must keep working when the event also reaches the document.
+    Navigate '/reports?listing=2'
+    $own=Evaluate "(function(){const f=document.querySelector('[data-report-form]');const b=f.querySelector('button[type=submit]');const idle=b.textContent;const send=function(){const e=new Event('submit',{cancelable:true,bubbles:true});f.dispatchEvent(e);return e.defaultPrevented;};const first=send();const second=send();window.dispatchEvent(new Event('pageshow'));return {first,second,released:!b.disabled&&!f.dataset.submitting&&b.textContent===idle};})()"
+    if ($own.first -or !$own.second -or !$own.released) { throw "Report form lost its own guard: $($own | ConvertTo-Json -Compress)" }
+    Write-Output 'PASS browser generic POST guard lets one through, swallows the repeat, releases on timer and pageshow, leaves GET, new-window and cancelled submits alone'
+}
+
+function Check-RegisterDoubleClick {
+    # Used to end on "session expired" although the account had been created.
+    Navigate '/register'
+    $script:doubleClickEmail='audit-double-'+[guid]::NewGuid().ToString('N').Substring(0,12)+'@home2home.test'
+    Evaluate "(function(){const f=document.querySelector('form[action`$=`"/register`"]');f.elements.full_name.value='Audit double click';f.elements.email.value='$script:doubleClickEmail';f.elements.phone.value='0912345678';f.elements.password.value='Audit!'+Math.random().toString(36).slice(2,12);return true;})()" | Out-Null
+    Send-DoubleClick 'form[action$="/register"] button'
+    Wait-FilterPage "location.pathname!=='/register'&&!!document.querySelector('meta[name=csrf-token]')"
+    if (!(Evaluate "!!document.querySelector('form[action`$=`"/logout`"]')&&!document.querySelector('.alert-danger')")) { throw 'Double click on register did not end signed in' }
+    Logout-Role
+    Write-Output 'PASS browser real double click on register signs in once'
+}
+
+function Check-AdminCreateDoubleClick {
+    # Used to report failure for the account the first click had just created.
+    Navigate '/admin'
+    $email='audit-double-'+[guid]::NewGuid().ToString('N').Substring(0,12)+'@home2home.test'
+    Evaluate "(function(){const f=document.querySelector('form[action`$=`"/admin/users`"]');f.elements.full_name.value='Audit double click';f.elements.email.value='$email';f.elements.password.value='Audit!'+Math.random().toString(36).slice(2,12);window.h2hSamePage=true;return true;})()" | Out-Null
+    Send-DoubleClick 'form[action$="/admin/users"] button'
+    Wait-FilterPage "!window.h2hSamePage&&location.pathname==='/admin'&&!!document.querySelector('[data-flash]')"
+    if (!(Evaluate "!!document.querySelector('.alert-success')&&!document.querySelector('.alert-danger')")) { throw 'Double click on Create Guest reported a failure' }
+    # Both fixture accounts go away again.
+    Navigate '/admin?q=audit-double-'
+    $removed=Evaluate "(async function(){const forms=Array.from(document.querySelectorAll('form[action`$=`"/delete`"][action*=`"/admin/users/`"]'));for(const f of forms){await fetch(f.getAttribute('action'),{method:'POST',body:new URLSearchParams({_token:f.elements._token.value})});}return forms.length;})()"
+    if ($removed -ne 2) { throw "Expected two double click fixture accounts, found $removed" }
+    Write-Output 'PASS browser real double click on Create Guest reports success, fixtures removed'
 }
 
 function Check-CalendarNavigation([string]$Path) {
@@ -221,6 +270,7 @@ try {
     if (!$quoteRecovery) { throw 'Quote error recovery/reset failed' }
     Write-Output 'PASS quote error recovery and clearing stale totals'
     Check-FilterResubmit
+    Check-RegisterDoubleClick
 
     Navigate '/login'
     Check-Page 'login'
@@ -243,6 +293,7 @@ try {
     Check-SubmitGuards $bookingPath
     Check-BookingRefusal
     Check-FlashReveal
+    Check-PostGuardEvents
     Check-CalendarNavigation '/listings/1'
     Logout-Role
     if ((Login-Role 'host') -ne '/host') { throw 'Host login redirect failed' }
@@ -266,6 +317,7 @@ try {
             if ($path -eq '/admin' -and ($width -eq 375 -or $width -eq 1440)) { Capture-Page "admin-dashboard-$width" }
         }
     }
+    Check-AdminCreateDoubleClick
     Check-CalendarNavigation '/admin/listings/1/preview'
     if ($VisualUX) { Test-VisualPages 'after' }
     if ($script:javascriptErrors.Count) { throw "Browser reported $($script:javascriptErrors.Count) JavaScript exceptions" }
