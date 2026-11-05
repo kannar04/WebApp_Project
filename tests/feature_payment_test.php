@@ -443,6 +443,7 @@ try {
     $totals=$extras->adminPaymentTotals($adminId);
     payExpect((float)$detail['refund_amount']===100000.0 && (float)$detail['refunded_amount']===100000.0 && (float)$totals['refunded_amount']-(float)$totalsBefore['refunded_amount']===100000.0
         && (float)$totals['collected_amount']-(float)$totalsBefore['collected_amount']===-100000.0,'A policy-share refund is reported wrongly: '.json_encode([$detail['refunded_amount'],$totalsBefore,$totals]));
+    payExpect((int)$totals['paid_count']===(int)$totalsBefore['paid_count'] && (int)$totals['refunded_count']===(int)$totalsBefore['refunded_count']+1,'The Collected count dropped a booking the kept money comes from: '.json_encode([$totalsBefore,$totals]));
     payCall('CALL sp_test_payment_old_refund(?,?)',[$oldShape,1]);
     $state=payInspect($oldShape);
     payExpect((float)$state['cancel_refund']===100000.0 && (float)$state['refund_audit_amount']===220000.0 && $state['payment_status']==='refunded','The old-shape fixture is wrong: '.json_encode($state,JSON_UNESCAPED_UNICODE));
@@ -453,6 +454,7 @@ try {
         'A row refunded by older code shows the policy share: '.json_encode($row,JSON_UNESCAPED_UNICODE));
     payExpect((float)$totals['refunded_amount']-(float)$totalsBefore['refunded_amount']===220000.0 && (float)$totals['collected_amount']-(float)$totalsBefore['collected_amount']===-220000.0,
         'Totals of a row refunded by older code are wrong: '.json_encode([$totalsBefore,$totals]));
+    payExpect((int)$totals['paid_count']===(int)$totalsBefore['paid_count']-1 && (int)$totals['refunded_count']===(int)$totalsBefore['refunded_count']+1,'The Collected count kept a booking with no money left: '.json_encode([$totalsBefore,$totals]));
     payCall('CALL sp_test_payment_old_refund(?,?)',[$oldShape,0]);
     payExpect((float)$extras->bookingDetail($oldShape,$guestId)['refunded_amount']===220000.0 && (float)$extras->adminPaymentTotals($adminId)['refunded_amount']===(float)$totals['refunded_amount'],'A refund without an audit row is not read as the full amount.');
     payExpect($extras->bookingDetail($bookingG,$guestId)['refunded_amount']===null,'A booking that was not refunded reports a refunded figure.');

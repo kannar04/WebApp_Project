@@ -542,7 +542,7 @@ CREATE OR REPLACE PROCEDURE sp_admin_payment_totals(IN p_actor BIGINT UNSIGNED)
 BEGIN
     CALL sp_admin_assert_role(p_actor);
     SELECT COALESCE(SUM(CASE WHEN x.payment_status='paid' THEN x.amount_due WHEN x.payment_status='refunded' THEN x.amount_due-x.refunded END),0) collected_amount,
-        COALESCE(SUM(x.payment_status='paid'),0) paid_count,
+        COALESCE(SUM(x.payment_status='paid' OR (x.payment_status='refunded' AND x.amount_due>x.refunded)),0) paid_count, -- Every booking the collected money comes from.
         COALESCE(SUM(x.refunded),0) refunded_amount,
         COALESCE(SUM(x.payment_status='refunded'),0) refunded_count,
         COALESCE(SUM(CASE WHEN COALESCE(x.payment_status,'unpaid')='unpaid' AND x.booking_status IN ('confirmed','completed') THEN COALESCE(x.amount_due,x.total_amount) END),0) outstanding_amount,
