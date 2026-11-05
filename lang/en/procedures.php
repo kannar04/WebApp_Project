@@ -45,7 +45,6 @@ return [
     'Khoảng ngày có ngày Host đang chặn. Hãy nhờ Host mở lại ngày đó trong Lịch khả dụng, hoặc từ chối yêu cầu này.' => 'The selected dates include a day the Host has blocked. Ask the Host to reopen it in their availability calendar, or reject this request.',
     'Booking không tồn tại hoặc không thuộc về bạn.' => 'The booking does not exist or does not belong to you.',
     'Booking ở trạng thái này không thể hủy.' => 'A booking in this status cannot be cancelled.',
-    'Chưa cấu hình múi giờ để tính hoàn tiền an toàn.' => 'The time zone is not configured, so the refund cannot be calculated safely.',
 
     // ---- 020_booking.sql: booking history reasons (booking_events.reason)
     'Khách gửi yêu cầu đặt chỗ.' => 'Guest sent a booking request.',

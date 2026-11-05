@@ -490,13 +490,16 @@ Vòng 4, giá, khuyến mãi, hoàn tiền và Host bị khóa:
 | `sp_payment_vnpay_result`, `sp_admin_payment_transfer_decide` | `095_online_payment.sql` | Tiền về khi Host tạm khóa là thanh toán bình thường, không hứa hoàn tiền; mọi Admin nhận thông báo `payment_host_suspended` để kiểm tra chuyến ở. Chỗ ở đã gỡ, Host đã xóa và chuyến đã kết thúc không đổi | `feature_payment_test.php` |
 | `sp_booking_extras_price`, `sp_booking_extras_night_rate` | `070_booking_extras.sql` | Giá và phụ phí làm tròn trong biến rộng `DECIMAL(20,2)`, kiểm tra giới hạn sau khi làm tròn: giá làm tròn lên 10.000.000.000đ bị từ chối thay vì bị cắt còn 9.999.999.999,99. Giá của loại đêm không có trong kỳ ở không chặn booking. Mức giảm làm tròn về 0đ không áp dụng và không dùng mất lượt của mã | `feature_booking_extras_test.php` |
 | `sp_admin_promotion_save` | `070_booking_extras.sql` | Từ chối phần trăm dưới 1, số tiền cố định làm tròn về 0đ và mức giảm tối đa làm tròn về 0đ | `feature_booking_extras_test.php` |
+| `sp_booking_refund_terms` | `050_quality_core.sql` | Múi giờ hoặc giờ nhận phòng trong snapshot bị rỗng, không đọc được hoặc sai định dạng được xử lý như khi thiếu: lấy giá trị của listing, cuối cùng là `+07:00`. Bỏ lỗi “Chưa cấu hình múi giờ”, nên trang booking đã thanh toán không còn 404 vì dữ liệu này, và mức hoàn không về 0đ vì giờ sai | `feature_payment_test.php` |
 | `sp_booking_refund_terms`, `sp_booking_cancel`, `sp_booking_refund_preview` | `050_quality_core.sql`, `020_booking.sql` | Thêm `p_booking`. Booking đã có thông báo “Khoản thanh toán sẽ được hoàn lại” được hoàn đủ `amount_due` bất kể chính sách, kể cả sau khi chỗ ở hoặc Host được khôi phục, nên form hoàn tiền của Admin vẫn còn | `feature_payment_test.php` |
+
+Test fixture routine mới (1, chỉ cài trong DB test riêng): `sp_test_payment_snapshot_value` (`testing_payment.sql`) ghi một giá trị JSON vào snapshot của booking fixture.
 
 ### Routine mới
 
 | Routine | File | Mục đích | Transaction / khóa / quyền | Test |
 |---|---|---|---|---|
-| `sp_booking_refund_terms` | `050_quality_core.sql` | Tính phần trăm và cơ sở hoàn của booking đã xác nhận theo snapshot; thiếu múi giờ hoặc giờ nhận phòng thì lấy giá trị hiện tại của listing | Helper chỉ tính, không ghi; chạy trong khóa của `sp_booking_cancel`; quyền do routine gọi kiểm tra | feature_payment_test |
+| `sp_booking_refund_terms` | `050_quality_core.sql` | Tính phần trăm và cơ sở hoàn của booking đã xác nhận theo snapshot; thiếu hoặc không dùng được múi giờ, giờ nhận phòng thì lấy giá trị hiện tại của listing | Helper chỉ tính, không ghi; chạy trong khóa của `sp_booking_cancel`; quyền do routine gọi kiểm tra | feature_payment_test |
 
 ## Run / reproduce
 

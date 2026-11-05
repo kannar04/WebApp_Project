@@ -409,7 +409,27 @@ try {
     payExpect((float)$preview['refund_amount']>0 && $oldPreview==$preview,'An old snapshot changes the refund preview: '.json_encode($oldPreview));
     $cancelled=$service->cancelByGuest($oldSnapshot,$guestId,'Audit fixture');
     payExpect($cancelled['refund_amount']===(float)$oldPreview['refund_amount'],'The preview and the cancel disagree on an old snapshot.');
-    echo "PASS old policy snapshot: refund preview and cancel use the same fallback and the same figure\n";
+    // A zone or check-in time that is empty, unknown or malformed gets the same fallback as a missing one, in the preview and in the cancel, and never a refusal.
+    $badSnapshotOffset=149;
+    foreach ([['time_zone','""'],['time_zone','"Mars/Base"'],['time_zone','"Asia/Bangkok"'],['time_zone','7'],['time_zone','null'],['time_zone','[1]'],
+        ['check_in_time','""'],['check_in_time','"abc"'],['check_in_time','"25:00:00"'],['check_in_time','7'],['check_in_time','null'],['check_in_time','{"a":1}']] as [$field,$json]) {
+        $badSnapshot=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,$badSnapshotOffset,'1400'.str_pad((string)$badSnapshotOffset,4,'0',STR_PAD_LEFT));
+        $badSnapshotOffset+=3;
+        $normal=payCall('CALL sp_booking_refund_preview(?,?)',[$badSnapshot,$guestId])[0];
+        payCall('CALL sp_test_payment_snapshot_value(?,?,?)',[$badSnapshot,$field,$json]);
+        $badPreview=payCall('CALL sp_booking_refund_preview(?,?)',[$badSnapshot,$guestId])[0];
+        payExpect((float)$normal['refund_amount']>0 && $badPreview==$normal,$field.'='.$json.' changes the refund preview: '.json_encode($badPreview));
+        $detail=(new \App\Models\Booking())->detail($badSnapshot,$guestId);
+        payExpect($detail!==null && (float)$detail['refund']['refund_amount']===(float)$normal['refund_amount'],$field.'='.$json.' breaks the booking page data.');
+        $cancelled=$service->cancelByGuest($badSnapshot,$guestId,'Audit fixture bad snapshot');
+        payExpect($cancelled['refund_amount']===(float)$normal['refund_amount'],$field.'='.$json.' changes the refund at cancel: '.json_encode($cancelled));
+    }
+    // A readable value is still the one that counts: a fixed offset and an HH:MM time.
+    $readable=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,$badSnapshotOffset,'14009999');
+    payCall('CALL sp_test_payment_snapshot_value(?,?,?)',[$readable,'time_zone','"+07:00"']);
+    payCall('CALL sp_test_payment_snapshot_value(?,?,?)',[$readable,'check_in_time','"14:00"']);
+    payExpect((float)payCall('CALL sp_booking_refund_preview(?,?)',[$readable,$guestId])[0]['refund_amount']>0,'A readable zone and time lost the refund.');
+    echo "PASS old policy snapshot: refund preview and cancel use the same fallback and the same figure, also for an empty, unknown or malformed zone or check-in time\n";
 
     $removedListing=$policyListings[100];
     $bookingR=payConfirmedBooking($service,$removedListing,$guestId,$hostId,$base,65);
@@ -926,6 +946,15 @@ try {
         foreach ([$guestClient,$hostClient,$adminClient] as $client) {
             $response=payHttp($client,$baseUrl,'/bookings/'.$oldSnapshotPage);
             payExpect($response['status']===200 && str_contains($response['body'],'Số tiền hoàn nếu hủy lúc này'),'A booking with an old snapshot does not open: HTTP '.$response['status']);
+        }
+        // A paid stay with an unusable snapshot still opens for everyone, and a junk time is not printed as the booked check-in time.
+        foreach ([['time_zone','""'],['time_zone','"Mars/Base"'],['check_in_time','"25:00:00"'],['check_in_time','"abc"'],['check_in_time','{"a":1}']] as $snapshotIndex=>[$field,$json]) {
+            $badPage=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,200+3*$snapshotIndex,'1401000'.$snapshotIndex);
+            payCall('CALL sp_test_payment_snapshot_value(?,?,?)',[$badPage,$field,$json]);
+            foreach ([$guestClient,$hostClient,$adminClient] as $client) {
+                $response=payHttp($client,$baseUrl,'/bookings/'.$badPage);
+                payExpect($response['status']===200 && str_contains($response['body'],'Số tiền hoàn nếu hủy lúc này') && !str_contains($response['body'],'lúc đặt (abc)') && !str_contains($response['body'],'Array'),$field.'='.$json.' breaks the booking page: HTTP '.$response['status']);
+            }
         }
         // Online payment is off everywhere the Guest could reach it while the Host is locked, and every page says why, the same way.
         $lockedHttp=payConfirmedBooking($service,$lockedListing,$guestId,$lockedHost,$base,25);

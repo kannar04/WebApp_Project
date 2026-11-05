@@ -152,12 +152,14 @@ BEGIN
 END$$
 
 -- A paid, confirmed booking's refund terms right now, shared by the cancel and its preview so the two cannot disagree.
--- The snapshot decides; one saved without a time zone or check-in time falls back on the listing's current values (p_default_*).
+-- The snapshot decides; a time zone or check-in time that is missing, empty, unknown or malformed falls back on the listing's current values (p_default_*), so a stay never loses its page or its refund to bad data.
 -- Money the Guest was told comes back stays owed in full, whatever the policy says, even after the listing or Host is restored.
 CREATE OR REPLACE PROCEDURE sp_booking_refund_terms(IN p_booking BIGINT UNSIGNED, IN p_policy LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_start DATE, IN p_total DECIMAL(12,2), IN p_fee DECIMAL(12,2),
     IN p_default_time TIME, IN p_default_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, OUT o_percent DECIMAL(5,2), OUT o_base DECIMAL(12,2))
 terms: BEGIN
     DECLARE v_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_time TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_moment VARCHAR(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_arrival DATETIME;
     -- The promise is the Guest's own notification from sp_payment_vnpay_result or sp_admin_payment_transfer_decide; nothing deletes it.
     IF EXISTS(SELECT 1 FROM notifications WHERE booking_id=p_booking AND event_type='payment_paid' AND title='Khoản thanh toán sẽ được hoàn lại') THEN
@@ -165,11 +167,14 @@ terms: BEGIN
         SELECT amount_due INTO o_base FROM booking_payments WHERE booking_id=p_booking;
         LEAVE terms;
     END IF;
-    SET v_zone=COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p_policy,'$.time_zone')),'null'),p_default_zone);
-    -- XAMPP may not load named timezone tables. Vietnam has a fixed UTC+07 offset.
-    SET v_zone=CASE v_zone WHEN 'Asia/Ho_Chi_Minh' THEN '+07:00' WHEN 'UTC' THEN '+00:00' ELSE v_zone END;
-    SET v_arrival=CONVERT_TZ(CONCAT(p_start,' ',COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p_policy,'$.check_in_time')),'null'),CAST(p_default_time AS CHAR))),v_zone,'+00:00');
-    IF v_arrival IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chưa cấu hình múi giờ để tính hoàn tiền an toàn.'; END IF;
+    SET v_time=JSON_UNQUOTE(JSON_EXTRACT(p_policy,'$.check_in_time'));
+    SET v_time=CASE WHEN v_time REGEXP '^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$' THEN v_time WHEN CAST(p_default_time AS CHAR) REGEXP '^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$' THEN CAST(p_default_time AS CHAR) ELSE '14:00:00' END;
+    SET v_moment=CONCAT(p_start,' ',v_time);
+    SET v_zone=JSON_UNQUOTE(JSON_EXTRACT(p_policy,'$.time_zone'));
+    -- XAMPP may not load named timezone tables. Vietnam has a fixed UTC+07 offset. CONVERT_TZ gives NULL for a zone it cannot read, which moves on to the next one.
+    SET v_arrival=COALESCE(CONVERT_TZ(v_moment,CASE v_zone WHEN 'Asia/Ho_Chi_Minh' THEN '+07:00' WHEN 'UTC' THEN '+00:00' ELSE v_zone END,'+00:00'),
+        CONVERT_TZ(v_moment,CASE p_default_zone WHEN 'Asia/Ho_Chi_Minh' THEN '+07:00' WHEN 'UTC' THEN '+00:00' ELSE p_default_zone END,'+00:00'),
+        CONVERT_TZ(v_moment,'+07:00','+00:00'));
     SET o_percent=IF(TIMESTAMPDIFF(SECOND,UTC_TIMESTAMP(),v_arrival)>=JSON_EXTRACT(p_policy,'$.cutoff_hours')*3600,
         JSON_EXTRACT(p_policy,'$.early_refund_pct'),JSON_EXTRACT(p_policy,'$.late_refund_pct'));
     SET o_base=p_total-IF(JSON_UNQUOTE(JSON_EXTRACT(p_policy,'$.refund_fees')) IN ('true','1'),0,p_fee);

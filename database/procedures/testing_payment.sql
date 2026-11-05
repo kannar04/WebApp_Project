@@ -73,6 +73,16 @@ BEGIN
     UPDATE bookings SET policy_snapshot=JSON_REMOVE(policy_snapshot,'$.time_zone','$.check_in_time') WHERE id=p_booking;
 END$$
 
+-- Writes a raw JSON value into one snapshot field of a fixture booking: data no form writes, as old or hand-edited rows may hold.
+CREATE OR REPLACE PROCEDURE sp_test_payment_snapshot_value(IN p_booking BIGINT UNSIGNED, IN p_field VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_json VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=p_booking AND l.city='Audit' AND l.title LIKE 'Audit fixture PAY %') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to change a non-fixture booking.';
+    END IF;
+    IF p_field NOT IN ('time_zone','check_in_time') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Unknown snapshot field.'; END IF;
+    UPDATE bookings SET policy_snapshot=JSON_SET(policy_snapshot,CONCAT('$.',p_field),JSON_EXTRACT(p_json,'$')) WHERE id=p_booking;
+END$$
+
 -- Puts a fixture Host in a state: 'active', 'suspended' or 'deleted' (which also marks deleted_at). The real delete refuses a Host with unfinished stays, so older data is the only way here.
 CREATE OR REPLACE PROCEDURE sp_test_payment_host_state(IN p_host BIGINT UNSIGNED, IN p_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
