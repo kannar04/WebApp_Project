@@ -251,6 +251,10 @@ BEGIN
         FROM listings l JOIN users u ON u.id=l.host_id JOIN property_types pt ON pt.id=l.property_type_id WHERE l.deleted_at IS NULL ORDER BY l.created_at DESC;
 END$$
 
+-- The audit reads filter by entity and action, one subquery per row. schema.sql has this index for fresh databases; this brings existing ones up to date.
+-- It is the one statement here that is not a routine: the installer runs it too because it only adds an index and is safe to repeat.
+CREATE INDEX IF NOT EXISTS `idx_admin_audit_logs_entity` ON `admin_audit_logs` (`entity_type`,`entity_id`,`action`)$$
+
 CREATE OR REPLACE PROCEDURE `sp_admin_audit_add`(IN p_1 bigint unsigned, IN p_2 varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_3 varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_4 bigint unsigned, IN p_5 longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
     CALL sp_admin_assert_role(p_1);

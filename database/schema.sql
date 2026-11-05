@@ -333,6 +333,7 @@ CREATE TABLE IF NOT EXISTS `admin_audit_logs` (
   `created_at` datetime(6) NOT NULL COMMENT 'Action time',
   PRIMARY KEY (`id`),
   KEY `idx_admin_audit_logs_admin_id` (`admin_id`),
+  KEY `idx_admin_audit_logs_entity` (`entity_type`,`entity_id`,`action`),
   CONSTRAINT `fk_admin_audit_logs_admin_id` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

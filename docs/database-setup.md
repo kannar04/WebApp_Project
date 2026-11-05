@@ -44,7 +44,7 @@ Tài khoản seed dùng chung mật khẩu `Password123!` và chỉ dành cho lo
 C:\xampp\php\php.exe database\install_procedures.php
 ```
 
-Installer chỉ chạy local/loopback db_home2home, không ALTER/drop/reset bảng, không đổi grants. Migrations bảo toàn 16 routine nhóm, sửa identifiers/collation và mở rộng projection tương thích. Routine source nhắm tới MariaDB 10.4 của XAMPP; không tự khẳng định tương thích Oracle MySQL.
+Installer chỉ chạy local/loopback db_home2home, không ALTER/drop/reset bảng, không đổi grants; ngoài routine nó chỉ chạy `CREATE INDEX IF NOT EXISTS` cho `idx_admin_audit_logs_entity` (thêm index, chạy lại không đổi gì, không đụng dữ liệu). Migrations bảo toàn 16 routine nhóm, sửa identifiers/collation và mở rộng projection tương thích. Routine source nhắm tới MariaDB 10.4 của XAMPP; không tự khẳng định tương thích Oracle MySQL.
 
 Fresh database: database/import.php nạp schema.sql → seed.sql → routines. Schema khởi tạo đã đối chiếu chính xác DDL của 22 bảng hiện hữu (loại bỏ bộ đếm AUTO_INCREMENT); từ 2026-10-13 schema có thêm 13 bảng Nice-to-have, từ 2026-10-15 thêm `payment_transactions`, tổng **36 bảng**. Với phpMyAdmin có thể import SQL routine files theo thứ tự 001, 005, 010, 011, 020, 030, 050, 055, 060, 065, 070, 075, 080, 085, 090, 095 sau schema/seed (bỏ qua 040, giống installer); delimiter directives đã có trong các SQL files. Không import `testing.sql` hay `testing_*.sql` vào production.
 
@@ -152,6 +152,16 @@ C:\xampp\php\php.exe database\install_procedures.php
 ```
 
 **Bước 3:** điền phần thanh toán trong `.env` local (xem README › Cấu hình thanh toán online), rồi kiểm tra bằng `tests\schema_test.php --compare-live` (36 bảng).
+
+## Index cho nhật ký quản trị (2026-11-05)
+
+`/admin/payments`, `/host` và `/admin` đọc `admin_audit_logs` theo từng dòng, nên DB đang dùng cần index này. Cài lại routine là có (`database/install_procedures.php`, hoặc import lại `010_models.sql` trong phpMyAdmin), hoặc chạy riêng lệnh dưới đây. Lệnh chạy lại không đổi gì và không đụng dữ liệu; khi chưa có index trang web vẫn chạy, chỉ chậm hơn.
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_entity ON admin_audit_logs (entity_type, entity_id, action);
+```
+
+Đo trên một DB riêng có 5.000 dòng nhật ký, 100 tin ẩn của một Host và 500 booking đã hoàn tiền: `/admin/payments` 5,4 s → 0,05 s, `/host` 2,9 s → 0,12 s, `/admin` 1,6 s → 0,09 s.
 
 ## Nhắc lịch check-in tự động
 

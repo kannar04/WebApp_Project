@@ -22,7 +22,9 @@ function installHome2HomeProcedures(PDO $pdo, bool $testing = false): int
         $sql = preg_replace('/^DELIMITER\s+.*$/m', '', $sql);
         foreach (explode('$$', $sql) as $definition) {
             $create = preg_match('/\bCREATE\s+(?:OR REPLACE\s+)?PROCEDURE\b/i', $definition);
-            if (!$create) { continue; }
+            // Anything else between delimiters stays skipped, except an index that only adds and is safe to repeat on an existing database.
+            $index = preg_match('/^(?:\s|--[^\n]*\n)*CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\b/i', $definition);
+            if (!$create && !$index) { continue; }
             $pdo->exec(trim($definition));
             if ($create) { $count++; }
         }

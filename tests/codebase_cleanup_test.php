@@ -22,7 +22,10 @@ $productionCount = installHome2HomeProcedures($recording);
 foreach ($recording->definitions as $definition) {
     cleanupExpect(!preg_match('/\bDROP\s+(TABLE|DATABASE|PROCEDURE)\b/i', $definition), 'Installer unexpectedly executes DROP.');
     cleanupExpect(!preg_match('/\bPROCEDURE\s+`?sp_test_/i', $definition), 'Test routines installed without opt-in.');
+    // Existing databases get every statement again, so besides routines only an index that is safe to repeat may run.
+    cleanupExpect(preg_match('/\bCREATE\s+(?:OR REPLACE\s+)?PROCEDURE\b|^(?:\s|--[^\n]*\n)*CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\b/i', $definition) === 1, 'Installer runs a statement that is neither a routine nor a repeatable index.');
 }
+cleanupExpect(count(preg_grep('/CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+`idx_admin_audit_logs_entity`/i', $recording->definitions)) === 1, 'Installer does not bring the audit entity index to existing databases.');
 // Files before 050 hold 76 definitions; every later migration is counted from its source.
 $expectedProduction=76;
 foreach (glob(dirname(__DIR__).'/database/procedures/[0-9]*.sql') as $migration) {
@@ -43,6 +46,7 @@ echo "PASS installer: $productionCount production definitions, $expectedTesting 
 // A file missing from the manual phpMyAdmin order leaves pages answering 500 on a fresh install, while import.php still looks fine.
 $setupDoc = (string) file_get_contents(dirname(__DIR__).'/docs/database-setup.md');
 cleanupExpect(preg_match('~theo thứ tự ((?:\d{3}, )*\d{3}) sau schema/seed \(bỏ qua 040, giống installer\)~u', $setupDoc, $orderMatch) === 1, 'docs/database-setup.md has no phpMyAdmin routine order.');
+cleanupExpect(str_contains($setupDoc, 'CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_entity ON admin_audit_logs (entity_type, entity_id, action);'), 'docs/database-setup.md does not give the audit index statement.');
 $documentedOrder = explode(', ', $orderMatch[1]);
 $installedOrder = [];
 foreach (home2HomeProcedureFiles() as $migration) { $installedOrder[] = substr(basename($migration), 0, 3); }

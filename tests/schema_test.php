@@ -6,6 +6,15 @@ if (PHP_SAPI !== 'cli') { http_response_code(404); exit(1); }
 require dirname(__DIR__) . '/core/bootstrap.php';
 require dirname(__DIR__) . '/database/procedures/install.php';
 
+/** Columns of the audit entity index in the current database, in index order. */
+function schemaAuditIndexColumns(PDO $pdo): string
+{
+    $statement = $pdo->query("SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='admin_audit_logs' AND INDEX_NAME='idx_admin_audit_logs_entity'");
+    $columns = (string) $statement->fetchColumn();
+    $statement->closeCursor();
+    return $columns;
+}
+
 $config = require dirname(__DIR__) . '/config/database.php';
 $appConfig = require dirname(__DIR__) . '/config/app.php';
 if ($appConfig['env'] !== 'local' || !in_array($config['host'], ['localhost','127.0.0.1','::1'], true)) {
@@ -44,6 +53,18 @@ try {
         throw new RuntimeException('Schema thiếu bảng: chỉ tạo được ' . $count);
     }
     echo "PASS schema: {$count} tables created; SQL seed repeat safe" . PHP_EOL;
+    // The audit reads need this index on old databases too; the site must still answer on one the installer has not reached yet.
+    if (schemaAuditIndexColumns($pdo) !== 'entity_type,entity_id,action') { throw new RuntimeException('schema.sql lacks the admin_audit_logs entity index.'); }
+    installHome2HomeProcedures($pdo, false);
+    if (schemaAuditIndexColumns($pdo) !== 'entity_type,entity_id,action') { throw new RuntimeException('Repeating the installer changed the audit entity index.'); }
+    $pdo->exec('DROP INDEX idx_admin_audit_logs_entity ON admin_audit_logs');
+    $withoutIndex = $pdo->query('CALL sp_admin_listings()');
+    if ($withoutIndex->fetchAll(PDO::FETCH_ASSOC) === []) { throw new RuntimeException('An audit read failed without the entity index.'); }
+    while ($withoutIndex->nextRowset()) {}
+    $withoutIndex->closeCursor();
+    installHome2HomeProcedures($pdo, false);
+    if (schemaAuditIndexColumns($pdo) !== 'entity_type,entity_id,action') { throw new RuntimeException('The installer did not add the audit entity index to an existing database.'); }
+    echo "PASS admin_audit_logs entity index: in schema.sql, added by the installer to an existing database, safe to repeat, not required by reads\n";
     if (in_array('--compare-live', $argv, true)) {
         $tables = $pdo->query('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME')->fetchAll(PDO::FETCH_COLUMN);
         foreach ($tables as $table) {
