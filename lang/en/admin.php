@@ -290,6 +290,9 @@ return [
     'Xóa bài: {title}' => 'Delete article: {title}',
     'Xóa bài viết “{title}”? Bài sẽ không còn hiển thị công khai.' => 'Delete the article “{title}”? It will no longer be shown publicly.',
     'Phân trang danh sách bài viết' => 'Article list pagination',
+    'Phân trang danh sách báo cáo' => 'Report list pagination',
+    'Phân trang danh sách đánh giá' => 'Review list pagination',
+    '{count} báo cáo' => '{count} report(s)',
 
     // Article form
     'Sửa bài viết' => 'Edit article',

@@ -364,6 +364,8 @@ Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
 | `sp_listing_update` | `010_models.sql` | Chấp nhận loại chỗ ở đã ngừng sử dụng chỉ khi đó là loại hiện tại của chính tin này | procedure_flow_test |
 | `sp_listing_amenities_replace` | `030_atomic_writes.sql` | Không xóa hết rồi thêm lại: tiện nghi đã ngừng sử dụng được giữ nếu tin đang có, tiện nghi mới vẫn phải đang hoạt động | procedure_flow_test |
 | `sp_report_create` | `060_quality_community.sql` | Thêm transaction/savepoint và khóa dòng listing; đã có báo cáo `open` cùng người gửi và cùng mục tiêu thì không thêm dòng mới, trả `__affected=0` kèm id cũ | procedure_flow_test, quality_core_test |
+| `sp_admin_reviews` | `060_quality_community.sql` | Bỏ giới hạn 200 dòng: thêm `p_limit`, `p_offset`, trả `__total` như `sp_admin_articles` | quality_core_test |
+| `sp_admin_reports` | `060_quality_community.sql` | Bỏ giới hạn 200 dòng: thêm `p_limit`, `p_offset`, trả `__total` như `sp_admin_articles` | procedure_flow_test, quality_core_test |
 
 ### Routine mới
 

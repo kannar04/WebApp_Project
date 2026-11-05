@@ -14,9 +14,11 @@ final class Review
     {
         \Core\ProcedureConnection::connection()->prepare('CALL sp_host_review_reply(?,?,?)')->execute([$id,$actorId,$reply]);
     }
-    public function forAdmin(int $actorId): array
+    public function adminPage(int $actorId,int $limit,int $offset): array
     {
-        $s=\Core\ProcedureConnection::connection()->prepare('CALL sp_admin_reviews(?)'); $s->execute([$actorId]); return $s->fetchAll();
+        $s=\Core\ProcedureConnection::connection()->prepare('CALL sp_admin_reviews(?,?,?)'); $s->execute([$actorId,$limit,$offset]); $rows=$s->fetchAll();
+        $total=(int)array_pop($rows)['__total'];
+        return ['reviews'=>$rows,'total'=>$total];
     }
     public function moderate(int $id,int $actorId,string $status): void
     {

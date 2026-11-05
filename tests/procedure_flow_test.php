@@ -145,6 +145,29 @@ try {
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS repeated report on an open target saves nothing; other reporters and closed reports are unaffected\n";
 
+    // Admin report paging; the fixtures roll back with the outer transaction.
+    $db->beginTransaction();
+    try {
+        $reports=new Report(); $adminId=(int)$admin['id']; $before=$reports->adminPage($adminId,1,0)['total'];
+        (new AdminRepository())->moderate($listingId,$adminId,'approved','Procedure report fixture');
+        $created=[];
+        for ($row=1; $row<=25; $row++) {
+            $reports->create((int)$host['id'],$listingId,null,'other','Procedure paging fixture '.$row);
+            $created[]=(int)$reports->forUser((int)$host['id'])[0]['id'];
+            $reports->resolve(end($created),$adminId,'resolved','Procedure paging fixture closed');
+        }
+        $first=$reports->adminPage($adminId,20,0); $second=$reports->adminPage($adminId,20,20);
+        ensure(count($first['reports'])===20 && $first['total']===$before+25 && $second['total']===$before+25,'Report page or total wrong.');
+        $firstIds=array_map('intval',array_column($first['reports'],'id')); $secondIds=array_map('intval',array_column($second['reports'],'id'));
+        ensure(!array_intersect($firstIds,$secondIds),'Report pages overlap.');
+        ensure(array_slice(array_reverse($created),0,20)===$firstIds && array_slice(array_reverse($created),20,5)===array_slice($secondIds,0,5),'Report pages are not newest first.');
+        refused([$reports,'adminPage'],[(int)$guest['id'],20,0]);
+        refused([$reports,'adminPage'],[$adminId,0,0]);
+        refused([$reports,'adminPage'],[$adminId,101,0]);
+        refused([$reports,'adminPage'],[$adminId,20,-1]);
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS Admin report paging keeps the total, has no overlap, and refuses bad paging or non-Admins\n";
+
     $start=(new DateTimeImmutable('today'))->modify('+5500 days')->format('Y-m-d');
     $end=(new DateTimeImmutable($start))->modify('+2 days')->format('Y-m-d');
     $db->beginTransaction();

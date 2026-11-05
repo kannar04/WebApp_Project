@@ -20,11 +20,13 @@ BEGIN
     IF ROW_COUNT()=0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không có quyền phản hồi đánh giá này.'; END IF;
 END$$
 
-CREATE OR REPLACE PROCEDURE sp_admin_reviews(IN p_actor BIGINT UNSIGNED)
+CREATE OR REPLACE PROCEDURE sp_admin_reviews(IN p_actor BIGINT UNSIGNED, IN p_limit INT, IN p_offset INT)
 BEGIN
     CALL sp_admin_assert_role(p_actor);
-    SELECT r.*,l.title,u.full_name guest_name FROM reviews r JOIN bookings b ON b.id=r.booking_id
-    JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id ORDER BY r.created_at DESC LIMIT 200;
+    IF p_limit IS NULL OR p_offset IS NULL OR p_limit<1 OR p_limit>100 OR p_offset<0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Phân trang không hợp lệ.'; END IF;
+    SELECT SQL_CALC_FOUND_ROWS r.*,l.title,u.full_name guest_name FROM reviews r JOIN bookings b ON b.id=r.booking_id
+    JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id ORDER BY r.created_at DESC,r.id DESC LIMIT p_limit OFFSET p_offset;
+    SELECT FOUND_ROWS() __total;
 END$$
 
 CREATE OR REPLACE PROCEDURE sp_admin_review_moderate(IN p_id BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED, IN p_status VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
@@ -91,11 +93,13 @@ BEGIN
         AND EXISTS(SELECT 1 FROM users WHERE id=p_actor AND status='active') ORDER BY r.created_at DESC;
 END$$
 
-CREATE OR REPLACE PROCEDURE sp_admin_reports(IN p_actor BIGINT UNSIGNED)
+CREATE OR REPLACE PROCEDURE sp_admin_reports(IN p_actor BIGINT UNSIGNED, IN p_limit INT, IN p_offset INT)
 BEGIN
     CALL sp_admin_assert_role(p_actor);
-    SELECT r.*,l.title,u.full_name reporter_name FROM reports r LEFT JOIN listings l ON l.id=r.listing_id
-    JOIN users u ON u.id=r.reporter_id ORDER BY r.created_at DESC LIMIT 200;
+    IF p_limit IS NULL OR p_offset IS NULL OR p_limit<1 OR p_limit>100 OR p_offset<0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Phân trang không hợp lệ.'; END IF;
+    SELECT SQL_CALC_FOUND_ROWS r.*,l.title,u.full_name reporter_name FROM reports r LEFT JOIN listings l ON l.id=r.listing_id
+    JOIN users u ON u.id=r.reporter_id ORDER BY r.created_at DESC,r.id DESC LIMIT p_limit OFFSET p_offset;
+    SELECT FOUND_ROWS() __total;
 END$$
 
 CREATE OR REPLACE PROCEDURE sp_admin_report_resolve(IN p_id BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED,

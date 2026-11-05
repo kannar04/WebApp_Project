@@ -14,9 +14,11 @@ final class Report
     {
         $s=ProcedureConnection::connection()->prepare('CALL sp_reports_for_user(?)'); $s->execute([$actorId]); return $s->fetchAll();
     }
-    public function forAdmin(int $actorId): array
+    public function adminPage(int $actorId,int $limit,int $offset): array
     {
-        $s=ProcedureConnection::connection()->prepare('CALL sp_admin_reports(?)'); $s->execute([$actorId]); return $s->fetchAll();
+        $s=ProcedureConnection::connection()->prepare('CALL sp_admin_reports(?,?,?)'); $s->execute([$actorId,$limit,$offset]); $rows=$s->fetchAll();
+        $total=(int)array_pop($rows)['__total'];
+        return ['reports'=>$rows,'total'=>$total];
     }
     public function resolve(int $id,int $actorId,string $status,string $resolution): void
     {

@@ -40,6 +40,11 @@ function qaIssueRefused(\App\Models\PasswordReset $recovery,int $userId): bool
 {
     try { $recovery->issue($userId,bin2hex(random_bytes(32))); } catch (DomainException $exception) { return true; }
     return false;
+function qaRejectCall(callable $call,array $arguments,string $message): void
+{
+    try { $call(...$arguments); } catch (DomainException $exception) { return; }
+    throw new RuntimeException($message);
+}
 function qaSetCatalogActive(Catalog $catalog,string $kind,int $id,bool $active): void
 {
     foreach ($catalog->all(1,$kind) as $row) {
@@ -136,7 +141,12 @@ $reviews->moderate($reviewId,1,'hidden');
 qaExpect(!$listings->findPublic(1)['reviews'],'Hidden review still public.');
 qaExpect(!$reviews->create($historicalId,3,5,'After removal'),'Soft removal allowed repeated review.');
 $reviews->moderate($reviewId,1,'visible');
-qaExpect(count($reviews->forAdmin(1))===1,'Admin review listing failed.');
+$reviewPage=$reviews->adminPage(1,20,0);
+qaExpect(count($reviewPage['reviews'])===1 && $reviewPage['total']===1,'Admin review listing failed.');
+$reviewPage=$reviews->adminPage(1,1,1);
+qaExpect($reviewPage['reviews']===[] && $reviewPage['total']===1,'Admin review paging lost the total.');
+qaRejectCall([$reviews,'adminPage'],[3,20,0],'Guest listed Admin reviews.');
+foreach ([[0,0],[101,0],[20,-1]] as [$badLimit,$badOffset]) { qaRejectCall([$reviews,'adminPage'],[1,$badLimit,$badOffset],'Invalid review paging accepted.'); }
 $monthly=(new HostRepository())->monthlyRevenue(2);
 qaExpect(count($monthly)===1 && (float)$monthly[0]['revenue']>0,'Monthly completed revenue missing.');
 qaExpect((new AdminRepository())->stats()['guests']===3,'Guest role count wrong.');
@@ -158,7 +168,8 @@ qaReject(fn()=>$reports->resolve($reportId,1,'resolved',''),'Blank closure accep
 $reports->resolve($reportId,1,'investigating','Checking details');
 $reports->resolve($reportId,1,'resolved','Evidence reviewed and information corrected.');
 qaExpect($reports->forUser(3)[0]['status']==='resolved' && $reports->forUser(3)[0]['resolved_at']!==null,'Report resolution not visible to reporter.');
-qaExpect(count($reports->forAdmin(1))===1 && !$reports->forUser(2),'Report scope wrong.');
+$reportPage=$reports->adminPage(1,20,0);
+qaExpect(count($reportPage['reports'])===1 && $reportPage['total']===1 && !$reports->forUser(2),'Report scope wrong.');
 $catalog=new Catalog();
 qaReject(fn()=>$catalog->save(3,'type',0,'Forbidden','',true),'Guest changed catalog.');
 $typeId=$catalog->save(1,'type',0,'Quality category','Created during test',true);
@@ -300,6 +311,27 @@ $reviews->moderate($reviewId,1,'visible');
 $page=$request('/admin/reports'); $latest=(int)$reports->forUser(3)[0]['id'];
 $request('/admin/reports/'.$latest.'/resolve',['_token'=>$token($page),'status'=>'resolved','resolution'=>'HTTP verified resolution.']);
 qaExpect($reports->forUser(3)[0]['status']==='resolved','HTTP report closure failed.');
+// More reports than one page holds: every row is reachable, and the Admin stays on the page after acting on a report.
+$reportTotal=$reports->adminPage(1,1,0)['total'];
+for ($row=1; $row<=21; $row++) {
+    $reports->create(3,2,null,'other','Quality paging fixture '.$row);
+    $reports->resolve((int)$reports->forUser(3)[0]['id'],1,'resolved','Quality paging fixture closed');
+}
+$reportTotal+=21; $reportPages=(int)ceil($reportTotal/20); $seenReports=[];
+for ($pageNumber=1; $pageNumber<=$reportPages; $pageNumber++) {
+    $listed=$request('/admin/reports?page='.$pageNumber);
+    qaExpect(str_contains($listed['body'],'Trang '.$pageNumber.'/'.$reportPages),'Report page summary wrong.');
+    preg_match_all('/<h2 class="h5">#(\d+)/',$listed['body'],$matches);
+    $seenReports=array_merge($seenReports,$matches[1]);
+}
+qaExpect(count($seenReports)===$reportTotal && count(array_unique($seenReports))===$reportTotal,'Report pages skipped or repeated rows.');
+$listed=$request('/admin/reports');
+qaExpect(str_contains($listed['body'],'/admin/reports?page=2') && str_contains($listed['body'],'pagination'),'Report list has no page links.');
+qaExpect(str_contains($request('/admin/reports?page=9999')['body'],'Trang '.$reportPages.'/'.$reportPages),'Page past the end was not clamped.');
+$listed=$request('/admin/reports?page=2');
+qaExpect(preg_match('/\/admin\/reports\/(\d+)\/resolve/',$listed['body'],$matches)===1 && str_contains($listed['body'],'name="page" value="2"'),'Report form lost its page.');
+$kept=$request('/admin/reports/'.$matches[1].'/resolve',['_token'=>$token($listed),'status'=>'resolved','resolution'=>'Quality paging fixture closed','page'=>'2']);
+qaExpect(str_contains($kept['body'],'Trang 2/'.$reportPages),'Resolving a report lost the page.');
 $auditCounts=qaCall('CALL sp_test_seed_counts()')[0];
 qaExpect((int)$auditCounts['catalog_audits']>=8 && (int)$auditCounts['report_audits']>=3
     && (int)$auditCounts['review_audits']>=3 && (int)$auditCounts['admin_audits']>0,'Admin HTTP audit logs not persistent.');
