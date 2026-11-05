@@ -747,6 +747,7 @@ try {
         $bookingZ=payPaidBooking($service,$payments,$policyListings[100],$guestId,$hostId,$base,92,'14000042');
         $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ)['body'];
         payExpect(str_contains($page,'Số tiền hoàn nếu hủy lúc này') && str_contains($page,'Hủy booking theo mức hoàn đang áp dụng?') && str_contains($page,'Chính sách hủy tại thời điểm đặt'),'A paid booking lost its refund figure.');
+        payExpect(str_contains($page,' · Số tiền:') && !str_contains($page,'·Số tiền:'),'The payment status line lost the space before the amount.');
         payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
         payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings')['body'],'Mức hoàn dự kiến: 100'),'A paid cancel lost its refund flash.');
         // Until the Admin marks it refunded the money is only owed: the page says "due", never "recorded".
