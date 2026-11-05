@@ -26,6 +26,13 @@ class Controller
         exit;
     }
 
+    /** Where a list form came from, filters included; anything but that same list on this site falls back to the bare list. */
+    protected static function listReturnPath(string $listPath): string
+    {
+        $path = I18n::safeReturnPath($_POST['return_path'] ?? $listPath);
+        return parse_url($path, PHP_URL_PATH) === $listPath ? $path : $listPath;
+    }
+
     public function json(bool $success, string $message, mixed $data = null, array $errors = [], int $status = 200): never
     {
         http_response_code($status);

@@ -198,7 +198,7 @@ final class BookingExtrasController extends Controller
 
     private function adminReturnPath(int $bookingId): string
     {
-        return ($_POST['return_to'] ?? '') === 'detail' ? '/bookings/'.$bookingId : '/admin/payments';
+        return ($_POST['return_to'] ?? '') === 'detail' ? '/bookings/'.$bookingId : self::listReturnPath('/admin/payments');
     }
 
     /** Trimmed POST string; over-long values are cut at $limit + 1 so the length check still fails. */

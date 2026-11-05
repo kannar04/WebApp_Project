@@ -681,6 +681,24 @@ try {
         payHttp($adminClient,$baseUrl,'/admin/payments/duplicates/'.(int)$refundedDupSecond['transaction_id'],['_token'=>$adminToken,'note'=>'Hoàn khoản trùng']);
         $page=payHttp($adminClient,$baseUrl,'/admin/payments')['body'];
         payExpect(str_contains($page,'cũng đã được hoàn trước đó') && !str_contains($page,'Booking vẫn ở trạng thái đã thanh toán'),'Flash after closing a duplicate on a refunded booking is wrong.');
+        // Admin payment actions go back to the same filtered list, and never anywhere else.
+        $filteredList='/admin/payments?status=paid&q=Audit';
+        $listBooking=payPaidBooking($service,$payments,$policyListings[100],$guestId,$hostId,$base,134,'14000082');
+        $page=payHttp($adminClient,$baseUrl,$filteredList)['body'];
+        payExpect(str_contains($page,'name="return_path" value="'.e($filteredList).'"'),'The filtered list forms do not carry the filter.');
+        $response=payHttp($adminClient,$baseUrl,'/admin/payments/'.$listBooking.'/refund',['_token'=>$adminToken,'note'=>'Audit fixture','return_path'=>$filteredList]);
+        payExpect($response['redirect']===$baseUrl.$filteredList && payInspect($listBooking)['payment_status']==='refunded','A refund lost the list filter: '.$response['redirect']);
+        $listActions=['/admin/payments/999999999/paid','/admin/payments/999999999/refund','/admin/payments/transfers/999999999','/admin/payments/duplicates/999999999'];
+        foreach ($listActions as $action) {
+            $response=payHttp($adminClient,$baseUrl,$action,['_token'=>$adminToken,'note'=>'Audit fixture','decision'=>'reject','return_path'=>$filteredList]);
+            payExpect($response['redirect']===$baseUrl.$filteredList,$action.' lost the list filter: '.$response['redirect']);
+            foreach (['//evil.example/x','https://evil.example/admin/payments','/\\evil.example','/admin','/admin/payments/../login',"/admin/payments\r\nX-Evil: 1"] as $evil) {
+                $response=payHttp($adminClient,$baseUrl,$action,['_token'=>$adminToken,'note'=>'Audit fixture','decision'=>'reject','return_path'=>$evil]);
+                payExpect($response['redirect']===$baseUrl.'/admin/payments',$action.' followed '.json_encode($evil).' to '.$response['redirect']);
+            }
+            $response=payHttp($adminClient,$baseUrl,$action,['_token'=>$adminToken,'note'=>'Audit fixture','decision'=>'reject','return_path'=>['x']]);
+            payExpect($response['redirect']===$baseUrl.'/admin/payments',$action.' did not fall back on an array return path.');
+        }
         // A transfer still open on a paid booking offers closing it, not confirming it.
         $bookingL=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,48);
         $lVnpay=$payments->start($bookingL,$guestId,'vnpay');
