@@ -789,6 +789,15 @@ try {
             $page=payHttp($client,$baseUrl,'/bookings/'.$bookingNoRefund)['body'];
             payExpect(substr_count($page,'Theo chính sách hủy, booking này không được hoàn tiền.')===1,'The 0đ refund sentence does not appear exactly once on a cancelled paid booking.');
         }
+        // From check-out day cancelling is refused, so the page offers neither the form nor a refund figure for it.
+        $stayEnding=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,140,'14000090');
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$stayEnding)['body'];
+        payExpect(str_contains($page,'Số tiền hoàn nếu hủy lúc này') && str_contains($page,'/bookings/'.$stayEnding.'/cancel'),'A paid stay still ahead does not quote its refund.');
+        payCall('CALL sp_test_payment_finish_stay(?,?)',[$stayEnding,0]);
+        foreach ([$guestClient,$adminClient] as $client) {
+            $page=payHttp($client,$baseUrl,'/bookings/'.$stayEnding)['body'];
+            payExpect(!str_contains($page,'Số tiền hoàn nếu hủy lúc này') && !str_contains($page,'/bookings/'.$stayEnding.'/cancel'),'The page quotes a refund from check-out day, when the Guest cannot cancel.');
+        }
         // A refunded booking offers no further refund, before or after cancelling, and keeps the figure that went back; a row refunded by older code too.
         $refundedOpen=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,104,'14000052');
         payHttp($adminClient,$baseUrl,'/admin/payments/'.$refundedOpen.'/refund',['_token'=>$adminToken,'note'=>'Hoàn trước khi hủy']);

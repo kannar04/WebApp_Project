@@ -56,11 +56,12 @@ $extras=$extras??[];
         <p><?= e(__('{policy}: trước giờ nhận phòng ít nhất {hours} giờ hoàn {early}%; sau mốc đó hoàn {late}%.', ['policy'=>isset($policy['name'])?__((string)$policy['name']):__('Chính sách đã lưu'), 'hours'=>(int)($policy['cutoff_hours']??0), 'early'=>$policy['early_refund_pct']??0, 'late'=>$policy['late_refund_pct']??0])) ?></p>
         <p><?= e(!empty($policy['refund_fees'])?__('Phụ phí được tính trong cơ sở hoàn tiền.'):__('Phụ phí không nằm trong cơ sở hoàn tiền.')) ?> <?= e(__('Giờ nhận phòng {time} ({zone}).', ['time'=>$booking['current_check_in_time'], 'zone'=>$booking['current_time_zone']])) ?><?php $bookedCheckIn=substr((string)($policy['check_in_time']??''),0,5); if($bookedCheckIn!=='' && $bookedCheckIn!==$booking['current_check_in_time']): ?> <?= e(__('Mốc hoàn tiền vẫn tính theo giờ nhận phòng lúc đặt ({time}).', ['time'=>$bookedCheckIn])) ?><?php endif; ?></p>
         <?php endif; ?>
-        <?php if($moneyHeld && $booking['refund'] && in_array($booking['status'],['pending','confirmed','cancelled'],true)): ?>
+        <?php $canStillCancel=in_array($booking['status'],['pending','confirmed'],true) && $booking['check_out']>date('Y-m-d'); ?>
+        <?php if($moneyHeld && $booking['refund'] && ($canStillCancel || $booking['status']==='cancelled')): ?>
         <?php if($booking['status']!=='cancelled' || (float)$booking['refund']['refund_amount']>0): ?><p data-refund-amount="<?= e($booking['refund']['refund_amount']) ?>"><strong><?= e($booking['status']==='cancelled'?__('Số tiền cần hoàn (Admin chưa ghi nhận đã hoàn)'):__('Số tiền hoàn nếu hủy lúc này')) ?>: <?= number_format((float)$booking['refund']['refund_amount'],0,',','.') ?> <?= e($booking['currency']) ?></strong></p><?php endif; ?>
         <?php if($booking['status']!=='cancelled'): ?><p class="text-muted small"><?= e(__('Đây là mức hoàn theo chính sách; không phải xác nhận đã chuyển tiền. Khi hủy, máy chủ tính lại theo thời điểm thực hiện.')) ?></p><?php endif; ?>
         <?php endif; ?>
-        <?php if($actorId===(int)$booking['guest_id'] && in_array($booking['status'],['pending','confirmed'],true) && $booking['check_out']>date('Y-m-d')): ?>
+        <?php if($actorId===(int)$booking['guest_id'] && $canStillCancel): ?>
         <form method="post" action="<?= e(url('/bookings/'.$booking['id'].'/cancel')) ?>"><?= csrf_field() ?><label for="cancel-reason"><?= e(__('Lý do hủy')) ?></label><input class="form-control mb-2" id="cancel-reason" name="reason" maxlength="2000"><button class="btn btn-outline-danger" data-confirm="<?= e($moneyHeld?__('Hủy booking theo mức hoàn đang áp dụng?'):__('Bạn chắc chắn muốn hủy booking này?')) ?>"><?= e(__('Hủy booking')) ?></button></form>
         <?php endif; ?>
         <?php if($actorId===(int)$booking['host_id'] || \Core\Auth::hasRole('admin')): ?>
