@@ -351,6 +351,19 @@ try {
     bxExpect($state['payment_status']==='paid' && (float)$state['amount_due']===120000.0 && (int)$state['payment_audits']===1,'Admin payment on a booking without a payment row failed.');
     echo "PASS pay at check-in: not before check-in, Host owner/Admin only, once only, Admin refund with note + audit, filters/totals, bookings without a payment row\n";
 
+    // ---- Guest cancel: refused once the stay has ended; a stay in progress follows the policy's late refund.
+    $finished=$service->book($listingId,$guestId,bxDay($monday,70),bxDay($monday,71),1);
+    bxCall('CALL sp_test_booking_extras_backdate(?)',[$finished['booking_id']]);
+    bxRejects([$service,'cancelByGuest'],[$finished['booking_id'],$guestId,'Audit fixture too late'],'đã kết thúc','Guest cancelled after the stay ended');
+    bxExpect(bxInspect($finished['booking_id'])['status']==='confirmed','A refused cancellation changed the booking.');
+    $service->hostTransition($finished['booking_id'],$hostId,'completed');
+    bxExpect(bxInspect($finished['booking_id'])['status']==='completed','Host could not complete the finished stay.');
+    $inProgress=$service->book($listingId,$guestId,bxDay($monday,72),bxDay($monday,74),1);
+    bxCall('CALL sp_test_booking_extras_backdate(?)',[$inProgress['booking_id']]);
+    $late=$service->cancelByGuest($inProgress['booking_id'],$guestId,'Audit fixture leaving early');
+    bxExpect($late['refund_percent']===0.0 && $late['refund_amount']===0.0 && bxInspect($inProgress['booking_id'])['status']==='cancelled','A stay in progress did not follow the late refund.');
+    echo "PASS guest cancel window: refused from the check-out day (Host can still complete), stay in progress keeps the policy's late refund\n";
+
     // ---- VND has no fractions: decimal rates, fee and promo values price in whole dong, and the rows add up.
     $extras->saveHostSettings($listingId,$hostId,'150000.40','300000.60','10','20',false);
     $listings->update($listingId,$hostId,array_merge($data,['cleaning_fee'=>'20000.50']));
@@ -481,6 +494,18 @@ try {
         bxExpect($response['status']===302 && $httpHoliday!==null,'Admin holiday POST failed.');
         bxHttp($adminClient,$baseUrl,'/admin/holidays/'.$httpHoliday.'/delete',['_token'=>$adminToken]);
         bxExpect(bxAudits('delete_holiday',$httpHoliday)===1,'Admin holiday delete POST failed.');
+        // No cancel button once the stay has ended, and a direct POST is refused; a stay in progress keeps the button.
+        $endedStay=$service->book($listingId,$guestId,bxDay($monday,76),bxDay($monday,77),1);
+        bxCall('CALL sp_test_booking_extras_backdate(?)',[$endedStay['booking_id']]);
+        $runningStay=$service->book($listingId,$guestId,bxDay($monday,78),bxDay($monday,80),1);
+        bxCall('CALL sp_test_booking_extras_backdate(?)',[$runningStay['booking_id']]);
+        $tripList=bxHttp($guestClient,$baseUrl,'/bookings')['body'];
+        $endedCancel='/bookings/'.$endedStay['booking_id'].'/cancel'; $runningCancel='/bookings/'.$runningStay['booking_id'].'/cancel';
+        bxExpect(!str_contains($tripList,$endedCancel) && str_contains($tripList,$runningCancel),'Trip list cancel button is wrong around check-out.');
+        bxExpect(!str_contains(bxHttp($guestClient,$baseUrl,'/bookings/'.$endedStay['booking_id'])['body'],$endedCancel)
+            && str_contains(bxHttp($guestClient,$baseUrl,'/bookings/'.$runningStay['booking_id'])['body'],$runningCancel),'Booking page cancel button is wrong around check-out.');
+        $response=bxHttp($guestClient,$baseUrl,$endedCancel,['_token'=>$guestToken,'reason'=>'Audit fixture']);
+        bxExpect($response['status']===302 && bxInspect($endedStay['booking_id'])['status']==='confirmed' && str_contains(bxHttp($guestClient,$baseUrl,'/bookings')['body'],'Chuyến ở đã kết thúc'),'Direct cancel POST after the stay was not refused.');
         foreach ([$anonymous,$guestClient,$hostClient,$adminClient] as $client) { curl_close($client); }
         echo "PASS booking extras HTTP: role 403s, CSRF rejection, pricing/promotions/holidays/payments pages and POSTs, quote API promo, Instant Book POST, mark paid/refund\n";
     }

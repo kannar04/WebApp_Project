@@ -207,6 +207,7 @@ BEGIN
     DECLARE v_guest BIGINT UNSIGNED;
     DECLARE v_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_start DATE;
+    DECLARE v_end DATE;
     DECLARE v_total DECIMAL(12,2);
     DECLARE v_fee DECIMAL(12,2);
     DECLARE v_policy LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -229,11 +230,13 @@ BEGIN
     IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_booking_cancel; END IF;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=p_booking;
     SELECT host_id,check_in_time,time_zone INTO v_host,v_default_time,v_default_zone FROM listings WHERE id=v_listing FOR UPDATE;
-    SELECT guest_id,status,check_in,total_amount,fee_amount,policy_snapshot INTO v_guest,v_status,v_start,v_total,v_fee,v_policy FROM bookings WHERE id=p_booking FOR UPDATE;
+    SELECT guest_id,status,check_in,check_out,total_amount,fee_amount,policy_snapshot INTO v_guest,v_status,v_start,v_end,v_total,v_fee,v_policy FROM bookings WHERE id=p_booking FOR UPDATE;
     IF v_guest IS NULL OR v_guest<>p_guest OR NOT EXISTS(SELECT 1 FROM users WHERE id=p_guest AND status='active') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking không tồn tại hoặc không thuộc về bạn.';
     END IF;
     IF v_status NOT IN ('pending','confirmed') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking ở trạng thái này không thể hủy.'; END IF;
+    -- Vietnam date, as everywhere in booking rules: from the check-out day on, the Host can complete the stay.
+    IF v_end<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chuyến ở đã kết thúc nên không thể hủy booking.'; END IF;
     SELECT status INTO v_payment FROM booking_payments WHERE booking_id=p_booking FOR UPDATE;
     IF v_status='pending' THEN SET v_percent=100; SET v_base=v_total;
     ELSE

@@ -55,7 +55,7 @@ $extras=$extras??[];
         <p data-refund-amount="<?= e($booking['refund']['refund_amount']) ?>"><strong><?= e($booking['status']==='cancelled'?__('Số tiền hoàn đã ghi nhận'):__('Số tiền hoàn nếu hủy lúc này')) ?>: <?= number_format((float)$booking['refund']['refund_amount'],0,',','.') ?> <?= e($booking['currency']) ?></strong></p>
         <?php if($booking['status']!=='cancelled'): ?><p class="text-muted small"><?= e(__('Đây là mức hoàn theo chính sách; không phải xác nhận đã chuyển tiền. Khi hủy, máy chủ tính lại theo thời điểm thực hiện.')) ?></p><?php endif; ?>
         <?php endif; ?>
-        <?php if($actorId===(int)$booking['guest_id'] && in_array($booking['status'],['pending','confirmed'],true)): ?>
+        <?php if($actorId===(int)$booking['guest_id'] && in_array($booking['status'],['pending','confirmed'],true) && $booking['check_out']>date('Y-m-d')): ?>
         <form method="post" action="<?= e(url('/bookings/'.$booking['id'].'/cancel')) ?>"><?= csrf_field() ?><label for="cancel-reason"><?= e(__('Lý do hủy')) ?></label><input class="form-control mb-2" id="cancel-reason" name="reason" maxlength="2000"><button class="btn btn-outline-danger" data-confirm="<?= e(__('Hủy booking theo mức hoàn đang áp dụng?')) ?>"><?= e(__('Hủy booking')) ?></button></form>
         <?php endif; ?>
         <?php if($actorId===(int)$booking['host_id'] || \Core\Auth::hasRole('admin')): ?>
