@@ -47,7 +47,7 @@ return [
     'Quản lý' => 'Manage',
     'Lịch khả dụng' => 'Availability calendar',
     'Giá & đặt chỗ' => 'Pricing & booking',
-    'Xóa mềm tin này? Lịch sử booking sẽ được giữ.' => 'Delete this listing? Its booking history will be kept.',
+    'Xóa tin này? Lịch sử booking sẽ được giữ.' => 'Delete this listing? Its booking history will be kept.',
     'Xóa tin' => 'Delete listing',
     'Xem tin' => 'View listing',
     'Yêu cầu đặt chỗ' => 'Booking requests',
@@ -121,8 +121,8 @@ return [
     'Thêm ảnh (JPG, PNG, WebP)' => 'Add a photo (JPG, PNG, WebP)',
     'Lưu và gửi duyệt' => 'Save and submit for review',
     'Quản lý ảnh hiện có' => 'Manage current photos',
-    'Đổi thứ tự (số nhỏ hiển thị trước) hoặc chọn ảnh cần gỡ. Tin được duyệt lại sau khi thay đổi ảnh; file gốc không bị xóa.'
-        => 'Change the order (lower numbers show first) or select photos to remove. The listing is reviewed again after photo changes; the original files are not deleted.',
+    'Đổi thứ tự (số nhỏ hiển thị trước) hoặc chọn ảnh cần gỡ. Tin được duyệt lại sau khi thay đổi ảnh.'
+        => 'Change the order (lower numbers show first) or select photos to remove. The listing is reviewed again after photo changes.',
     'Chưa có ảnh. Dùng mục “Thêm ảnh” ở trên.' => 'No photos yet. Use “Add a photo” above.',
     'Thứ tự ảnh {number}' => 'Position of photo {number}',
     'Gỡ ảnh này khỏi tin' => 'Remove this photo from the listing',

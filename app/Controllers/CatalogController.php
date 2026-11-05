@@ -20,7 +20,7 @@ final class CatalogController extends Controller
             $kind=$_POST['kind']??''; $name=$_POST['name']??''; $detail=$_POST['detail']??'';
             $id=filter_var($_POST['id']??0,FILTER_VALIDATE_INT,['options'=>['min_range'=>0]]);
             if ($id===false || !is_string($kind) || !is_string($name) || !is_string($detail) || !mb_check_encoding($name.$detail,'UTF-8') || mb_strlen($name)>80 || mb_strlen($detail)>5000) { throw new \DomainException('Thông tin danh mục không hợp lệ.'); }
-            (new Catalog())->save((int)$user['id'],$kind,$id,$name,$detail,($_POST['active']??'')==='1'); Session::flash('success','Đã lưu danh mục. Ngừng sử dụng là xóa mềm, không mất dữ liệu tin cũ.');
+            (new Catalog())->save((int)$user['id'],$kind,$id,$name,$detail,($_POST['active']??'')==='1'); Session::flash('success','Đã lưu danh mục. Mục ngừng sử dụng vẫn được giữ trên các tin đã đăng.');
         } catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); $this->keepInput(); }
         catch (\PDOException $exception) { Session::flash('error','Không thể lưu. Tên danh mục có thể đã tồn tại.'); $this->keepInput(); }
         $this->redirect('/admin/catalog');

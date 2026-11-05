@@ -145,7 +145,7 @@ final class AdminController extends Controller
     {
         Csrf::ensure(); $admin=$this->requireRole('admin');
         $this->managedUserChange((int)$id,(int)$admin['id'],'delete_user','Soft delete',
-            fn()=>(new User())->softDelete((int)$id),'Đã xóa mềm tài khoản.');
+            fn()=>(new User())->softDelete((int)$id),'Đã xóa tài khoản.');
     }
 
     private function rolesAreValid(mixed $roles): bool
@@ -206,7 +206,7 @@ final class AdminController extends Controller
         Csrf::ensure(); $admin = $this->requireRole('admin');
         try {
             (new AdminRepository())->setListingVisibility((int)$id, (int)$admin['id'], !empty(input_text($_POST,'visible')));
-            Session::flash('success', 'Đã cập nhật hiển thị listing.');
+            Session::flash('success', 'Đã cập nhật hiển thị chỗ ở.');
         } catch (\Throwable $exception) {
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể cập nhật hiển thị. Vui lòng thử lại.');
         }
@@ -217,7 +217,7 @@ final class AdminController extends Controller
         Csrf::ensure(); $admin = $this->requireRole('admin');
         try {
             (new AdminRepository())->softDeleteListing((int)$id, (int)$admin['id']);
-            Session::flash('success', 'Đã gỡ listing (soft delete).');
+            Session::flash('success', 'Đã gỡ chỗ ở khỏi hệ thống.');
         } catch (\Throwable $exception) {
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể gỡ chỗ ở. Vui lòng thử lại.');
         }

@@ -24,7 +24,7 @@ $retiredNote = ' ('.__('không còn cung cấp').')';
 </div></section>
 <?php if($isEdit): ?>
 <section class="page-section pt-0"><div class="container narrow"><form class="surface-card" method="post" action="<?= e(url('/host/listings/'.$listing['id'].'/photos')) ?>"><?= csrf_field() ?>
-<h2><?= e(__('Quản lý ảnh hiện có')) ?></h2><p><?= e(__('Đổi thứ tự (số nhỏ hiển thị trước) hoặc chọn ảnh cần gỡ. Tin được duyệt lại sau khi thay đổi ảnh; file gốc không bị xóa.')) ?></p>
+<h2><?= e(__('Quản lý ảnh hiện có')) ?></h2><p><?= e(__('Đổi thứ tự (số nhỏ hiển thị trước) hoặc chọn ảnh cần gỡ. Tin được duyệt lại sau khi thay đổi ảnh.')) ?></p>
 <?php if(!$photos): ?><p class="text-muted"><?= e(__('Chưa có ảnh. Dùng mục “Thêm ảnh” ở trên.')) ?></p><?php else: ?><div class="row">
 <?php foreach($photos as $index=>$photo): ?><div class="col-sm-6 mb-3"><img class="photo-thumbnail" src="<?= e(image_url($photo['image_url'])) ?>" alt="<?= e($photo['alt_text']) ?>">
 <label for="position-<?= (int)$photo['id'] ?>"><?= e(__('Thứ tự ảnh {number}', ['number' => $index+1])) ?></label><input class="form-control mb-2" id="position-<?= (int)$photo['id'] ?>" type="number" min="1" max="100" name="positions[<?= (int)$photo['id'] ?>]" value="<?= $index+1 ?>" required>

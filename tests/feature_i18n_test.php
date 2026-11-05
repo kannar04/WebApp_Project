@@ -181,6 +181,10 @@ foreach (glob($root.'/lang/en/*.php') as $file) {
             continue;
         }
         if (i18nSlots($vietnamese) !== i18nSlots($english)) { i18nFail($failures, 'Placeholder mismatch in lang/en/'.$where); }
+        // People read these strings, so they say what happens rather than how the code does it.
+        if (preg_match('/xóa mềm|soft.?delet|khóa ngoại|foreign key|gỡ liên kết|file gốc|unlinked|original files?|\bslugs?\b|\blisting này\b|\blisting\b \(|hiển thị listing|audit log|trên server|trên máy chủ|máy chủ tính|(?:on|by) the server|the server recalc/iu', $vietnamese.' | '.$english) === 1) {
+            i18nFail($failures, 'Developer wording reaches users in lang/en/'.$where);
+        }
         if (str_starts_with(basename($file), 'patterns')) {
             $slots = i18nSlots($vietnamese);
             if ($slots === [] ) { i18nFail($failures, 'Pattern without {placeholder} (use an exact entry) in lang/en/'.$where); }

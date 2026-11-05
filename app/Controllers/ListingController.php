@@ -33,6 +33,6 @@ final class ListingController extends Controller
         if ($guests!==false) { $values['guests']=$guests; }
         return $values;
     }
-    public function quote(string $id): never {try{$quote=(new BookingService())->quote((int)$id,(is_string($_GET['check_in']??null)?$_GET['check_in']:''),(is_string($_GET['check_out']??null)?$_GET['check_out']:''),(int)filter_var($_GET['guests']??null,FILTER_VALIDATE_INT),(is_string($_GET['promo_code']??null)?$_GET['promo_code']:''));$this->json(true,'Giá đã được tính lại trên server.',$quote);}catch(\DomainException $e){$this->json(false,$e->getMessage(),null,[],422);}}
+    public function quote(string $id): never {try{$quote=(new BookingService())->quote((int)$id,(is_string($_GET['check_in']??null)?$_GET['check_in']:''),(is_string($_GET['check_out']??null)?$_GET['check_out']:''),(int)filter_var($_GET['guests']??null,FILTER_VALIDATE_INT),(is_string($_GET['promo_code']??null)?$_GET['promo_code']:''));$this->json(true,'Giá đã được tính lại.',$quote);}catch(\DomainException $e){$this->json(false,$e->getMessage(),null,[],422);}}
 }
 

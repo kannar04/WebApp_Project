@@ -241,15 +241,15 @@ return [
     'Số bài viết liên quan không hợp lệ.' => 'Invalid number of related articles.',
     'Bộ lọc bài viết không hợp lệ.' => 'Invalid article filter.',
     'Tiêu đề cần từ 5 đến 200 ký tự.' => 'Title must be 5 to 200 characters.',
-    'Đường dẫn chỉ gồm chữ thường không dấu, số và dấu gạch ngang.' => 'The URL slug may only contain unaccented lowercase letters, digits and hyphens.',
+    'Đường dẫn chỉ gồm chữ thường không dấu, số và dấu gạch ngang.' => 'The URL may only contain unaccented lowercase letters, digits and hyphens.',
     'Tóm tắt cần từ 1 đến 500 ký tự.' => 'Summary must be 1 to 500 characters.',
     'Nội dung cần từ 20 đến 50000 ký tự.' => 'Content must be 20 to 50000 characters.',
     'Ảnh bìa không hợp lệ.' => 'Invalid cover image.',
     'Mô tả ảnh bìa tối đa 255 ký tự.' => 'The cover image description can be up to 255 characters.',
     'Trạng thái bài viết không hợp lệ.' => 'Invalid article status.',
     'Bài viết không tồn tại hoặc đã bị xóa.' => 'The article does not exist or has been deleted.',
-    'Không thể tạo đường dẫn duy nhất. Hãy nhập đường dẫn khác.' => 'Could not create a unique URL slug. Please enter a different one.',
-    'Đường dẫn đã được dùng cho bài viết khác.' => 'This URL slug is already used by another article.',
+    'Không thể tạo đường dẫn duy nhất. Hãy nhập đường dẫn khác.' => 'Could not create a unique URL. Please enter a different one.',
+    'Đường dẫn đã được dùng cho bài viết khác.' => 'This URL is already used by another article.',
 
     // ---- 095_online_payment.sql
     'Không có quyền thanh toán booking này.' => 'You are not allowed to pay for this booking.',

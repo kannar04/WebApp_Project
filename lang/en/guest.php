@@ -109,7 +109,7 @@ return [
     'Mốc hoàn tiền vẫn tính theo giờ nhận phòng lúc đặt ({time}).' => 'The refund deadline still counts from the check-in time at booking ({time}).',
     'Số tiền cần hoàn (Admin chưa ghi nhận đã hoàn)' => 'Refund due (not yet recorded as refunded by Admin)',
     'Số tiền hoàn nếu hủy lúc này' => 'Refund if cancelled now',
-    'Đây là mức hoàn theo chính sách; không phải xác nhận đã chuyển tiền. Khi hủy, máy chủ tính lại theo thời điểm thực hiện.' => 'This is the refund under the policy, not a confirmation that money has been sent. When you cancel, the server recalculates it for that moment.',
+    'Đây là mức hoàn theo chính sách; không phải xác nhận đã chuyển tiền. Khi hủy, hệ thống tính lại theo thời điểm thực hiện.' => 'This is the refund under the policy, not a confirmation that money has been sent. When you cancel, it is recalculated for that moment.',
     'Lý do hủy' => 'Cancellation reason',
     'Hủy booking theo mức hoàn đang áp dụng?' => 'Cancel this booking at the current refund rate?',
     'Gửi khiếu nại booking này' => 'Report this booking',

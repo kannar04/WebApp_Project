@@ -31,7 +31,7 @@ final class HostController extends Controller
     public function delete(string $id): never
     {
         Csrf::ensure(); $user=$this->requireRole('host');
-        try { (new Listing())->softDelete((int)$id,(int)$user['id']); Session::flash('success','Đã xóa mềm tin. Lịch sử booking và ảnh gốc được giữ nguyên.'); }
+        try { (new Listing())->softDelete((int)$id,(int)$user['id']); Session::flash('success','Đã xóa tin. Lịch sử booking vẫn được giữ.'); }
         catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
         $this->redirect('/host');
     }
@@ -57,7 +57,7 @@ final class HostController extends Controller
             if (count(array_unique($ordered))!==count($ordered)) { throw new \DomainException('Các ảnh giữ lại phải có thứ tự khác nhau.'); }
             asort($ordered,SORT_NUMERIC);
             $model->managePhotos((int)$id,(int)$user['id'],array_keys($ordered),$current);
-            Session::flash('success','Đã cập nhật ảnh và gửi tin duyệt lại. Chỉ gỡ liên kết; không xóa file gốc.');
+            Session::flash('success','Đã cập nhật ảnh và gửi tin duyệt lại.');
         } catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
         $this->redirect('/host/listings/'.$id.'/edit');
     }

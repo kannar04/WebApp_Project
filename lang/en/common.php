@@ -147,7 +147,7 @@ return [
     'Đăng nhập để đặt chỗ' => 'Log in to book',
     'Đây là chỗ ở của bạn nên không thể tự đặt.' => 'This is your own place, so you cannot book it.',
     'Quản lý chỗ ở này' => 'Manage this place',
-    'Bạn chưa bị tính phí. Tổng tiền được xác nhận lại trên máy chủ.' => 'You won\'t be charged yet. The total is confirmed again by the server.',
+    'Bạn chưa bị tính phí. Tổng tiền được xác nhận lại khi bạn đặt chỗ.' => 'You won\'t be charged yet. The total is confirmed again when you book.',
     'Thanh toán khi nhận phòng, hoặc thanh toán online sau khi booking được xác nhận.' => 'Pay at check-in, or online once your booking is confirmed.',
     'Xem tất cả {count} ảnh' => 'View all {count} photos',
 
