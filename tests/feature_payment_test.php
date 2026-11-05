@@ -17,6 +17,16 @@ use Core\ProcedureConnection;
  * account and a per-run VNPay secret. Fixture dates are today+4300..4400 days. Everything created here is removed in `finally`.
  */
 
+/** Admin payment rows of one booking. The Admin search also matches titles, and fixture titles hold random digits. */
+function payAdminRows(int $adminId,int $bookingId): array
+{
+    $rows=[];
+    foreach ((new App\Models\BookingExtras())->adminPayments($adminId,'',(string)$bookingId) as $row) {
+        if ((int)$row['booking_id']===$bookingId) { $rows[]=$row; }
+    }
+    return $rows;
+}
+
 function payExpect(bool $condition, string $message): void
 {
     if (!$condition) { throw new RuntimeException($message); }
@@ -271,7 +281,7 @@ try {
         && (int)$state['paid_notices']===1 && (int)$state['guest_duplicate_notices']===1 && (int)$state['admin_duplicate_notices']>=1,'Second payment was not reported as a duplicate: '.json_encode($state));
     $result=$payments->vnpayResult($lateVnpay['reference'],'220000.00','00','00','14000012','NCB');
     payExpect($result['result']==='already' && (int)$result['duplicate_payment']===1 && (int)payInspect($bookingI)['guest_duplicate_notices']===1,'Repeating a duplicate result lost the flag or notified twice.');
-    $listed=(new BookingExtras())->adminPayments($adminId,'',(string)$bookingI);
+    $listed=payAdminRows($adminId,$bookingI);
     payExpect(count($listed)===1 && (int)$listed[0]['duplicate_id']===$lateVnpayId && $listed[0]['payment_state']==='paid','Admin payments list does not show the open duplicate.');
     $attemptRows=$payments->bookingAttempts($bookingI,$adminId);
     payExpect((int)$attemptRows[0]['transaction_id']===$lateQrId && (int)$attemptRows[0]['is_open_duplicate']===0 && (int)$attemptRows[1]['is_open_duplicate']===1,'Booking attempts do not mark the open duplicate.');
@@ -284,7 +294,7 @@ try {
     $stored=payAttempt($lateVnpayId); $state=payInspect($bookingI);
     payExpect($stored['status']==='cancelled' && (int)$stored['decided_by']===$adminId && $stored['note']==='Đã hoàn khoản thanh toán trùng: Đã hoàn qua ngân hàng' && $state['payment_status']==='paid'
         && (int)$state['payment_events']===1 && (int)$state['guest_duplicate_refunded_notices']===1 && (int)$state['duplicate_audits']===1,'Closing the duplicate changed more than that transaction: '.json_encode($state));
-    payExpect((new BookingExtras())->adminPayments($adminId,'',(string)$bookingI)[0]['duplicate_id']===null,'A closed duplicate is still listed as open.');
+    payExpect(payAdminRows($adminId,$bookingI)[0]['duplicate_id']===null,'A closed duplicate is still listed as open.');
     payRejects([$payments,'resolveDuplicate'],[$lateVnpayId,$adminId,'Đã hoàn'],'không phải thanh toán trùng','A duplicate was closed twice');
     payExpect($payments->vnpayResult($lateVnpay['reference'],'220000.00','00','00','14000012','NCB')['result']==='already' && payAttempt($lateVnpayId)['status']==='cancelled','Replaying the result reopened a closed duplicate.');
     // VNPay lands first while the transfer waits: the Admin cannot confirm a second success, and closing the transfer leaves the booking paid.
@@ -326,7 +336,7 @@ try {
     $state=payInspect($bookingM);
     payExpect($cancelled['was_paid'] && $cancelled['refund_amount']===100000.0 && (int)$state['admin_refund_notices']>=1 && str_contains((string)$state['admin_refund_body'],'100.000đ')
         && str_contains((string)$state['admin_refund_body'],'50%') && (float)$state['cancel_refund']===100000.0,'Admin notice does not state the refund owed: '.json_encode($state,JSON_UNESCAPED_UNICODE));
-    $row=$extras->adminPayments($adminId,'',(string)$bookingM)[0];
+    $row=payAdminRows($adminId,$bookingM)[0];
     payExpect((float)$row['refund_amount']===100000.0 && (float)$row['amount_due']===220000.0 && (float)$extras->bookingDetail($bookingM,$adminId)['refund_amount']===100000.0,'Admin views do not show the policy refund.');
     $totalsBefore=$extras->adminPaymentTotals($adminId);
     $extras->refund($bookingM,$adminId,'Đã hoàn theo chính sách');

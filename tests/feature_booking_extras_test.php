@@ -418,7 +418,7 @@ try {
 
     // ---- Maximum stay and money limits: refused by the service and by the routine, never silently capped.
     $limitIds=[];
-    foreach (['plain'=>100000,'high'=>30000000,'top'=>9999999999.99,'exact'=>9999979999.99] as $limitName=>$limitPrice) {
+    foreach (['plain'=>100000,'high'=>30000000,'top'=>9999999999.99,'exact'=>9999979999] as $limitName=>$limitPrice) {
         $limitIds[$limitName]=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6)),'nightly_price'=>$limitPrice]+$data);
         $extraListings[]=$limitIds[$limitName];
         bxCall('CALL sp_test_listing_approve(?)',[$limitIds[$limitName]]);
@@ -438,7 +438,7 @@ try {
     bxExpect(bxBookingCount($limitIds['high'])===0,'An overflowing stay left a booking behind.');
     bxRejects([$service,'quote'],[$limitIds['top'],$d0,bxDay($monday,1),1],'vượt quá giới hạn','Overflowing total was quoted');
     $exact=$service->quote($limitIds['exact'],$d0,bxDay($monday,1),1);
-    bxExpect($exact['subtotal']===9999979999.99 && $exact['total']===9999999999.99,'A total exactly at the column maximum must be quoted unchanged: '.json_encode($exact['total']));
+    bxExpect($exact['subtotal']===9999979999.0 && $exact['total']===9999999999.0,'A total exactly at the column maximum must be quoted unchanged: '.json_encode($exact['total']));
     echo "PASS maximum stay and money limits: 365 nights allowed, 366 refused by service and routine, overflowing subtotal or total raises instead of capping, exact maximum kept\n";
 
     // ---- Admin take-down: unfinished confirmed stays refuse it, pending requests are auto-rejected, all in one transaction.

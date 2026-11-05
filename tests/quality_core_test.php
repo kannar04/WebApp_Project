@@ -40,6 +40,7 @@ function qaIssueRefused(\App\Models\PasswordReset $recovery,int $userId): bool
 {
     try { $recovery->issue($userId,bin2hex(random_bytes(32))); } catch (DomainException $exception) { return true; }
     return false;
+}
 function qaRejectCall(callable $call,array $arguments,string $message): void
 {
     try { $call(...$arguments); } catch (DomainException $exception) { return; }
