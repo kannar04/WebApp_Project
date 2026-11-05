@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit(1); }
 
 require dirname(__DIR__).'/core/bootstrap.php';
 require dirname(__DIR__).'/database/procedures/install.php';
@@ -77,7 +78,7 @@ function ignoredByGit(string $path): bool
 $private = ['.env','.env.local','.env.production','config/database.local.php','secrets/key.pem','logs/app.log','tmp/work.tmp',
     '.idea/workspace.xml','.vscode/settings.json','.DS_Store','Thumbs.db','node_modules/pkg/index.js','vendor/pkg/file.php',
     'coverage/report.html','database/dumps/customer-export.sql','public/uploads/avatar.jpg'];
-$shared = ['.env.example','.env.sample','README.md','skill_web.md','skill_UIUX.md','skill_user.md','File_Ideas/Functions.txt',
+$shared = ['.env.example','.env.sample','.htaccess','public/.htaccess','README.md','skill_web.md','skill_UIUX.md','skill_user.md','File_Ideas/Functions.txt',
     'image/erd-home2home.drawio.png','image/so-do-lop_web.png','image/so-do-phan-ra-chuc-nang_web.png',
     'app/Models/Listing.php','core/ProcedureConnection.php','config/database.php','routes/web.php','tests/codebase_cleanup_test.php',
     'database/schema.sql','database/seed.sql','database/procedures/020_booking.sql','database/migrations/example.sql',

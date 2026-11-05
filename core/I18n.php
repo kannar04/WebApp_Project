@@ -115,10 +115,7 @@ final class I18n
     {
         $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
         $path = (string) (parse_url($uri, PHP_URL_PATH) ?: '/');
-        $scriptDirectory = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
-        if ($scriptDirectory !== '/' && $scriptDirectory !== '.' && str_starts_with($path, $scriptDirectory)) {
-            $path = substr($path, strlen($scriptDirectory)) ?: '/';
-        }
+        $path = app_path($path) ?? $path;
         $query = parse_url($uri, PHP_URL_QUERY);
         return $path . (is_string($query) && $query !== '' ? '?' . $query : '');
     }

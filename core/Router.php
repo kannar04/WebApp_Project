@@ -22,11 +22,8 @@ final class Router
 
     public function dispatch(string $method, string $uri): void
     {
-        $path = rawurldecode(parse_url($uri, PHP_URL_PATH) ?: '/');
-        $scriptDirectory = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
-        if ($scriptDirectory !== '/' && $scriptDirectory !== '.' && str_starts_with($path, $scriptDirectory)) {
-            $path = substr($path, strlen($scriptDirectory)) ?: '/';
-        }
+        $uriPath = parse_url($uri, PHP_URL_PATH) ?: '/';
+        $path = rawurldecode(app_path($uriPath) ?? $uriPath);
 
         foreach ($this->routes[$method] ?? [] as $route) {
             if (!preg_match($route['pattern'], $path, $matches)) {

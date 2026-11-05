@@ -68,6 +68,26 @@ function url(string $path = ''): string
     return $base . '/' . ltrim($path, '/');
 }
 
+/**
+ * A URL path as url() expects it: relative to the app, so the base is added back exactly once.
+ * The root .htaccess rewrites /folder/x into public/ while the address stays /folder/x, so under
+ * /folder/public both that and /folder count as the base. Null when the path lies outside the app.
+ */
+function app_path(string $path): ?string
+{
+    $base = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
+    if ($base === '/' || $base === '.') { $base = ''; }
+    $segments = explode('/', $path);
+    foreach (str_ends_with($base, '/public') ? [$base, substr($base, 0, -7)] : [$base] as $candidate) {
+        $depth = substr_count($candidate, '/') + 1;
+        // Browsers percent-encode the address (/My%20Folder) while SCRIPT_NAME is decoded.
+        if (rawurldecode(implode('/', array_slice($segments, 0, $depth))) === $candidate) {
+            return '/' . implode('/', array_slice($segments, $depth));
+        }
+    }
+    return null;
+}
+
 function asset(string $path): string { return url('/assets/' . ltrim($path, '/')); }
 function old(string $key, mixed $default = ''): mixed { return $GLOBALS['old'][$key] ?? $default; }
 function csrf_field(): string { return '<input type="hidden" name="_token" value="' . e(\Core\Csrf::token()) . '">'; }

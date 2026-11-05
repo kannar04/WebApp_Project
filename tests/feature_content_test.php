@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit(1); }
 
 use App\Models\Article;
 use App\Models\User;

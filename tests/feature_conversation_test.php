@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit(1); }
 
 // Nice-to-have conversation: booking messages H20/G23 (thread + Zalo link), A31 (Admin moderation), check-in reminders G31/A35.
 // Works on a workspace dev database and inside fresh_setup_test.php (throwaway DB + HOME2HOME_TEST_URL server).

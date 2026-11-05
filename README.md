@@ -34,7 +34,7 @@ docs/         kiến trúc, traceability, tiến độ và test report
 ## Cài đặt và chạy
 
 1. Bật Apache và MySQL trong XAMPP.
-2. Khuyến nghị cấu hình Apache VirtualHost trỏ DocumentRoot tới `public/`.
+2. Khuyến nghị cấu hình Apache VirtualHost trỏ DocumentRoot tới `public/`. Nếu chỉ chép thư mục dự án vào `htdocs`, mở `http://localhost/<thư-mục>/`: `.htaccess` ở thư mục gốc chỉ phục vụ `public/` (cần `mod_rewrite` và `AllowOverride All`, mặc định của XAMPP); khi đó để trống `APP_URL=` trong `.env`.
 3. Sao chép `.env.example` thành `.env`, chỉnh credential nếu cần.
 4. Import database:
 

@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit(1); }
 
 use App\Models\AdminRepository;
 use App\Models\Listing;
@@ -19,6 +20,16 @@ function expectDomainFailure(callable $operation, string $message): void
 {
     try { $operation(); } catch (DomainException $exception) { return; }
     throw new RuntimeException($message);
+}
+
+/** app_path() as a request whose front controller is $scriptName sees it. */
+function appPathUnder(string $scriptName, string $path): ?string
+{
+    $saved = $_SERVER['SCRIPT_NAME'] ?? null;
+    $_SERVER['SCRIPT_NAME'] = $scriptName;
+    $result = app_path($path);
+    $_SERVER['SCRIPT_NAME'] = $saved;
+    return $result;
 }
 
 /** Renders the login view in a child process, because APP_ENV is read when the view runs. */
@@ -73,6 +84,23 @@ foreach (['', 'bookings', '//evil.example', 'http://evil.example', '/\evil.examp
     expect($returnTarget->invoke($authController, $refusedTarget) === '', 'Return target accepted: '.$refusedTarget);
 }
 echo "PASS sign-in return targets refuse other sites and auth pages\n";
+
+// Real Apache is checked by hand; here the rules that keep everything outside public/ off the web must stay in place.
+$rootHtaccess = (string) file_get_contents(dirname(__DIR__).'/.htaccess');
+expect(str_contains($rootHtaccess, 'RewriteRule ^(.*)$ public/$1 [L]') && str_contains($rootHtaccess, 'Options -Indexes')
+    && (bool) preg_match('/<FilesMatch "\^\\\\\.">\s*Require all denied/', $rootHtaccess)
+    && (bool) preg_match('/<IfModule !mod_rewrite\.c>\s*Require all denied/', $rootHtaccess), 'Root .htaccess must serve only public/ and deny dotfiles.');
+expect(str_contains((string) file_get_contents(dirname(__DIR__).'/public/.htaccess'), 'Options -Indexes'), 'public/ must not list directories.');
+foreach (glob(__DIR__.'/*.php') as $testScript) {
+    expect((bool) preg_match('/^(?:\s*if \(|[a-zA-Z]+\()PHP_SAPI ?[!=]==? ?\'cli\'/m', (string) file_get_contents($testScript)), 'Test script runs over HTTP: '.basename($testScript));
+}
+expect(appPathUnder('/index.php', '/bookings') === '/bookings' && appPathUnder('/index.php', '/') === '/' && appPathUnder('/index.php', '//evil/x') === '//evil/x', 'Root deployment must keep the path.');
+expect(appPathUnder('/WebApp/public/index.php', '/WebApp/public/bookings') === '/bookings' && appPathUnder('/WebApp/public/index.php', '/WebApp/public') === '/', 'public/ base not removed.');
+expect(appPathUnder('/WebApp/public/index.php', '/WebApp/bookings') === '/bookings' && appPathUnder('/WebApp/public/index.php', '/WebApp/') === '/', 'Folder base (root .htaccess rewrite) not removed.');
+expect(appPathUnder('/WebApp/public/index.php', '/other/bookings') === null && appPathUnder('/WebApp/public/index.php', '/WebAppX/bookings') === null, 'A path outside the app must not count as inside it.');
+expect(appPathUnder('/public/index.php', '/public/login') === '/login' && appPathUnder('/public/index.php', '/login') === '/login', 'Project as the web root: both bases.');
+expect(appPathUnder('/My Folder/public/index.php', '/My%20Folder/public/listings/1') === '/listings/1', 'Encoded folder name not recognised.');
+echo "PASS root .htaccess serves only public/, test scripts are CLI only, app_path removes the base once\n";
 
 $userModel = new User();
 $host = $userModel->findByEmail('host@home2home.test');
