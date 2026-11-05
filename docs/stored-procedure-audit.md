@@ -480,7 +480,7 @@ Giá giữ nguyên cách tính; các routine dưới đây sửa lỗi tại ch�
 | `sp_payment_start`, `sp_payment_transfer_submit`, `sp_admin_payment_transfer_decide`, `sp_payment_vnpay_result` | `095_online_payment.sql` | Sau khóa listing, đọc trạng thái Host bằng `LOCK IN SHARE MODE`; Host bị khóa hoặc đã xóa dùng chung nhánh `v_removed` (từ chối, hoặc ghi nhận rồi báo Admin hoàn tiền) | feature_payment_test |
 | `sp_booking_cancel`, `sp_booking_refund_preview` | `020_booking.sql`, `050_quality_core.sql` | Cùng gọi `sp_booking_refund_terms`, nên bản xem trước có cùng fallback và cùng con số với lúc hủy thật; preview lấy giờ nhận phòng và múi giờ hiện tại của listing | feature_payment_test |
 
-Vòng 4, Host bị khóa và lời hứa hoàn tiền:
+Vòng 4, giá, khuyến mãi, hoàn tiền và Host bị khóa:
 
 | Routine | File | Thay đổi | Test |
 |---|---|---|---|
@@ -488,6 +488,7 @@ Vòng 4, Host bị khóa và lời hứa hoàn tiền:
 | `sp_payment_start` | `095_online_payment.sql` | Host tạm khóa: từ chối bằng thông báo riêng, không nói “đã bị gỡ” | `feature_payment_test.php` |
 | `sp_payment_transfer_submit` | `095_online_payment.sql` | Host tạm khóa không chặn việc báo chuyển khoản theo mã đã cấp trước đó, vì tiền có thể đã đi; chỗ ở đã gỡ hoặc Host đã xóa vẫn từ chối | `feature_payment_test.php` |
 | `sp_payment_vnpay_result`, `sp_admin_payment_transfer_decide` | `095_online_payment.sql` | Tiền về khi Host tạm khóa là thanh toán bình thường, không hứa hoàn tiền; mọi Admin nhận thông báo `payment_host_suspended` để kiểm tra chuyến ở. Chỗ ở đã gỡ, Host đã xóa và chuyến đã kết thúc không đổi | `feature_payment_test.php` |
+| `sp_booking_extras_price`, `sp_booking_extras_night_rate` | `070_booking_extras.sql` | Giá và phụ phí làm tròn trong biến rộng `DECIMAL(20,2)`, kiểm tra giới hạn sau khi làm tròn: giá làm tròn lên 10.000.000.000đ bị từ chối thay vì bị cắt còn 9.999.999.999,99. Giá của loại đêm không có trong kỳ ở không chặn booking | `feature_booking_extras_test.php` |
 | `sp_booking_refund_terms`, `sp_booking_cancel`, `sp_booking_refund_preview` | `050_quality_core.sql`, `020_booking.sql` | Thêm `p_booking`. Booking đã có thông báo “Khoản thanh toán sẽ được hoàn lại” được hoàn đủ `amount_due` bất kể chính sách, kể cả sau khi chỗ ở hoặc Host được khôi phục, nên form hoàn tiền của Admin vẫn còn | `feature_payment_test.php` |
 
 ### Routine mới

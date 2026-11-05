@@ -4,8 +4,9 @@
 DELIMITER $$
 
 -- Per-night price precedence: holiday price (set and night is a holiday) > weekend price (Fri/Sat night) > base rate.
-CREATE OR REPLACE PROCEDURE sp_booking_extras_night_rate(IN p_day DATE, IN p_base DECIMAL(12,2), IN p_weekend DECIMAL(12,2), IN p_holiday DECIMAL(12,2),
-    OUT o_rate DECIMAL(12,2), OUT o_kind VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
+-- Wider than the money columns: a price that rounds up to 10,000,000,000 must reach the guard in sp_booking_extras_price, not be capped here.
+CREATE OR REPLACE PROCEDURE sp_booking_extras_night_rate(IN p_day DATE, IN p_base DECIMAL(20,2), IN p_weekend DECIMAL(20,2), IN p_holiday DECIMAL(20,2),
+    OUT o_rate DECIMAL(20,2), OUT o_kind VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
     IF p_holiday IS NOT NULL AND EXISTS(SELECT 1 FROM public_holidays WHERE holiday_date=p_day) THEN
         SET o_rate=ROUND(p_holiday,0); SET o_kind='holiday';
@@ -26,13 +27,18 @@ CREATE OR REPLACE PROCEDURE sp_booking_extras_price(IN p_listing BIGINT UNSIGNED
     OUT o_promo_message VARCHAR(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, OUT o_fee DECIMAL(12,2), OUT o_total DECIMAL(12,2), OUT o_instant BOOL)
 BEGIN
     DECLARE v_day DATE;
-    DECLARE v_rate DECIMAL(12,2);
+    DECLARE v_rate DECIMAL(20,2);
     DECLARE v_kind VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_weekly DECIMAL(5,2);
     DECLARE v_monthly DECIMAL(5,2);
     DECLARE v_after DECIMAL(12,2);
     -- Wider than the money columns: outside strict mode a DECIMAL(12,2) would silently cap at 9,999,999,999.99.
     DECLARE v_nights_sum DECIMAL(20,2) DEFAULT 0;
+    DECLARE v_base DECIMAL(20,2);
+    DECLARE v_weekend DECIMAL(20,2);
+    DECLARE v_holiday DECIMAL(20,2);
+    DECLARE v_fee DECIMAL(20,2);
+    DECLARE v_total DECIMAL(20,2);
     DECLARE v_code VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_pid BIGINT UNSIGNED;
     DECLARE v_type VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -60,10 +66,12 @@ BEGIN
     IF o_base IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở không khả dụng.'; END IF;
     SET o_instant=COALESCE(o_instant,FALSE);
     -- Hosts and Admins may type decimals: VND has no fractions, so every price component is whole dong before anything is added up.
-    SET o_base=ROUND(o_base,0); SET o_fee=ROUND(o_fee,0); SET o_weekend_rate=ROUND(o_weekend_rate,0); SET o_holiday_rate=ROUND(o_holiday_rate,0);
+    -- 9,999,999,999.50 rounds up to 10,000,000,000, which only the wide locals hold: a rate this stay uses and the fee meet the guards below; a rate it does not use refuses nothing.
+    SET v_base=ROUND(o_base,0); SET v_fee=ROUND(o_fee,0); SET v_weekend=ROUND(o_weekend_rate,0); SET v_holiday=ROUND(o_holiday_rate,0);
+    SET o_base=LEAST(v_base,9999999999.99); SET o_weekend_rate=LEAST(v_weekend,9999999999.99); SET o_holiday_rate=LEAST(v_holiday,9999999999.99);
     SET o_nights=DATEDIFF(p_end,p_start); SET o_weekend_nights=0; SET o_holiday_nights=0; SET v_day=p_start;
     WHILE v_day<p_end DO
-        CALL sp_booking_extras_night_rate(v_day,o_base,o_weekend_rate,o_holiday_rate,v_rate,v_kind);
+        CALL sp_booking_extras_night_rate(v_day,v_base,v_weekend,v_holiday,v_rate,v_kind);
         SET v_nights_sum=v_nights_sum+v_rate;
         IF v_kind='weekend' THEN SET o_weekend_nights=o_weekend_nights+1; ELSEIF v_kind='holiday' THEN SET o_holiday_nights=o_holiday_nights+1; END IF;
         SET v_day=DATE_ADD(v_day,INTERVAL 1 DAY);
@@ -128,10 +136,12 @@ BEGIN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=v_message;
         END IF;
     END IF;
-    IF v_after-o_promo_amount+o_fee>9999999999.99 THEN
+    SET v_total=ROUND(v_after-o_promo_amount+v_fee,0);
+    IF v_total>9999999999.99 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tổng tiền của kỳ ở vượt quá giới hạn của hệ thống. Vui lòng chọn ít đêm hơn.';
     END IF;
-    SET o_total=ROUND(v_after-o_promo_amount+o_fee,0);
+    SET o_fee=v_fee;
+    SET o_total=v_total;
 END$$
 
 -- Public rule summary for the listing detail page (no private data).

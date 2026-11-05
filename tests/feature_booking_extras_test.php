@@ -497,7 +497,34 @@ try {
     bxRejects([$service,'quote'],[$limitIds['top'],$d0,bxDay($monday,1),1],'vượt quá giới hạn','Overflowing total was quoted');
     $exact=$service->quote($limitIds['exact'],$d0,bxDay($monday,1),1);
     bxExpect($exact['subtotal']===9999979999.0 && $exact['total']===9999999999.0,'A total exactly at the column maximum must be quoted unchanged: '.json_encode($exact['total']));
-    echo "PASS maximum stay and money limits: 365 nights allowed, 366 refused by service and routine, overflowing subtotal or total raises instead of capping, exact maximum kept\n";
+    // A price that rounds up to 10,000,000,000 is refused, not capped at 9.999.999.999,99; only the rate this stay uses counts.
+    $noFee=array_merge($data,['cleaning_fee'=>0]);
+    $feeZero=[];
+    foreach (['rounds'=>9999999999.5,'near'=>9999999999.49] as $limitName=>$limitPrice) {
+        $feeZero[$limitName]=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6)),'nightly_price'=>$limitPrice]+$noFee);
+        $extraListings[]=$feeZero[$limitName];
+        bxCall('CALL sp_test_listing_approve(?)',[$feeZero[$limitName]]);
+    }
+    $monday1=bxDay($monday,1);
+    bxRejects([$service,'quote'],[$feeZero['rounds'],$d0,$monday1,1],'vượt quá giới hạn','A price rounding up to the limit was quoted');
+    bxRejects([$service,'book'],[$feeZero['rounds'],$guestId,$d0,$monday1,1],'vượt quá giới hạn','A price rounding up to the limit was booked');
+    bxExpect(bxBookingCount($feeZero['rounds'])===0,'A refused price left a booking behind.');
+    $near=$service->quote($feeZero['near'],$d0,$monday1,1);
+    bxExpect($near['total']===9999999999.0,'A price rounding down to a whole dong must stay bookable: '.json_encode($near['total']));
+    $nearBooking=$service->create($feeZero['near'],$guestId,$d0,$monday1,1);
+    bxExpect((float)bxInspect($nearBooking)['total_amount']===9999999999.0,'The booked total is not the quoted whole dong: '.json_encode(bxInspect($nearBooking)));
+    // A weekend rate that rounds over the limit refuses only a stay with a weekend night.
+    $weekdayRate=$limitIds['plain'];
+    $extras->saveHostSettings($weekdayRate,$hostId,'9999999999.50',null,null,null,false);
+    bxExpect($service->quote($weekdayRate,$d0,$monday1,1)['subtotal']===100000.0,'A weekend rate over the limit refused a weekday stay.');
+    bxRejects([$service,'quote'],[$weekdayRate,bxDay($monday,4),bxDay($monday,5),1],'vượt quá giới hạn','A weekend rate rounding up to the limit was quoted');
+    $extras->saveHostSettings($weekdayRate,$hostId,null,null,null,null,false);
+    // A fee that rounds up to the limit is refused too.
+    $feeRounds=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6)),'nightly_price'=>100000,'cleaning_fee'=>9999999999.5]+$data);
+    $extraListings[]=$feeRounds;
+    bxCall('CALL sp_test_listing_approve(?)',[$feeRounds]);
+    bxRejects([$service,'quote'],[$feeRounds,$d0,$monday1,1],'vượt quá giới hạn','A fee rounding up to the limit was quoted');
+    echo "PASS maximum stay and money limits: 365 nights allowed, 366 refused by service and routine, overflowing subtotal or total raises instead of capping, exact maximum kept, prices rounding up to the limit refused\n";
 
     // ---- Admin take-down: unfinished confirmed stays refuse it, pending requests are auto-rejected, all in one transaction.
     $repository=new AdminRepository();
