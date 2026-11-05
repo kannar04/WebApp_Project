@@ -390,6 +390,31 @@ try {
     bxCall('CALL sp_test_listing_approve(?)',[$listingId]);
     $extras->saveHostSettings($listingId,$hostId,'150000','300000','10','20',true);
     echo "PASS whole dong pricing: decimal weekend/holiday rate, fee, fixed promo and promo cap round per component; rows, total, nights and amount due agree\n";
+    // ---- Maximum stay and money limits: refused by the service and by the routine, never silently capped.
+    $limitIds=[];
+    foreach (['plain'=>100000,'high'=>30000000,'top'=>9999999999.99,'exact'=>9999979999.99] as $limitName=>$limitPrice) {
+        $limitIds[$limitName]=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6)),'nightly_price'=>$limitPrice]+$data);
+        $extraListings[]=$limitIds[$limitName];
+        bxCall('CALL sp_test_listing_approve(?)',[$limitIds[$limitName]]);
+    }
+    $yearEnd=bxDay($monday,BookingService::MAX_NIGHTS);
+    $tooFar=bxDay($monday,BookingService::MAX_NIGHTS+1);
+    bxExpect(BookingService::MAX_NIGHTS===365,'The maximum stay changed without the routine.');
+    bxExpect($service->quote($limitIds['plain'],$d0,$yearEnd,1)['nights']===365,'A 365-night stay must still be quoted.');
+    bxRejects([$service,'quote'],[$limitIds['plain'],$d0,$tooFar,1],'tối đa 365 đêm','Service quoted 366 nights');
+    bxRejects([$service,'book'],[$limitIds['plain'],$guestId,$d0,$tooFar,1],'tối đa 365 đêm','Service booked 366 nights');
+    bxRejects('bxCall',['CALL sp_booking_quote(?,?,?,?,?)',[$limitIds['plain'],$d0,$tooFar,1,'']],'tối đa 365 đêm','Routine quoted 366 nights');
+    bxRejects('bxCall',['CALL sp_booking_create(?,?,?,?,?,?)',[$limitIds['plain'],$guestId,$d0,$tooFar,1,'']],'tối đa 365 đêm','Routine booked 366 nights');
+    bxExpect(bxBookingCount($limitIds['plain'])===0,'A refused stay left a booking behind.');
+    // 365 × 30.000.000đ = 10,95 tỷ overflows the money columns; one night at the column maximum overflows only once the fee is added.
+    bxRejects([$service,'quote'],[$limitIds['high'],$d0,$yearEnd,1],'vượt quá giới hạn','Overflowing subtotal was quoted');
+    bxRejects([$service,'book'],[$limitIds['high'],$guestId,$d0,$yearEnd,1],'vượt quá giới hạn','Overflowing subtotal was booked');
+    bxExpect(bxBookingCount($limitIds['high'])===0,'An overflowing stay left a booking behind.');
+    bxRejects([$service,'quote'],[$limitIds['top'],$d0,bxDay($monday,1),1],'vượt quá giới hạn','Overflowing total was quoted');
+    $exact=$service->quote($limitIds['exact'],$d0,bxDay($monday,1),1);
+    bxExpect($exact['subtotal']===9999979999.99 && $exact['total']===9999999999.99,'A total exactly at the column maximum must be quoted unchanged: '.json_encode($exact['total']));
+    echo "PASS maximum stay and money limits: 365 nights allowed, 366 refused by service and routine, overflowing subtotal or total raises instead of capping, exact maximum kept\n";
+
     // ---- Admin take-down: unfinished confirmed stays refuse it, pending requests are auto-rejected, all in one transaction.
     $repository=new AdminRepository();
     $takedownId=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]+$data);
@@ -551,6 +576,16 @@ try {
             && str_contains(bxHttp($guestClient,$baseUrl,'/bookings/'.$runningStay['booking_id'])['body'],$runningCancel),'Booking page cancel button is wrong around check-out.');
         $response=bxHttp($guestClient,$baseUrl,$endedCancel,['_token'=>$guestToken,'reason'=>'Audit fixture']);
         bxExpect($response['status']===302 && bxInspect($endedStay['booking_id'])['status']==='confirmed' && str_contains(bxHttp($guestClient,$baseUrl,'/bookings')['body'],'Chuyến ở đã kết thúc'),'Direct cancel POST after the stay was not refused.');
+        // Maximum stay: the quote API answers 422 with the message the form shows; the booking POST flashes it.
+        $response=bxHttp($anonymous,$baseUrl,'/api/listings/'.$limitIds['plain'].'/quote?'.http_build_query(['check_in'=>$d0,'check_out'=>$tooFar,'guests'=>1]),null,'application/json');
+        $decoded=json_decode($response['body'],true);
+        bxExpect($response['status']===422 && ($decoded['success']??true)===false && str_contains((string)($decoded['message']??''),'tối đa 365 đêm'),'Quote API did not refuse 366 nights.');
+        $response=bxHttp($anonymous,$baseUrl,'/api/listings/'.$limitIds['high'].'/quote?'.http_build_query(['check_in'=>$d0,'check_out'=>$yearEnd,'guests'=>1]),null,'application/json');
+        bxExpect($response['status']===422 && str_contains((string)(json_decode($response['body'],true)['message']??''),'vượt quá giới hạn'),'Quote API did not refuse an overflowing total.');
+        $response=bxHttp($guestClient,$baseUrl,'/listings/'.$limitIds['plain'].'/book',['_token'=>$guestToken,'check_in'=>$d0,'check_out'=>$tooFar,'guests'=>1]);
+        bxExpect($response['status']===302 && bxBookingCount($limitIds['plain'])===0,'Booking POST accepted 366 nights.');
+        $page=bxHttp($guestClient,$baseUrl,$response['location'])['body'];
+        bxExpect(str_contains($page,'alert-danger') && str_contains($page,'tối đa 365 đêm'),'Booking form did not show the maximum stay message.');
         // Take-down refusal reaches the Admin as a flash message, not an error page.
         $blockedId=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]+$data);
         $extraListings[]=$blockedId;

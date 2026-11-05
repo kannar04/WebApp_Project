@@ -31,6 +31,8 @@ BEGIN
     DECLARE v_weekly DECIMAL(5,2);
     DECLARE v_monthly DECIMAL(5,2);
     DECLARE v_after DECIMAL(12,2);
+    -- Wider than the money columns: outside strict mode a DECIMAL(12,2) would silently cap at 9,999,999,999.99.
+    DECLARE v_nights_sum DECIMAL(20,2) DEFAULT 0;
     DECLARE v_code VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_pid BIGINT UNSIGNED;
     DECLARE v_type VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -59,13 +61,17 @@ BEGIN
     SET o_instant=COALESCE(o_instant,FALSE);
     -- Hosts and Admins may type decimals: VND has no fractions, so every price component is whole dong before anything is added up.
     SET o_base=ROUND(o_base,0); SET o_fee=ROUND(o_fee,0); SET o_weekend_rate=ROUND(o_weekend_rate,0); SET o_holiday_rate=ROUND(o_holiday_rate,0);
-    SET o_nights=DATEDIFF(p_end,p_start); SET o_subtotal=0; SET o_weekend_nights=0; SET o_holiday_nights=0; SET v_day=p_start;
+    SET o_nights=DATEDIFF(p_end,p_start); SET o_weekend_nights=0; SET o_holiday_nights=0; SET v_day=p_start;
     WHILE v_day<p_end DO
         CALL sp_booking_extras_night_rate(v_day,o_base,o_weekend_rate,o_holiday_rate,v_rate,v_kind);
-        SET o_subtotal=o_subtotal+v_rate;
+        SET v_nights_sum=v_nights_sum+v_rate;
         IF v_kind='weekend' THEN SET o_weekend_nights=o_weekend_nights+1; ELSEIF v_kind='holiday' THEN SET o_holiday_nights=o_holiday_nights+1; END IF;
         SET v_day=DATE_ADD(v_day,INTERVAL 1 DAY);
     END WHILE;
+    IF v_nights_sum>9999999999.99 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tổng tiền của kỳ ở vượt quá giới hạn của hệ thống. Vui lòng chọn ít đêm hơn.';
+    END IF;
+    SET o_subtotal=v_nights_sum;
     -- Monthly replaces weekly; the two are never stacked.
     IF o_nights>=28 AND COALESCE(v_monthly,0)>0 THEN SET o_length_type='monthly'; SET o_length_pct=v_monthly;
     ELSEIF o_nights>=7 AND COALESCE(v_weekly,0)>0 THEN SET o_length_type='weekly'; SET o_length_pct=v_weekly;
@@ -120,6 +126,9 @@ BEGIN
             SET v_message=o_promo_message;
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=v_message;
         END IF;
+    END IF;
+    IF v_after-o_promo_amount+o_fee>9999999999.99 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tổng tiền của kỳ ở vượt quá giới hạn của hệ thống. Vui lòng chọn ít đêm hơn.';
     END IF;
     SET o_total=ROUND(v_after-o_promo_amount+o_fee,0);
 END$$

@@ -23,6 +23,8 @@ return [
     'Phân trang không hợp lệ.' => 'Invalid pagination.',
 
     // ---- 020_booking.sql: errors
+    'Kỳ ở tối đa 365 đêm. Vui lòng chọn khoảng ngày ngắn hơn.' => 'A stay can be at most 365 nights. Please choose a shorter date range.',
+    'Tổng tiền của kỳ ở vượt quá giới hạn của hệ thống. Vui lòng chọn ít đêm hơn.' => 'The stay total is over the system limit. Please choose fewer nights.',
     'Ngày nhận hoặc trả phòng không hợp lệ.' => 'Invalid check-in or check-out date.',
     'Chỗ ở không khả dụng.' => 'This place is not available.',
     'Số khách vượt quá sức chứa.' => 'The number of guests exceeds the capacity.',

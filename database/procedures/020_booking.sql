@@ -6,6 +6,10 @@ BEGIN
     IF p_start IS NULL OR p_end IS NULL OR p_start < DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR) OR p_end <= p_start THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Ngày nhận hoặc trả phòng không hợp lệ.';
     END IF;
+    -- Same limit as BookingService::MAX_NIGHTS.
+    IF DATEDIFF(p_end,p_start)>365 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Kỳ ở tối đa 365 đêm. Vui lòng chọn khoảng ngày ngắn hơn.';
+    END IF;
     IF NOT EXISTS(SELECT 1 FROM listings l JOIN users h ON h.id=l.host_id WHERE l.id=p_listing AND l.moderation_status='approved' AND l.is_visible=1 AND l.deleted_at IS NULL AND h.status='active') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở không khả dụng.';
     END IF;

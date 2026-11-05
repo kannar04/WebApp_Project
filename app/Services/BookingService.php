@@ -9,6 +9,8 @@ use DomainException;
 /** PHP validates request shape; routines enforce ownership and atomic business rules. */
 final class BookingService
 {
+    /** Same limit as sp_booking_validate. */
+    public const MAX_NIGHTS = 365;
     private ProcedureConnection $db;
     public function __construct() { $this->db = ProcedureConnection::connection(); }
 
@@ -133,6 +135,7 @@ final class BookingService
         }
         if ($start < new DateTimeImmutable('today')) { throw new DomainException('Không thể đặt ngày trong quá khứ.'); }
         if ($end <= $start) { throw new DomainException('Ngày trả phòng phải sau ngày nhận phòng.'); }
+        if ($start->diff($end)->days > self::MAX_NIGHTS) { throw new DomainException('Kỳ ở tối đa 365 đêm. Vui lòng chọn khoảng ngày ngắn hơn.'); }
         if ($guests < 1) { throw new DomainException('Số khách không hợp lệ.'); }
     }
 }
