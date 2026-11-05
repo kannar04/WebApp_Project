@@ -776,6 +776,17 @@ qaExpect(qaIssueRefused($recovery,0) && qaIssueRefused($recovery,$recoveryFixtur
 putenv('MAIL_ENABLED=false'); putenv('MAIL_FROM'); putenv('PASSWORD_RESET_BASE_URL');
 echo "PASS QA recovery request takes the same silent path for unknown, throttled and deleted accounts\n";
 
+// Every #fragment a link or redirect points at has the scroll margin that clears the sticky header.
+qaExpect(preg_match('/^([^{}\n]*#listing-results[^{}\n]*)\{ scroll-margin-top: \d+px; \}$/m',(string)file_get_contents(dirname(__DIR__).'/public/assets/css/app.css'),$fragmentRule)===1,'The scroll margin rule for #fragment targets is gone.');
+$fragmentTargets=[];
+foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__).'/app',FilesystemIterator::SKIP_DOTS)) as $appFile) {
+    preg_match_all('~[/\'"a-z0-9]#([a-z][a-z0-9-]+)[\'"]~',(string)file_get_contents((string)$appFile),$fragmentFound);
+    foreach ($fragmentFound[1] as $fragmentTarget) { $fragmentTargets[$fragmentTarget]=true; }
+}
+qaExpect(count($fragmentTargets)>=7,'The #fragment scan found too few targets.');
+foreach (array_keys($fragmentTargets) as $fragmentTarget) { qaExpect(str_contains(rtrim($fragmentRule[1]).',','#'.$fragmentTarget.','),'No scroll margin for #'.$fragmentTarget); }
+echo "PASS QA every in-app #fragment target has the scroll margin that clears the sticky header\n";
+
 // More than one UI page, with real approval and filter-preserving navigation.
 $paginationFixtures=[]; $paginationData=$listings->findOwned(1,2); $paginationData['city']='QualityPagination';
 try {

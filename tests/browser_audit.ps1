@@ -346,6 +346,34 @@ function Check-FlashReveal {
     Write-Output 'PASS browser result message shown and focused after a fragment redirect, plain fragment scroll kept'
 }
 
+function Check-FragmentLanding([string[]]$Paths) {
+    # A #fragment target lands below the sticky header, as high as the page can scroll it, on phone, tablet and desktop.
+    foreach ($size in @(@(375,667),@(768,900),@(1440,900))) {
+        Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$size[0];height=$size[1];deviceScaleFactor=1;mobile=$false} | Out-Null
+        foreach ($path in $Paths) {
+            Navigate $path
+            $id=ConvertTo-Json ($path -split '#')[1] -Compress
+            $landed=Evaluate "new Promise(function(resolve){setTimeout(function(){resolve({top:document.getElementById($id).getBoundingClientRect().top,line:document.querySelector('.site-header').getBoundingClientRect().bottom,atEnd:scrollY+innerHeight>=document.documentElement.scrollHeight-2});},700);})"
+            if ($landed.top -lt $landed.line -or ($landed.top -gt $landed.line+60 -and !$landed.atEnd)) { throw "$path landed badly at $($size[0]) px: $($landed | ConvertTo-Json -Compress)" }
+        }
+    }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+}
+
+function Check-CalendarArrows([string]$Path) {
+    # After a month change the month name and both arrows are on screen below the header, ready for the next tap, on a phone too.
+    foreach ($size in @(@(375,667),@(1440,900))) {
+        Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$size[0];height=$size[1];deviceScaleFactor=1;mobile=$false} | Out-Null
+        Navigate $Path
+        $month=Evaluate "new URL(document.querySelectorAll('#availability-calendar > div:first-child a')[1].href).searchParams.get('month')"
+        Evaluate "document.querySelectorAll('#availability-calendar > div:first-child a')[1].click();true" | Out-Null
+        Wait-FilterPage "new URLSearchParams(location.search).get('month')==='$month'&&location.hash==='#availability-calendar'"
+        $seen=Evaluate "new Promise(function(resolve){setTimeout(function(){const line=document.querySelector('.site-header').getBoundingClientRect().bottom;resolve(Array.from(document.querySelectorAll('#availability-calendar > div:first-child > *')).map(function(item){const box=item.getBoundingClientRect();return box.top>=line&&box.bottom<=innerHeight;}));},700);})"
+        if (@($seen).Count -ne 3 -or @($seen) -contains $false) { throw "Month name or arrows off screen on $Path at $($size[0]) px: $($seen -join ',')" }
+    }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+}
+
 function Check-MessageFlash([string]$BookingPath) {
     # A message result used to land thousands of pixels above the thread. This one is refused, so nothing is stored: the result, the draft and the form must all be on screen.
     if (!$BookingPath) { Write-Output 'SKIP browser message result landing: no guest booking'; return }
@@ -551,6 +579,10 @@ try {
     Check-BookingDateWidth
     Check-FlashReveal
     Check-MessageFlash $bookingPath
+    Check-FragmentLanding @('/#listing-results','/profile#personal','/profile#verification','/profile#discovery-history','/listings/1#availability-calendar')
+    if ($bookingPath) { Check-FragmentLanding @($bookingPath+'#booking-messages') }
+    Check-CalendarArrows '/listings/1'
+    Write-Output 'PASS browser in-app #fragment targets land below the sticky header, month name and arrows stay on screen after a month change'
     Check-PostGuardEvents
     Check-CalendarNavigation '/listings/1'
     Logout-Role
@@ -574,6 +606,8 @@ try {
     Write-Output 'PASS browser a long unbroken title wraps in its cell on the Host tables'
     Write-Output 'PASS browser long unbroken text wraps at 375 on Host pages'
     Check-CalendarNavigation '/host/listings/1/availability'
+    Check-FragmentLanding @('/host#trusted-host')
+    Check-CalendarArrows '/host/listings/1/availability'
     Logout-Role
     if ((Login-Role 'admin') -ne '/admin') { throw 'Admin login redirect failed' }
     foreach ($width in @(375,768,1024,1440)) {
@@ -618,6 +652,7 @@ try {
     Check-AdminFilterCarry
     Check-AdminCreateDoubleClick
     Check-CalendarNavigation '/admin/listings/1/preview'
+    Check-CalendarArrows '/admin/listings/1/preview'
     if ($VisualUX) { Test-VisualPages 'after' }
     if ($script:javascriptErrors.Count) { throw "Browser reported $($script:javascriptErrors.Count) JavaScript exceptions" }
     Write-Output 'PASS no browser JavaScript exceptions'
