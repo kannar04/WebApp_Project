@@ -40,6 +40,18 @@ $withTests = new RecordingInstallerPDO();
 cleanupExpect(installHome2HomeProcedures($withTests, true) === $expectedProduction+$expectedTesting, 'Test routine opt-in changed.');
 echo "PASS installer: $productionCount production definitions, $expectedTesting opt-in test definitions; zero DROP\n";
 
+// A file missing from the manual phpMyAdmin order leaves pages answering 500 on a fresh install, while import.php still looks fine.
+$setupDoc = (string) file_get_contents(dirname(__DIR__).'/docs/database-setup.md');
+cleanupExpect(preg_match('~theo thứ tự ((?:\d{3}, )*\d{3}) sau schema/seed \(bỏ qua 040, giống installer\)~u', $setupDoc, $orderMatch) === 1, 'docs/database-setup.md has no phpMyAdmin routine order.');
+$documentedOrder = explode(', ', $orderMatch[1]);
+$installedOrder = [];
+foreach (home2HomeProcedureFiles() as $migration) { $installedOrder[] = substr(basename($migration), 0, 3); }
+cleanupExpect($documentedOrder === $installedOrder, 'docs/database-setup.md routine order is not the installer order: '.implode(', ', $installedOrder));
+$schemaTableCount = preg_match_all('/CREATE TABLE IF NOT EXISTS `/', (string) file_get_contents(dirname(__DIR__).'/database/schema.sql'));
+cleanupExpect(str_contains($setupDoc, 'tổng **'.$schemaTableCount.' bảng**'), 'docs/database-setup.md does not give the schema table count '.$schemaTableCount.'.');
+cleanupExpect(str_contains((string) file_get_contents(dirname(__DIR__).'/README.md'), 'MariaDB hiện hữu ('.$schemaTableCount.' bảng'), 'README does not give the schema table count '.$schemaTableCount.'.');
+echo 'PASS setup doc lists the '.count($installedOrder).' installer files in order and the '.$schemaTableCount." tables\n";
+
 $controller = new App\Controllers\AdminController();
 $rolesValidator = new ReflectionMethod($controller, 'rolesAreValid');
 foreach ([[], ['guest'], ['guest','host','admin']] as $roles) { cleanupExpect($rolesValidator->invoke($controller, $roles), 'Valid roles rejected.'); }

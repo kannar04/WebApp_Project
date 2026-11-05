@@ -46,7 +46,7 @@ C:\xampp\php\php.exe database\install_procedures.php
 
 Installer chỉ chạy local/loopback db_home2home, không ALTER/drop/reset bảng, không đổi grants. Migrations bảo toàn 16 routine nhóm, sửa identifiers/collation và mở rộng projection tương thích. Routine source nhắm tới MariaDB 10.4 của XAMPP; không tự khẳng định tương thích Oracle MySQL.
 
-Fresh database: database/import.php nạp schema.sql → seed.sql → routines. Schema khởi tạo đã đối chiếu chính xác DDL của 22 bảng hiện hữu (loại bỏ bộ đếm AUTO_INCREMENT); từ 2026-10-13 schema có thêm 13 bảng Nice-to-have, tổng **35 bảng**. Với phpMyAdmin có thể import SQL routine files theo thứ tự 001, 005, 010, 011, 020, 030, 050, 055, 060, 065, 070, 075, 080, 085, 090 sau schema/seed (bỏ qua 040, giống installer); delimiter directives đã có trong các SQL files. Không import `testing.sql` hay `testing_*.sql` vào production.
+Fresh database: database/import.php nạp schema.sql → seed.sql → routines. Schema khởi tạo đã đối chiếu chính xác DDL của 22 bảng hiện hữu (loại bỏ bộ đếm AUTO_INCREMENT); từ 2026-10-13 schema có thêm 13 bảng Nice-to-have, từ 2026-10-15 thêm `payment_transactions`, tổng **36 bảng**. Với phpMyAdmin có thể import SQL routine files theo thứ tự 001, 005, 010, 011, 020, 030, 050, 055, 060, 065, 070, 075, 080, 085, 090, 095 sau schema/seed (bỏ qua 040, giống installer); delimiter directives đã có trong các SQL files. Không import `testing.sql` hay `testing_*.sql` vào production.
 
 Cách cài mới ở trên **không đổi** sau khi gộp Nice-to-have: DB trống vẫn chỉ cần `database\import.php`. DB `db_home2home` đã có dữ liệu thì làm theo mục [Nâng cấp db_home2home đang dùng](#nâng-cấp-db_home2home-đang-dùng-lên-bản-nice-to-have-2026-10-13).
 
