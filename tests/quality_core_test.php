@@ -787,6 +787,14 @@ qaExpect(count($fragmentTargets)>=7,'The #fragment scan found too few targets.')
 foreach (array_keys($fragmentTargets) as $fragmentTarget) { qaExpect(str_contains(rtrim($fragmentRule[1]).',','#'.$fragmentTarget.','),'No scroll margin for #'.$fragmentTarget); }
 echo "PASS QA every in-app #fragment target has the scroll margin that clears the sticky header\n";
 
+// Both layouts name a small icon that exists, so no browser asks for the missing /favicon.ico.
+foreach (['/','/login'] as $iconPage) {
+    qaExpect(preg_match('~<link rel="icon" type="image/svg\+xml" href="([^"]+)">~',$request($iconPage)['body'],$iconLink)===1,'No icon link on '.$iconPage);
+    $icon=$request(str_replace($baseUrl,'',$iconLink[1]));
+    qaExpect($icon['status']===200 && str_contains((string)$icon['body'],'<svg') && strlen((string)$icon['body'])<=2048,'Site icon missing or too large on '.$iconPage);
+}
+echo "PASS QA both layouts name a small site icon that exists\n";
+
 // Filter reset is never a same-page jump, keeps the applied search and drops what an error is about.
 foreach ([['/','/?reset=1#listing-results'],['/?reset=1','/#listing-results'],['/?location=Da','/?location=Da&amp;reset=1#listing-results'],['/?location=Da&reset=1','/?location=Da#listing-results'],
     ['/?location=Da&min_price=5&max_price=1','/?location=Da#listing-results'],['/?check_in=2020-01-01&check_out=2020-01-02&guests=2','/?guests=2#listing-results'],['/?guests=abc','/#listing-results']] as [$resetFrom,$resetTo]) {

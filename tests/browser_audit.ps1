@@ -313,6 +313,15 @@ function Check-DetailHeart {
     Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
 }
 
+function Check-SiteIcon {
+    # Both layouts name an icon that really loads, so a browser never falls back to the missing /favicon.ico.
+    foreach ($path in @('/','/login')) {
+        Navigate $path
+        $icon=Evaluate "(async()=>{const link=document.querySelector('link[rel=""icon""]');if(!link){return null;}const response=await fetch(link.href);const image=new Image();image.src=link.href;await image.decode();return {status:response.status,type:response.headers.get('content-type'),width:image.naturalWidth,size:(await response.text()).length};})()"
+        if (!$icon -or $icon.status -ne 200 -or $icon.type -notmatch 'image/svg' -or $icon.width -lt 1 -or $icon.size -gt 2048) { throw "Site icon wrong on $path : $($icon | ConvertTo-Json -Compress)" }
+    }
+}
+
 function Check-LoginCarriesBooking {
     # Signed out, the sign-in link takes the chosen stay along: same site, encoded, following the form. After signing in the listing has it back and quotes it.
     Navigate '/listings/1'
@@ -676,6 +685,8 @@ try {
     Write-Output 'PASS browser search and filter guards release on the timer after Stop'
     Check-RegisterDoubleClick
 
+    Check-SiteIcon
+    Write-Output 'PASS browser both layouts name a site icon that loads'
     Navigate '/listings/3'
     if (Evaluate "document.querySelectorAll('[data-favorite]').length") { throw 'Signed-out visitors see a detail page heart' }
     Check-SearchStayToListing
