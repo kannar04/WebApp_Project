@@ -241,6 +241,49 @@ function Check-MenuWithoutScript {
     Write-Output 'PASS browser menu is open and the toggler hidden without JS below 992 px, unchanged with JS'
 }
 
+function Check-SearchStayToListing {
+    # A search's dates and guests reach the listing: the total shows by itself, and the month arrows and the sign-in link keep them. Without them every link stays plain.
+    $stay='check_in=2035-08-10&check_out=2035-08-12&guests=2'
+    $cardLinks="Array.from(document.querySelectorAll('.listing-card a')).map(function(link){return link.getAttribute('href');})"
+    Navigate '/'
+    if (@(Evaluate $cardLinks) -match '\?') { throw 'Ordinary card links gained a query' }
+    Navigate '/?location=&check_in=&check_out=&guests=1'
+    if (@(Evaluate $cardLinks) -match '\?') { throw 'The default one guest added a query to card links' }
+    Navigate '/listings/1'
+    if ((Evaluate "document.querySelector('[data-login-next]').getAttribute('href')") -ne '/login') { throw 'Plain listing gained a sign-in query' }
+    Navigate '/?check_in=2020-01-01&check_out=2020-01-02&guests=2'
+    if (@(Evaluate $cardLinks).Count) { throw 'A refused search still lists cards' }
+
+    Navigate '/'
+    Evaluate "(function(){window.__beforeStay=true;const bar=document.querySelector('[data-search-form]');bar.elements.check_in.value='2035-08-10';bar.elements.check_out.value='2035-08-12';bar.elements.guests.value='2';bar.querySelector('button[type=submit]').click();return true;})()" | Out-Null
+    Wait-FilterPage '!window.__beforeStay'
+    $links=@(Evaluate $cardLinks)
+    if (!$links.Count -or @($links | Where-Object { $_ -notmatch ('^/listings/\d+\?'+[regex]::Escape($stay)+'$') }).Count) { throw "Card links lost the stay: $($links -join ' ')" }
+    Evaluate "document.querySelector('.listing-card a').click();true" | Out-Null
+    Wait-FilterPage "location.pathname.startsWith('/listings/')&&!!document.querySelector('[data-quote] .is-total')"
+    $seen=Evaluate "(function(){const f=document.querySelector('[data-booking-form]');const next=new URL(f.querySelector('[data-login-next]').href).searchParams.get('next');return {checkIn:f.elements.check_in.value,checkOut:f.elements.check_out.value,guests:f.elements.guests.value,next:next,path:location.pathname,arrows:Array.from(document.querySelectorAll('#availability-calendar > div:first-child a')).map(function(link){return link.getAttribute('href');})};})()"
+    if ($seen.checkIn -ne '2035-08-10' -or $seen.checkOut -ne '2035-08-12' -or $seen.guests -ne '2' -or $seen.next -ne ($seen.path+'?'+$stay)) { throw "Listing lost the stay: $($seen | ConvertTo-Json -Compress)" }
+    if (@($seen.arrows | Where-Object { $_ -notmatch ('\?month=\d{4}-\d{2}&'+[regex]::Escape($stay)+'#availability-calendar$') }).Count) { throw "Month arrows lost the stay: $($seen.arrows -join ' ')" }
+    Evaluate "document.querySelectorAll('#availability-calendar > div:first-child a')[1].click();true" | Out-Null
+    Wait-FilterPage "new URLSearchParams(location.search).get('check_in')==='2035-08-10'&&location.search.includes('month=')&&!!document.querySelector('[data-quote] .is-total')"
+
+    # Guests alone, with no dates to quote, still reach the form and the sign-in link.
+    Navigate '/?guests=2'
+    $link=@(Evaluate $cardLinks)[0]
+    if ($link -notmatch '^/listings/\d+\?guests=2$') { throw "Guests-only card link wrong: $link" }
+    Navigate $link
+    $seen=Evaluate "(function(){const f=document.querySelector('[data-booking-form]');return {guests:f.elements.guests.value,next:new URL(f.querySelector('[data-login-next]').href).searchParams.get('next')};})()"
+    if ($seen.guests -ne '2' -or $seen.next -ne $link) { throw "Guests-only stay lost: $($seen | ConvertTo-Json -Compress)" }
+
+    # Map list and popup links, which map.js rebuilds from the API.
+    $mapLinks="new Promise(function(resolve){setTimeout(function(){resolve(Array.from(document.querySelectorAll('.discovery-map-item-link')).map(function(link){return link.getAttribute('href');}));},1500);})"
+    Navigate '/map'
+    if (@(Evaluate $mapLinks) -match '\?') { throw 'Plain map links gained a query' }
+    Navigate ('/map?'+$stay)
+    $links=@(Evaluate $mapLinks)
+    if (!$links.Count -or @($links | Where-Object { $_ -notmatch ('^/listings/\d+\?'+[regex]::Escape($stay)+'$') }).Count) { throw "Map links lost the stay: $($links -join ' ')" }
+}
+
 function Check-LoginCarriesBooking {
     # Signed out, the sign-in link takes the chosen stay along: same site, encoded, following the form. After signing in the listing has it back and quotes it.
     Navigate '/listings/1'
@@ -604,6 +647,8 @@ try {
     Write-Output 'PASS browser search and filter guards release on the timer after Stop'
     Check-RegisterDoubleClick
 
+    Check-SearchStayToListing
+    Write-Output 'PASS browser search dates and guests reach the listing from cards and the map, quote by themselves and survive month arrows and sign-in; plain links stay plain'
     Check-LoginCarriesBooking
     Check-MenuWithoutScript
     Navigate '/login'

@@ -805,6 +805,14 @@ foreach (['location'=>'Da','guests'=>'2'] as $appliedName=>$appliedValue) { qaEx
 qaExpect(substr_count($searchBar[0],'type="hidden" name="amenities[]"')===2 && substr_count($filterPanel[0],'type="hidden" name="amenities[]"')===0,'Applied amenities not carried once.');
 echo "PASS QA each home form holds the last applied search once, without JavaScript\n";
 
+// The listing page keeps a stay from the URL through its month arrows and sign-in link; without one those links stay as they were.
+$stayListing=$request('/listings/1?check_in=2035-06-10&check_out=2035-06-12&guests=2')['body'];
+qaExpect(str_contains($stayListing,'name="check_in"') && preg_match_all('~\?month=\d{4}-\d{2}&amp;check_in=2035-06-10&amp;check_out=2035-06-12&amp;guests=2#availability-calendar"~',$stayListing)===2,'Month arrows lost the stay.');
+qaExpect(str_contains($stayListing,'/login?next=%2Flistings%2F1%3Fcheck_in%3D2035-06-10%26check_out%3D2035-06-12%26guests%3D2"'),'Sign-in link lost the stay without JavaScript.');
+$plainListing=$request('/listings/1')['body'];
+qaExpect(preg_match_all('~\?month=\d{4}-\d{2}#availability-calendar"~',$plainListing)===2 && preg_match('~href="([^"]*)" data-login-next~',$plainListing,$signInLink)===1 && str_ends_with($signInLink[1],'/login'),'Plain listing links changed.');
+echo "PASS QA listing page keeps a stay from the URL through month arrows and the sign-in link\n";
+
 // More than one UI page, with real approval and filter-preserving navigation.
 $paginationFixtures=[]; $paginationData=$listings->findOwned(1,2); $paginationData['city']='QualityPagination';
 try {
@@ -821,6 +829,13 @@ try {
     parse_str((string)parse_url(html_entity_decode($link[1],ENT_QUOTES,'UTF-8'),PHP_URL_QUERY),$navigationFilters);
     qaExpect($navigationFilters['location']===$filter['location'] && $navigationFilters['sort']==='price_asc'
         && $navigationFilters['amenities']===['1','2'] && $navigationFilters['min_price']==='1000000','Pagination lost selected filters.');
+    // A search's stay stays on the cards of every page, and stays off cards with no stay of their own.
+    $cardLink='~href="[^"]*/listings/\d+(\?[^"]*)?" class="card-image-wrap"~';
+    $stayPage=$request('/?'.http_build_query($filter+['check_in'=>'2035-06-10','check_out'=>'2035-06-12','guests'=>2,'page'=>2]));
+    qaExpect(preg_match_all($cardLink,$stayPage['body'],$stayLinks)===1 && $stayLinks[1]===['?check_in=2035-06-10&amp;check_out=2035-06-12&amp;guests=2'],'Page two cards lost the search stay.');
+    qaExpect((bool)preg_match('~class="page-link"[^>]*href="([^"]*page=1[^"]*)"~',$stayPage['body'],$link) && str_contains($link[1],'check_in=2035-06-10&amp;check_out=2035-06-12&amp;guests=2'),'Paging lost the search stay.');
+    qaExpect(preg_match_all($cardLink,$pageOne['body'],$stayLinks)===12 && array_unique($stayLinks[1])===[''],'Cards with no stay gained a query.');
+    qaExpect(preg_match_all($cardLink,$request('/?'.http_build_query($filter+['check_in'=>'','check_out'=>'','guests'=>1]))['body'],$stayLinks)===12 && array_unique($stayLinks[1])===[''],'The default one guest added a query to cards.');
 } finally { foreach ($paginationFixtures as $id) { $listings->softDelete($id,2); } }
 echo "PASS QA 13 approved fixtures: 12+1 HTTP results, page totals and navigation preserves location/sort/price/all amenities\n";
 curl_close($curl);

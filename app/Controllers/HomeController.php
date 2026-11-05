@@ -33,8 +33,17 @@ final class HomeController extends Controller
             'types'=>$model->types(),'amenities'=>$model->allAmenities(),'filters'=>$filters,'favorites'=>$favorites,
             'searchError'=>$searchError,'filterErrors'=>$filterErrors,'hasFilters'=>$hasFilters,'page'=>$page,'pages'=>$pages,
             'trustBadges'=>(new \App\Models\Trust())->badges(array_column($result['listings'],'host_id'),Auth::id()),
-            'discovery'=>$discovery
+            'discovery'=>$discovery,'stayQuery'=>self::stayQuery($filters)
         ]);
+    }
+
+    /** The stay from a validated search, for links to a listing, whose page quotes it straight away. One guest is the default, so an ordinary link stays plain. */
+    public static function stayQuery(array $filters): string
+    {
+        $stay=[];
+        if (($filters['check_in']??'')!=='' && ($filters['check_out']??'')!=='') { $stay=['check_in'=>$filters['check_in'],'check_out'=>$filters['check_out']]; }
+        if ((int)($filters['guests']??0)>1) { $stay['guests']=(int)$filters['guests']; }
+        return $stay?'?'.http_build_query($stay):'';
     }
 
     /** The hero always sends its default of one guest. Every listing takes at least one, so that alone is not a search. */

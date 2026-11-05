@@ -195,6 +195,11 @@ try {
     $items=DiscoveryController::mapItems($result['listings']);
     discoveryExpect(array_keys($items[0])===['id','title','city','property_type','max_guests','price','price_label','rating','review_count','latitude','longitude','photo','url'],'Map item shape changed.');
     discoveryExpect($items[0]['id']===$id['E'] && $items[0]['latitude']===-39.9 && $items[0]['price_label']==='1.200.000đ' && str_ends_with($items[0]['url'],'/listings/'.$id['E']),'Map item values incorrect.');
+    $stayLink='?check_in='.$stayIn.'&check_out='.$stayOut.'&guests=2';
+    discoveryExpect(str_ends_with(DiscoveryController::mapItems($result['listings'],$stayLink)[0]['url'],'/listings/'.$id['E'].$stayLink),'Map item lost the search stay.');
+    foreach ([[[],''],[['check_in'=>'','check_out'=>'','guests'=>'1'],''],[['guests'=>'2'],'?guests=2'],[['check_in'=>$stayIn,'check_out'=>$stayOut,'guests'=>'1'],'?check_in='.$stayIn.'&check_out='.$stayOut],[['check_in'=>$stayIn,'check_out'=>$stayOut,'guests'=>'2'],$stayLink],[['check_in'=>$stayIn],'']] as [$stayFilters,$stayExpected]) {
+        discoveryExpect(\App\Controllers\HomeController::stayQuery($stayFilters)===$stayExpected,'Stay query wrong for '.json_encode($stayFilters));
+    }
     echo "PASS discovery bad boxes: partial/inverted/zero-width/out-of-range/limit/price/date rejected; query parsing, normalization and JSON item shape\n";
 
     // View history: public listings of other hosts only; repeat views increment one row.
@@ -320,6 +325,8 @@ try {
         $api=discoveryJson(discoveryRequest($curl,$baseUrl,'/api/listings/map?'.http_build_query(['north'=>'-39.9','south'=>'-40.2','east'=>'-139.9','west'=>'-140.1'])));
         discoveryExpect($api['success']===true && $api['data']['total']===3 && $api['data']['limit']===100 && array_column($api['data']['listings'],'id')===[$id['E'],$id['B'],$id['A']],'Map API box result incorrect.');
         discoveryExpect(array_keys($api['data']['listings'][0])===['id','title','city','property_type','max_guests','price','price_label','rating','review_count','latitude','longitude','photo','url'],'Map API item shape incorrect.');
+        $stayApi=discoveryJson(discoveryRequest($curl,$baseUrl,'/api/listings/map?'.http_build_query(['north'=>'-39.9','south'=>'-40.2','east'=>'-139.9','west'=>'-140.1','check_in'=>$stayIn,'check_out'=>$stayOut,'guests'=>2])));
+        discoveryExpect($stayApi['success']===true && $stayApi['data']['listings']!==[] && str_ends_with($stayApi['data']['listings'][0]['url'],'/listings/'.$stayApi['data']['listings'][0]['id'].$stayLink),'Map API links lost the search stay.');
         $api=discoveryJson(discoveryRequest($curl,$baseUrl,'/api/listings/map?'.http_build_query(['north'=>'-39','south'=>'-41','east'=>'-179','west'=>'179','type'=>2])));
         discoveryExpect(array_column($api['data']['listings'],'id')===[$id['M']],'Map API antimeridian/type result incorrect.');
         $badQueries=[['north'=>'-39.9'],['north'=>'abc','south'=>'-40.2','east'=>'-139.9','west'=>'-140.1'],['north'=>'-41','south'=>'-40.2','east'=>'-139.9','west'=>'-140.1'],

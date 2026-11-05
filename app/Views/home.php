@@ -1,5 +1,6 @@
 <?php
 $filterErrors=$filterErrors??[];
+$stayQuery=$stayQuery??'';
 $filterInvalid=static fn(string $name): string => isset($filterErrors[$name])?' is-invalid':'';
 $filterAria=static fn(string $name): string => isset($filterErrors[$name])?' aria-invalid="true" aria-describedby="filter-error-'.e($name).'"':'';
 // Reset keeps the applied place, dates and guests, unless one of them is what the error is about.
@@ -88,9 +89,9 @@ $resetUrl=url('/'.($resetQuery===''?'':'?'.$resetQuery).'#listing-results');
             <?php else: ?>
                 <div class="row">
                     <?php foreach($listings as $listing): ?><div class="col-md-6 col-lg-4 mb-4"><article class="listing-card">
-                        <a href="<?= e(url('/listings/'.$listing['id'])) ?>" class="card-image-wrap"><img class="card-image" src="<?= e(image_url($listing['image_url'])) ?>" alt="<?= e($listing['title']) ?>" loading="lazy"></a>
+                        <a href="<?= e(url('/listings/'.$listing['id'].$stayQuery)) ?>" class="card-image-wrap"><img class="card-image" src="<?= e(image_url($listing['image_url'])) ?>" alt="<?= e($listing['title']) ?>" loading="lazy"></a>
                         <?php if(\Core\Auth::check()): ?><button class="favorite-button <?= in_array((int)$listing['id'],$favorites,true)?'is-saved':'' ?>" data-favorite="<?= (int)$listing['id'] ?>" aria-label="<?= e(__('Lưu {title}',['title'=>$listing['title']])) ?>" aria-pressed="<?= in_array((int)$listing['id'],$favorites,true)?'true':'false' ?>">♡</button><?php endif; ?>
-                        <div class="card-body"><div class="d-flex justify-content-between"><h3><a href="<?= e(url('/listings/'.$listing['id'])) ?>"><?= e($listing['title']) ?></a></h3><?php if((int)($listing['review_count']??0)>0): ?><span class="rating">★ <?= number_format((float)$listing['rating'],1) ?></span><?php else: ?><span class="rating rating-new"><?= e(__('Mới')) ?></span><?php endif; ?></div>
+                        <div class="card-body"><div class="d-flex justify-content-between"><h3><a href="<?= e(url('/listings/'.$listing['id'].$stayQuery)) ?>"><?= e($listing['title']) ?></a></h3><?php if((int)($listing['review_count']??0)>0): ?><span class="rating">★ <?= number_format((float)$listing['rating'],1) ?></span><?php else: ?><span class="rating rating-new"><?= e(__('Mới')) ?></span><?php endif; ?></div>
                             <p class="card-meta"><?= e($listing['city']) ?> · <?= e(__($listing['property_type'])) ?> · <?= e(__('{count} khách',['count'=>(int)$listing['max_guests']])) ?></p><?php if(!empty(($trustBadges??[])[(int)$listing['host_id']]['is_trusted_host'])): ?><p class="card-meta"><span class="trust-badge trust-badge-host"><span aria-hidden="true">★</span> <?= e(__('Host uy tín')) ?></span></p><?php endif; ?><p class="price"><?= e(\App\Services\BookingService::money((float)$listing['nightly_price'])) ?> <span><?= e(__('/ đêm')) ?></span></p>
                         </div>
                     </article></div><?php endforeach; ?>

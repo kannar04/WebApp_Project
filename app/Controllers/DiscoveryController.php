@@ -25,7 +25,7 @@ final class DiscoveryController extends Controller
         }
         $this->render('discovery/map',[
             'title'=>'Bản đồ chỗ ở','filters'=>$filters,'searchError'=>$searchError,'filterErrors'=>$filterErrors,
-            'types'=>(new Listing())->types(),'listings'=>self::mapItems($result['listings']),'total'=>$result['total'],
+            'types'=>(new Listing())->types(),'listings'=>self::mapItems($result['listings'],HomeController::stayQuery($filters)),'total'=>$result['total'],
             'limit'=>self::MAP_LIMIT
         ]);
     }
@@ -45,7 +45,7 @@ final class DiscoveryController extends Controller
             $this->json(false,$exception->getMessage(),null,['map'=>$exception->getMessage()],422);
         }
         $this->json(true,'Đã tải chỗ ở trong khu vực bản đồ.',[
-            'listings'=>self::mapItems($result['listings']),'total'=>$result['total'],'limit'=>self::MAP_LIMIT
+            'listings'=>self::mapItems($result['listings'],HomeController::stayQuery($filters)),'total'=>$result['total'],'limit'=>self::MAP_LIMIT
         ]);
     }
 
@@ -94,7 +94,7 @@ final class DiscoveryController extends Controller
     }
 
     /** Public JSON/view shape: only what a marker, popup and list item need. The property type is a catalog label. */
-    public static function mapItems(array $rows): array
+    public static function mapItems(array $rows,string $stayQuery=''): array
     {
         $items=[];
         foreach ($rows as $row) {
@@ -103,7 +103,7 @@ final class DiscoveryController extends Controller
                 'price'=>(float)$row['nightly_price'],'price_label'=>number_format((float)$row['nightly_price'],0,',','.').'đ',
                 'rating'=>round((float)$row['rating'],1),'review_count'=>(int)$row['review_count'],
                 'latitude'=>(float)$row['latitude'],'longitude'=>(float)$row['longitude'],
-                'photo'=>image_url($row['image_url']),'url'=>url('/listings/'.(int)$row['id'])];
+                'photo'=>image_url($row['image_url']),'url'=>url('/listings/'.(int)$row['id'].$stayQuery)];
         }
         return $items;
     }
