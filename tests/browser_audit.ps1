@@ -177,6 +177,16 @@ function Check-BookingDateWidth {
     Write-Output 'PASS browser booking date inputs show the whole year at 375, 768, 1024 and 1440'
 }
 
+function Check-AdminFilterCarry {
+    # Submitting one dashboard form used to wipe the other's filter.
+    Navigate '/admin?q=guest&booking_status=pending'
+    Evaluate "(function(){document.querySelector('#booking-query').value='Da Lat';document.querySelector('#booking-query').form.requestSubmit();return true;})()" | Out-Null
+    Wait-FilterPage "(function(){const s=new URLSearchParams(location.search);return s.get('q')==='guest'&&s.get('booking_q')==='Da Lat'&&s.get('booking_status')==='pending'&&document.querySelector('#admin-user-search').value==='guest'&&document.querySelector('#booking-query').value==='Da Lat';})()"
+    Evaluate "(function(){document.querySelector('#admin-user-search').value='host';document.querySelector('#admin-user-search').form.requestSubmit();return true;})()" | Out-Null
+    Wait-FilterPage "(function(){const s=new URLSearchParams(location.search);return s.get('q')==='host'&&s.get('booking_q')==='Da Lat'&&s.get('booking_status')==='pending'&&document.querySelector('#booking-status').value==='pending';})()"
+    Write-Output 'PASS browser admin user search and booking filter keep each other'
+}
+
 function Check-FlashReveal {
     # A refused save redirects to /profile#personal: the result sits on screen below the navbar with focus, while a plain fragment link keeps its scroll.
     foreach ($width in @(375,1440)) {
@@ -342,6 +352,7 @@ try {
             if ($path -eq '/admin' -and ($width -eq 375 -or $width -eq 1440)) { Capture-Page "admin-dashboard-$width" }
         }
     }
+    Check-AdminFilterCarry
     Check-AdminCreateDoubleClick
     Check-CalendarNavigation '/admin/listings/1/preview'
     if ($VisualUX) { Test-VisualPages 'after' }

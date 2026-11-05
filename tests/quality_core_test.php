@@ -472,6 +472,19 @@ qaExpect($deleted['url']===$baseUrl.'/admin/articles','Article delete followed a
 $logout();
 echo "PASS QA admin article actions return to the same list page and filters, forged return paths give the plain list\n";
 
+// The admin user search and booking filter each carry the other's current value, escaped.
+$login('admin');
+$bothFilters=$request('/admin?q=%22%3E%3Cb%3Eguest&booking_q=%22%3E%3Ci%3Eroom&booking_status=pending')['body'];
+qaExpect(str_contains($bothFilters,'<form class="form-inline"><input type="hidden" name="booking_q" value="&quot;&gt;&lt;i&gt;room"><input type="hidden" name="booking_status" value="pending"><label'),'User search does not carry the booking filter.');
+qaExpect(str_contains($bothFilters,'action="'.e(url('/admin')).'"><input type="hidden" name="q" value="&quot;&gt;&lt;b&gt;guest"><div class="form-group col-md-7">'),'Booking filter does not carry the user search.');
+qaExpect(!str_contains($bothFilters,'"><b>guest') && !str_contains($bothFilters,'"><i>room'),'Carried admin filters printed unescaped.');
+$noFilters=$request('/admin')['body'];
+qaExpect(!str_contains($noFilters,'type="hidden" name="q"') && !str_contains($noFilters,'type="hidden" name="booking_q"') && !str_contains($noFilters,'type="hidden" name="booking_status"'),'Empty admin filters were carried.');
+$badStatus=$request('/admin?booking_status=%22x')['body'];
+qaExpect(!str_contains($badStatus,'type="hidden" name="booking_status"'),'Rejected booking status was carried.');
+$logout();
+echo "PASS QA admin user search and booking filter carry each other's value\n";
+
 $passwordUser=new User(); $email='quality-password-'.bin2hex(random_bytes(6)).'@home2home.test';
 $oldPassword='QaOld!'.bin2hex(random_bytes(10)); $newPassword='QaNew!'.bin2hex(random_bytes(10));
 $passwordId=$passwordUser->create($email,$oldPassword,'Quality password test',null);
