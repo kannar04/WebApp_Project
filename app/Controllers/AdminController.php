@@ -51,7 +51,7 @@ final class AdminController extends Controller
         }
         if ($roles === []) { $roles = ['guest']; } // User::replaceRoles saves guest when nothing is ticked; audit the same value.
         $this->managedUserChange((int)$id,(int)$admin['id'],'set_user_roles',implode(',',$roles),
-            fn()=>(new User())->replaceRoles((int)$id,$roles),'Đã cập nhật vai trò.');
+            fn()=>(new User())->replaceRoles((int)$id,$roles,(int)$admin['id']),'Đã cập nhật vai trò.');
     }
     public function userCreate(): never
     {
@@ -126,7 +126,7 @@ final class AdminController extends Controller
         $database->beginTransaction();
         try {
             $userModel->adminUpdate($userId, $data);
-            $userModel->replaceRoles($userId, $roles);
+            $userModel->replaceRoles($userId, $roles, (int) $admin['id']);
             (new AdminRepository())->audit((int) $admin['id'], 'update_user', 'user', $userId, $data['email']);
             $database->commit();
             Session::flash('success', 'Đã cập nhật tài khoản.');

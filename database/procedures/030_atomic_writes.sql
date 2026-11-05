@@ -24,11 +24,12 @@ BEGIN
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_user_insert; END IF;
 END$$
 
-CREATE OR REPLACE PROCEDURE sp_user_roles_replace(IN p_1 bigint unsigned, IN p_2 longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
+CREATE OR REPLACE PROCEDURE sp_user_roles_replace(IN p_1 bigint unsigned, IN p_2 longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_3 bigint unsigned)
 BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_i INT DEFAULT 0;
     DECLARE v_lock BIGINT UNSIGNED;
+    DECLARE v_had_host BOOL DEFAULT FALSE;
     DECLARE v_role VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_listings INT DEFAULT 0;
     DECLARE v_bookings INT DEFAULT 0;
@@ -57,6 +58,8 @@ BEGIN
     END IF;
     SELECT id INTO v_lock FROM users WHERE id=p_1 AND deleted_at IS NULL FOR UPDATE;
     IF v_lock IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản không tồn tại.'; END IF;
+    IF p_3 IS NOT NULL THEN CALL sp_admin_assert_role(p_3); END IF;
+    SET v_had_host=EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_1 AND role='host');
     DELETE FROM user_roles WHERE user_id=p_1;
     WHILE v_i<JSON_LENGTH(p_2) DO
         SET v_role=JSON_UNQUOTE(JSON_EXTRACT(p_2,CONCAT('$[',v_i,']')));
@@ -64,6 +67,11 @@ BEGIN
         INSERT INTO user_roles(user_id,role,granted_at) VALUES(p_1,v_role,NOW(6)) ON DUPLICATE KEY UPDATE role=VALUES(role);
         SET v_i=v_i+1;
     END WHILE;
+    -- sp_user_grant_host reads these back: the latest row says whether /profile/become-host is open to this account.
+    IF p_3 IS NOT NULL AND v_had_host<>JSON_CONTAINS(p_2,'"host"') THEN
+        INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
+            VALUES(p_3,IF(v_had_host,'remove_host_role','grant_host_role'),'user',p_1,JSON_OBJECT('details',IF(v_had_host,'Host role removed','Host role granted')),NOW(6));
+    END IF;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_user_roles_replace; END IF;
 END$$
 

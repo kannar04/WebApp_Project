@@ -232,6 +232,7 @@ Internal edges: sp_booking_quote/create → sp_booking_validate; sp_user_update_
 | `sp_user_get_for_admin` | Runtime PHP | 1 | app/Models/User.php | Retain |
 | `sp_user_get_with_roles` | Runtime PHP | 1 | app/Models/User.php | Retain |
 | `sp_user_grant_host` | Runtime PHP | 1 | app/Models/User.php | Retain |
+| `sp_user_host_role_removed` | Runtime PHP | 1 | app/Models/User.php | Retain |
 | `sp_user_insert` | Runtime PHP | 4 | app/Models/User.php | Retain |
 | `sp_user_roles_replace` | Runtime PHP | 2 | app/Models/User.php, tests/procedure_flow_test.php | Retain |
 | `sp_user_search` | Runtime PHP | 1 | app/Models/User.php | Retain |

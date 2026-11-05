@@ -18,9 +18,34 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_user_grant_host`(IN p_1 bigint unsigned)
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM users WHERE id=p_1 AND status='active' AND deleted_at IS NULL) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản không khả dụng.'; END IF;
+    DECLARE v_own BOOL DEFAULT FALSE;
+    DECLARE v_lock BIGINT UNSIGNED;
+    DECLARE v_affected INT DEFAULT 0;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF @@in_transaction THEN
+            IF v_own THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT h2h_user_grant_host; RELEASE SAVEPOINT h2h_user_grant_host; END IF;
+        END IF;
+        RESIGNAL;
+    END;
+    SET v_own=(@@in_transaction=0);
+    IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_user_grant_host; END IF;
+    -- The users row lock serializes this with sp_user_roles_replace.
+    SELECT id INTO v_lock FROM users WHERE id=p_1 AND status='active' AND deleted_at IS NULL FOR UPDATE;
+    IF v_lock IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản không khả dụng.'; END IF;
+    -- Same rule as sp_user_host_role_removed: a removal by an Admin holds until an Admin gives the role back.
+    IF COALESCE((SELECT a.action FROM admin_audit_logs a WHERE a.entity_type='user' AND a.entity_id=p_1 AND a.action IN ('remove_host_role','grant_host_role') ORDER BY a.id DESC LIMIT 1),'')='remove_host_role' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Admin đã gỡ vai trò Host của bạn. Hãy liên hệ Admin nếu bạn muốn làm Host trở lại.';
+    END IF;
     INSERT IGNORE INTO user_roles (user_id, role, granted_at) VALUES (p_1, 'host', NOW(6));
-    SELECT ROW_COUNT() __affected,LAST_INSERT_ID() __insert_id;
+    SET v_affected=ROW_COUNT();
+    IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_user_grant_host; END IF;
+    SELECT v_affected __affected,LAST_INSERT_ID() __insert_id;
+END$$
+
+CREATE OR REPLACE PROCEDURE `sp_user_host_role_removed`(IN p_1 bigint unsigned)
+BEGIN
+    SELECT COALESCE((SELECT a.action FROM admin_audit_logs a WHERE a.entity_type='user' AND a.entity_id=p_1 AND a.action IN ('remove_host_role','grant_host_role') ORDER BY a.id DESC LIMIT 1),'')='remove_host_role' removed;
 END$$
 
 CREATE OR REPLACE PROCEDURE `sp_user_set_status`(IN p_1 varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_2 bigint unsigned)

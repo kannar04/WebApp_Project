@@ -521,6 +521,22 @@ try {
         trustExpect(str_contains(trustHttp($quietClient, $baseUrl, '/notifications')['body'], 'Admin đã hiện lại tin'), 'The Host got no notice of the Admin show.');
         echo "PASS Admin hide: dashboard state in place of the button, Show refused with the reason, notices for hide and show\n";
 
+        // An Admin's removal of the Host role holds on the profile page and against a direct POST, until an Admin gives it back.
+        $applicantProfile = trustHttp($guestOfLeaving, $baseUrl, '/profile')['body'];
+        trustExpect(str_contains($applicantProfile, '/profile/become-host') && !str_contains($applicantProfile, 'data-host-role-removed'), 'A person who never had the Host role was not offered it.');
+        $became = trustHttp($guestOfLeaving, $baseUrl, '/profile/become-host', ['_token' => trustToken($applicantProfile)]);
+        trustExpect($became['status'] === 200 && $became['path'] === '/host', 'A person who never had the Host role could not take it.');
+        trustHttp($adminClient, $baseUrl, '/admin/users/'.$leavingGuest.'/roles', ['_token' => trustToken(trustHttp($adminClient, $baseUrl, '/admin')['body']), 'roles' => ['guest']]);
+        trustExpect(trustHttp($guestOfLeaving, $baseUrl, '/host')['status'] === 403, 'The Admin removal did not take the Host role.');
+        $removedProfile = trustHttp($guestOfLeaving, $baseUrl, '/profile')['body'];
+        trustExpect(str_contains($removedProfile, 'data-host-role-removed') && !str_contains($removedProfile, '/profile/become-host'), 'The profile still offers the role an Admin removed.');
+        $undoRemoval = trustHttp($guestOfLeaving, $baseUrl, '/profile/become-host', ['_token' => trustToken($removedProfile)]);
+        trustExpect($undoRemoval['path'] === '/profile' && str_contains($undoRemoval['body'], 'alert-danger') && str_contains($undoRemoval['body'], 'Hãy liên hệ Admin'), 'A direct POST was not told to contact an Admin.');
+        trustExpect(trustHttp($guestOfLeaving, $baseUrl, '/host')['status'] === 403, 'A direct POST undid the Admin removal.');
+        trustHttp($adminClient, $baseUrl, '/admin/users/'.$leavingGuest.'/roles', ['_token' => trustToken(trustHttp($adminClient, $baseUrl, '/admin')['body']), 'roles' => ['guest', 'host']]);
+        trustExpect(trustHttp($guestOfLeaving, $baseUrl, '/host')['status'] === 200 && !str_contains(trustHttp($guestOfLeaving, $baseUrl, '/profile')['body'], 'data-host-role-removed'), 'An Admin giving the role back did not lift the removal.');
+        echo "PASS Host role removal: the profile explains, a direct POST is refused, an Admin giving it back lifts it\n";
+
         foreach ([$guestOfLeaving, $quietClient] as $client) { curl_close($client); }
         echo "PASS contact note: pending for the two parties, missing phone when confirmed, nothing when cancelled or rejected or for the Admin\n";
 

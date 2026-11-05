@@ -58,6 +58,14 @@ final class User
         $this->db->prepare('CALL `sp_user_grant_host`(?)')->execute([$id]);
     }
 
+    /** True while the last Admin change to this account's Host role was a removal. */
+    public function hostRoleRemoved(int $id): bool
+    {
+        $statement = $this->db->prepare('CALL `sp_user_host_role_removed`(?)');
+        $statement->execute([$id]);
+        return (bool) $statement->fetchColumn();
+    }
+
     public function all(string $query = ''): array
     {
         $statement = $this->db->prepare('CALL sp_user_search(?)');
@@ -97,11 +105,12 @@ final class User
         $this->db->prepare('CALL `sp_user_soft_delete`(?)')->execute([$id]);
     }
 
-    public function replaceRoles(int $id, array $roles): void
+    /** $adminId names the Admin making the change, so a change to the Host role is recorded; fixtures and account creation pass none. */
+    public function replaceRoles(int $id, array $roles, ?int $adminId = null): void
     {
         $allowed = array_values(array_intersect(['guest', 'host', 'admin'], $roles));
-        $statement = $this->db->prepare('CALL sp_user_roles_replace(?,?)');
-        $statement->execute([$id, json_encode($allowed ?: ['guest'], JSON_THROW_ON_ERROR)]);
+        $statement = $this->db->prepare('CALL sp_user_roles_replace(?,?,?)');
+        $statement->execute([$id, json_encode($allowed ?: ['guest'], JSON_THROW_ON_ERROR), $adminId]);
     }
 
     public function changePassword(int $id,string $email,string $current,string $new): void

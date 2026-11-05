@@ -23,8 +23,8 @@ foreach ($recording->definitions as $definition) {
     cleanupExpect(!preg_match('/\bDROP\s+(TABLE|DATABASE|PROCEDURE)\b/i', $definition), 'Installer unexpectedly executes DROP.');
     cleanupExpect(!preg_match('/\bPROCEDURE\s+`?sp_test_/i', $definition), 'Test routines installed without opt-in.');
 }
-// Files before 050 hold 75 historical definitions; every later migration is counted from its source.
-$expectedProduction=75;
+// Files before 050 hold 76 definitions; every later migration is counted from its source.
+$expectedProduction=76;
 foreach (glob(dirname(__DIR__).'/database/procedures/[0-9]*.sql') as $migration) {
     if ((int) basename($migration) < 50) { continue; }
     $expectedProduction+=preg_match_all('/CREATE OR REPLACE PROCEDURE/',file_get_contents($migration));

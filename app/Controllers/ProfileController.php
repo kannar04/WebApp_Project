@@ -19,6 +19,7 @@ final class ProfileController extends Controller
         $this->render('profile/show', ['title' => 'Tài khoản', 'user' => $user, 'upcoming' => $upcoming, 'old' => Session::pull('_profile_old', []),
             'verification' => (new \App\Models\Trust())->verificationStatus((int)$user['id']), 'verificationOld' => Session::pull('_verification_old', []),
             'trustBadges' => (new \App\Models\Trust())->badges([(int)$user['id']], (int)$user['id']),
+            'hostRoleRemoved' => !in_array('host', $user['roles'], true) && (new User())->hostRoleRemoved((int)$user['id']),
             'discoveryHistory' => DiscoveryService::summary((int)$user['id'])]);
     }
 
@@ -50,7 +51,16 @@ final class ProfileController extends Controller
         }
         $this->redirect('/profile#personal');
     }
-    public function becomeHost(): never {Csrf::ensure();$user=$this->requireAuth();(new User())->grantHost((int)$user['id']);Session::flash('success','Vai trò Host đã được kích hoạt.');$this->redirect('/host');}
+    public function becomeHost(): never
+    {
+        Csrf::ensure(); $user=$this->requireAuth();
+        try {
+            (new User())->grantHost((int)$user['id']);
+        } catch (\DomainException $exception) {
+            Session::flash('error',$exception->getMessage()); $this->redirect('/profile');
+        }
+        Session::flash('success','Vai trò Host đã được kích hoạt.'); $this->redirect('/host');
+    }
     public function password(): never
     {
         Csrf::ensure(); $user=$this->requireAuth();

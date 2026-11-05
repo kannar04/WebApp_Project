@@ -34,6 +34,7 @@ Query column mô tả nhóm SQL cũ; số site là số vị trí chuẩn bị/t
 | `app/Models/User.php` | `create` | INSERT; 2 | `sp_user_insert` | COMPLIANT |
 | `app/Models/User.php` | `updateProfile` | UPDATE; 1 | `sp_user_update_profile` | COMPLIANT |
 | `app/Models/User.php` | `grantHost` | INSERT; 1 | `sp_user_grant_host` | COMPLIANT |
+| `app/Models/User.php` | `hostRoleRemoved` | SELECT; 1 | `sp_user_host_role_removed` | COMPLIANT |
 | `app/Models/User.php` | `all` | SELECT; 1 | `sp_user_search` | COMPLIANT |
 | `app/Models/User.php` | `setStatus` | UPDATE; 1 | `sp_user_set_status` | COMPLIANT |
 | `app/Models/User.php` | `adminUpdate` | UPDATE; 1 | `sp_user_admin_update` | COMPLIANT |
@@ -118,6 +119,7 @@ Không tạo tên mới trùng chức năng của routine catalog phù hợp. Pr
 | `sp_user_get_with_roles` | `database/procedures/010_models.sql` |
 | `sp_user_get_for_admin` | `database/procedures/010_models.sql` |
 | `sp_user_grant_host` | `database/procedures/010_models.sql` |
+| `sp_user_host_role_removed` | `database/procedures/010_models.sql` |
 | `sp_user_set_status` | `database/procedures/010_models.sql` |
 | `sp_user_soft_delete` | `database/procedures/010_models.sql` |
 | `sp_listing_get_public` | `database/procedures/010_models.sql` |
@@ -418,11 +420,14 @@ Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
 | `sp_booking_transition` | `020_booking.sql` | Không cho xác nhận yêu cầu trên tin bị từ chối kiểm duyệt (tin đang duyệt lại hoặc đang ẩn vẫn xác nhận được), hoặc khi khách/Host bị khóa hay đã xóa, với mọi người thao tác kể cả Admin | procedure_flow_test |
 | `sp_listing_set_visible`, `sp_listing_get_by_host` | `010_models.sql` | Thêm transaction/savepoint và khóa dòng listing. Tin Admin đã ẩn (dòng audit cuối trong `hide_listing`/`restore_listing` là `hide_listing`) chỉ Admin hiện lại được; không có dòng audit thì xem như Host tự ẩn. Danh sách của Host trả thêm `admin_hidden` | procedure_flow_test |
 | `sp_admin_listing_visibility` | `030_atomic_writes.sql` | Báo cho Host khi Admin thật sự ẩn hoặc hiện tin, trong cùng transaction; bấm lặp từ trang cũ không gửi thêm | procedure_flow_test |
+| `sp_user_roles_replace` | `030_atomic_writes.sql` | Thêm tham số `p_3` (Admin thực hiện, NULL với fixture và lúc tạo tài khoản). Ghi audit `remove_host_role`/`grant_host_role` khi vai trò Host thật sự đổi | procedure_flow_test, feature_trust_test |
+| `sp_user_grant_host` | `010_models.sql` | Thêm transaction/savepoint và khóa dòng users. Từ chối khi dòng audit cuối trong hai action trên là `remove_host_role` | procedure_flow_test, feature_trust_test |
 
 ### Routine mới
 
 | Routine | File | Mục đích | Transaction / khóa / quyền | Test |
 |---|---|---|---|---|
+| `sp_user_host_role_removed` | `010_models.sql` | Cho trang tài khoản biết Admin đã gỡ vai trò Host để thay nút bằng lời giải thích; cùng quy tắc với `sp_user_grant_host` | Chỉ đọc; người gọi đã đăng nhập, chỉ đọc cho chính mình | procedure_flow_test, feature_trust_test |
 | `sp_listing_reject_pending` | `050_quality_core.sql` | Từ chối mọi yêu cầu đang chờ của một tin, kèm event và thông báo khách; trả số yêu cầu qua tham số OUT | Nội bộ, chỉ gọi từ routine khác: bên gọi giữ transaction và khóa dòng listing, routine khóa các booking | procedure_flow_test, feature_booking_extras_test |
 
 ## Sửa lỗi giá, hoàn tiền và thanh toán online, vòng 3 — 2026-11-05

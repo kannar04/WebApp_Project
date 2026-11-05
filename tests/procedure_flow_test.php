@@ -117,7 +117,7 @@ try {
     domainFailure(fn()=>callRows('CALL sp_listing_amenities_replace(?,?,?)',[$listingId,(int)$host['id'],'['.$amenity.',999999999]']));
     ensure($model->amenityIds($listingId)===[$amenity],'Failed routine did not roll back amenities.');
     domainFailure(fn()=>callRows('CALL sp_listing_amenities_replace(?,?,?)',[$listingId,(int)$guest['id'],'[]']));
-    domainFailure(fn()=>callRows('CALL sp_user_roles_replace(?,?)',[(int)$guest['id'],'["superadmin"]']));
+    domainFailure(fn()=>callRows('CALL sp_user_roles_replace(?,?,?)',[(int)$guest['id'],'["superadmin"]',null]));
     ensure($users->findWithRoles((int)$guest['id'])['roles']===['guest'],'Invalid role changed the demo user.');
     echo "PASS routine authorization, JSON validation, error cursor draining and rollback\n";
 
@@ -383,6 +383,36 @@ try {
         ensure($users->findWithRoles($demoted)['roles']===['guest'],'The role could not go after the take-down.');
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS Host role cannot be removed while listings or unfinished bookings remain, and can after the take-down\n";
+
+    // An Admin's removal of the Host role holds against /profile/become-host until an Admin gives it back. Everything rolls back.
+    $db->beginTransaction();
+    try {
+        $adminId=(int)$admin['id']; $tag=bin2hex(random_bytes(6));
+        $applicant=$users->adminCreate(['email'=>'audit-'.$tag.'-applicant@home2home.test','password'=>bin2hex(random_bytes(16)),'full_name'=>'Audit applicant','phone'=>''],['guest']);
+        ensure(!$users->hostRoleRemoved($applicant),'A person who never had the Host role read as removed.');
+        $users->grantHost($applicant);
+        ensure($users->findWithRoles($applicant)['roles']===['guest','host'],'A person who never had the Host role could not take it.');
+        $users->replaceRoles($applicant,['guest'],$adminId);
+        ensure($users->hostRoleRemoved($applicant),'An Admin removal left no record.');
+        refusedSaying([$users,'grantHost'],[$applicant],'Admin đã gỡ vai trò Host');
+        ensure($users->findWithRoles($applicant)['roles']===['guest'],'A refused grant changed the roles.');
+        $users->replaceRoles($applicant,['guest'],$adminId);
+        ensure($users->hostRoleRemoved($applicant),'An Admin saving unchanged roles lifted the removal.');
+        $users->replaceRoles($applicant,['guest','host'],$adminId);
+        ensure(!$users->hostRoleRemoved($applicant),'An Admin giving the role back did not lift the removal.');
+        $users->grantHost($applicant);
+        $users->replaceRoles($applicant,['guest','host','admin'],$adminId);
+        ensure(!$users->hostRoleRemoved($applicant),'An Admin keeping the Host role read as a removal.');
+        $users->replaceRoles($applicant,['guest'],$adminId);
+        refusedSaying([$users,'grantHost'],[$applicant],'Admin đã gỡ vai trò Host');
+        refused([$users,'replaceRoles'],[$applicant,['guest','host'],(int)$guest['id']]);
+        ensure($users->findWithRoles($applicant)['roles']===['guest'],'A non-Admin recorded a role change.');
+        $unrecorded=$users->adminCreate(['email'=>'audit-'.$tag.'-unrecorded@home2home.test','password'=>bin2hex(random_bytes(16)),'full_name'=>'Audit unrecorded','phone'=>''],['guest','host']);
+        $users->replaceRoles($unrecorded,['guest']);
+        ensure(!$users->hostRoleRemoved($unrecorded),'A change with no Admin named read as an Admin removal.');
+        $users->grantHost($unrecorded);
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS Host role: never-had and given-back can take it, an Admin removal holds until an Admin gives it back\n";
 
     // A hide by an Admin holds until an Admin shows the listing; a Host's own hide stays theirs. Everything rolls back.
     $db->beginTransaction();
