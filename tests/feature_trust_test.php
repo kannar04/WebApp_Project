@@ -579,6 +579,16 @@ try {
         trustExpect(str_contains($withGuestPage, 'data-booking-form') && !str_contains($withGuestPage, 'data-no-guest-role'), 'The booking form did not return with the Guest role.');
         echo "PASS no Guest role: note in place of the form, POST refused, own booking still opens and cancels\n";
 
+        // The Host dashboard promises contact only while the request can still be confirmed; the quiet Host's two rows are cancelled and rejected.
+        $contactLater = 'Liên hệ sau xác nhận';
+        trustExpect(!str_contains(trustHttp($quietClient, $baseUrl, '/host')['body'], $contactLater), 'The dashboard promises contact on a rejected or cancelled row.');
+        [$laterIn, $laterOut] = trustDates(46);
+        $quietPending = $service->create($quietListing, $leavingGuest, $laterIn, $laterOut, 1);
+        trustExpect(str_contains(trustHttp($quietClient, $baseUrl, '/host')['body'], $contactLater), 'The dashboard lost the contact note on a pending row.');
+        $service->hostTransition($quietPending, $quietHost, 'rejected');
+        trustExpect(!str_contains(trustHttp($quietClient, $baseUrl, '/host')['body'], $contactLater), 'The dashboard kept the contact note after the request was rejected.');
+        echo "PASS Host dashboard: contact note only on pending rows\n";
+
         foreach ([$guestOfLeaving, $quietClient] as $client) { curl_close($client); }
         echo "PASS contact note: pending for the two parties, missing phone when confirmed, nothing when cancelled or rejected or for the Admin\n";
 
