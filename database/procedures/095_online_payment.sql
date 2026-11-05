@@ -12,8 +12,9 @@ BEGIN
     END IF;
     SELECT b.id booking_id,b.status booking_status,b.check_in,b.check_out,b.currency,l.title,
         COALESCE(pay.amount_due,b.total_amount) amount_due,COALESCE(pay.status,'unpaid') payment_status,COALESCE(pay.method,'pay_at_checkin') payment_method,
-        (COALESCE(pay.status,'unpaid')='unpaid' AND b.status='confirmed' AND b.currency='VND' AND COALESCE(pay.amount_due,b.total_amount)>0 AND l.deleted_at IS NULL) can_pay_online,
-        (l.deleted_at IS NOT NULL) listing_removed,
+        -- A taken-down listing refuses payment only for a stay that will not happen; a finished stay (check-out day reached, as in the take-down rule) really happened and is paid normally.
+        (COALESCE(pay.status,'unpaid')='unpaid' AND b.status='confirmed' AND b.currency='VND' AND COALESCE(pay.amount_due,b.total_amount)>0 AND (l.deleted_at IS NULL OR b.check_out<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR))) can_pay_online,
+        (l.deleted_at IS NOT NULL AND b.check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) listing_removed,
         t.id transfer_id,t.reference transfer_reference,t.status transfer_status,t.amount transfer_amount,t.created_at transfer_created_at,t.submitted_at transfer_submitted_at
     FROM bookings b JOIN listings l ON l.id=b.listing_id LEFT JOIN booking_payments pay ON pay.booking_id=b.id
         LEFT JOIN payment_transactions t ON t.id=(SELECT x.id FROM payment_transactions x
@@ -35,6 +36,7 @@ BEGIN
     DECLARE v_payment VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_due DECIMAL(12,2);
     DECLARE v_removed DATETIME(6);
+    DECLARE v_end DATE;
     DECLARE v_attempt BIGINT UNSIGNED;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -48,7 +50,7 @@ BEGIN
     IF p_provider IS NULL OR p_provider NOT IN ('vietqr','vnpay') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Phương thức thanh toán không hợp lệ.'; END IF;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=p_booking;
     SELECT id,deleted_at INTO v_lock,v_removed FROM listings WHERE id=v_listing FOR UPDATE;
-    SELECT guest_id,status,currency,total_amount INTO v_guest,v_status,v_currency,v_total FROM bookings WHERE id=p_booking FOR UPDATE;
+    SELECT guest_id,status,currency,total_amount,check_out INTO v_guest,v_status,v_currency,v_total,v_end FROM bookings WHERE id=p_booking FOR UPDATE;
     IF v_guest IS NULL OR v_guest<>p_guest OR NOT EXISTS(SELECT 1 FROM users WHERE id=p_guest AND status='active' AND deleted_at IS NULL) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không có quyền thanh toán booking này.';
     END IF;
@@ -57,7 +59,7 @@ BEGIN
     SET v_due=ROUND(COALESCE(v_due,v_total),0);
     IF COALESCE(v_payment,'unpaid')<>'unpaid' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được ghi nhận thanh toán.'; END IF;
     IF v_status<>'confirmed' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ thanh toán online cho booking đã được xác nhận.'; END IF;
-    IF v_removed IS NOT NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở này đã bị gỡ nên không thể thanh toán online.'; END IF;
+    IF v_removed IS NOT NULL AND v_end>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở này đã bị gỡ nên không thể thanh toán online.'; END IF;
     IF v_currency<>'VND' OR v_due<=0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này không hỗ trợ thanh toán online.'; END IF;
     IF EXISTS(SELECT 1 FROM payment_transactions WHERE booking_id=p_booking AND status='submitted') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Bạn đã báo chuyển khoản cho booking này; vui lòng chờ Admin xác nhận.';
@@ -86,7 +88,7 @@ BEGIN
     END IF;
     SELECT t.id transaction_id,t.booking_id,t.provider,t.reference,t.amount,t.status,t.submitted_at,t.decided_at,t.note,t.created_at,
         b.status booking_status,b.check_in,b.check_out,b.guest_id,l.title,COALESCE(pay.status,'unpaid') payment_status,COALESCE(pay.method,'pay_at_checkin') payment_method,
-        (l.deleted_at IS NOT NULL) listing_removed
+        (l.deleted_at IS NOT NULL AND b.check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) listing_removed
     FROM payment_transactions t JOIN bookings b ON b.id=t.booking_id JOIN listings l ON l.id=b.listing_id LEFT JOIN booking_payments pay ON pay.booking_id=b.id
     WHERE t.id=p_transaction;
 END$$
@@ -106,6 +108,7 @@ BEGIN
     DECLARE v_reference VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_amount DECIMAL(12,2);
     DECLARE v_removed DATETIME(6);
+    DECLARE v_end DATE;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -118,11 +121,11 @@ BEGIN
     SELECT booking_id INTO v_booking FROM payment_transactions WHERE id=p_transaction;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
     SELECT id,deleted_at INTO v_lock,v_removed FROM listings WHERE id=v_listing FOR UPDATE;
-    SELECT guest_id,status INTO v_guest,v_booking_status FROM bookings WHERE id=v_booking FOR UPDATE;
+    SELECT guest_id,status,check_out INTO v_guest,v_booking_status,v_end FROM bookings WHERE id=v_booking FOR UPDATE;
     IF v_guest IS NULL OR v_guest<>p_guest OR NOT EXISTS(SELECT 1 FROM users WHERE id=p_guest AND status='active' AND deleted_at IS NULL) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không tìm thấy giao dịch thanh toán.';
     END IF;
-    IF v_removed IS NOT NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở này đã bị gỡ nên không thể thanh toán online.'; END IF;
+    IF v_removed IS NOT NULL AND v_end>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở này đã bị gỡ nên không thể thanh toán online.'; END IF;
     SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
     SELECT provider,status,reference,amount INTO v_provider,v_status,v_reference,v_amount FROM payment_transactions WHERE id=p_transaction FOR UPDATE;
     IF v_provider<>'vietqr' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ giao dịch chuyển khoản mới cần báo đã chuyển.'; END IF;
@@ -162,6 +165,7 @@ BEGIN
     DECLARE v_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_removed DATETIME(6);
     DECLARE v_booking_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_end DATE;
     DECLARE v_duplicate BOOL DEFAULT FALSE;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -178,8 +182,10 @@ BEGIN
     SELECT booking_id INTO v_booking FROM payment_transactions WHERE id=p_transaction;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
     SELECT id,deleted_at INTO v_lock,v_removed FROM listings WHERE id=v_listing FOR UPDATE;
-    SELECT guest_id,total_amount,status INTO v_guest,v_total,v_booking_status FROM bookings WHERE id=v_booking FOR UPDATE;
+    SELECT guest_id,total_amount,status,check_out INTO v_guest,v_total,v_booking_status,v_end FROM bookings WHERE id=v_booking FOR UPDATE;
     IF v_guest IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không tìm thấy giao dịch thanh toán.'; END IF;
+    -- A finished stay really happened: money for it is a normal payment even if the listing was taken down afterwards.
+    IF v_end<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SET v_removed=NULL; END IF;
     SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
     SELECT provider,status,reference,ROUND(amount,0) INTO v_provider,v_status,v_reference,v_amount FROM payment_transactions WHERE id=p_transaction FOR UPDATE;
     IF v_provider<>'vietqr' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ xác nhận giao dịch chuyển khoản VietQR.'; END IF;
@@ -319,6 +325,7 @@ BEGIN
     DECLARE v_amount DECIMAL(12,2);
     DECLARE v_decided BIGINT UNSIGNED;
     DECLARE v_removed DATETIME(6);
+    DECLARE v_end DATE;
     DECLARE v_result VARCHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'ok';
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -335,7 +342,9 @@ BEGIN
     ELSE
         SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
         SELECT id,deleted_at INTO v_lock,v_removed FROM listings WHERE id=v_listing FOR UPDATE;
-        SELECT guest_id,status INTO v_guest,v_booking_status FROM bookings WHERE id=v_booking FOR UPDATE;
+        SELECT guest_id,status,check_out INTO v_guest,v_booking_status,v_end FROM bookings WHERE id=v_booking FOR UPDATE;
+        -- A finished stay really happened: money for it is a normal payment even if the listing was taken down afterwards.
+        IF v_end<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SET v_removed=NULL; END IF;
         SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
         -- VNPay was asked for the whole-dong amount, even if this attempt was stored with a decimal before amounts were rounded.
         SELECT status,ROUND(amount,0),decided_by INTO v_status,v_amount,v_decided FROM payment_transactions WHERE id=v_attempt FOR UPDATE;
@@ -408,7 +417,7 @@ BEGIN
         (SELECT status='cancelled' AND gateway_response_code='00' AND decided_by IS NOT NULL FROM payment_transactions WHERE id=v_attempt) duplicate_refunded,
         (SELECT status FROM booking_payments WHERE booking_id=v_booking) payment_status,
         -- Why money on this attempt goes back to the Guest, if it does, and how much is owed.
-        (SELECT CASE WHEN b.status NOT IN ('confirmed','completed') THEN 'cancelled' WHEN l.deleted_at IS NOT NULL THEN 'removed' END FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=v_booking) return_reason,
+        (SELECT CASE WHEN status NOT IN ('confirmed','completed') THEN 'cancelled' WHEN v_removed IS NOT NULL THEN 'removed' END FROM bookings WHERE id=v_booking) return_reason,
         COALESCE((SELECT refund_amount FROM booking_cancellations WHERE booking_id=v_booking),v_amount) refund_owed;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_vnpay_result; END IF;
 END$$

@@ -424,6 +424,33 @@ try {
     payExpect((int)$normal['admin_refund_notices']===0,'An ordinary payment asked Admins for a refund.');
     echo "PASS taken-down listing: checkout, start and report refuse with a clear message, money already sent is recorded and flagged to Admins\n";
 
+    // ---- A finished stay on a taken-down listing really happened: it is paid normally, with no call to return the money; a stay that did not happen stays refused.
+    $finishedQr=payConfirmedBooking($service,$removedListing,$guestId,$hostId,$base,131);
+    $finishedVnpay=payConfirmedBooking($service,$removedListing,$guestId,$hostId,$base,134);
+    $finishedVnpayAttempt=$payments->start($finishedVnpay,$guestId,'vnpay');
+    $notHappened=payConfirmedBooking($service,$removedListing,$guestId,$hostId,$base,137);
+    payCall('CALL sp_test_payment_finish_stay(?,?)',[$finishedQr,0]);
+    payCall('CALL sp_test_payment_finish_stay(?,?)',[$finishedVnpay,3]);
+    $service->hostTransition($finishedVnpay,$hostId,'completed');
+    payCall('CALL sp_test_payment_listing_removed(?,?)',[$removedListing,1]);
+    $checkout=$payments->checkout($finishedQr,$guestId);
+    payExpect((int)$checkout['can_pay_online']===1 && (int)$checkout['listing_removed']===0,'A finished stay on a taken-down listing cannot be paid online: '.json_encode($checkout));
+    payExpect((int)$extras->bookingDetail($finishedQr,$guestId)['can_pay_online']===1 && (int)$extras->paymentMap($guestId,'guest')[$finishedQr]['can_pay_online']===1,'Booking pages refuse online payment for a finished stay.');
+    $finishedTransfer=$payments->start($finishedQr,$guestId,'vietqr');
+    payExpect((int)$payments->attempt((int)$finishedTransfer['transaction_id'],$guestId)['listing_removed']===0,'Transfer page treats a finished stay as gone.');
+    $payments->submitTransfer((int)$finishedTransfer['transaction_id'],$guestId);
+    $payments->decideTransfer((int)$finishedTransfer['transaction_id'],$adminId,'confirm','');
+    $state=payInspect($finishedQr);
+    payExpect($state['payment_status']==='paid' && (int)$state['admin_refund_notices']===0 && $state['guest_paid_title']==='Đã ghi nhận thanh toán' && !str_contains((string)$state['guest_paid_body'],'hoàn lại'),'A transfer for a finished stay asks for the money back: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $result=$payments->vnpayResult($finishedVnpayAttempt['reference'],'220000.00','00','00','14000080','NCB');
+    $state=payInspect($finishedVnpay);
+    payExpect($result['result']==='ok' && $result['return_reason']===null && $state['payment_status']==='paid' && (int)$state['admin_refund_notices']===0 && str_contains((string)$state['guest_paid_body'],'thành công'),'VNPay for a finished stay asks for the money back: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $checkout=$payments->checkout($notHappened,$guestId);
+    payExpect((int)$checkout['can_pay_online']===0 && (int)$checkout['listing_removed']===1,'A stay that will not happen can be paid on a taken-down listing.');
+    payRejects([$payments,'start'],[$notHappened,$guestId,'vnpay'],'đã bị gỡ','A stay that will not happen started a payment on a taken-down listing');
+    payCall('CALL sp_test_payment_listing_removed(?,?)',[$removedListing,0]);
+    echo "PASS finished stay on a taken-down listing: paid normally by VietQR and VNPay with no refund call, a stay that did not happen stays refused\n";
+
     // ---- Nothing collected, nothing refunded; money that lands after the cancellation goes back whole.
     $bookingModel=new \App\Models\Booking();
     $unpaidPending=$service->create($policyListings[100],$guestId,$base->modify('+77 days')->format('Y-m-d'),$base->modify('+79 days')->format('Y-m-d'),1);

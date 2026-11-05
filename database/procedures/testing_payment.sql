@@ -62,6 +62,18 @@ BEGIN
     UPDATE listings SET deleted_at=IF(p_removed,NOW(6),NULL) WHERE id=p_listing;
 END$$
 
+-- Moves a fixture booking so its check-out was p_days_ago days ago (Vietnam date); nights move with it.
+CREATE OR REPLACE PROCEDURE sp_test_payment_finish_stay(IN p_booking BIGINT UNSIGNED, IN p_days_ago INT)
+BEGIN
+    DECLARE v_offset INT;
+    IF NOT EXISTS(SELECT 1 FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=p_booking AND l.city='Audit' AND l.title LIKE 'Audit fixture PAY %') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to move a non-fixture booking.';
+    END IF;
+    SELECT DATEDIFF(DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)-INTERVAL p_days_ago DAY,check_out) INTO v_offset FROM bookings WHERE id=p_booking;
+    UPDATE booking_nights SET stay_date=stay_date+INTERVAL v_offset DAY WHERE booking_id=p_booking ORDER BY stay_date;
+    UPDATE bookings SET check_in=check_in+INTERVAL v_offset DAY,check_out=check_out+INTERVAL v_offset DAY WHERE id=p_booking;
+END$$
+
 -- Puts a refunded fixture booking in the shape older code left: that code refunded the full amount_due whatever the policy owed,
 -- so its audit row holds amount_due while booking_cancellations keeps the policy share. p_keep_audit=0 removes the audit row too.
 CREATE OR REPLACE PROCEDURE sp_test_payment_old_refund(IN p_booking BIGINT UNSIGNED, IN p_keep_audit BOOL)
