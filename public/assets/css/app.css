@@ -20,6 +20,9 @@
 .table-responsive { display: block; width: 100%; max-width: 100%; overflow-x: auto; }
 .action-row { flex-wrap: wrap; }
 .action-row > a { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+/* One unbroken title must not widen its table and push the actions away. The cap only acts on a title longer than it, so ordinary rows keep their layout; anywhere would squeeze them at narrow widths. */
+.table-title { max-width: 16rem; overflow-wrap: break-word; }
+.article-table .table-title { max-width: 22rem; }
 /* The second selector outweighs Bootstrap's .btn:not(:disabled) pointer. Dimmed because a touch screen shows no cursor; the buttons stay enabled so they keep their name and value in the request. */
 form[aria-busy="true"] button, form[aria-busy="true"] .btn:not(:disabled) { cursor: progress; opacity: .65; }
 /* Filter layout uses Bootstrap 4 form-group/grid structure, not offset corrections. */
@@ -295,6 +298,7 @@ body { overflow-wrap: break-word; }
     .article-table tbody tr:first-child { padding-top: 0; border-top: 0; }
     .article-table td { padding: 3px 0; border-top: 0; }
     .article-table td:first-child { min-width: 0; padding-bottom: 6px; }
+    .article-table td.table-title { max-width: none; }
     .article-table td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-weight: 600; }
     .article-table .article-actions { padding-top: 6px; }
 }

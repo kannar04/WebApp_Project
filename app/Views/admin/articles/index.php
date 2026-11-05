@@ -13,7 +13,7 @@
 <?php else: ?>
 <div class="surface-card"><div class="table-responsive" tabindex="0" role="region" aria-label="<?= e(__('Danh sách bài viết')) ?>"><table class="table article-table"><thead><tr><th scope="col"><?= e(__('Bài viết')) ?></th><th scope="col"><?= e(__('Chuyên mục')) ?></th><th scope="col"><?= e(__('Trạng thái')) ?></th><th scope="col"><?= e(__('Cập nhật')) ?></th><th scope="col"><?= e(__('Thao tác')) ?></th></tr></thead><tbody>
 <?php foreach($articles as $item): $published=$item['status']==='published'; ?><tr>
-<td><strong><a href="<?= e(url('/admin/articles/'.(int)$item['id'].'/edit')) ?>"><?= e($item['title']) ?></a></strong><br><small class="text-muted article-slug">/articles/<?= e($item['slug']) ?></small></td>
+<td class="table-title"><strong><a href="<?= e(url('/admin/articles/'.(int)$item['id'].'/edit')) ?>"><?= e($item['title']) ?></a></strong><br><small class="text-muted article-slug">/articles/<?= e($item['slug']) ?></small></td>
 <td data-label="<?= e(__('Chuyên mục')) ?>"><?= e(__(ArticleText::categoryLabel($item['category']))) ?></td>
 <td data-label="<?= e(__('Trạng thái')) ?>"><span class="status <?= $published?'status-approved':'status-draft' ?>"><?= e(__($statuses[$item['status']]??$item['status'])) ?></span><?php if($item['published_at']): ?><br><small class="text-muted"><?= e(__('Đăng {date}', ['date'=>ArticleText::date($item['published_at'])])) ?></small><?php endif; ?></td>
 <td data-label="<?= e(__('Cập nhật')) ?>"><?= e(ArticleText::date($item['updated_at'])) ?><br><small class="text-muted"><?= e($item['author_name']) ?></small></td>

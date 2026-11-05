@@ -244,6 +244,22 @@ function Check-AdminFilterCarry {
     Write-Output 'PASS browser admin user search and booking filter keep each other'
 }
 
+function Check-LongTableTitle([string]$Path, [switch]$IfPresent) {
+    # One unbroken title must wrap in its cell: the table stays inside its box at desktop width, so the action buttons stay on screen. Put into the real cells, so no fixture rows are needed.
+    $fill="(function(){const cells=document.querySelectorAll('td.table-title');for(const cell of cells){(cell.querySelector('strong a, strong, a')||cell).textContent='W'.repeat(200);}let wider=0;for(const cell of cells){const table=cell.closest('table');wider=Math.max(wider,table.getBoundingClientRect().width-table.closest('.table-responsive').getBoundingClientRect().width);}return {found:cells.length,wider:wider,over:document.documentElement.scrollWidth-window.innerWidth};})()"
+    Navigate $Path
+    $desktop=Evaluate $fill
+    if ($desktop.found -lt 1) {
+        if ($IfPresent) { Write-Output "SKIP browser long table title on $($Path): no rows"; return }
+        throw "No title cell on $Path"
+    }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=375;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    Navigate $Path
+    $phone=Evaluate $fill
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    if ($desktop.wider -gt 1 -or $desktop.over -gt 0 -or $phone.over -gt 0) { throw "Long title widens the table on $($Path): desktop $($desktop | ConvertTo-Json -Compress), phone $($phone | ConvertTo-Json -Compress)" }
+}
+
 function Check-LongText([string]$Path, [string]$Selector, [switch]$IfPresent) {
     # A pasted URL in a title or description must wrap at 375 instead of widening the page. Put into the real elements, so no fixture rows are needed.
     Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=375;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
@@ -497,6 +513,8 @@ try {
     Check-SeveralActions '/host/listings/1/availability' 'form[action*="/availability"]' '[name=date]' @('open=0','open=1')
     Write-Output 'PASS browser Enter picks no action on the Host availability form'
     Check-LongText '/host/listings/1/availability' '.section-title h1, .section-title p'
+    Check-LongTableTitle '/host'
+    Write-Output 'PASS browser a long unbroken title wraps in its cell on the Host tables'
     Write-Output 'PASS browser long unbroken text wraps at 375 on Host pages'
     Check-CalendarNavigation '/host/listings/1/availability'
     Logout-Role
@@ -514,6 +532,10 @@ try {
         }
     }
     Check-LongText '/admin' 'table tbody td:nth-child(2)'
+    Check-LongTableTitle '/admin'
+    Check-LongTableTitle '/admin/payments' -IfPresent
+    Check-LongTableTitle '/admin/articles' -IfPresent
+    Write-Output 'PASS browser a long unbroken title wraps in its cell on the Admin tables'
     Check-LongText '/admin/reports' 'article.surface-card h2'
     Write-Output 'PASS browser long unbroken text wraps at 375 on Admin pages, wide tables scroll inside themselves'
     Check-SeveralActions '/admin' 'form.moderation-form' '[name=note]' @('action=approved','action=rejected')
