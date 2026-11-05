@@ -400,6 +400,53 @@ try {
     }
     echo "PASS password rule 8-72 bytes without NUL on register, admin create and edit, change and reset; login stays lenient; a reset form error keeps the form and token\n";
 
+    // A session that ends and a login that starts leave nothing of the last person's forms; every bag a controller keeps is covered, so a new one has to be too.
+    $bagNames = ['_flash', '_old', '_message_draft'];
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__).'/app', FilesystemIterator::SKIP_DOTS)) as $appFile) {
+        if (preg_match_all("/Session::put\('(_[a-z_]+)'/", (string) file_get_contents($appFile->getPathname()), $bags)) { $bagNames = array_merge($bagNames, $bags[1]); }
+    }
+    expect(in_array('_profile_old', $bagNames, true) && in_array('_review_old', $bagNames, true), 'The scan for session bags found nothing.');
+    $_SESSION = array_fill_keys($bagNames, ['left by the last person']) + ['_csrf' => 'kept', 'intended_url' => '/kept'];
+    \Core\Session::forgetFormData();
+    expect(array_keys($_SESSION) === ['_csrf', 'intended_url'], 'forgetFormData left a form bag or dropped something else: '.implode(', ', array_keys($_SESSION)));
+    $_SESSION = [];
+    $bagEmail = "audit-bags-$tag@home2home.test";
+    $bagOwnerId = $passwordModel->create($bagEmail, 'Password123!', 'Audit bag owner', null);
+    try {
+        // Suspended: the session ends for good, and the sign-in message set after that point survives.
+        $suspended = auditBrowser();
+        auditSignIn($suspended, $url, auditRequest($suspended, $url.'/login')['body'], $bagEmail);
+        auditRequest($suspended, $url.'/profile', ['_token' => auditFormToken(auditRequest($suspended, $url.'/profile')['body']), 'full_name' => 'Left behind', 'phone' => 'not a phone']);
+        $passwordModel->setStatus($bagOwnerId, 'suspended');
+        expect(auditRequest($suspended, $url.'/profile')['location'] === '/login', 'A suspended session must go to login.');
+        $loginAfterSuspension = auditRequest($suspended, $url.'/login')['body'];
+        expect(str_contains($loginAfterSuspension, 'Vui lòng đăng nhập') && !str_contains($loginAfterSuspension, 'Left behind'), 'Login after a suspension must show its own message only.');
+        $passwordModel->setStatus($bagOwnerId, 'active');
+        expect(auditRequest($suspended, $url.'/profile')['location'] === '/login', 'A session ended by suspension must not come back.');
+        // Password changed elsewhere: the next person on this browser sees their own form, with none of the last person's input or refusal.
+        $shared = auditBrowser();
+        auditSignIn($shared, $url, auditRequest($shared, $url.'/login')['body'], $bagEmail);
+        auditRequest($shared, $url.'/profile', ['_token' => auditFormToken(auditRequest($shared, $url.'/profile')['body']), 'full_name' => 'Left behind', 'phone' => 'not a phone']);
+        $elsewhere = auditBrowser();
+        auditSignIn($elsewhere, $url, auditRequest($elsewhere, $url.'/login')['body'], $bagEmail);
+        auditRequest($elsewhere, $url.'/profile/password', ['_token' => auditFormToken(auditRequest($elsewhere, $url.'/profile')['body']), 'current_password' => 'Password123!', 'new_password' => 'Changed-elsewhere-1', 'password_confirmation' => 'Changed-elsewhere-1']);
+        expect(auditRequest($shared, $url.'/profile')['location'] === '/login', 'A session must end when its password changes elsewhere.');
+        auditSignIn($shared, $url, auditRequest($shared, $url.'/login')['body'], 'host@home2home.test');
+        $nextPerson = auditRequest($shared, $url.'/profile')['body'];
+        expect(!str_contains($nextPerson, 'Left behind') && !str_contains($nextPerson, 'alert-danger'), 'The next person inherited a form from the session that ended.');
+        // A login over a live session, with no request in between, starts just as clean.
+        $over = auditBrowser();
+        auditSignIn($over, $url, auditRequest($over, $url.'/login')['body'], 'admin@home2home.test');
+        $overToken = auditFormToken(auditRequest($over, $url.'/profile')['body']);
+        auditRequest($over, $url.'/profile', ['_token' => $overToken, 'full_name' => 'Left behind', 'phone' => 'not a phone']);
+        auditRequest($over, $url.'/login', ['_token' => $overToken, 'email' => 'host@home2home.test', 'password' => 'Password123!']);
+        $nextPerson = auditRequest($over, $url.'/profile')['body'];
+        expect(!str_contains($nextPerson, 'Left behind') && !str_contains($nextPerson, 'alert-danger'), 'A login must start without the last person\'s form.');
+    } finally {
+        $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$bagOwnerId]);
+    }
+    echo "PASS a session that ends or a login that starts clears flash and every form bag, and messages set afterwards survive\n";
+
     auditOversizedPost(['display_startup_errors' => '1', 'output_buffering' => '4096'], true);
     auditOversizedPost(['display_startup_errors' => '0', 'output_buffering' => '0'], false);
     echo "PASS a POST over post_max_size says so with the limit, returns to its page and changes nothing\n";

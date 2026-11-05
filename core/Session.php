@@ -35,6 +35,16 @@ final class Session
         $_SESSION['_old'] = $input;
     }
 
+    /** Called when a session ends or a login starts: one person's refused forms and messages must not reach whoever signs in next on this browser. */
+    public static function forgetFormData(): void
+    {
+        foreach (array_keys($_SESSION) as $key) {
+            if ($key === '_flash' || $key === '_message_draft' || str_ends_with((string) $key, '_old')) {
+                unset($_SESSION[$key]);
+            }
+        }
+    }
+
     public static function put(string $key, mixed $value): void
     {
         $_SESSION[$key] = $value;

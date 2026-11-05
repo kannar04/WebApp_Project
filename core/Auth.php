@@ -18,6 +18,7 @@ final class Auth
             return false;
         }
         session_regenerate_id(true);
+        Session::forgetFormData();
         $_SESSION['user_id'] = (int) $user['id'];
         $_SESSION['auth_version'] = hash('sha256',$user['password_hash']);
         self::$resolvedUser = null;
@@ -35,9 +36,11 @@ final class Auth
             return null;
         }
         self::$resolvedUser = (new User())->findWithRoles((int) $_SESSION['user_id']);
-        if (self::$resolvedUser && !hash_equals(self::$resolvedUser['auth_version'],(string)($_SESSION['auth_version']??''))) {
+        // Suspended, removed or password changed elsewhere: this session ends here, once, so messages set after this point survive.
+        if (!self::$resolvedUser || !hash_equals(self::$resolvedUser['auth_version'],(string)($_SESSION['auth_version']??''))) {
             self::$resolvedUser=null;
             unset($_SESSION['user_id'],$_SESSION['auth_version']);
+            Session::forgetFormData();
         }
         return self::$resolvedUser;
     }
