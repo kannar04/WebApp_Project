@@ -525,6 +525,16 @@ qaExpect(!str_contains($unlinkedNotice,'/bookings/7'),'A notification links to a
 $threadList=qaRenderView('admin/messages',['thread'=>array_fill(0,200,$limitMessage),'results'=>[],'filters'=>['q'=>'','booking'=>1,'user'=>'']]);
 qaExpect(!str_contains($threadList,'tin nhắn mới nhất'),'One booking thread is not a limited search.');
 echo "PASS QA admin bookings, admin messages, notifications and inbox say so when the 200 row limit is reached\n";
+// A booking conversation and the admin thread stop at 500 messages.
+$limitThreadMessage=['sender_name'=>'S','is_mine'=>0,'is_hidden'=>0,'body'=>'B','created_at'=>$limitTime,'read_at'=>null];
+$limitThreadState=['other_name'=>'O','my_role'=>'guest','can_send'=>1,'closes_on'=>null,'status'=>'confirmed'];
+foreach ([499=>false,500=>true] as $limitCount=>$limitShown) {
+    $adminThread=qaRenderView('admin/messages',['thread'=>array_fill(0,$limitCount,$limitMessage),'results'=>[],'filters'=>['q'=>'','booking'=>1,'user'=>'']]);
+    qaExpect(str_contains($adminThread,'Chỉ hiển thị 500 tin nhắn mới nhất.')===$limitShown,'Admin thread limit notice wrong at '.$limitCount);
+    $bookingThread=qaRenderView('messages/thread',['booking'=>['id'=>1],'conversation'=>['state'=>$limitThreadState,'messages'=>array_fill(0,$limitCount,$limitThreadMessage),'draft'=>'']]);
+    qaExpect(str_contains($bookingThread,'Chỉ hiển thị 500 tin nhắn mới nhất.')===$limitShown,'Booking thread limit notice wrong at '.$limitCount);
+}
+echo "PASS QA booking conversation and admin thread say so when the 500 message limit is reached\n";
 
 // The Host sees a note and a manage link on their own listing, everyone else the booking form; the server still refuses the Host's booking.
 $login('host');

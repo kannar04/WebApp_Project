@@ -133,6 +133,7 @@ return [
     'Xem thông báo' => 'View notifications',
     'Chưa có cuộc trò chuyện' => 'No conversations yet',
     'Chỉ hiển thị {count} cuộc trò chuyện mới nhất.' => 'Showing only the {count} latest conversations.',
+    'Chỉ hiển thị {count} tin nhắn mới nhất.' => 'Showing only the {count} latest messages.',
     'Mở chi tiết một booking để gửi tin nhắn đầu tiên cho Host hoặc Guest.' => 'Open a booking’s details to send your first message to the Host or Guest.',
     'Bạn:' => 'You:',
     '{count} chưa đọc' => '{count} unread',
