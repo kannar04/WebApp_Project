@@ -12,7 +12,7 @@ final class LocaleController extends Controller
     public function change(): never
     {
         Csrf::ensure();
-        $locale=(string)($_POST['locale']??'');
+        $locale=input_text($_POST,'locale');
         $returnTo=I18n::safeReturnPath($_POST['return_to']??'/');
         if (!in_array($locale,I18n::LOCALES,true)) {
             Session::flash('error','Ngôn ngữ không được hỗ trợ.');

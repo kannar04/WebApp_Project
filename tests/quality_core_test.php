@@ -189,7 +189,9 @@ $login=static function(string $role) use($request,$token): void {
     qaExpect($logged['status']===200,'HTTP login failed: '.$role);
 };
 $logout=static function() use($request,$token): void { $request('/logout',['_token'=>$token($request('/profile'))]); };
+$arrayLogin=$request('/login?next%5B%5D=1'); qaExpect($arrayLogin['status']===200 && str_contains($arrayLogin['body'],'name="email"'),'Array next broke the login page.');
 $login('guest');
+foreach(['/listings/1?check_in%5B%5D=1','/articles?category%5B%5D=1'] as $path) { qaExpect($request($path)['status']===200,'Array parameter did not read as absent: '.$path); }
 foreach(['/bookings/'.$bookingId,'/notifications','/reports','/reports?listing=1','/reports?booking='.$bookingId,'/listings/1?month='.substr($first,0,7)] as $path) {
     $page=$request($path); qaExpect($page['status']===200 && !preg_match('/Fatal error:|Warning:/',$page['body']),'Guest HTTP page failed: '.$path);
 }

@@ -36,7 +36,7 @@ final class AdminController extends Controller
     }
     public function userStatus(string $id): never
     {
-        Csrf::ensure(); $admin=$this->requireRole('admin'); $status=(string)($_POST['status']??'');
+        Csrf::ensure(); $admin=$this->requireRole('admin'); $status=input_text($_POST,'status');
         if (!in_array($status,['active','suspended'],true)) { Session::flash('error','Trạng thái tài khoản không hợp lệ.'); $this->redirect('/admin'); }
         $this->managedUserChange((int)$id,(int)$admin['id'],'set_user_status',$status,
             fn()=>(new User())->setStatus((int)$id,$status),'Đã cập nhật tài khoản.');
@@ -54,8 +54,8 @@ final class AdminController extends Controller
     public function userCreate(): never
     {
         Csrf::ensure(); $admin=$this->requireRole('admin');
-        $data=['full_name'=>trim((string)($_POST['full_name']??'')),'email'=>trim((string)($_POST['email']??'')),
-            'phone'=>trim((string)($_POST['phone']??'')),'password'=>(string)($_POST['password']??'')];
+        $data=['full_name'=>trim(input_text($_POST,'full_name')),'email'=>trim(input_text($_POST,'email')),
+            'phone'=>trim(input_text($_POST,'phone')),'password'=>input_text($_POST,'password')];
         $roles=$_POST['roles']??['guest'];
         if ($data['full_name']==='' || mb_strlen($data['full_name'])>150 || !filter_var($data['email'],FILTER_VALIDATE_EMAIL)
             || strlen($data['email'])>254 || strlen($data['phone'])>20 || strlen($data['password'])<8
@@ -85,10 +85,10 @@ final class AdminController extends Controller
             $this->redirect('/admin');
         }
         $data = [
-            'full_name' => trim((string) ($_POST['full_name'] ?? '')),
-            'email' => trim((string) ($_POST['email'] ?? '')),
-            'phone' => trim((string) ($_POST['phone'] ?? '')),
-            'password' => (string) ($_POST['password'] ?? ''),
+            'full_name' => trim(input_text($_POST, 'full_name')),
+            'email' => trim(input_text($_POST, 'email')),
+            'phone' => trim(input_text($_POST, 'phone')),
+            'password' => input_text($_POST, 'password'),
         ];
         if ($data['full_name'] === '' || mb_strlen($data['full_name']) > 150
             || !filter_var($data['email'], FILTER_VALIDATE_EMAIL) || strlen($data['email']) > 254
@@ -160,16 +160,16 @@ final class AdminController extends Controller
         }
         $this->redirect('/admin');
     }
-    public function moderate(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');$action=(string)($_POST['action']??'');$note=trim((string)($_POST['note']??''));if(!in_array($action,['approved','rejected'],true)||($action==='rejected'&&$note==='')){Session::flash('error','Từ chối bài đăng phải có lý do.');$this->redirect('/admin');}try{(new AdminRepository())->moderate((int)$id,(int)$admin['id'],$action,$note);Session::flash('success','Đã cập nhật kiểm duyệt bài đăng.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể kiểm duyệt bài đăng. Vui lòng thử lại.');}$this->redirect('/admin');}
+    public function moderate(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');$action=input_text($_POST,'action');$note=trim(input_text($_POST,'note'));if(!in_array($action,['approved','rejected'],true)||($action==='rejected'&&$note==='')){Session::flash('error','Từ chối bài đăng phải có lý do.');$this->redirect('/admin');}try{(new AdminRepository())->moderate((int)$id,(int)$admin['id'],$action,$note);Session::flash('success','Đã cập nhật kiểm duyệt bài đăng.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể kiểm duyệt bài đăng. Vui lòng thử lại.');}$this->redirect('/admin');}
     public function listingEdit(string $id): void {$this->requireRole('admin');$listing=(new AdminRepository())->findListing((int)$id);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('admin/listing-edit',['title'=>'Sửa chỗ ở','listing'=>$listing,'old'=>Session::pullOld()]);}
     public function listingUpdate(string $id): never
     {
         Csrf::ensure();
         $admin=$this->requireRole('admin');
-        $data=['title'=>trim((string)($_POST['title']??'')),'address'=>trim((string)($_POST['address']??'')),
-            'city'=>trim((string)($_POST['city']??'')),'description'=>trim((string)($_POST['description']??'')),
-            'nightly_price'=>(float)($_POST['nightly_price']??0),'cleaning_fee'=>(float)($_POST['cleaning_fee']??0),
-            'max_guests'=>(int)($_POST['max_guests']??0)];
+        $data=['title'=>trim(input_text($_POST,'title')),'address'=>trim(input_text($_POST,'address')),
+            'city'=>trim(input_text($_POST,'city')),'description'=>trim(input_text($_POST,'description')),
+            'nightly_price'=>(float)input_text($_POST,'nightly_price','0'),'cleaning_fee'=>(float)input_text($_POST,'cleaning_fee','0'),
+            'max_guests'=>(int)input_text($_POST,'max_guests','0')];
         try {
             foreach (['title'=>180,'address'=>255,'city'=>100,'description'=>65535] as $field=>$maximum) {
                 if ($data[$field]==='' || mb_strlen($data[$field])>$maximum) { throw new \DomainException('Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.'); }
@@ -191,7 +191,7 @@ final class AdminController extends Controller
     {
         Csrf::ensure(); $admin = $this->requireRole('admin');
         try {
-            (new AdminRepository())->setListingVisibility((int)$id, (int)$admin['id'], !empty($_POST['visible']));
+            (new AdminRepository())->setListingVisibility((int)$id, (int)$admin['id'], !empty(input_text($_POST,'visible')));
             Session::flash('success', 'Đã cập nhật hiển thị listing.');
         } catch (\Throwable $exception) {
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể cập nhật hiển thị. Vui lòng thử lại.');
@@ -209,6 +209,6 @@ final class AdminController extends Controller
         }
         $this->redirect('/admin');
     }
-    public function bookingTransition(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');try{(new BookingService())->adminTransition((int)$id,(int)$admin['id'],(string)($_POST['status']??''));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/admin');}
+    public function bookingTransition(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');try{(new BookingService())->adminTransition((int)$id,(int)$admin['id'],input_text($_POST,'status'));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/admin');}
 }
 

@@ -37,7 +37,7 @@ try {
         'VNPAY_TMN_CODE'=>'H2HTEST1','VNPAY_HASH_SECRET'=>bin2hex(random_bytes(16)),
         'VNPAY_PAY_URL'=>'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html','VNPAY_RETURN_URL'=>$baseUrl.'/payments/vnpay/return']);
     $serverOutput = tmpfile();
-    $process = proc_open([PHP_BINARY,'-S',$address,'-t',$root.'/public',$root.'/public/router.php'],
+    $process = proc_open([PHP_BINARY,'-d','error_log=','-S',$address,'-t',$root.'/public',$root.'/public/router.php'],
         [0=>['pipe','r'],1=>$serverOutput,2=>$serverOutput], $pipes, $root, $environment, ['bypass_shell'=>true]);
     if (!is_resource($process)) { throw new RuntimeException('Could not start isolated PHP server.'); }
     fclose($pipes[0]);
@@ -120,6 +120,10 @@ try {
             }
         }
     }
+    // PHP errors stay out of responses, so the isolated server's log is where a warning from any request above shows up.
+    rewind($serverOutput);
+    $expect(!preg_match('/PHP (Warning|Notice|Deprecated|Fatal error|Parse error):[^\n]*/',(string)stream_get_contents($serverOutput),$phpError),'PHP error during the run: '.($phpError[0]??''));
+    echo "PASS no PHP warning, notice or fatal error in the server log\n";
 } catch (Throwable $exception) {
     if (is_resource($serverOutput)) {
         rewind($serverOutput);

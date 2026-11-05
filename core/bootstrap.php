@@ -34,6 +34,23 @@ if (is_file($envFile)) {
 
 $app = require dirname(__DIR__) . '/config/app.php';
 date_default_timezone_set($app['timezone']);
+configure_error_output($app['debug']);
+
+/** PHP errors go to the log and reach a web response only under APP_DEBUG. The CLI keeps php.ini's setting so tests and tools still print their failures. */
+function configure_error_output(bool $debug, string $sapi = PHP_SAPI): void
+{
+    if ($sapi !== 'cli') {
+        ini_set('display_errors', $debug ? '1' : '0');
+        ini_set('log_errors', '1');
+    }
+}
+
+/** Request text from $_GET or $_POST: an absent or array-shaped value (name[]=1) gives $default. */
+function input_text(array $source, string $key, string $default = ''): string
+{
+    $value = $source[$key] ?? $default;
+    return is_string($value) ? $value : $default;
+}
 
 function e(mixed $value): string
 {

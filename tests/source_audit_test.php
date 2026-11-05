@@ -38,6 +38,18 @@ foreach ($routes as $methodRoutes) {
 }
 echo "PASS {$routeCount} route handlers/autoload\n";
 
+$cliDisplayErrors = ini_get('display_errors');
+configure_error_output(false, 'cli-server');
+expect(ini_get('display_errors') === '0' && ini_get('log_errors') === '1', 'Web responses must not display PHP errors without APP_DEBUG.');
+configure_error_output(true, 'cli-server');
+expect(ini_get('display_errors') === '1' && ini_get('log_errors') === '1', 'APP_DEBUG must display PHP errors.');
+ini_set('display_errors', (string) $cliDisplayErrors);
+expect(input_text(['a' => 'x'], 'a') === 'x' && input_text(['a' => ['x']], 'a') === '' && input_text(['a' => ['x']], 'a', '7') === '7' && input_text([], 'a', '7') === '7', 'An array-shaped request value must read like an absent one.');
+foreach (array_merge(glob(dirname(__DIR__).'/app/Controllers/*.php'), glob(dirname(__DIR__).'/app/Views/*/*.php')) as $sourceFile) {
+    expect(!preg_match('/\((string|int|float)\)\s*\(?\$_(GET|POST)\[|\be\(\$_(GET|POST)\[/', (string) file_get_contents($sourceFile)), 'Request value assumed to be a string: '.basename($sourceFile));
+}
+echo "PASS error display follows APP_DEBUG, array-shaped request values read as absent\n";
+
 $userModel = new User();
 $host = $userModel->findByEmail('host@home2home.test');
 $guest = $userModel->findByEmail('guest@home2home.test');

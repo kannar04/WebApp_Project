@@ -99,7 +99,7 @@ final class HostController extends Controller
             }
             $amenities = $_POST['amenities'] ?? [];
             if (!is_array($amenities)) { throw new \DomainException('Tiện nghi không hợp lệ.'); }
-            $amenities = array_map('intval', $amenities);
+            $amenities = array_map('intval', array_filter($amenities, 'is_string'));
             if (array_diff($amenities, array_map('intval', array_column($listingModel->allAmenities(), 'id')))) {
                 throw new \DomainException('Tiện nghi không tồn tại hoặc đã ngừng sử dụng.');
             }
@@ -148,19 +148,19 @@ final class HostController extends Controller
             }
         }
     }
-    private function listingInput(): array {return ['property_type_id'=>(int)($_POST['property_type_id']??0),'cancellation_policy_id'=>(int)($_POST['cancellation_policy_id']??0),'title'=>trim((string)($_POST['title']??'')),'address'=>trim((string)($_POST['address']??'')),'city'=>trim((string)($_POST['city']??'')),'description'=>trim((string)($_POST['description']??'')),'nightly_price'=>(float)($_POST['nightly_price']??0),'cleaning_fee'=>(float)($_POST['cleaning_fee']??0),'max_guests'=>(int)($_POST['max_guests']??0),'room_count'=>(int)($_POST['room_count']??1),'bedroom_count'=>(int)($_POST['bedroom_count']??1),'bed_count'=>(int)($_POST['bed_count']??1),'check_in_time'=>(string)($_POST['check_in_time']??'14:00'),'check_out_time'=>(string)($_POST['check_out_time']??'11:00'),'allows_smoking'=>isset($_POST['allows_smoking']),'allows_pets'=>isset($_POST['allows_pets']),'allows_parties'=>isset($_POST['allows_parties'])];}
+    private function listingInput(): array {return ['property_type_id'=>(int)input_text($_POST,'property_type_id','0'),'cancellation_policy_id'=>(int)input_text($_POST,'cancellation_policy_id','0'),'title'=>trim(input_text($_POST,'title')),'address'=>trim(input_text($_POST,'address')),'city'=>trim(input_text($_POST,'city')),'description'=>trim(input_text($_POST,'description')),'nightly_price'=>(float)input_text($_POST,'nightly_price','0'),'cleaning_fee'=>(float)input_text($_POST,'cleaning_fee','0'),'max_guests'=>(int)input_text($_POST,'max_guests','0'),'room_count'=>(int)input_text($_POST,'room_count','1'),'bedroom_count'=>(int)input_text($_POST,'bedroom_count','1'),'bed_count'=>(int)input_text($_POST,'bed_count','1'),'check_in_time'=>input_text($_POST,'check_in_time','14:00'),'check_out_time'=>input_text($_POST,'check_out_time','11:00'),'allows_smoking'=>is_string($_POST['allows_smoking']??null),'allows_pets'=>is_string($_POST['allows_pets']??null),'allows_parties'=>is_string($_POST['allows_parties']??null)];}
     public function visibility(string $id): never
     {
         Csrf::ensure(); $user=$this->requireRole('host');
         try {
-            (new Listing())->setVisible((int)$id,(int)$user['id'],!empty($_POST['visible']));
+            (new Listing())->setVisible((int)$id,(int)$user['id'],!empty(input_text($_POST,'visible')));
             Session::flash('success','Đã cập nhật hiển thị.');
         } catch (\Throwable $exception) {
             Session::flash('error',$exception instanceof \DomainException ? $exception->getMessage() : 'Không thể cập nhật hiển thị. Vui lòng thử lại.');
         }
         $this->redirect('/host');
     }
-    public function availability(string $id): never {Csrf::ensure();$u=$this->requireRole('host');$date=(string)($_POST['date']??'');$valid=\DateTimeImmutable::createFromFormat('!Y-m-d',$date);$message='Ngày không hợp lệ.';$ok=$valid&&$valid->format('Y-m-d')===$date&&$valid>=new \DateTimeImmutable('today');if($ok){$ok=(new Listing())->setAvailability((int)$id,(int)$u['id'],$date,!empty($_POST['open']),(string)($_POST['reason']??''));$message=$ok?'Đã cập nhật lịch.':'Không thể chặn ngày đã có booking xác nhận.';}if(str_contains((string)($_SERVER['HTTP_ACCEPT']??''),'application/json')){$this->json($ok,$message,null,[],$ok?200:422);}Session::flash($ok?'success':'error',$message);$this->redirect('/host/listings/'.$id.'/availability');}
-    public function transition(string $id): never {Csrf::ensure();$u=$this->requireRole('host');try{(new BookingService())->hostTransition((int)$id,(int)$u['id'],(string)($_POST['status']??''));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/host');}
+    public function availability(string $id): never {Csrf::ensure();$u=$this->requireRole('host');$date=input_text($_POST,'date');$valid=\DateTimeImmutable::createFromFormat('!Y-m-d',$date);$message='Ngày không hợp lệ.';$ok=$valid&&$valid->format('Y-m-d')===$date&&$valid>=new \DateTimeImmutable('today');if($ok){$ok=(new Listing())->setAvailability((int)$id,(int)$u['id'],$date,!empty(input_text($_POST,'open')),input_text($_POST,'reason'));$message=$ok?'Đã cập nhật lịch.':'Không thể chặn ngày đã có booking xác nhận.';}if(str_contains((string)($_SERVER['HTTP_ACCEPT']??''),'application/json')){$this->json($ok,$message,null,[],$ok?200:422);}Session::flash($ok?'success':'error',$message);$this->redirect('/host/listings/'.$id.'/availability');}
+    public function transition(string $id): never {Csrf::ensure();$u=$this->requireRole('host');try{(new BookingService())->hostTransition((int)$id,(int)$u['id'],input_text($_POST,'status'));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/host');}
 }
 

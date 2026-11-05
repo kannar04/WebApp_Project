@@ -175,7 +175,7 @@ final class PaymentController extends Controller
 
     private static function adminReturnPath(): string
     {
-        return ($_POST['return_to'] ?? '') === 'detail' && ctype_digit((string) ($_POST['booking_id'] ?? '')) ? '/bookings/'.(int) $_POST['booking_id'] : '/admin/payments';
+        return ($_POST['return_to'] ?? '') === 'detail' && ctype_digit(input_text($_POST, 'booking_id')) ? '/bookings/'.(int) input_text($_POST, 'booking_id') : '/admin/payments';
     }
 
     /** Shared by the return URL and the IPN: plain strings only, amount converted back from VNPay's ×100. */

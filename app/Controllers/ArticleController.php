@@ -13,8 +13,8 @@ final class ArticleController extends Controller
 
     public function index(): void
     {
-        $category = $_GET['category'] ?? '';
-        if (!is_string($category) || ($category !== '' && !isset(ArticleText::CATEGORIES[$category]))) {
+        $category = input_text($_GET, 'category');
+        if ($category !== '' && !isset(ArticleText::CATEGORIES[$category])) {
             $this->notFound();
             return;
         }
