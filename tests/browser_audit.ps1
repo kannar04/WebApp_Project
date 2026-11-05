@@ -166,6 +166,23 @@ function Check-BookingRefusal {
     Write-Output 'PASS browser refused booking keeps its input and quotes it again on load'
 }
 
+function Check-BookingRestore {
+    # Back fills the dates in without an input event, so the total used to stay blank. One quote per restore, and none extra when dates were quoted on load.
+    Navigate '/listings/2'
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_in.value='2035-06-10';f.elements.check_out.value='2035-06-12';f.elements.guests.value='2';f.elements.check_out.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+    Wait-FilterPage "!!document.querySelector('[data-quote] .is-total')"
+    Navigate '/wishlist'
+    $history=Send-Cdp 'Page.getNavigationHistory'
+    Send-Cdp 'Page.navigateToHistoryEntry' @{entryId=$history.entries[$history.currentIndex-1].id} | Out-Null
+    Wait-FilterPage "location.pathname==='/listings/2'&&!!document.querySelector('[data-quote] .is-total')"
+    $quoteCount="performance.getEntriesByType('resource').filter(function(r){return r.name.includes('/quote?');}).length"
+    $restored=Evaluate "new Promise(function(resolve){setTimeout(function(){const f=document.querySelector('[data-booking-form]');resolve({checkIn:f.elements.check_in.value,checkOut:f.elements.check_out.value,guests:f.elements.guests.value,type:performance.getEntriesByType('navigation')[0].type,quotes:$quoteCount});},900);})"
+    if ($restored.checkIn -ne '2035-06-10' -or $restored.checkOut -ne '2035-06-12' -or $restored.guests -ne '2' -or $restored.quotes -ne 1) { throw "Back did not quote the restored dates once: $($restored | ConvertTo-Json -Compress)" }
+    $events=Evaluate "new Promise(function(resolve){window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:false}));setTimeout(function(){const same=$quoteCount;window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}));setTimeout(function(){resolve({same:same,cached:$quoteCount});},900);},900);})"
+    if ($events.same -ne 1 -or $events.cached -ne 2) { throw "Pageshow quote count wrong: $($events | ConvertTo-Json -Compress)" }
+    Write-Output 'PASS browser dates restored on Back are quoted once, a cached page once more'
+}
+
 function Check-BookingDateWidth {
     # Below 145 px a date input clips the year, as it did at 375 (137 px) and 1024 (117 px).
     foreach ($width in @(375,768,1024,1440)) {
@@ -411,6 +428,7 @@ try {
     Check-SubmitStopRelease '[data-booking-form]' '/listings/1' "f.elements.check_in.value='2035-05-10';f.elements.check_out.value='2035-05-12'"
     Write-Output 'PASS browser booking guard releases on the timer after Stop'
     Check-BookingRefusal
+    Check-BookingRestore
     Check-BookingEnter
     Check-LongText '/' '.card-body h3 a'
     Check-LongText '/listings/1' '.detail-heading h1, .detail-heading p, .detail-page .col-lg-8 p'

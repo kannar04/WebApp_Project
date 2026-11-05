@@ -73,6 +73,21 @@
         event.currentTarget.elements.namedItem('check_out').dispatchEvent(new Event('input', {bubbles: true}));
     }
 
+    function bookingQuoteKey(form) {
+        const fields = form.elements;
+        return [fields.namedItem('check_in').value, fields.namedItem('check_out').value, fields.namedItem('guests').value, fields.namedItem('promo_code').value].join('|');
+    }
+
+    // The browser fills the form back in on Back without an input event, later than the on-load quote looks.
+    // A page out of the back/forward cache keeps its old total, so that gets a fresh one too. Either way one quote: dates already quoted on load are left alone.
+    function quoteRestoredDates(event) {
+        const form = document.querySelector('[data-booking-form]');
+        if (!form || !form.elements.namedItem('check_in').value || !form.elements.namedItem('check_out').value) { return; }
+        if (event.persisted || form.dataset.quotedFor !== bookingQuoteKey(form)) {
+            form.elements.namedItem('check_out').dispatchEvent(new Event('input', {bubbles: true}));
+        }
+    }
+
     // Stopping the page load fires no event, so give the form back in case the request never left.
     function scheduleFormRelease(form) {
         window.clearTimeout(Number(form.dataset.releaseTimer));
@@ -254,6 +269,7 @@
             const money = value => new Intl.NumberFormat('vi-VN').format(value) + '\u0111';
 
             function updateQuote() {
+                bookingForm.dataset.quotedFor = bookingQuoteKey(bookingForm);
                 clearTimeout(timer);
                 requestController?.abort();
                 const currentRevision = ++revision;
@@ -310,6 +326,7 @@
             fields.forEach(field => field.addEventListener('input', updateQuote));
             // Dates kept after a refused request need a total too, so the panel matches the form.
             if (fields[0].value && fields[1].value) { updateQuote(); }
+            window.addEventListener('pageshow', quoteRestoredDates);
             bookingForm.addEventListener('keydown', requoteOnEnter);
             bookingForm.addEventListener('submit', handleBookingSubmit);
         }
