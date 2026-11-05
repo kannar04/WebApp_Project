@@ -398,7 +398,10 @@ BEGIN
     SELECT v_result result,v_booking booking_id,(SELECT status FROM payment_transactions WHERE id=v_attempt) transaction_status,
         (SELECT gateway_response_code FROM payment_transactions WHERE id=v_attempt) response_code,
         -- Also true when the IPN recorded the duplicate first and the return URL only repeats it. A first success stores no note.
-        (SELECT gateway_response_code='00' AND note IS NOT NULL FROM payment_transactions WHERE id=v_attempt) duplicate_payment;
+        (SELECT status='succeeded' AND gateway_response_code='00' AND note IS NOT NULL FROM payment_transactions WHERE id=v_attempt) duplicate_payment,
+        -- An Admin has since closed that duplicate as refunded, so a reloaded return URL must not promise the refund again.
+        (SELECT status='cancelled' AND gateway_response_code='00' AND decided_by IS NOT NULL FROM payment_transactions WHERE id=v_attempt) duplicate_refunded,
+        (SELECT status FROM booking_payments WHERE booking_id=v_booking) payment_status;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_vnpay_result; END IF;
 END$$
 

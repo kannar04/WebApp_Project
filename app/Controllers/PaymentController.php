@@ -86,6 +86,10 @@ final class PaymentController extends Controller
             Session::flash('error', 'Số tiền VNPay trả về không khớp với giao dịch.');
         } elseif ((int) ($result['duplicate_payment'] ?? 0) === 1) {
             Session::flash('error', 'Booking #'.$bookingId.' đã được thanh toán trước đó nên khoản VNPay vừa rồi là thanh toán trùng. Admin sẽ hoàn lại khoản này cho bạn.');
+        } elseif ((int) ($result['duplicate_refunded'] ?? 0) === 1) {
+            Session::flash('success', 'Khoản VNPay trùng của booking #'.$bookingId.' đã được hoàn lại cho bạn.');
+        } elseif ($result['transaction_status'] === 'succeeded' && $result['payment_status'] === 'refunded') {
+            Session::flash('success', 'Khoản thanh toán VNPay của booking #'.$bookingId.' đã được ghi nhận hoàn tiền.');
         } elseif ($result['transaction_status'] === 'succeeded') {
             Session::flash('success', 'Thanh toán VNPay thành công cho booking #'.$bookingId.'.');
         } else {
