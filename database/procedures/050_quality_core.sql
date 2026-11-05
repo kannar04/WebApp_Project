@@ -252,7 +252,12 @@ END$$
 
 CREATE OR REPLACE PROCEDURE sp_notifications_list(IN p_actor BIGINT UNSIGNED)
 BEGIN
-    SELECT n.id,n.booking_id,n.event_type,n.title,n.body,n.read_at,n.created_at FROM notifications n
+    SELECT n.id,n.booking_id,n.event_type,n.title,n.body,n.read_at,n.created_at,
+        -- Same rule as sp_quality_assert_booking, so the page offers a link only when it opens.
+        EXISTS(SELECT 1 FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=n.booking_id
+            AND (b.guest_id=p_actor OR (l.host_id=p_actor AND EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='host'))
+                OR EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_actor AND role='admin'))) can_open_booking
+    FROM notifications n
     WHERE n.user_id=p_actor AND n.channel='in_app' AND EXISTS(SELECT 1 FROM users WHERE id=p_actor AND status='active' AND deleted_at IS NULL)
     ORDER BY n.created_at DESC,n.id DESC LIMIT 200;
 END$$

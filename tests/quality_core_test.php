@@ -508,6 +508,10 @@ foreach ([199=>false,200=>true] as $limitCount=>$limitShown) {
     $inboxList=qaRenderView('messages/index',['conversations'=>array_fill(0,$limitCount,$limitConversation)]);
     qaExpect(str_contains($inboxList,'Chỉ hiển thị 200 cuộc trò chuyện mới nhất.')===$limitShown,'Inbox limit notice wrong at '.$limitCount);
 }
+$linkedNotice=qaRenderView('notifications/index',['notifications'=>[['booking_id'=>7,'can_open_booking'=>1]+$limitNotification]]);
+qaExpect(str_contains($linkedNotice,'/bookings/7'),'A notification lost the link to a booking its reader can open.');
+$unlinkedNotice=qaRenderView('notifications/index',['notifications'=>[['booking_id'=>7,'can_open_booking'=>0]+$limitNotification]]);
+qaExpect(!str_contains($unlinkedNotice,'/bookings/7'),'A notification links to a booking its reader cannot open.');
 $threadList=qaRenderView('admin/messages',['thread'=>array_fill(0,200,$limitMessage),'results'=>[],'filters'=>['q'=>'','booking'=>1,'user'=>'']]);
 qaExpect(!str_contains($threadList,'tin nhắn mới nhất'),'One booking thread is not a limited search.');
 echo "PASS QA admin bookings, admin messages, notifications and inbox say so when the 200 row limit is reached\n";

@@ -64,6 +64,14 @@ function noticesFor(int $userId, ?int $bookingId, string $eventType): array
     }
     return $found;
 }
+function noticeLinks(int $userId, int $bookingId): array
+{
+    $links=[];
+    foreach ((new Notification())->forUser($userId) as $notice) {
+        if ((int)$notice['booking_id']===$bookingId) { $links[]=(int)$notice['can_open_booking']; }
+    }
+    return $links;
+}
 function hostListingRow(int $hostId, int $listingId): array
 {
     foreach ((new Listing())->hostListings($hostId) as $row) {
@@ -413,6 +421,24 @@ try {
         $users->grantHost($unrecorded);
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS Host role: never-had and given-back can take it, an Admin removal holds until an Admin gives it back\n";
+
+    // A former Host keeps their old booking notifications, without a link the permission rule would answer with a 404. Everything rolls back.
+    $db->beginTransaction();
+    try {
+        $service=new BookingService(); $moderation=new AdminRepository(); $guestId=(int)$guest['id']; $tag=bin2hex(random_bytes(6));
+        $formerHost=$users->adminCreate(['email'=>'audit-'.$tag.'-former@home2home.test','password'=>bin2hex(random_bytes(16)),'full_name'=>'Audit former host','phone'=>''],['guest','host']);
+        $formerListing=$model->create($formerHost,['title'=>'Audit fixture '.$tag]+$data);
+        callRows('CALL sp_test_listing_approve(?)',[$formerListing]);
+        $formerRequest=$service->create($formerListing,$guestId,$start,$end,1);
+        ensure(noticeLinks($formerHost,$formerRequest)===[1],'A Host could not open a booking from its notification.');
+        $service->hostTransition($formerRequest,$formerHost,'rejected');
+        $moderation->softDeleteListing($formerListing,(int)$admin['id']);
+        $users->replaceRoles($formerHost,['guest'],(int)$admin['id']);
+        ensure(noticeLinks($formerHost,$formerRequest)!==[] && !in_array(1,noticeLinks($formerHost,$formerRequest),true),'A former Host was offered a booking they cannot open.');
+        refused('callRows',['CALL sp_booking_detail(?,?)',[$formerRequest,$formerHost]]);
+        ensure(!in_array(0,noticeLinks($guestId,$formerRequest),true) && noticeLinks($guestId,$formerRequest)!==[],'The Guest lost the link to their own booking.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS notifications link to a booking only when that person can open it\n";
 
     // A hide by an Admin holds until an Admin shows the listing; a Host's own hide stays theirs. Everything rolls back.
     $db->beginTransaction();
