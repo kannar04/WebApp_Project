@@ -104,6 +104,35 @@ function Capture-Page([string]$Name) {
     [IO.File]::WriteAllBytes((Join-Path $ScreenshotDirectory ($Name+'.png')), [Convert]::FromBase64String($capture.data))
 }
 
+function Wait-FilterPage([string]$Condition) {
+    for ($attempt=0; $attempt -lt 100; $attempt++) {
+        Start-Sleep -Milliseconds 100
+        try { if (Evaluate "document.readyState==='complete'&&($Condition)") { return } } catch { if ($attempt -eq 99) { throw } }
+    }
+    throw "Filter page did not settle: $Condition"
+}
+
+function Check-FilterResubmit {
+    # Identical filters change only the #fragment: nothing loads, so the button stays usable and the browser still jumps to the results.
+    Navigate '/'
+    Evaluate "window.h2hSamePage=true;document.querySelector('[data-filter-submit]').click();true" | Out-Null
+    Wait-FilterPage "!window.h2hSamePage&&location.hash==='#listing-results'"
+    foreach ($attempt in 1,2) {
+        $resubmit=Evaluate "(async()=>{window.h2hSamePage=true;scrollTo({top:0,behavior:'instant'});const form=document.querySelector('[data-filter-form]');const button=form.querySelector('[data-filter-submit]');const idle=button.textContent;button.click();await new Promise(r=>setTimeout(r,800));return {same:window.h2hSamePage===true,disabled:button.disabled,busy:form.getAttribute('aria-busy'),guard:form.dataset.submitting||'',kept:button.textContent===idle,scrolled:scrollY>0};})()"
+        if (!$resubmit.same -or $resubmit.disabled -or $resubmit.busy -or $resubmit.guard -or !$resubmit.kept -or !$resubmit.scrolled) { throw "Identical filter resubmit $attempt locked the form: $($resubmit | ConvertTo-Json -Compress)" }
+    }
+    # A real navigation keeps the busy state and the double-submit guard; Back must release it.
+    $changed=Evaluate "(()=>{window.h2hSamePage=true;const form=document.querySelector('[data-filter-form]');form.elements.min_price.value='1000';const button=form.querySelector('[data-filter-submit]');button.click();const again=new Event('submit',{cancelable:true});form.dispatchEvent(again);return {busy:form.getAttribute('aria-busy'),disabled:button.disabled,second:again.defaultPrevented};})()"
+    if ($changed.busy -ne 'true' -or !$changed.disabled -or !$changed.second) { throw "Changed filter lost its submitting guard: $($changed | ConvertTo-Json -Compress)" }
+    Wait-FilterPage "!window.h2hSamePage&&location.search.includes('min_price=1000')"
+    if (Evaluate "document.querySelector('[data-filter-submit]').disabled") { throw 'Changed filter left the button disabled after loading' }
+    $history=Send-Cdp 'Page.getNavigationHistory'
+    Send-Cdp 'Page.navigateToHistoryEntry' @{entryId=$history.entries[$history.currentIndex-1].id} | Out-Null
+    Wait-FilterPage "!location.search.includes('min_price=1000')"
+    if (Evaluate "(()=>{const f=document.querySelector('[data-filter-form]');return f.dataset.submitting==='true'||f.querySelector('[data-filter-submit]').disabled;})()") { throw 'Browser Back left the filter locked' }
+    Write-Output 'PASS browser filter resubmit, changed filter guard and Back'
+}
+
 function Check-CalendarNavigation([string]$Path) {
     Navigate $Path
     $next=Evaluate 'document.querySelector(''#availability-calendar'').closest(''section'').querySelectorAll(''a'')[1].getAttribute(''href'')'
@@ -153,6 +182,7 @@ try {
     $quoteRecovery = Evaluate "(async()=>{const form=document.querySelector('[data-booking-form]');const panel=form.querySelector('[data-quote]');form.elements.check_in.value='2035-02-12';form.elements.check_out.value='2035-02-10';form.elements.check_out.dispatchEvent(new Event('input'));await new Promise(r=>setTimeout(r,700));if(!panel.classList.contains('text-danger'))return false;form.elements.check_out.value='2035-02-14';form.elements.check_out.dispatchEvent(new Event('input'));await new Promise(r=>setTimeout(r,700));if(panel.classList.contains('text-danger')||!panel.innerText.includes('4.400.000'))return false;form.elements.check_in.value='';form.elements.check_in.dispatchEvent(new Event('input'));return !panel.querySelector('strong')&&!panel.innerText.includes('4.400.000');})()"
     if (!$quoteRecovery) { throw 'Quote error recovery/reset failed' }
     Write-Output 'PASS quote error recovery and clearing stale totals'
+    Check-FilterResubmit
 
     Navigate '/login'
     Check-Page 'login'

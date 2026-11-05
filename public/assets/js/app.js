@@ -22,6 +22,31 @@
     }
     window.h2hT = h2hT;
 
+    // Same page apart from the #fragment: the browser only jumps to the results, so nothing loads and pageshow never fires.
+    function isFragmentOnlySubmit(form) {
+        const target = new URL(form.action, window.location.href);
+        target.search = new URLSearchParams(new FormData(form)).toString();
+        return target.hash !== '' && target.href.split('#')[0] === window.location.href.split('#')[0];
+    }
+
+    function handleSearchSubmit(event) {
+        const form = event.currentTarget;
+        if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
+        if (isFragmentOnlySubmit(form)) { return; }
+        form.dataset.submitting = 'true';
+        form.setAttribute('aria-busy', 'true');
+        const button = form.querySelector('button[type="submit"]');
+        if (button) {
+            button.dataset.idleLabel = button.textContent;
+            button.disabled = true;
+            button.textContent = h2hT('Đang tìm…');
+        }
+    }
+
+    function watchSearchSubmit(form) {
+        form.addEventListener('submit', handleSearchSubmit);
+    }
+
     function initialize() {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const baseUrl = document.querySelector('meta[name="app-base-url"]')?.content.replace(/\/$/, '') || '';
@@ -53,19 +78,7 @@
             validatePriceRange();
         }
 
-        document.querySelectorAll('[data-filter-form], [data-search-form]').forEach(form => {
-            form.addEventListener('submit', event => {
-                if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
-                form.dataset.submitting = 'true';
-                form.setAttribute('aria-busy', 'true');
-                const button = form.querySelector('button[type="submit"]');
-                if (button) {
-                    button.dataset.idleLabel = button.textContent;
-                    button.disabled = true;
-                    button.textContent = h2hT('Đang tìm…');
-                }
-            });
-        });
+        document.querySelectorAll('[data-filter-form], [data-search-form]').forEach(watchSearchSubmit);
 
         // Back/forward cache must not leave a restored search/booking button disabled.
         window.addEventListener('pageshow', () => {
