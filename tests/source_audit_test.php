@@ -21,6 +21,15 @@ function expectDomainFailure(callable $operation, string $message): void
     throw new RuntimeException($message);
 }
 
+/** Renders the login view in a child process, because APP_ENV is read when the view runs. */
+function loginViewUnderEnv(string $environment): string
+{
+    $process = proc_open([PHP_BINARY, '-r', 'require "core/bootstrap.php"; $old=[]; require "app/Views/auth/login.php";'], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, dirname(__DIR__), array_merge(getenv(), ['APP_ENV' => $environment]), ['bypass_shell' => true]);
+    $output = (string) stream_get_contents($pipes[1]);
+    fclose($pipes[1]); fclose($pipes[2]); proc_close($process);
+    return $output;
+}
+
 $appConfig = require dirname(__DIR__).'/config/app.php';
 $dbConfig = require dirname(__DIR__).'/config/database.php';
 expect($appConfig['env'] === 'local' && in_array($dbConfig['host'], ['localhost', '127.0.0.1', '::1'], true), 'Run fixture tests only on a local database.');
@@ -49,6 +58,11 @@ foreach (array_merge(glob(dirname(__DIR__).'/app/Controllers/*.php'), glob(dirna
     expect(!preg_match('/\((string|int|float)\)\s*\(?\$_(GET|POST)\[|\be\(\$_(GET|POST)\[/', (string) file_get_contents($sourceFile)), 'Request value assumed to be a string: '.basename($sourceFile));
 }
 echo "PASS error display follows APP_DEBUG, array-shaped request values read as absent\n";
+
+$localLogin = loginViewUnderEnv('local'); $productionLogin = loginViewUnderEnv('production');
+expect(str_contains($localLogin, 'class="demo-note"') && str_contains($localLogin, 'name="password"'), 'Local login page must show the demo accounts.');
+expect(str_contains($productionLogin, 'name="password"') && !str_contains($productionLogin, 'demo-note') && !str_contains($productionLogin, '@home2home.test'), 'Demo accounts shown outside the local environment.');
+echo "PASS demo accounts appear on the login page only in the local environment\n";
 
 $userModel = new User();
 $host = $userModel->findByEmail('host@home2home.test');
