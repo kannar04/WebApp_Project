@@ -155,7 +155,7 @@ final class PaymentController extends Controller
     {
         Csrf::ensure(); $admin = $this->requireRole('admin');
         $decision = $_POST['decision'] ?? '';
-        $note = is_string($_POST['note'] ?? null) ? mb_substr(trim($_POST['note']), 0, 501) : '';
+        $note = mb_substr(trim(input_text($_POST, 'note')), 0, 501);
         $returnTo = self::adminReturnPath();
         try {
             if (!in_array($decision, ['confirm', 'reject'], true)) { throw new \DomainException('Quyết định chuyển khoản không hợp lệ.'); }
@@ -172,7 +172,7 @@ final class PaymentController extends Controller
     public function adminResolveDuplicate(string $id): never
     {
         Csrf::ensure(); $admin = $this->requireRole('admin');
-        $note = is_string($_POST['note'] ?? null) ? mb_substr(trim($_POST['note']), 0, 501) : '';
+        $note = mb_substr(trim(input_text($_POST, 'note')), 0, 501);
         $returnTo = self::adminReturnPath();
         try {
             if ($note === '' || mb_strlen($note) > 500) { throw new \DomainException('Vui lòng ghi chú lý do hoàn tiền (tối đa 500 ký tự).'); }

@@ -26,11 +26,10 @@ final class ProfileController extends Controller
     {
         Csrf::ensure();
         $user = $this->requireAuth();
-        $rawName = $_POST['full_name'] ?? '';
         $rawPhone = $_POST['phone'] ?? '';
-        $name = is_string($rawName) ? trim($rawName) : '';
+        $name = trim(input_text($_POST, 'full_name'));
         $phone = is_string($rawPhone) ? trim($rawPhone) : '';
-        if (!is_string($rawName) || !is_string($rawPhone) || $name === '' || mb_strlen($name) > 150 || strlen($phone) > 20) {
+        if (!is_string($rawPhone) || $name === '' || mb_strlen($name) > 150 || strlen($phone) > 20) {
             Session::put('_profile_old', ['full_name' => $name, 'phone' => $phone]);
             Session::flash('error', 'Họ tên và số điện thoại không hợp lệ hoặc vượt giới hạn độ dài.');
             $this->redirect('/profile#personal');

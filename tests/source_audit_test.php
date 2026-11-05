@@ -415,6 +415,39 @@ try {
         $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$phoneFixture]);
     }
     echo "PASS phone uses the identity verification rule on register, profile, admin create and edit, blank allowed; a stored bad value displays escaped\n";
+
+    expect(input_text(['a' => "\xff"], 'a') === '' && input_text(['a' => "a\xffb"], 'a', '7') === '7', 'Invalid UTF-8 must read like an absent value.');
+    $legitimate = 'Trần Thị Ánh ơi, 你好 🏠 €';
+    expect(input_text(['a' => $legitimate], 'a') === $legitimate && input_text(['a' => "a\0b"], 'a') === "a\0b", 'Valid text must pass through untouched.');
+    expect(input_password(['a' => "caf\xe9\xe9\xe9\xe9"], 'a') === "caf\xe9\xe9\xe9\xe9" && input_password(['a' => ['x']], 'a') === '' && input_password([], 'a') === '', 'A password must come through byte for byte.');
+    $utf8Email = "audit-utf8-$tag@home2home.test";
+    $latin1Password = "caf\xe9\xe9\xe9\xe9\xe9";
+    $utf8Fixture = $passwordModel->create($utf8Email, $latin1Password, 'Audit UTF-8 fixture', null);
+    $utf8Catalog = 'Audit UTF-8 '.$tag;
+    try {
+        $utf8Browser = auditBrowser();
+        $form = auditRequest($utf8Browser, $url.'/login')['body'];
+        expect(auditRequest($utf8Browser, $url.'/login', '_token='.auditFormToken($form).'&email='.urlencode($utf8Email).'&password=caf%E9%E9%E9%E9%E9')['location'] === '/', 'A password that is not valid UTF-8 must still log in.');
+        $profileToken = auditFormToken(auditRequest($utf8Browser, $url.'/profile')['body']);
+        auditRequest($utf8Browser, $url.'/profile', '_token='.$profileToken.'&full_name=Abc%FFdef&phone=', $url.'/profile');
+        expect($passwordModel->findByEmail($utf8Email)['full_name'] === 'Audit UTF-8 fixture', 'Profile stored a name with invalid UTF-8.');
+        auditRequest($utf8Browser, $url.'/profile');
+        auditRequest($utf8Browser, $url.'/profile', ['_token' => $profileToken, 'full_name' => $legitimate, 'phone' => ''], $url.'/profile');
+        expect($passwordModel->findByEmail($utf8Email)['full_name'] === $legitimate, 'A Vietnamese, CJK and emoji name must be saved unchanged.');
+        $reporter = auditRequest($utf8Browser, $url.'/reports', '_token='.$profileToken.'&category=other&listing_id=1&description=Abcdefghij%FFklmnop', $url.'/listings/1');
+        expect(str_contains(auditRequest($utf8Browser, $url.$reporter['location'])['body'], 'Thông tin báo cáo không hợp lệ.'), 'A report with invalid UTF-8 must be refused.');
+        $utf8Register = auditBrowser();
+        $form = auditRequest($utf8Register, $url.'/register')['body'];
+        $refused = auditRequest($utf8Register, $url.'/register', '_token='.auditFormToken($form).'&full_name=Abc%FFdef&email='.urlencode("audit-utf8b-$tag@home2home.test").'&phone=&password=Abcdefgh1');
+        expect($refused['location'] === '/register' && $passwordModel->findByEmail("audit-utf8b-$tag@home2home.test") === null, 'Register stored a name with invalid UTF-8.');
+        auditRequest($admin, $url.'/admin/users/'.$utf8Fixture, ['_token' => $adminToken, 'full_name' => $legitimate, 'email' => $utf8Email, 'phone' => '', 'password' => "caf\xe9\xe9\xe9\xe9\xe9\xe9\xe9", 'roles' => ['guest']]);
+        expect(password_verify("caf\xe9\xe9\xe9\xe9\xe9\xe9\xe9", $passwordModel->findByEmail($utf8Email)['password_hash']), 'Admin edit must not read a password with other bytes as blank.');
+        auditRequest($admin, $url.'/admin/catalog', '_token='.$adminToken.'&kind=amenity&id=0&name=Abc%FFdef&detail=x&active=1', $url.'/admin/catalog');
+        expect(str_contains(auditRequest($admin, $url.'/admin/catalog')['body'], 'Thông tin danh mục không hợp lệ.'), 'Catalog must refuse a name with invalid UTF-8.');
+    } finally {
+        $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$utf8Fixture]);
+    }
+    echo "PASS invalid UTF-8 text reads as absent and is never stored as ?; valid text and password bytes pass through\n";
 } finally {
     auditServerStop($rootServer); auditServerStop($subfolderServer);
 }

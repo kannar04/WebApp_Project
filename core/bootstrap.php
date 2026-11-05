@@ -45,11 +45,18 @@ function configure_error_output(bool $debug, string $sapi = PHP_SAPI): void
     }
 }
 
-/** Request text from $_GET or $_POST: an absent or array-shaped value (name[]=1) gives $default. */
+/** Request text from $_GET or $_POST: an absent, array-shaped (name[]=1) or invalid UTF-8 value gives $default, so bad bytes are never stored as '?'. */
 function input_text(array $source, string $key, string $default = ''): string
 {
     $value = $source[$key] ?? $default;
-    return is_string($value) ? $value : $default;
+    return is_string($value) && mb_check_encoding($value, 'UTF-8') ? $value : $default;
+}
+
+/** A password is bytes, not text: it comes through untouched, or a password set by an older client would no longer open. */
+function input_password(array $source, string $key): string
+{
+    $value = $source[$key] ?? '';
+    return is_string($value) ? $value : '';
 }
 
 function e(mixed $value): string

@@ -204,8 +204,7 @@ final class BookingExtrasController extends Controller
     /** Trimmed POST string; over-long values are cut at $limit + 1 so the length check still fails. */
     private function text(string $field, int $limit): string
     {
-        $value = $_POST[$field] ?? '';
-        return is_string($value) ? mb_substr(trim($value), 0, $limit + 1) : '';
+        return mb_substr(trim(input_text($_POST, $field)), 0, $limit + 1);
     }
 
     private function optionalNumber(string $value, float $minimum, float $maximum, string $message): ?string

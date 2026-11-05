@@ -383,6 +383,9 @@ qaExpect(array_search($nearTrip,$upcomingIds,true)<array_search($farTrip,$upcomi
 qaExpect(!in_array($cancelledTrip,$upcomingIds,true) && !in_array($finishedTrip,$upcomingIds,true),'Upcoming trips include a cancelled or finished stay.');
 foreach ($upcoming as $trip) { qaExpect(in_array($trip['status'],['pending','confirmed'],true) && $trip['check_out']>=date('Y-m-d'),'Upcoming trips include a closed stay.'); }
 $login('guest');
+// Invalid UTF-8 in a review comment reads as an absent comment: refused, and never stored with '?'.
+$request('/bookings/'.$finishedTrip.'/review',['_token'=>$token($request('/profile')),'rating'=>'5','comment'=>"Quality\xffreview"]);
+qaExpect(!in_array('Quality?review',array_column($reviews->forHost(2),'comment'),true),'Review comment with invalid UTF-8 was stored with a question mark.');
 $profile=$request('/profile')['body'];
 qaExpect(preg_match_all('/<div class="trip-row">/',$profile)===min(2,count($upcoming)),'Profile does not show the soonest trips.');
 qaExpect(str_contains($profile,display_date($upcoming[0]['check_in']).' → '.display_date($upcoming[0]['check_out'])),'Profile does not start with the soonest trip.');

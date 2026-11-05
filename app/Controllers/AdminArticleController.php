@@ -117,8 +117,7 @@ final class AdminArticleController extends Controller
         $back = $existing ? '/admin/articles/'.(int) $existing['id'].'/edit' : '/admin/articles/create';
         $input = [];
         foreach (['title', 'category', 'slug', 'excerpt', 'body', 'cover_alt'] as $field) {
-            $value = $_POST[$field] ?? '';
-            $input[$field] = is_string($value) ? trim(str_replace(["\r\n", "\r"], "\n", $value)) : '';
+            $input[$field] = trim(str_replace(["\r\n", "\r"], "\n", input_text($_POST, $field)));
         }
         $intent = $_POST['intent'] ?? 'save';
         $status = match ($intent) { 'publish' => 'published', 'draft' => 'draft', default => $existing ? null : 'draft' };

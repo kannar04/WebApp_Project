@@ -54,7 +54,7 @@ final class TrustController extends Controller
         Csrf::ensure();
         $admin = $this->requireRole('admin');
         $decision = is_string($_POST['decision'] ?? null) ? $_POST['decision'] : '';
-        $reason = is_string($_POST['reason'] ?? null) ? trim($_POST['reason']) : '';
+        $reason = trim(input_text($_POST, 'reason'));
         try {
             if (mb_strlen($reason) > 1000) { throw new \DomainException('Ghi chú quyết định tối đa 1000 ký tự.'); }
             (new Trust())->decideVerification((int) $id, (int) $admin['id'], $decision, $reason);
@@ -99,10 +99,10 @@ final class TrustController extends Controller
         $this->redirect('/host/listings/'.(int) $id.'/checkin-guide');
     }
 
-    /** Missing fields become empty strings; arrays and other non-strings are rejected as null. */
+    /** Missing fields become empty strings; arrays, other non-strings and invalid UTF-8 are rejected as null. */
     private function postedText(string $field): ?string
     {
         $value = $_POST[$field] ?? '';
-        return is_string($value) ? trim($value) : null;
+        return is_string($value) && mb_check_encoding($value, 'UTF-8') ? trim($value) : null;
     }
 }

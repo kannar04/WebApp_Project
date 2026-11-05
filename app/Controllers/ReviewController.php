@@ -28,7 +28,7 @@ final class ReviewController extends Controller
         Csrf::ensure(); $user=$this->requireRole('host');
         try {
             $reply=$_POST['reply']??'';
-            if (!is_string($reply) || mb_strlen($reply)>5000 || trim($reply)==='') { throw new \DomainException('Phản hồi cần từ 1 đến 5000 ký tự.'); }
+            if (!is_string($reply) || !mb_check_encoding($reply,'UTF-8') || mb_strlen($reply)>5000 || trim($reply)==='') { throw new \DomainException('Phản hồi cần từ 1 đến 5000 ký tự.'); }
             (new Review())->reply((int)$id,(int)$user['id'],$reply); Session::flash('success','Đã lưu phản hồi.');
         } catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
         $this->redirect('/host/reviews');

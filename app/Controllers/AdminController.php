@@ -57,7 +57,7 @@ final class AdminController extends Controller
     {
         Csrf::ensure(); $admin=$this->requireRole('admin');
         $data=['full_name'=>trim(input_text($_POST,'full_name')),'email'=>trim(input_text($_POST,'email')),
-            'phone'=>trim(input_text($_POST,'phone')),'password'=>input_text($_POST,'password')];
+            'phone'=>trim(input_text($_POST,'phone')),'password'=>input_password($_POST,'password')];
         $roles=$_POST['roles']??['guest'];
         if ($data['full_name']==='' || mb_strlen($data['full_name'])>150 || !filter_var($data['email'],FILTER_VALIDATE_EMAIL)
             || strlen($data['email'])>254 || strlen($data['phone'])>20
@@ -92,7 +92,7 @@ final class AdminController extends Controller
             'full_name' => trim(input_text($_POST, 'full_name')),
             'email' => trim(input_text($_POST, 'email')),
             'phone' => trim(input_text($_POST, 'phone')),
-            'password' => input_text($_POST, 'password'),
+            'password' => input_password($_POST, 'password'),
         ];
         if ($data['full_name'] === '' || mb_strlen($data['full_name']) > 150
             || !filter_var($data['email'], FILTER_VALIDATE_EMAIL) || strlen($data['email']) > 254
