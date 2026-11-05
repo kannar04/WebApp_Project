@@ -382,6 +382,11 @@ try {
         conversationHttp($guestClient, $baseUrl, '/bookings/'.$bookingB.'/messages', ['_token' => $guestToken, 'body' => 'Còn phòng không?', ]);
         $readOnly = conversationHttp($guestClient, $baseUrl, '/bookings/'.$bookingB)['body'];
         conversationExpect(str_contains($readOnly, 'chỉ còn để xem') && !str_contains($readOnly, 'name="body"'), 'Read-only booking still offers the form.');
+        // An empty thread invites questions only where one can be sent.
+        conversationExpect(str_contains($readOnly, 'Cuộc trò chuyện này chưa có tin nhắn.') && !str_contains($readOnly, 'Bạn có thể hỏi về giờ nhận phòng'), 'An empty read-only thread invites questions.');
+        conversationExpect($messages->thread($bookingF, $guestId) === [] && (int) $messages->state($bookingF, $guestId)['can_send'] === 1, 'The open-thread fixture is not empty and open.');
+        $openEmptyPage = conversationHttp($guestClient, $baseUrl, '/bookings/'.$bookingF)['body'];
+        conversationExpect(str_contains($openEmptyPage, 'Bạn có thể hỏi về giờ nhận phòng') && !str_contains($openEmptyPage, 'Cuộc trò chuyện này chưa có tin nhắn.') && str_contains($openEmptyPage, 'name="body"'), 'An empty open thread lost its invitation.');
         $confirmedPage = conversationHttp($guestClient, $baseUrl, '/bookings/'.$bookingD)['body'];
         conversationExpect(str_contains($confirmedPage, 'href="https://zalo.me/0900000002"') && str_contains($confirmedPage, 'Liên hệ qua Zalo'), 'Zalo link missing for confirmed booking.');
         conversationExpect(conversationHttp($guestClient, $baseUrl, '/admin/messages')['status'] === 403, 'Guest opened admin messages.');

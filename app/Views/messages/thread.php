@@ -2,7 +2,7 @@
 <?php if($conversation!==null): $conversationState=$conversation['state']; $pageScripts[]='js/messages.js'; ?>
 <section class="surface-card mt-4 booking-thread" id="booking-messages" aria-labelledby="booking-messages-title">
     <div class="section-title compact"><div><p class="eyebrow"><?= e(__('TIN NHẮN BOOKING')) ?></p><h2 class="h4" id="booking-messages-title"><?= e(__('Trao đổi với {name}', ['name'=>$conversationState['other_name']])) ?></h2><p><?= e($conversationState['my_role']==='guest'?__('Host của chỗ ở'):__('Guest của booking')) ?> · <?= e(__('chỉ hai bên và quản trị viên xem được.')) ?></p></div><a class="btn btn-ghost" href="<?= e(url('/messages')) ?>"><?= e(__('Tất cả tin nhắn')) ?></a></div>
-    <?php if(!$conversation['messages']): ?><p class="thread-empty"><?= e(__('Chưa có tin nhắn. Bạn có thể hỏi về giờ nhận phòng, đường đi hoặc yêu cầu đặc biệt.')) ?></p><?php else: ?>
+    <?php if(!$conversation['messages']): ?><p class="thread-empty"><?= e((int)$conversationState['can_send']?__('Chưa có tin nhắn. Bạn có thể hỏi về giờ nhận phòng, đường đi hoặc yêu cầu đặc biệt.'):__('Cuộc trò chuyện này chưa có tin nhắn.')) ?></p><?php else: ?>
     <?php if(count($conversation['messages'])>=500): ?><p class="text-muted small"><?= e(__('Chỉ hiển thị {count} tin nhắn mới nhất.', ['count'=>count($conversation['messages'])])) ?></p><?php endif; ?>
     <ol class="message-list" data-message-list tabindex="0" aria-label="<?= e(__('Lịch sử tin nhắn')) ?>">
         <?php foreach($conversation['messages'] as $message): ?><li class="message-item <?= (int)$message['is_mine']?'is-mine':'is-theirs' ?>"><div class="message-bubble">

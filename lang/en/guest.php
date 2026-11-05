@@ -149,6 +149,7 @@ return [
     'Guest của booking' => 'Guest on this booking',
     'chỉ hai bên và quản trị viên xem được.' => 'visible only to both sides and administrators.',
     'Tất cả tin nhắn' => 'All messages',
+    'Cuộc trò chuyện này chưa có tin nhắn.' => 'This conversation has no messages.',
     'Chưa có tin nhắn. Bạn có thể hỏi về giờ nhận phòng, đường đi hoặc yêu cầu đặc biệt.' => 'No messages yet. You can ask about check-in time, directions or special requests.',
     'Lịch sử tin nhắn' => 'Message history',
     'Bạn' => 'You',
