@@ -43,6 +43,18 @@ try {
     }
 
     $service->hostTransition($bookingId, 2, 'confirmed');
+    $hostNotice = '';
+    foreach ((new \App\Models\Notification())->forUser(2) as $notice) {
+        if ((int) $notice['booking_id'] === $bookingId && $notice['event_type'] === 'booking_confirmed') {
+            $hostNotice = (string) $notice['body'];
+        }
+    }
+    if ($hostNotice !== 'Booking #' . $bookingId . ' chuyển sang trạng thái Đã xác nhận.') {
+        throw new RuntimeException('Thông báo cho Host không dùng nhãn trạng thái tiếng Việt: ' . $hostNotice);
+    }
+    if (\Core\I18n::matchPattern($hostNotice) !== 'Booking #' . $bookingId . ' is now Confirmed.') {
+        throw new RuntimeException('Thông báo cho Host không được dịch đúng sang tiếng Anh.');
+    }
     $refund = $service->cancelByGuest($bookingId, 3, 'Automated integration test');
     $status = fixtureRead($db, $bookingId, 'status');
     // Confirmed but unpaid: nothing was collected, so no refund is recorded.

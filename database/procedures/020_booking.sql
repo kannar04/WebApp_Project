@@ -212,7 +212,7 @@ BEGIN
             VALUES(p_actor,'transition_booking','booking',p_booking,JSON_OBJECT('details',p_target),NOW(6));
     END IF;
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
-        VALUES(v_host,p_booking,'in_app',CONCAT('booking_',p_target),'Cập nhật booking',CONCAT('Booking #',p_booking,' chuyển sang ',p_target,'.'),'sent',1,NOW(6));
+        VALUES(v_host,p_booking,'in_app',CONCAT('booking_',p_target),'Cập nhật booking',CONCAT('Booking #',p_booking,' chuyển sang trạng thái ',CASE p_target WHEN 'confirmed' THEN 'Đã xác nhận' WHEN 'rejected' THEN 'Bị từ chối' ELSE 'Hoàn thành' END,'.'),'sent',1,NOW(6));
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_booking_transition; END IF;
 END$$
 

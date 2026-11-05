@@ -13,7 +13,8 @@ return [
     'Bạn có booking Đặt ngay mới cho “{listing}” (#{id}), đã được tự động xác nhận.' => 'You have a new Instant Book booking for “{listing}” (#{id}); it was confirmed automatically.',
     'Bạn có yêu cầu đặt chỗ mới cho “{listing}”.' => 'You have a new booking request for “{listing}”.',
 
-    // ---- 020_booking.sql: sp_booking_transition Host notification (the status is the raw code)
+    // ---- 020_booking.sql: sp_booking_transition Host notification. {status} is a Vietnamese label found in the dictionary; the raw-code entries keep older rows readable.
+    'Booking #{id} chuyển sang trạng thái {status}.' => 'Booking #{id} is now {status}.',
     'Booking #{id} chuyển sang confirmed.' => 'Booking #{id} is now confirmed.',
     'Booking #{id} chuyển sang rejected.' => 'Booking #{id} is now rejected.',
     'Booking #{id} chuyển sang completed.' => 'Booking #{id} is now completed.',
