@@ -166,6 +166,25 @@ function Check-BookingRefusal {
     Write-Output 'PASS browser refused booking keeps its input and quotes it again on load'
 }
 
+function Check-LoginCarriesBooking {
+    # Signed out, the sign-in link takes the chosen stay along: same site, encoded, following the form. After signing in the listing has it back and quotes it.
+    Navigate '/listings/1'
+    $plain=Evaluate "(function(){const u=new URL(document.querySelector('[data-login-next]').href);return u.pathname+u.search;})()"
+    if ($plain -ne '/login') { throw "Sign-in link changed before any date was chosen: $plain" }
+    $choose="(function(f){f.elements.check_in.value='2035-07-10';f.elements.check_out.value='CHECKOUT';f.elements.guests.value='2';f.elements.check_out.dispatchEvent(new Event('input',{bubbles:true}));const u=new URL(f.querySelector('[data-login-next]').href);return {sameSite:u.origin===location.origin,path:u.pathname,search:u.search,next:u.searchParams.get('next')};})(document.querySelector('[data-booking-form]'))"
+    $first=Evaluate $choose.Replace('CHECKOUT','2035-07-11')
+    $link=Evaluate $choose.Replace('CHECKOUT','2035-07-12')
+    if (!$link.sameSite -or $link.path -ne '/login' -or $first.next -ne '/listings/1?check_in=2035-07-10&check_out=2035-07-11&guests=2' -or $link.next -ne '/listings/1?check_in=2035-07-10&check_out=2035-07-12&guests=2' -or $link.search -notmatch '^\?next=%2Flistings%2F1%3Fcheck_in%3D') { throw "Sign-in link wrong: $($link | ConvertTo-Json -Compress)" }
+    Evaluate "document.querySelector('[data-login-next]').click();true" | Out-Null
+    Wait-FilterPage "location.pathname==='/login'&&!!document.querySelector('form [name=password]')"
+    Evaluate "(function(){const f=document.querySelector('form [name=password]').form;f.elements.email.value='guest@home2home.test';f.elements.password.value='Password123!';f.requestSubmit();return true;})()" | Out-Null
+    Wait-FilterPage "location.pathname==='/listings/1'&&!!document.querySelector('[data-quote] .is-total')"
+    $back=Evaluate "(function(){const f=document.querySelector('[data-booking-form]');return {checkIn:f.elements.check_in.value,checkOut:f.elements.check_out.value,guests:f.elements.guests.value,book:!!f.querySelector('button[type=submit]')};})()"
+    if ($back.checkIn -ne '2035-07-10' -or $back.checkOut -ne '2035-07-12' -or $back.guests -ne '2' -or !$back.book) { throw "Stay lost through sign-in: $($back | ConvertTo-Json -Compress)" }
+    Logout-Role
+    Write-Output 'PASS browser sign-in link carries the chosen stay, encoded and same site, and the listing quotes it after sign-in'
+}
+
 function Check-BookingRestore {
     # Back fills the dates in without an input event, so the total used to stay blank. One quote per restore, and none extra when dates were quoted on load.
     Navigate '/listings/2'
@@ -180,7 +199,11 @@ function Check-BookingRestore {
     if ($restored.checkIn -ne '2035-06-10' -or $restored.checkOut -ne '2035-06-12' -or $restored.guests -ne '2' -or $restored.quotes -ne 1) { throw "Back did not quote the restored dates once: $($restored | ConvertTo-Json -Compress)" }
     $events=Evaluate "new Promise(function(resolve){window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:false}));setTimeout(function(){const same=$quoteCount;window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}));setTimeout(function(){resolve({same:same,cached:$quoteCount});},900);},900);})"
     if ($events.same -ne 1 -or $events.cached -ne 2) { throw "Pageshow quote count wrong: $($events | ConvertTo-Json -Compress)" }
-    Write-Output 'PASS browser dates restored on Back are quoted once, a cached page once more'
+    Navigate '/listings/2?check_in=2035-06-10&check_out=2035-06-12&guests=2'
+    Wait-FilterPage "!!document.querySelector('[data-quote] .is-total')"
+    $loaded=Evaluate "new Promise(function(resolve){setTimeout(function(){resolve($quoteCount);},900);})"
+    if ($loaded -ne 1) { throw "Dates quoted on load were quoted $loaded times" }
+    Write-Output 'PASS browser dates restored on Back are quoted once, a cached page once more, dates quoted on load not again'
 }
 
 function Check-BookingDateWidth {
@@ -406,6 +429,7 @@ try {
     Write-Output 'PASS browser search and filter guards release on the timer after Stop'
     Check-RegisterDoubleClick
 
+    Check-LoginCarriesBooking
     Navigate '/login'
     Check-Page 'login'
     if ((Login-Role 'guest') -ne '/') { throw 'Guest login redirect failed' }

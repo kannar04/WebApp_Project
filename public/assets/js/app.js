@@ -73,6 +73,20 @@
         event.currentTarget.elements.namedItem('check_out').dispatchEvent(new Event('input', {bubbles: true}));
     }
 
+    // Signed out, the sign-in link takes the chosen dates and guests along. The page itself comes from the server, the form only adds an encoded query.
+    function carryBookingToLogin(form) {
+        const link = form.querySelector('[data-login-next]');
+        if (!link) { return; }
+        const query = new URLSearchParams();
+        for (const name of ['check_in', 'check_out', 'guests']) {
+            const value = form.elements.namedItem(name).value;
+            if (value !== '') { query.set(name, value); }
+        }
+        const login = new URL(link.href);
+        login.searchParams.set('next', link.dataset.loginNext + '?' + query);
+        link.href = login.href;
+    }
+
     function bookingQuoteKey(form) {
         const fields = form.elements;
         return [fields.namedItem('check_in').value, fields.namedItem('check_out').value, fields.namedItem('guests').value, fields.namedItem('promo_code').value].join('|');
@@ -270,6 +284,7 @@
 
             function updateQuote() {
                 bookingForm.dataset.quotedFor = bookingQuoteKey(bookingForm);
+                carryBookingToLogin(bookingForm);
                 clearTimeout(timer);
                 requestController?.abort();
                 const currentRevision = ++revision;

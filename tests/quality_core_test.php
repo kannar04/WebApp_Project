@@ -239,7 +239,7 @@ $login=static function(string $role) use($request,$token): void {
 $logout=static function() use($request,$token): void { $request('/logout',['_token'=>$token($request('/profile'))]); };
 $arrayLogin=$request('/login?next%5B%5D=1'); qaExpect($arrayLogin['status']===200 && str_contains($arrayLogin['body'],'name="email"'),'Array next broke the login page.');
 $guestSignIn=['email'=>'guest@home2home.test','password'=>'Password123!'];
-foreach ([['/bookings','/login','/listings/1','/bookings'],['/bookings','/login?next=/wishlist','/listings/1','/wishlist'],['','/login','/listings/1','/listings/1'],['','/login','','/'],['','/login','/register','/'],['','/login?next=/register','','/'],['','/login?next=/%5Cevil.example','','/'],['','/login?next=/%0d%0a','','/'],['','/login?next=/%0d%0aX','','/'],['','/login','/\evil.example','/'],['','/login?next=/bookings','','/bookings']] as [$visit,$form,$referer,$landing]) {
+foreach ([['/bookings','/login','/listings/1','/bookings'],['/bookings','/login?next=/wishlist','/listings/1','/wishlist'],['','/login','/listings/1','/listings/1'],['','/login','','/'],['','/login','/register','/'],['','/login?next=/register','','/'],['','/login?next=/%5Cevil.example','','/'],['','/login?next=/%0d%0a','','/'],['','/login?next=/%0d%0aX','','/'],['','/login','/\evil.example','/'],['','/login?next=/bookings','','/bookings'],['','/login?next=%2Flistings%2F1%3Fcheck_in%3D2031-05-10%26guests%3D2','','/listings/1'],['','/login?next=//evil.example/listings/1%3Fguests%3D2','','/']] as [$visit,$form,$referer,$landing]) {
     qaExpect(qaSignInRedirect($baseUrl,$visit,$form,$referer,$guestSignIn)===$landing,'Sign-in return target wrong: '.$visit.' '.$form.' '.$referer);
 }
 $returnEmail='audit-'.bin2hex(random_bytes(6)).'@home2home.test';
@@ -415,6 +415,16 @@ $malformed=$request('/listings/1/book',['_token'=>$token($request('/listings/1')
 qaExpect(!str_contains($malformed,'"><script>') && str_contains($malformed,'value="2031-04-12"') && str_contains($malformed,'value="1" required'),'Malformed booking input was kept.');
 $logout();
 echo "PASS QA refused booking keeps dates, guests and promo code, escaped, once and on that listing only\n";
+
+// The sign-in link brings the stay back in the URL. Only the right shape reaches the form, and it is printed escaped.
+$carried=$request('/listings/1?check_in=2031-05-10&check_out=2031-05-12&guests=2')['body'];
+foreach (['name="check_in" min="'.date('Y-m-d').'" value="2031-05-10"','value="2031-05-12"','value="2" required'] as $kept) { qaExpect(str_contains($carried,$kept),'Listing did not read the stay from its URL: '.$kept); }
+$junkStay=$request('/listings/1?check_in=%22%3E%3Cscript%3Ealert(1)&check_out%5B%5D=2031-05-12&guests=-2');
+qaExpect($junkStay['status']===200 && str_contains($junkStay['body'],'value="1" required') && !str_contains($junkStay['body'],'value="2031-05-12"') && !str_contains($junkStay['body'],'<script>alert(1)') && !str_contains($junkStay['body'],'&lt;script&gt;alert(1)'),'Listing took junk from its URL.');
+$arrayGuests=$request('/listings/1?guests%5B%5D=2&check_in=2031-05-10%0a');
+qaExpect($arrayGuests['status']===200 && str_contains($arrayGuests['body'],'value="1" required') && !str_contains($arrayGuests['body'],'value="2031-05-10'),'Listing took an array or a line break from its URL.');
+qaExpect(!str_contains($request('/listings/2')['body'],'value="2031-05-10"'),'Stay in the URL followed the visitor to another listing.');
+echo "PASS QA listing reads a stay from its URL by shape only and prints it escaped\n";
 
 // Refused admin forms keep what was typed, never a password, and only for one page load.
 $login('admin');
