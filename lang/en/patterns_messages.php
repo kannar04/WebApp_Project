@@ -14,6 +14,8 @@ return [
     'Đã ghi nhận hoàn tiền cho booking #{id}.' => 'Refund recorded for booking #{id}.',
     'Đã ghi nhận thanh toán khi nhận phòng cho booking #{id}.' => 'Payment at check-in recorded for booking #{id}.',
     'Booking #{id} đã được thanh toán trước đó nên khoản VNPay vừa rồi là thanh toán trùng. Admin sẽ hoàn lại khoản này cho bạn.' => 'Booking #{id} was already paid, so this VNPay payment is a duplicate. An admin will refund it to you.',
+    'VNPay đã ghi nhận khoản thanh toán nhưng booking #{id} đã hủy. Admin sẽ hoàn lại {amount}đ cho bạn.' => 'VNPay took the payment, but booking #{id} is cancelled. An Admin will return {amount}đ to you.',
+    'VNPay đã ghi nhận khoản thanh toán nhưng chỗ ở của booking #{id} đã bị gỡ. Admin sẽ hoàn lại khoản này cho bạn.' => 'VNPay took the payment, but the listing of booking #{id} was taken down. An Admin will return this money to you.',
     'Khoản VNPay trùng của booking #{id} đã được hoàn lại cho bạn.' => 'The duplicate VNPay payment on booking #{id} was refunded to you.',
     'Khoản thanh toán VNPay của booking #{id} đã được ghi nhận hoàn tiền.' => 'The VNPay payment on booking #{id} has been recorded as refunded.',
     'Thanh toán VNPay thành công cho booking #{id}.' => 'VNPay payment succeeded for booking #{id}.',

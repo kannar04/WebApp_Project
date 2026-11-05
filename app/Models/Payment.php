@@ -56,7 +56,7 @@ final class Payment
         return $statement->fetch() ?: [];
     }
 
-    /** Records a VNPay result whose signature was already verified; returns result/booking_id/transaction_status and, for the Guest's message, the state now: duplicate_payment/duplicate_refunded/payment_status. */
+    /** Records a VNPay result whose signature was already verified; returns result/booking_id/transaction_status and, for the Guest's message, the state now: duplicate_payment/duplicate_refunded/payment_status/return_reason/refund_owed. */
     public function vnpayResult(string $reference, string $amount, string $responseCode, string $transactionStatus, string $transactionNo, string $bankCode): array
     {
         $statement = $this->db->prepare('CALL sp_payment_vnpay_result(?,?,?,?,?,?)');

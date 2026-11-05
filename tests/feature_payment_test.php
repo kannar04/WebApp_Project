@@ -230,6 +230,10 @@ try {
     $payments->vnpayResult($c1['reference'],'220000.00','00','00','14000003','NCB');
     $state=payInspect($bookingC);
     payExpect($state['booking_status']==='cancelled' && $state['payment_status']==='paid' && (int)$state['admin_refund_notices']>=1,'Money received after cancelling was not flagged for a refund: '.json_encode($state));
+    payExpect(str_contains((string)$state['guest_paid_body'],'đã hủy') && str_contains((string)$state['guest_paid_body'],'Admin sẽ hoàn lại') && !str_contains((string)$state['guest_paid_body'],'thành công') && $state['guest_paid_title']==='Khoản thanh toán sẽ được hoàn lại',
+        'The Guest was only told the payment succeeded on a cancelled booking: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $result=$payments->vnpayResult($c1['reference'],'220000.00','00','00','14000003','NCB');
+    payExpect($result['result']==='already' && $result['return_reason']==='cancelled' && (float)$result['refund_owed']===220000.0,'VNPay result does not say the money goes back: '.json_encode($result));
     payRejects([$payments,'start'],[$bookingC,$guestId,'vnpay'],'đã được ghi nhận thanh toán','A cancelled booking started a payment');
     echo "PASS VNPay results: unknown/amount guards, cancelled, success once, repeat-safe, duplicate and after-cancel payments flagged for refund\n";
 
@@ -392,9 +396,11 @@ try {
     payRejects([$payments,'submitTransfer'],[(int)$openQr['transaction_id'],$guestId],'đã bị gỡ','Transfer reported on a taken-down listing');
     $result=$payments->vnpayResult($openVnpay['reference'],'220000.00','00','00','14000030','NCB');
     $state=payInspect($bookingR);
+    payExpect($result['return_reason']==='removed' && str_contains((string)$state['guest_paid_body'],'đã bị gỡ') && str_contains((string)$state['guest_paid_body'],'Admin sẽ hoàn lại') && !str_contains((string)$state['guest_paid_body'],'thành công'),'The Guest was only told the payment succeeded on a taken-down listing: '.json_encode($state,JSON_UNESCAPED_UNICODE));
     payExpect($result['result']==='ok' && $state['payment_status']==='paid' && (int)$state['admin_refund_notices']>=1 && str_contains((string)$state['admin_refund_body'],'đã gỡ'),'VNPay money on a taken-down listing was not flagged: '.json_encode($state,JSON_UNESCAPED_UNICODE));
     $payments->decideTransfer((int)$openQr['transaction_id'],$adminId,'confirm','');
     $state=payInspect($bookingS);
+    payExpect(str_contains((string)$state['guest_paid_body'],'đã bị gỡ') && str_contains((string)$state['guest_paid_body'],'Admin sẽ hoàn lại'),'The Guest was not told a transfer on a taken-down listing goes back: '.json_encode($state,JSON_UNESCAPED_UNICODE));
     payExpect($state['payment_status']==='paid' && (int)$state['admin_refund_notices']>=1 && str_contains((string)$state['admin_refund_body'],'đã gỡ'),'Confirmed transfer on a taken-down listing was not flagged: '.json_encode($state,JSON_UNESCAPED_UNICODE));
     payCall('CALL sp_test_payment_listing_removed(?,?)',[$removedListing,0]);
     payExpect((int)$payments->checkout($bookingT,$guestId)['can_pay_online']===1 && $payments->start($bookingT,$guestId,'vietqr')['status']==='pending','A listing that is back cannot be paid.');
@@ -430,6 +436,7 @@ try {
     $service->cancelByGuest($bookingX,$guestId,'Audit fixture cancelled after the transfer');
     $payments->decideTransfer((int)$lateTransfer['transaction_id'],$adminId,'confirm','');
     $state=payInspect($bookingX);
+    payExpect(str_contains((string)$state['guest_paid_body'],'đã hủy') && str_contains((string)$state['guest_paid_body'],'Admin sẽ hoàn lại'),'The Guest was not told a late transfer goes back: '.json_encode($state,JSON_UNESCAPED_UNICODE));
     payExpect($state['payment_status']==='paid' && (float)$state['cancel_refund']===220000.0 && (int)$state['admin_refund_notices']>=1 && str_contains((string)$state['admin_refund_body'],'đã hủy nhưng vẫn nhận'),'Late transfer does not go back whole: '.json_encode($state,JSON_UNESCAPED_UNICODE));
     $extras->refund($bookingX,$adminId,'Trả lại khoản nhận sau khi hủy');
     payExpect(payInspect($bookingX)['payment_status']==='refunded','Admin could not refund a late transfer.');
@@ -597,6 +604,23 @@ try {
         $state=payInspect($bookingK);
         payExpect($response['status']===302 && $response['location']==='/bookings/'.$bookingK && payAttempt((int)$kVnpay['transaction_id'])['status']==='cancelled' && $state['payment_status']==='paid',
             'Admin could not close the duplicate over HTTP: '.json_encode($state));
+        // Money landing on a cancelled booking or a taken-down listing: the Guest is told it goes back, on landing and on reload.
+        $lateCancelled=payConfirmedBooking($service,$policyListings[50],$guestId,$hostId,$base,119);
+        $lateCancelledAttempt=$payments->start($lateCancelled,$guestId,'vnpay');
+        $service->cancelByGuest($lateCancelled,$guestId,'Audit fixture');
+        $lateCancelledSigned=payVnpayResult(['booking_id'=>$lateCancelled,'reference'=>$lateCancelledAttempt['reference']],$paymentConfig['vnpay_tmn_code'],$paymentConfig['vnpay_hash_secret'],'00','220000','15000030');
+        foreach ([1,2] as $visit) {
+            payHttp($guestClient,$baseUrl,'/payments/vnpay/return?'.http_build_query($lateCancelledSigned));
+            $detail=payHttp($guestClient,$baseUrl,'/bookings/'.$lateCancelled)['body'];
+            payExpect(str_contains($detail,'đã hủy. Admin sẽ hoàn lại 220.000đ cho bạn') && !str_contains($detail,'Thanh toán VNPay thành công'),'VNPay on a cancelled booking still shows a plain success (visit '.$visit.').');
+        }
+        $lateRemoved=payConfirmedBooking($service,$removedListing,$guestId,$hostId,$base,122);
+        $lateRemovedAttempt=$payments->start($lateRemoved,$guestId,'vnpay');
+        payCall('CALL sp_test_payment_listing_removed(?,?)',[$removedListing,1]);
+        payHttp($guestClient,$baseUrl,'/payments/vnpay/return?'.http_build_query(payVnpayResult(['booking_id'=>$lateRemoved,'reference'=>$lateRemovedAttempt['reference']],$paymentConfig['vnpay_tmn_code'],$paymentConfig['vnpay_hash_secret'],'00','220000','15000031')));
+        $detail=payHttp($guestClient,$baseUrl,'/bookings/'.$lateRemoved)['body'];
+        payCall('CALL sp_test_payment_listing_removed(?,?)',[$removedListing,0]);
+        payExpect(str_contains($detail,'đã bị gỡ. Admin sẽ hoàn lại khoản này cho bạn') && !str_contains($detail,'Thanh toán VNPay thành công'),'VNPay on a taken-down listing still shows a plain success.');
         // Reloading a return URL tells the state now, not the state when the money arrived.
         $response=payHttp($guestClient,$baseUrl,'/payments/vnpay/return?'.http_build_query($signedK));
         $detail=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingK)['body'];

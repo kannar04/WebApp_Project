@@ -90,6 +90,12 @@ final class PaymentController extends Controller
             Session::flash('success', 'Khoản VNPay trùng của booking #'.$bookingId.' đã được hoàn lại cho bạn.');
         } elseif ($result['transaction_status'] === 'succeeded' && $result['payment_status'] === 'refunded') {
             Session::flash('success', 'Khoản thanh toán VNPay của booking #'.$bookingId.' đã được ghi nhận hoàn tiền.');
+        } elseif ($result['transaction_status'] === 'succeeded' && $result['return_reason'] === 'cancelled') {
+            Session::flash('error', (float) $result['refund_owed'] > 0
+                ? 'VNPay đã ghi nhận khoản thanh toán nhưng booking #'.$bookingId.' đã hủy. Admin sẽ hoàn lại '.number_format((float) $result['refund_owed'], 0, ',', '.').'đ cho bạn.'
+                : 'Booking #'.$bookingId.' đã hủy. Theo chính sách hủy, khoản đã thanh toán không được hoàn.');
+        } elseif ($result['transaction_status'] === 'succeeded' && $result['return_reason'] === 'removed') {
+            Session::flash('error', 'VNPay đã ghi nhận khoản thanh toán nhưng chỗ ở của booking #'.$bookingId.' đã bị gỡ. Admin sẽ hoàn lại khoản này cho bạn.');
         } elseif ($result['transaction_status'] === 'succeeded') {
             Session::flash('success', 'Thanh toán VNPay thành công cho booking #'.$bookingId.'.');
         } else {

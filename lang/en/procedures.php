@@ -258,6 +258,7 @@ return [
     'Khách báo đã chuyển khoản' => 'Guest reported a bank transfer',
     'Chưa xác nhận được chuyển khoản' => 'Bank transfer not confirmed',
     'Đã đóng chuyển khoản trùng' => 'Duplicate bank transfer closed',
+    'Khoản thanh toán sẽ được hoàn lại' => 'This payment will be returned',
     'Cần hoàn tiền' => 'Refund needed',
     'Booking đã thanh toán bị hủy' => 'Paid booking cancelled',
     'Thanh toán trùng' => 'Duplicate payment',

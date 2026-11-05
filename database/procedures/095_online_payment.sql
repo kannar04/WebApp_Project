@@ -207,8 +207,10 @@ BEGIN
         INSERT INTO booking_payment_events(booking_id,actor_id,from_status,to_status,note,created_at)
             VALUES(v_booking,p_admin,'unpaid','paid',CONCAT('VietQR ',v_reference),NOW(6));
         INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
-            VALUES(v_guest,v_booking,'in_app','payment_paid','Đã ghi nhận thanh toán',
-            CONCAT('Booking #',v_booking,' đã được xác nhận thanh toán chuyển khoản ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,').'),'sent',1,NOW(6));
+            VALUES(v_guest,v_booking,'in_app','payment_paid',IF(v_booking_status NOT IN ('confirmed','completed') OR v_removed IS NOT NULL,'Khoản thanh toán sẽ được hoàn lại','Đã ghi nhận thanh toán'),
+            CASE WHEN v_booking_status NOT IN ('confirmed','completed') THEN CONCAT('Booking #',v_booking,' đã hủy nhưng đã nhận chuyển khoản ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,'). Admin sẽ hoàn lại khoản này cho bạn.')
+                WHEN v_removed IS NOT NULL THEN CONCAT('Chỗ ở của booking #',v_booking,' đã bị gỡ nhưng đã nhận chuyển khoản ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,'). Admin sẽ hoàn lại khoản này cho bạn.')
+                ELSE CONCAT('Booking #',v_booking,' đã được xác nhận thanh toán chuyển khoản ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,').') END,'sent',1,NOW(6));
         IF v_booking_status NOT IN ('confirmed','completed') THEN
             -- The Guest cancelled with this transfer still open: the money is recorded as paid so the Admin can record the refund of all of it.
             UPDATE booking_cancellations SET refund_amount=v_amount WHERE booking_id=v_booking;
@@ -358,8 +360,10 @@ BEGIN
                 INSERT INTO booking_payment_events(booking_id,actor_id,from_status,to_status,note,created_at)
                     VALUES(v_booking,v_guest,'unpaid','paid',CONCAT('VNPay ',COALESCE(NULLIF(p_transaction_no,''),p_reference)),NOW(6));
                 INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
-                    VALUES(v_guest,v_booking,'in_app','payment_paid','Đã ghi nhận thanh toán',
-                    CONCAT('Booking #',v_booking,' đã thanh toán thành công qua VNPay ',REPLACE(FORMAT(v_amount,0),',','.'),'đ.'),'sent',1,NOW(6));
+                    VALUES(v_guest,v_booking,'in_app','payment_paid',IF(v_booking_status NOT IN ('confirmed','completed') OR v_removed IS NOT NULL,'Khoản thanh toán sẽ được hoàn lại','Đã ghi nhận thanh toán'),
+                    CASE WHEN v_booking_status NOT IN ('confirmed','completed') THEN CONCAT('Booking #',v_booking,' đã hủy nhưng VNPay vẫn nhận ',REPLACE(FORMAT(v_amount,0),',','.'),'đ. Admin sẽ hoàn lại khoản này cho bạn.')
+                        WHEN v_removed IS NOT NULL THEN CONCAT('Chỗ ở của booking #',v_booking,' đã bị gỡ nhưng VNPay vẫn nhận ',REPLACE(FORMAT(v_amount,0),',','.'),'đ. Admin sẽ hoàn lại khoản này cho bạn.')
+                        ELSE CONCAT('Booking #',v_booking,' đã thanh toán thành công qua VNPay ',REPLACE(FORMAT(v_amount,0),',','.'),'đ.') END,'sent',1,NOW(6));
                 IF v_booking_status NOT IN ('confirmed','completed') THEN
                     -- The Guest cancelled while VNPay was open: the money is recorded as paid so the Admin can record the refund of all of it.
                     UPDATE booking_cancellations SET refund_amount=v_amount WHERE booking_id=v_booking;
@@ -401,7 +405,10 @@ BEGIN
         (SELECT status='succeeded' AND gateway_response_code='00' AND note IS NOT NULL FROM payment_transactions WHERE id=v_attempt) duplicate_payment,
         -- An Admin has since closed that duplicate as refunded, so a reloaded return URL must not promise the refund again.
         (SELECT status='cancelled' AND gateway_response_code='00' AND decided_by IS NOT NULL FROM payment_transactions WHERE id=v_attempt) duplicate_refunded,
-        (SELECT status FROM booking_payments WHERE booking_id=v_booking) payment_status;
+        (SELECT status FROM booking_payments WHERE booking_id=v_booking) payment_status,
+        -- Why money on this attempt goes back to the Guest, if it does, and how much is owed.
+        (SELECT CASE WHEN b.status NOT IN ('confirmed','completed') THEN 'cancelled' WHEN l.deleted_at IS NOT NULL THEN 'removed' END FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=v_booking) return_reason,
+        COALESCE((SELECT refund_amount FROM booking_cancellations WHERE booking_id=v_booking),v_amount) refund_owed;
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_vnpay_result; END IF;
 END$$
 
