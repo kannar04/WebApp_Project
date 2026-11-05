@@ -75,6 +75,8 @@ return [
     'Bạn không có quyền quản trị.' => 'You do not have Admin permission.',
     'Thông tin chỗ ở không hợp lệ.' => 'Invalid listing details.',
     'Hiển thị không hợp lệ.' => 'Invalid visibility.',
+    'Tin đăng bị từ chối' => 'Listing rejected',
+    'Chỗ ở đã bị gỡ' => 'Listing taken down',
 
     // ---- 050_quality_core.sql
     'Không có quyền quản lý chỗ ở.' => 'You do not have permission to manage this listing.',

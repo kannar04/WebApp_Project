@@ -241,6 +241,25 @@ try {
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS rejecting a listing closes its requests with event and notice, keeps confirmed stays, and only a rejected listing refuses confirm\n";
 
+    // The Host hears why a listing was rejected or removed; everything rolls back with the outer transaction.
+    $db->beginTransaction();
+    try {
+        $moderation=new AdminRepository(); $adminId=(int)$admin['id']; $hostId=(int)$host['id']; $reason='Ảnh chưa rõ & thiếu địa chỉ';
+        $rejected=count(noticesFor($hostId,null,'listing_rejected')); $removed=count(noticesFor($hostId,null,'listing_removed'));
+        $moderation->moderate($listingId,$adminId,'approved','Not a rejection');
+        ensure(count(noticesFor($hostId,null,'listing_rejected'))===$rejected,'An approval told the Host the listing was rejected.');
+        refused([$moderation,'moderate'],[$listingId,$adminId,'rejected','   ']);
+        ensure(count(noticesFor($hostId,null,'listing_rejected'))===$rejected,'A refused rejection still notified the Host.');
+        $moderation->moderate($listingId,$adminId,'rejected',$reason);
+        $notices=noticesFor($hostId,null,'listing_rejected');
+        ensure(count($notices)===$rejected+1 && str_contains($notices[0]['body'],$reason) && str_contains($notices[0]['body'],$data['title']),'The Host was not told the rejection reason.');
+        ensure($model->findOwned($listingId,$hostId)['moderation_reason']===$reason,'The rejection reason did not reach the owned listing.');
+        $moderation->softDeleteListing($listingId,$adminId);
+        $notices=noticesFor($hostId,null,'listing_removed');
+        ensure(count($notices)===$removed+1 && str_contains($notices[0]['body'],$data['title']),'The Host was not told about the take-down.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS the Host is notified with the reason on rejection and on take-down, in the same transaction, and not on approval or a refused rejection\n";
+
     for ($i=0;$i<2;$i++) {
         $pipes=[];
         $process=proc_open([PHP_BINARY,__FILE__,'--worker',(string)$listingId,(string)$guest['id'],$start,$end],

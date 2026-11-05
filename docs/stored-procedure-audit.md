@@ -408,8 +408,8 @@ Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
 
 | Routine | File | Thay đổi | Test |
 |---|---|---|---|
-| `sp_admin_listing_moderate` | `030_atomic_writes.sql` | Khi từ chối tin: từ chối tự động các yêu cầu đang chờ (event + thông báo khách), booking đã xác nhận giữ nguyên | procedure_flow_test |
-| `sp_admin_listing_soft_delete` | `030_atomic_writes.sql` | Dùng chung `sp_listing_reject_pending`, hành vi không đổi | feature_booking_extras_test |
+| `sp_admin_listing_moderate` | `030_atomic_writes.sql` | Khi từ chối tin: từ chối tự động các yêu cầu đang chờ (event + thông báo khách), booking đã xác nhận giữ nguyên; báo cho Host kèm lý do trong cùng transaction | procedure_flow_test, feature_trust_test |
+| `sp_admin_listing_soft_delete` | `030_atomic_writes.sql` | Dùng chung `sp_listing_reject_pending`; báo cho Host trong cùng transaction | feature_booking_extras_test, procedure_flow_test |
 | `sp_booking_transition` | `020_booking.sql` | Không cho xác nhận yêu cầu trên tin bị từ chối kiểm duyệt; tin đang duyệt lại hoặc đang ẩn vẫn xác nhận được | procedure_flow_test |
 
 ### Routine mới

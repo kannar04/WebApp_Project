@@ -189,6 +189,8 @@ BEGIN
     -- A rejected listing cannot honour its requests, same as a take-down. Confirmed stays are left for people to sort out.
     IF p_3='rejected' THEN
         CALL sp_listing_reject_pending(p_1,p_2,'Admin từ chối tin đăng nên yêu cầu bị từ chối tự động.','chỗ ở không được duyệt',v_rejected);
+        INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+            SELECT host_id,NULL,'in_app','listing_rejected','Tin đăng bị từ chối',CONCAT('Tin “',title,'” đã bị Admin từ chối. Lý do: ',TRIM(p_4)),'sent',1,NOW(6) FROM listings WHERE id=p_1;
     END IF;
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
         VALUES(p_2,'moderate_listing','listing',p_1,JSON_OBJECT('details',CONCAT(p_3,': ',p_4),'rejected_pending',v_rejected),NOW(6));
@@ -274,6 +276,8 @@ BEGIN
     -- Pending requests cannot be honoured any more.
     CALL sp_listing_reject_pending(p_1,p_2,'Admin gỡ chỗ ở nên yêu cầu bị từ chối tự động.','chỗ ở đã được gỡ khỏi hệ thống',v_count);
     UPDATE listings SET is_visible=0,deleted_at=NOW(6),updated_at=NOW(6) WHERE id=p_1;
+    INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+        SELECT host_id,NULL,'in_app','listing_removed','Chỗ ở đã bị gỡ',CONCAT('Admin đã gỡ chỗ ở “',title,'” khỏi hệ thống.'),'sent',1,NOW(6) FROM listings WHERE id=p_1;
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at) VALUES(p_2,'delete_listing','listing',p_1,JSON_OBJECT('details','Soft delete','rejected_pending',v_count),NOW(6));
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_admin_listing_soft_delete; END IF;
 END$$

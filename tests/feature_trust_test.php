@@ -418,6 +418,23 @@ try {
         $foreignPage = trustHttp($otherHostClient, $baseUrl, '/host');
         $foreign = trustHttp($otherHostClient, $baseUrl, '/host/listings/'.$listingId.'/checkin-guide', ['_token' => trustToken($foreignPage['body'])] + $guide);
         trustExpect($foreign['path'] === '/host' && str_contains($foreign['body'], 'alert-danger') && $trust->guideForHost($listingId, $hostId)['door_code'] === 'K-9999', 'Non-owner Host saved the guide over HTTP.');
+        // The rejection reason reaches the Host, escaped, on the dashboard row, the edit page and the notification.
+        $rejectedListing = $listings->create($hostId, ['title' => 'Audit fixture trust '.$tag.' rejected'] + $listingData);
+        trustCall('CALL sp_test_listing_approve(?)', [$rejectedListing]);
+        $reasonRaw = '<b>Ảnh '.$tag.'</b> chưa rõ';
+        $reasonSafe = '&lt;b&gt;Ảnh '.$tag.'&lt;/b&gt; chưa rõ';
+        $moderationPage = trustHttp($adminClient, $baseUrl, '/admin/listings');
+        $rejectedBy = trustHttp($adminClient, $baseUrl, '/admin/listings/'.$rejectedListing.'/moderate', ['_token' => trustToken($moderationPage['body']), 'action' => 'rejected', 'note' => $reasonRaw]);
+        trustExpect(str_contains($rejectedBy['body'], 'alert-success'), 'Admin could not reject the fixture listing.');
+        foreach (['/host', '/host/listings/'.$rejectedListing.'/edit', '/notifications'] as $hostPage) {
+            $seen = trustHttp($hostClient, $baseUrl, $hostPage)['body'];
+            trustExpect(str_contains($seen, $reasonSafe) && !str_contains($seen, $reasonRaw), 'Rejection reason missing or unescaped on '.$hostPage);
+        }
+        trustExpect(!str_contains(trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/edit')['body'], 'Lý do từ chối'), 'An approved listing shows a rejection reason.');
+        trustCall('CALL sp_test_listing_approve(?)', [$rejectedListing]);
+        trustExpect(!str_contains(trustHttp($hostClient, $baseUrl, '/host')['body'], $reasonSafe), 'The dashboard kept a reason after the listing was approved.');
+        echo "PASS rejection reason shown escaped to the Host on the dashboard, edit page and notification, only while the listing is rejected\n";
+
         foreach ([$anonymous, $guestClient, $otherClient, $adminClient, $hostClient, $otherHostClient] as $client) { curl_close($client); }
         echo "PASS trust HTTP: login/403/404 guards, CSRF 419 on verification and decision, profile submit/duplicate, Admin queue+approval+masked history+badges, Host progress/guide save/validation, public pages without secrets\n";
     }

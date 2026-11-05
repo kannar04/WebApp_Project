@@ -65,6 +65,7 @@ BEGIN
        OR EXISTS(SELECT 1 FROM bookings WHERE listing_id=p_id) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to remove a non-fixture listing.';
     END IF;
+    DELETE n FROM notifications n JOIN listings l ON l.host_id=n.user_id WHERE l.id=p_id AND n.booking_id IS NULL AND n.event_type IN ('listing_rejected','listing_removed') AND n.body LIKE CONCAT('%“',l.title,'”%');
     DELETE FROM listing_moderation_events WHERE listing_id=p_id;
     DELETE FROM listing_photos WHERE listing_id=p_id;
     DELETE FROM listing_amenities WHERE listing_id=p_id;
@@ -79,6 +80,7 @@ BEGIN
        OR EXISTS(SELECT 1 FROM bookings WHERE guest_id=p_id) OR EXISTS(SELECT 1 FROM listings WHERE host_id=p_id) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to remove a non-fixture user.';
     END IF;
+    DELETE FROM notifications WHERE user_id=p_id AND booking_id IS NULL;
     DELETE FROM admin_audit_logs WHERE admin_id=p_id;
     DELETE FROM user_roles WHERE user_id=p_id;
     DELETE FROM users WHERE id=p_id;

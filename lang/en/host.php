@@ -9,6 +9,8 @@ return [
     'Ngày' => 'Date',
     'Trạng thái' => 'Status',
     'Lý do' => 'Reason',
+    'Lý do từ chối:' => 'Rejection reason:',
+    'Admin đã từ chối tin này.' => 'Admin rejected this listing.',
     'Khách' => 'Guest',
     'Tổng' => 'Total',
     'Tháng' => 'Month',
