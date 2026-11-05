@@ -88,6 +88,7 @@ return [
     'Thông tin tài khoản vượt giới hạn độ dài.' => 'Account details exceed the length limits.',
     'Tài khoản đã được tạo.' => 'Your account has been created.',
     'Email đã được sử dụng.' => 'This email is already in use.',
+    'Email này thuộc về một tài khoản đã bị xóa. Vui lòng liên hệ quản trị viên để khôi phục.' => 'This email belongs to a deleted account. Please contact an administrator to restore it.',
     'Không thể tạo tài khoản.' => 'Could not create the account.',
     'Bạn đã đăng xuất.' => 'You have been logged out.',
     'Nếu tài khoản đang hoạt động và dịch vụ gửi mail được cấu hình, bạn sẽ nhận hướng dẫn khôi phục. Kiểm tra thư rác hoặc liên hệ quản trị viên nếu chưa nhận được.'
@@ -116,6 +117,7 @@ return [
     'Thông tin cập nhật không hợp lệ; mật khẩu mới cần ít nhất 8 ký tự.' => 'Invalid details; a new password needs at least 8 characters.',
     'Không thể cập nhật tài khoản. Vui lòng thử lại.' => 'Could not update the account. Please try again.',
     'Đã xóa mềm tài khoản.' => 'Account soft-deleted.',
+    'Đã khôi phục tài khoản.' => 'Account restored.',
     'Không thể thay đổi trạng thái hoặc vai trò của Admin đang đăng nhập.' => 'You cannot change the status or roles of the Admin who is logged in.',
     'Từ chối bài đăng phải có lý do.' => 'Rejecting a listing requires a reason.',
     'Đã cập nhật kiểm duyệt bài đăng.' => 'Listing moderation updated.',

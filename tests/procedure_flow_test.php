@@ -20,6 +20,16 @@ function ensure(bool $condition, string $message): void
 {
     if (!$condition) { throw new RuntimeException($message); }
 }
+function emailIsTaken(User $users,string $email): bool
+{
+    try { $users->create($email,bin2hex(random_bytes(16)),'Audit duplicate',null); } catch (PDOException $exception) { return $exception->getCode()==='23000'; }
+    return false;
+}
+function restoreRefused(User $users,int $id): bool
+{
+    try { $users->setStatus($id,'restore'); } catch (DomainException $exception) { return true; }
+    return false;
+}
 function domainFailure(callable $operation): void
 {
     try { $operation(); } catch (DomainException $exception) { return; }
@@ -121,7 +131,8 @@ try {
     ensure($repository->findListing($listingId)===null && $model->findPublic($listingId)===null,'Soft deleted listing remained visible.');
     echo "PASS Admin listing update/visibility/soft-delete, role guards and unchanged price snapshots\n";
 
-    $fixtureUser=$users->adminCreate(['email'=>'audit-'.bin2hex(random_bytes(6)).'@home2home.test','password'=>bin2hex(random_bytes(16)),
+    $fixtureEmail='audit-'.bin2hex(random_bytes(6)).'@home2home.test'; $fixturePassword=bin2hex(random_bytes(16));
+    $fixtureUser=$users->adminCreate(['email'=>$fixtureEmail,'password'=>$fixturePassword,
         'full_name'=>'Audit profile','phone'=>''],['guest','host']);
     ensure($users->findWithRoles($fixtureUser)['roles']===['guest','host'],'Admin account roles were not saved.');
     $avatar='/assets/images/demo/1600585154340-be6161a56a0c.jpg';
@@ -135,6 +146,15 @@ try {
     ensure($users->findWithRoles($fixtureUser)!==null,'User could not be reactivated.');
     $users->softDelete($fixtureUser); $users->setStatus($fixtureUser,'active');
     ensure($users->findWithRoles($fixtureUser)===null,'Soft-deleted user was reactivated.');
+    $users->setStatus($fixtureUser,'suspended');
+    ensure($users->findByEmail($fixtureEmail)['status']==='deleted','Status action changed a soft-deleted user.');
+    ensure(emailIsTaken($users,$fixtureEmail),'A soft-deleted email could be registered again.');
+    ensure(!Core\Auth::attempt($fixtureEmail,$fixturePassword),'A soft-deleted user could log in.');
+    ensure(array_column($users->all($fixtureEmail),'status')===['deleted'],'Admin search cannot find a soft-deleted user.');
+    $users->setStatus($fixtureUser,'restore');
+    $restored=$users->findByEmail($fixtureEmail);
+    ensure($restored['status']==='active' && $restored['deleted_at']===null && $users->findWithRoles($fixtureUser)['roles']===['guest','host'],'Restore did not bring the account back with its roles.');
+    ensure(restoreRefused($users,$fixtureUser) && restoreRefused($users,PHP_INT_MAX),'Restore accepted an account that is not deleted.');
     echo "PASS user create/roles/profile/avatar preservation/status/soft-delete through routines\n";
 } finally {
     foreach ($processes as [$process,$pipes]) { proc_terminate($process); foreach ($pipes as $pipe) { if (is_resource($pipe)) { fclose($pipe); } } proc_close($process); }

@@ -25,9 +25,18 @@ END$$
 
 CREATE OR REPLACE PROCEDURE `sp_user_set_status`(IN p_1 varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_2 bigint unsigned)
 BEGIN
-    IF p_1 IS NULL OR p_1 NOT IN ('active','suspended') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Trạng thái tài khoản không hợp lệ.'; END IF;
-    UPDATE users SET status = p_1 WHERE id = p_2 AND deleted_at IS NULL;
-    SELECT ROW_COUNT() __affected,LAST_INSERT_ID() __insert_id;
+    DECLARE v_restored INT DEFAULT 0;
+    IF p_1 IS NULL OR p_1 NOT IN ('active','suspended','restore') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Trạng thái tài khoản không hợp lệ.'; END IF;
+    IF p_1 = 'restore' THEN
+        -- Only an explicit restore clears deleted_at: 'active' on a deleted account stays a no-op, so a stale unlock form cannot bring it back.
+        UPDATE users SET status='active',deleted_at=NULL,updated_at=NOW(6) WHERE id = p_2 AND deleted_at IS NOT NULL;
+        SET v_restored = ROW_COUNT();
+        IF v_restored = 0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không tìm thấy tài khoản đã xóa để khôi phục.'; END IF;
+        SELECT v_restored __affected,LAST_INSERT_ID() __insert_id;
+    ELSE
+        UPDATE users SET status = p_1 WHERE id = p_2 AND deleted_at IS NULL;
+        SELECT ROW_COUNT() __affected,LAST_INSERT_ID() __insert_id;
+    END IF;
 END$$
 
 CREATE OR REPLACE PROCEDURE `sp_user_soft_delete`(IN p_1 bigint unsigned)

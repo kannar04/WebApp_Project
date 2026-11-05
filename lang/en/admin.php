@@ -77,6 +77,8 @@ return [
     'Khóa' => 'Suspend',
     'Mở khóa' => 'Reactivate',
     'Xóa mềm tài khoản này?' => 'Soft-delete this account?',
+    'Khôi phục tài khoản' => 'Restore account',
+    'Khôi phục tài khoản này?' => 'Restore this account?',
     'Chỉnh sửa hồ sơ người dùng' => 'Edit user profiles',
     'Cập nhật thông tin chi tiết mà không cần thay đổi vai trò hoặc trạng thái.' => 'Update details without changing roles or status.',
     'Kiểm duyệt chỗ ở' => 'Listing moderation',

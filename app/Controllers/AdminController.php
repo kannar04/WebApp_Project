@@ -37,9 +37,9 @@ final class AdminController extends Controller
     public function userStatus(string $id): never
     {
         Csrf::ensure(); $admin=$this->requireRole('admin'); $status=input_text($_POST,'status');
-        if (!in_array($status,['active','suspended'],true)) { Session::flash('error','Trạng thái tài khoản không hợp lệ.'); $this->redirect('/admin'); }
+        if (!in_array($status,['active','suspended','restore'],true)) { Session::flash('error','Trạng thái tài khoản không hợp lệ.'); $this->redirect('/admin'); }
         $this->managedUserChange((int)$id,(int)$admin['id'],'set_user_status',$status,
-            fn()=>(new User())->setStatus((int)$id,$status),'Đã cập nhật tài khoản.');
+            fn()=>(new User())->setStatus((int)$id,$status),$status==='restore'?'Đã khôi phục tài khoản.':'Đã cập nhật tài khoản.',$status!=='restore');
     }
     public function userRoles(string $id): never
     {
@@ -142,12 +142,12 @@ final class AdminController extends Controller
         return true;
     }
 
-    private function managedUserChange(int $id, int $adminId, string $action, string $details, callable $operation, string $message): never
+    private function managedUserChange(int $id, int $adminId, string $action, string $details, callable $operation, string $message, bool $mustBeLive = true): never
     {
         $database=Database::connection(); $ownsTransaction=false;
         try {
             if ($id===$adminId) { throw new \DomainException('Không thể thay đổi trạng thái hoặc vai trò của Admin đang đăng nhập.'); }
-            if (!(new User())->findForAdmin($id)) { throw new \DomainException('Tài khoản không tồn tại.'); }
+            if ($mustBeLive && !(new User())->findForAdmin($id)) { throw new \DomainException('Tài khoản không tồn tại.'); }
             $ownsTransaction=!$database->inTransaction();
             if ($ownsTransaction) { $database->beginTransaction(); }
             $operation();

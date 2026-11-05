@@ -11,6 +11,7 @@ return [
     // ---- 010_models.sql
     'Tài khoản không khả dụng.' => 'This account is not available.',
     'Trạng thái tài khoản không hợp lệ.' => 'Invalid account status.',
+    'Không tìm thấy tài khoản đã xóa để khôi phục.' => 'No deleted account was found to restore.',
     'Thông tin hoặc quyền tạo chỗ ở không hợp lệ.' => 'Invalid listing details or no permission to create a listing.',
     'Tọa độ cần có cả vĩ độ (-90 đến 90) và kinh độ (-180 đến 180), hoặc để trống cả hai.' => 'Coordinates need both a latitude (-90 to 90) and a longitude (-180 to 180), or leave both empty.',
     'Thông tin hoặc quyền sửa chỗ ở không hợp lệ.' => 'Invalid listing details or no permission to edit this listing.',

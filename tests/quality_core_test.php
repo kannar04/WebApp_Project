@@ -211,6 +211,25 @@ qaCall('CALL sp_test_cleanup_user(?)',[(int)(new User())->findByEmail($returnEma
 qaExpect(str_contains($request('/login?next=/bookings')['body'],'/register?next=%2Fbookings'),'Login page link to register lost next.');
 qaExpect(qaSignInRedirect($baseUrl,'','/login','/\evil.example',['_token'=>'stale']+$guestSignIn)==='/','Stale form redirect followed an unsafe Referer.');
 echo "PASS HTTP sign-in return target: protected page, explicit next, Referer, auth pages, register, unsafe targets\n";
+$deletedUsers=new User(); $deletedEmail='audit-'.bin2hex(random_bytes(6)).'@home2home.test'; $deletedPassword=bin2hex(random_bytes(8));
+$deletedId=$deletedUsers->create($deletedEmail,$deletedPassword,'Deleted audit',null); $deletedUsers->softDelete($deletedId);
+$refused=$request('/register',['_token'=>$token($request('/register')),'full_name'=>'Second owner','email'=>$deletedEmail,'password'=>$deletedPassword]);
+qaExpect(str_contains($refused['body'],'Email này thuộc về một tài khoản đã bị xóa'),'Register did not explain the deleted account.');
+$refusedLogin=$request('/login',['_token'=>$token($request('/login')),'email'=>$deletedEmail,'password'=>$deletedPassword]);
+qaExpect(str_contains($refusedLogin['body'],'name="password"'),'A deleted account signed in.');
+$login('admin');
+$deletedRow=$request('/admin?q='.urlencode($deletedEmail));
+qaExpect(str_contains($deletedRow['body'],'value="restore"') && !str_contains($deletedRow['body'],'/admin/users/'.$deletedId.'/edit') && !str_contains($deletedRow['body'],'/admin/users/'.$deletedId.'/delete'),'Admin row of a deleted account must offer only restore.');
+qaExpect($request('/admin/users/'.$deletedId.'/edit')['status']===404,'A deleted account could be edited.');
+$request('/admin/users/'.$deletedId.'/status',['_token'=>$token($deletedRow),'status'=>'active']);
+qaExpect($request('/admin/users/'.$deletedId.'/edit')['status']===404,'The unlock action restored a deleted account.');
+$restoredPage=$request('/admin/users/'.$deletedId.'/status',['_token'=>$token($deletedRow),'status'=>'restore']);
+qaExpect(str_contains($restoredPage['body'],'Đã khôi phục tài khoản.') && $request('/admin/users/'.$deletedId.'/edit')['status']===200,'Admin could not restore the account.');
+$logout();
+$restoredLogin=$request('/login',['_token'=>$token($request('/login')),'email'=>$deletedEmail,'password'=>$deletedPassword]);
+qaExpect(!str_contains($restoredLogin['body'],'name="password"'),'The restored account could not sign in.');
+$logout(); qaCall('CALL sp_test_cleanup_user(?)',[$deletedId]);
+echo "PASS HTTP deleted account: register explains, no sign-in, Admin restore, sign-in again\n";
 $login('guest');
 foreach(['/listings/1?check_in%5B%5D=1','/articles?category%5B%5D=1'] as $path) { qaExpect($request($path)['status']===200,'Array parameter did not read as absent: '.$path); }
 foreach(['/bookings/'.$bookingId,'/notifications','/reports','/reports?listing=1','/reports?booking='.$bookingId,'/listings/1?month='.substr($first,0,7)] as $path) {

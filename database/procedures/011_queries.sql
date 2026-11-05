@@ -5,8 +5,8 @@ CREATE OR REPLACE PROCEDURE sp_user_search(IN p_query VARCHAR(254) CHARACTER SET
 BEGIN
     SELECT u.id,u.email,u.full_name,u.phone,u.status,u.created_at,GROUP_CONCAT(ur.role ORDER BY ur.role) roles
     FROM users u LEFT JOIN user_roles ur ON ur.user_id=u.id
-    WHERE u.deleted_at IS NULL AND (p_query='' OR u.email LIKE CONCAT('%',p_query,'%') OR u.full_name LIKE CONCAT('%',p_query,'%'))
-    GROUP BY u.id ORDER BY u.created_at DESC,u.id DESC;
+    WHERE p_query='' OR u.email LIKE CONCAT('%',p_query,'%') OR u.full_name LIKE CONCAT('%',p_query,'%')
+    GROUP BY u.id ORDER BY u.deleted_at IS NOT NULL,u.created_at DESC,u.id DESC;
 END$$
 
 CREATE OR REPLACE PROCEDURE sp_user_admin_update(IN p_email VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_name VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_phone VARCHAR(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_hash VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_id BIGINT UNSIGNED)
