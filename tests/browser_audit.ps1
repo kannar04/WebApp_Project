@@ -166,6 +166,17 @@ function Check-BookingRefusal {
     Write-Output 'PASS browser refused booking keeps its input and quotes it again on load'
 }
 
+function Check-BookingDateWidth {
+    # Below 145 px a date input clips the year, as it did at 375 (137 px) and 1024 (117 px).
+    foreach ($width in @(375,768,1024,1440)) {
+        Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+        Navigate '/listings/1'
+        $narrowest=Evaluate "Math.min(document.querySelector('#check_in').getBoundingClientRect().width,document.querySelector('#check_out').getBoundingClientRect().width)"
+        if ($narrowest -lt 145) { throw "Booking date input is $narrowest px wide at $width" }
+    }
+    Write-Output 'PASS browser booking date inputs show the whole year at 375, 768, 1024 and 1440'
+}
+
 function Check-FlashReveal {
     # A refused save redirects to /profile#personal: the result sits on screen below the navbar with focus, while a plain fragment link keeps its scroll.
     foreach ($width in @(375,1440)) {
@@ -305,6 +316,7 @@ try {
     Check-SubmitStopRelease '[data-booking-form]' '/listings/1' "f.elements.check_in.value='2035-05-10';f.elements.check_out.value='2035-05-12'"
     Write-Output 'PASS browser booking guard releases on the timer after Stop'
     Check-BookingRefusal
+    Check-BookingDateWidth
     Check-FlashReveal
     Check-PostGuardEvents
     Check-CalendarNavigation '/listings/1'
