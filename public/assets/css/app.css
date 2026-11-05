@@ -20,7 +20,8 @@
 .table-responsive { display: block; width: 100%; max-width: 100%; overflow-x: auto; }
 .action-row { flex-wrap: wrap; }
 .action-row > a { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
-form[aria-busy="true"] button { cursor: progress; }
+/* The second selector outweighs Bootstrap's .btn:not(:disabled) pointer. Dimmed because a touch screen shows no cursor; the buttons stay enabled so they keep their name and value in the request. */
+form[aria-busy="true"] button, form[aria-busy="true"] .btn:not(:disabled) { cursor: progress; opacity: .65; }
 /* Filter layout uses Bootstrap 4 form-group/grid structure, not offset corrections. */
 #listing-results, #personal { scroll-margin-top: 100px; }
 .filter-panel { background: var(--surface); }
