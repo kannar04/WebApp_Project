@@ -83,6 +83,7 @@ BEGIN
     DELETE FROM notifications WHERE user_id=p_id AND booking_id IS NULL;
     DELETE FROM admin_audit_logs WHERE admin_id=p_id OR (entity_type='user' AND entity_id=p_id);
     DELETE FROM password_reset_tokens WHERE user_id=p_id;
+    DELETE FROM identity_verifications WHERE user_id=p_id;
     DELETE FROM user_roles WHERE user_id=p_id;
     DELETE FROM users WHERE id=p_id;
 END$$

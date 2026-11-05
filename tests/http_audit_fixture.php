@@ -38,6 +38,13 @@ if ($command === 'create') {
     exit;
 }
 
+if ($command === 'pending-verification') {
+    // A throwaway Guest with one request waiting for an Admin; cleanup removes both.
+    $guestId = (new \App\Models\User())->create($emailPrefix.'-guest@home2home.test', bin2hex(random_bytes(16)), 'HTTP audit guest', null);
+    echo (new \App\Models\Trust())->submitVerification($guestId, 'HTTP audit guest', '0912345681', '079012345681');
+    exit;
+}
+
 if ($command === 'inspect') {
     $statement = $database->prepare('CALL sp_test_listing_inspect(?)');
     $statement->execute([$title]);

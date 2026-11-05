@@ -620,20 +620,34 @@ function Check-BookingEnter {
     Write-Output 'PASS browser Enter in a booking field quotes and never books, the focused button and a click still submit'
 }
 
-function Check-SeveralActions([string]$Path, [string]$Selector, [string]$Field, [string[]]$Actions, [switch]$IfPresent) {
+function Check-SeveralActions([string]$Path, [string]$Selector, [string]$Field, [string[]]$Actions) {
     # Enter in a form with several actions must pick none of them; each button still sends its own name and value. Every submit is stopped here, so nothing is saved.
     Navigate $Path
     $selectorJson=ConvertTo-Json $Selector -Compress
-    if (!(Evaluate "!!document.querySelector($selectorJson)")) {
-        if ($IfPresent) { Write-Output "SKIP browser several actions on $($Path): no such form"; return }
-        throw "No $Selector on $Path"
-    }
+    if (!(Evaluate "!!document.querySelector($selectorJson)")) { throw "No $Selector on $Path" }
     $fieldJson=ConvertTo-Json $Field -Compress
     Evaluate "(function(){const f=document.querySelector($selectorJson);window.h2hSent=[];window.confirm=function(){return true;};f.addEventListener('submit',function(e){e.preventDefault();e.stopImmediatePropagation();const n=e.submitter;window.h2hSent.push(n?n.name+'='+n.value:'none');},true);f.querySelector($fieldJson).focus();return true;})()" | Out-Null
     Press-Enter
     if ((Evaluate "window.h2hSent.length") -ne 0) { throw "Enter chose an action on $($Path): $(Evaluate 'window.h2hSent.join()')" }
     $sent=Evaluate "(function(){window.h2hSent=[];const f=document.querySelector($selectorJson);f.noValidate=true;for(const b of f.querySelectorAll('button[type=submit],button:not([type])')){b.click();}return window.h2hSent.join();})()"
     if ($sent -ne ($Actions -join ',')) { throw "Buttons on $Path sent $sent, expected $($Actions -join ',')" }
+}
+
+function Check-VerificationActions {
+    # Nothing else in the run leaves a request pending, so this one sets up its own for a throwaway account. The check stops every submit, so it is never decided, and cleanup removes it.
+    $php='C:\xampp\php\php.exe'
+    $marker=[guid]::NewGuid().ToString('N').Substring(0,16)
+    try {
+        $requestId=& $php tests/http_audit_fixture.php pending-verification $marker
+        if ($LASTEXITCODE -ne 0 -or [int]$requestId -lt 1) { throw 'Pending verification fixture was not created' }
+        Check-SeveralActions '/admin/verifications' 'form[action*="/decide"]' '[name=reason]' @('decision=approved','decision=rejected')
+    } finally {
+        & $php tests/http_audit_fixture.php cleanup $marker | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'Pending verification fixture was not removed' }
+    }
+    Navigate "/admin/verifications?status=&q=http-audit-$marker"
+    if (Evaluate "!!document.querySelector('.verification-item')") { throw 'Pending verification fixture is still listed' }
+    Write-Output 'PASS browser Enter picks no action on a pending verification request and each button sends its own decision, fixture removed'
 }
 
 function Send-DoubleClick([string]$Selector) {
@@ -846,7 +860,7 @@ try {
     Check-LongText '/admin/reports' 'article.surface-card h2'
     Write-Output 'PASS browser long unbroken text wraps at 375 on Admin pages, wide tables scroll inside themselves'
     Check-SeveralActions '/admin' 'form.moderation-form' '[name=note]' @('action=approved','action=rejected')
-    Check-SeveralActions '/admin/verifications' 'form[action*="/decide"]' '[name=reason]' @('decision=approved','decision=rejected') -IfPresent
+    Check-VerificationActions
     Check-SeveralActions '/admin/articles/create' 'form.article-form' '[name=title]' @('intent=draft','intent=publish')
     Check-SeveralActions '/admin/catalog' 'form[action$="/admin/catalog"]:has(button[name=active])' 'input[name=name]' @('=','active=0')
     # A textarea keeps its new lines, and a form with one action still sends on Enter.
