@@ -412,6 +412,27 @@ try {
     }
     echo "PASS password rule 8-72 bytes without NUL on register, admin create and edit, change and reset; login stays lenient; a reset form error keeps the form and token\n";
 
+    // Hints state the byte rule the server enforces. minlength and maxlength count characters, so they would block a valid short accented password and pass an over-long one.
+    foreach ([[auditBrowser(), '/register'], [auditBrowser(), '/reset-password?token='.str_repeat('a', 64)], [$hostBrowser, '/profile'], [$admin, '/admin'], [$admin, '/admin/users/3/edit']] as [$hintBrowser, $hintPath]) {
+        $hintPage = auditRequest($hintBrowser, $url.$hintPath)['body'];
+        expect(str_contains($hintPage, '8–72 byte') && !str_contains($hintPage, '8–72 ký tự') && !str_contains($hintPage, '8 ký tự'), "$hintPath must state the byte rule.");
+        expect(preg_match_all('/<input\b[^>]*type="password"[^>]*>/', $hintPage, $passwordInputs) > 0, "$hintPath has no password input.");
+        foreach ($passwordInputs[0] as $passwordInput) { expect(!preg_match('/\b(?:min|max)length=/', $passwordInput), "$hintPath counts password characters in the browser: $passwordInput"); }
+    }
+    $englishHints = array_merge(require dirname(__DIR__).'/lang/en/common.php', require dirname(__DIR__).'/lang/en/guest.php', require dirname(__DIR__).'/lang/en/admin.php');
+    foreach (['Mật khẩu (8–72 byte, chữ có dấu tính 2–3 byte)', 'Mật khẩu mới cần dài 8–72 byte, chữ có dấu tính 2–3 byte. Sau khi đặt lại, các phiên cũ hết hiệu lực.', 'Mật khẩu mới (8–72 byte, chữ có dấu tính 2–3 byte)', 'Dài 8–72 byte, chữ có dấu tính 2–3 byte.', '8–72 byte'] as $hint) {
+        expect(str_contains((string) ($englishHints[$hint] ?? ''), '8–72 bytes'), "English must state the byte rule for: $hint");
+    }
+    $accentEmail = "audit-accent-$tag@home2home.test";
+    $accentBrowser = auditBrowser();
+    auditRequest($accentBrowser, $url.'/register', ['_token' => auditFormToken(auditRequest($accentBrowser, $url.'/register')['body']), 'full_name' => 'Audit accent', 'email' => $accentEmail, 'password' => str_repeat('ậ', 25)]);
+    expect($passwordModel->findByEmail($accentEmail) === null, '25 accented letters are 75 bytes, over the limit.');
+    auditRequest($accentBrowser, $url.'/register', ['_token' => auditFormToken(auditRequest($accentBrowser, $url.'/register')['body']), 'full_name' => 'Audit accent', 'email' => $accentEmail, 'password' => 'mậtkhẩu']);
+    $accentUser = $passwordModel->findByEmail($accentEmail);
+    expect($accentUser !== null && password_verify('mậtkhẩu', $accentUser['password_hash']), 'Seven accented characters are 11 bytes, within the rule.');
+    $database->prepare('CALL sp_test_cleanup_user(?)')->execute([(int) $accentUser['id']]);
+    echo "PASS password hints state the byte rule in Vietnamese and English, and no password input counts characters in the browser\n";
+
     // A session that ends and a login that starts leave nothing of the last person's forms; every bag a controller keeps is covered, so a new one has to be too.
     $bagNames = ['_flash', '_old', '_message_draft'];
     foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__).'/app', FilesystemIterator::SKIP_DOTS)) as $appFile) {

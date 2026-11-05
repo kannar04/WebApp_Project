@@ -182,7 +182,7 @@ return [
     'Đổi mật khẩu' => 'Change password',
     'Cần mật khẩu hiện tại. Sau khi đổi, các phiên cũ hết hiệu lực.' => 'Your current password is required. After the change, older sessions are signed out.',
     'Mật khẩu hiện tại' => 'Current password',
-    'Mật khẩu mới (8–72 ký tự)' => 'New password (8–72 characters)',
+    'Mật khẩu mới (8–72 byte, chữ có dấu tính 2–3 byte)' => 'New password (8–72 bytes; an accented letter counts as 2–3 bytes)',
     'Nhập lại mật khẩu mới' => 'Confirm new password',
 
     // profile/verification.php
