@@ -10,6 +10,8 @@ use Core\Controller;
 
 final class HomeController extends Controller
 {
+    private const PUBLIC_LISTING_FIELDS=['id','title','city','property_type','max_guests','room_count','bedroom_count','bed_count','nightly_price','cleaning_fee','currency','image_url','rating','review_count'];
+
     public function index(): void
     {
         [$filters,$searchError,$filterErrors]=$this->validatedFilters($_GET);
@@ -55,8 +57,19 @@ final class HomeController extends Controller
         $page=(int)($filters['page']??1);
         $result=(new Listing())->searchPage($filters,12,($page-1)*12);
         $trustBadges=(new \App\Models\Trust())->badges(array_column($result['listings'],'host_id'),Auth::id());
-        foreach ($result['listings'] as $index=>$listing) { $result['listings'][$index]['trusted_host']=!empty($trustBadges[(int)$listing['host_id']]['is_trusted_host']); }
+        $publicListings=[];
+        foreach ($result['listings'] as $listing) { $publicListings[]=self::publicListing($listing,$trustBadges); }
+        $result['listings']=$publicListings;
         $this->json(true,'Đã tải kết quả.',$result+['page'=>$page,'per_page'=>12,'pages'=>(int)ceil($result['total']/12)]);
+    }
+
+    /** Public API row: what a home page card shows. Moderation, audit and Host account columns stay on the server. */
+    private static function publicListing(array $listing,array $trustBadges): array
+    {
+        $public=[];
+        foreach (self::PUBLIC_LISTING_FIELDS as $field) { $public[$field]=$listing[$field]??null; }
+        $public['trusted_host']=!empty($trustBadges[(int)$listing['host_id']]['is_trusted_host']);
+        return $public;
     }
 
     public static function validatedFilters(array $input): array

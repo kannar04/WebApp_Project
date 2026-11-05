@@ -321,6 +321,13 @@ try {
         $plainApi=discoveryJson(discoveryRequest($curl,$baseUrl,'/api/listings'));
         $heroApi=discoveryJson(discoveryRequest($curl,$baseUrl,'/api/listings?'.$emptyHero));
         discoveryExpect($heroApi['success']===true && $heroApi['data']===$plainApi['data'],'Empty hero API result differs from the unfiltered one.');
+        // The public search API is a whitelist: an exact key list, so a new column cannot leak by default.
+        discoveryExpect(array_keys($plainApi)===['success','message','data','errors'] && array_keys($plainApi['data'])===['listings','total','page','per_page','pages'],'Search API envelope changed.');
+        discoveryExpect(array_keys($plainApi['data']['listings'][0])===['id','title','city','property_type','max_guests','room_count','bedroom_count','bed_count','nightly_price','cleaning_fee','currency','image_url','rating','review_count','trusted_host'],'Search API item shape incorrect.');
+        $rawApi=discoveryRequest($curl,$baseUrl,'/api/listings')['body'];
+        foreach (['moderation_status','moderation_reason','reviewed_by','reviewed_at','is_visible','deleted_at','host_id','address','created_at'] as $privateColumn) {
+            discoveryExpect(!str_contains($rawApi,'"'.$privateColumn.'"'),'Search API leaked '.$privateColumn.'.');
+        }
         $home=discoveryRequest($curl,$baseUrl,'/');
         discoveryExpect($home['status']===200 && str_contains($home['body'],'data-discovery-shelf') && str_contains($home['body'],'Gợi ý cho bạn')
             && str_contains($home['body'],'Vì bạn đã xem chỗ ở tại '.e($alpha)) && str_contains($home['body'],'Đã xem gần đây'),'Signed-in home recommendations missing.');
