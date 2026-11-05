@@ -513,6 +513,26 @@ function Check-CalendarArrows([string]$Path) {
     Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
 }
 
+function Check-CalendarLabelsWhole([string[]]$Paths) {
+    # Weekday names and all five day statuses keep every word whole inside its cell on a phone, in either language, and a host's long free-text reason still wraps. The statuses go into the real cells, so no fixture rows are needed.
+    $read="document.fonts.ready.then(function(){function linesOf(range){return new Set(Array.from(range.getClientRects()).filter(function(box){return box.width>0;}).map(function(box){return Math.round(box.top+box.height/2);})).size;}function brokenWords(el,cell,broken){const node=el.firstChild;for(const word of node.textContent.matchAll(/\S+/g)){const range=document.createRange();range.setStart(node,word.index);range.setEnd(node,word.index+word[0].length);const box=range.getBoundingClientRect();const edge=cell.getBoundingClientRect();if(linesOf(range)>1||box.left<edge.left-0.5||box.right>edge.right+0.5){broken.push(word[0]);}}}const labels=document.documentElement.lang==='en'?['Open','Blocked','Pending','Booked','Past']:['C\u00f2n tr\u1ed1ng','\u0110\u00e3 ch\u1eb7n','Ch\u1edd duy\u1ec7t','\u0110\u00e3 \u0111\u1eb7t','\u0110\u00e3 qua'];const root=document.documentElement;const broken=[];const unknown=[];let over=0;const weekdays=document.querySelectorAll('.calendar-grid > strong');for(const day of weekdays){brokenWords(day,day,broken);}const statuses=Array.from(document.querySelectorAll('.calendar-day time + small'));for(const status of statuses){if(!labels.includes(status.textContent.trim())){unknown.push(status.textContent.trim());}}for(const label of labels){for(const status of statuses){status.textContent=label;brokenWords(status,status.parentElement,broken);}over=Math.max(over,root.scrollWidth-window.innerWidth);}const reason=document.createElement('small');reason.textContent='a'.repeat(60);statuses[statuses.length-1].parentElement.appendChild(reason);const range=document.createRange();range.selectNodeContents(reason);over=Math.max(over,root.scrollWidth-window.innerWidth);return {weekdays:weekdays.length,statuses:statuses.length,broken:broken,unknown:unknown,over:over,reasonLines:linesOf(range),reasonOver:reason.scrollWidth-reason.clientWidth};})"
+    foreach ($language in 1,2) {
+        foreach ($width in 320,375) {
+            Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+            foreach ($path in $Paths) {
+                Navigate $path
+                $whole=Evaluate $read
+                if ($whole.weekdays -ne 7 -or $whole.statuses -lt 28 -or @($whole.broken).Count -or @($whole.unknown).Count -or $whole.over -gt 0 -or $whole.reasonLines -lt 2 -or $whole.reasonOver -gt 0) { throw "Calendar labels broken on $path at $width px: $($whole | ConvertTo-Json -Compress)" }
+            }
+        }
+        $current=Evaluate "document.documentElement.lang"
+        Evaluate "document.querySelector('.locale-toggle').click();true" | Out-Null
+        Wait-FilterPage "document.documentElement.lang!=='$current'&&document.readyState==='complete'"
+    }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    Write-Output 'PASS browser calendar weekday names and day statuses stay whole on the Host and listing pages at 320 and 375 in both languages, a long reason still wraps'
+}
+
 function Check-MessageFlash([string]$BookingPath) {
     # A message result used to land thousands of pixels above the thread. This one is refused, so nothing is stored: the result, the draft and the form must all be on screen.
     if (!$BookingPath) { Write-Output 'SKIP browser message result landing: no guest booking'; return }
@@ -757,6 +777,7 @@ try {
     Write-Output 'PASS browser a long unbroken title wraps in its cell on the Host tables'
     Write-Output 'PASS browser long unbroken text wraps at 375 on Host pages'
     Check-CalendarNavigation '/host/listings/1/availability'
+    Check-CalendarLabelsWhole @('/host/listings/1/availability','/listings/1')
     Check-FragmentLanding @('/host#trusted-host')
     Check-CalendarArrows '/host/listings/1/availability'
     Logout-Role
