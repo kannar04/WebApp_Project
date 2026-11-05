@@ -467,6 +467,7 @@ try {
         $blockedRequest=$service->create($listingId,$guestId,$start,$end,1);
         ensure($model->setAvailability($listingId,$hostId,$start,false,'Procedure block fixture'),'A Host could not block a date inside a pending request.');
         refusedSaying([$service,'hostTransition'],[$blockedRequest,$hostId,'confirmed'],'Hãy mở lại ngày đó trong Lịch khả dụng');
+        refusedSaying([$service,'adminTransition'],[$blockedRequest,(int)$admin['id'],'confirmed'],'Hãy nhờ Host mở lại ngày đó');
         ensure(bookingState($blockedRequest)['status']==='pending','A refused Accept changed the request.');
         ensure($model->setAvailability($listingId,$hostId,$start,true,null),'A Host could not reopen the date.');
         $service->hostTransition($blockedRequest,$hostId,'confirmed');
