@@ -392,6 +392,12 @@ try {
     payExpect(payInspect($bookingN)['payment_status']==='paid','A refused refund changed the payment.');
     $bookingO=payConfirmedBooking($service,$policyListings[50],$guestId,$hostId,$base,55);
     payExpect(!$service->cancelByGuest($bookingO,$guestId,'Audit fixture unpaid')['was_paid'] && (int)payInspect($bookingO)['admin_refund_notices']===0,'Cancelling an unpaid booking asked Admins for a refund.');
+    // The site prints a booking as #12: that search means exactly booking 12, a bare number stays a text search and #abc is plain text.
+    $paymentSearch=new App\Models\BookingExtras();
+    $byNumber=$paymentSearch->adminPayments($adminId,'','#'.$bookingM);
+    payExpect(count($byNumber)===1 && (int)$byNumber[0]['booking_id']===$bookingM,'Payment search by #id is not exactly that booking: '.count($byNumber).' rows.');
+    payExpect(count(payAdminRows($adminId,$bookingM))===1 && $paymentSearch->adminPayments($adminId,'not_required','#'.$bookingM)===[],'Bare id search lost the booking, or #id ignored the status filter.');
+    payExpect($paymentSearch->adminPayments($adminId,'','#999999999')===[] && $paymentSearch->adminPayments($adminId,'','#abc')===[],'Payment search by #id matched an unknown id or read #abc as a number.');
     echo "PASS cancel after payment: Admin notice with the refund owed in the same transaction, refund and totals use the policy amount, zero refund shown clearly and refused\n";
 
     // ---- A taken-down listing: no new online payment; money that already left is recorded and flagged for a refund.
@@ -789,12 +795,12 @@ try {
             $page=payHttp($client,$baseUrl,'/bookings/'.$refundedOpen)['body'];
             payExpect(str_contains($page,'Đã hoàn 220.000 VND') && !str_contains($page,'Số tiền hoàn'),'Cancelling after a refund changed the booking page.');
         }
-        payExpect(str_contains(payHttp($adminClient,$baseUrl,'/admin/payments?q='.$refundedOpen)['body'],'Đã hoàn 220.000đ'),'Admin list lost the refunded figure after the cancellation.');
+        payExpect(str_contains(payHttp($adminClient,$baseUrl,'/admin/payments?q=%23'.$refundedOpen)['body'],'Đã hoàn 220.000đ'),'Admin list lost the refunded figure after the cancellation.');
         $refundedOld=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,107,'14000053');
         payHttp($guestClient,$baseUrl,'/bookings/'.$refundedOld.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
         payHttp($adminClient,$baseUrl,'/admin/payments/'.$refundedOld.'/refund',['_token'=>$adminToken,'note'=>'Hoàn kiểu cũ']);
         payCall('CALL sp_test_payment_old_refund(?,?)',[$refundedOld,1]);
-        payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$refundedOld)['body'],'Đã hoàn 220.000 VND') && str_contains(payHttp($adminClient,$baseUrl,'/admin/payments?q='.$refundedOld)['body'],'Đã hoàn 220.000đ'),'A row refunded by older code shows the wrong figure.');
+        payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$refundedOld)['body'],'Đã hoàn 220.000 VND') && str_contains(payHttp($adminClient,$baseUrl,'/admin/payments?q=%23'.$refundedOld)['body'],'Đã hoàn 220.000đ'),'A row refunded by older code shows the wrong figure.');
         // The reject note cannot confirm: all three pages render a textarea, and only an explicit decision counts.
         $bookingK=payConfirmedBooking($service,$policyListings[100],$guestId,$hostId,$base,95);
         $noteTransfer=(int)$payments->start($bookingK,$guestId,'vietqr')['transaction_id'];

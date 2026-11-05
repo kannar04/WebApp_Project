@@ -87,6 +87,10 @@ qaExpect((float)$preview['refund_amount']===$refund['refund_amount'],'Refund pre
 qaExpect((float)$bookings->detail($bookingId,2)['refund']['refund_amount']===$refund['refund_amount'],'Stored refund detail wrong.');
 qaExpect($listings->calendar(1,0,$first,$last)[0]['day_status']==='available','Cancellation did not release calendar.');
 qaExpect(count($bookings->adminSearch(1,(string)$bookingId,'cancelled'))===1,'Admin booking lookup failed.');
+$byNumber=$bookings->adminSearch(1,'#'.$bookingId,'');
+qaExpect(count($byNumber)===1 && (int)$byNumber[0]['id']===$bookingId,'Admin booking search by #id is not exactly that booking.');
+qaExpect($bookings->adminSearch(1,'#'.$bookingId,'pending')===[] && $bookings->adminSearch(1,'#999999999','')===[] && $bookings->adminSearch(1,'#abc','')===[],'Admin booking search by #id ignored the status, matched an unknown id or read #abc as a number.');
+qaExpect(in_array($bookingId,array_map('intval',array_column($bookings->adminSearch(1,(string)$bookingId,''),'id')),true),'Admin booking search by a bare id lost the booking.');
 qaReject(fn()=>$bookings->adminSearch(3,'',''),'Guest queried admin booking search.');
 $inbox=new Notification(); $guestNotifications=$inbox->forUser(3); $hostNotifications=$inbox->forUser(2);
 qaExpect(count(array_filter($guestNotifications,fn($n)=>(int)$n['booking_id']===$bookingId))===2,'Guest event notifications missing.');
@@ -295,6 +299,7 @@ qaExpect($listings->findOwned($deletable,2)===null,'HTTP Host soft-delete failed
 qaExpect($bookings->detail($bookingId,2)['status']==='cancelled','Host deletion damaged booking history.');
 $logout(); $login('admin');
 foreach(['/admin','/admin/reviews','/admin/reports','/admin/catalog','/admin/listings/1/preview','/bookings/'.$bookingId,'/admin?booking_q='.$bookingId] as $path) { qaExpect($request($path)['status']===200,'Admin HTTP page failed: '.$path); }
+qaExpect(!str_contains($request('/admin?booking_q=%23'.$bookingId)['body'],'Không có booking khớp bộ lọc.') && str_contains($request('/admin?booking_q=%23999999999')['body'],'Không có booking khớp bộ lọc.'),'Admin booking search over HTTP does not read #id.');
 foreach (['type','amenity'] as $kind) {
     $page=$request('/admin/catalog'); $name='HTTP quality '.$kind;
     $request('/admin/catalog',['_token'=>$token($page),'kind'=>$kind,'id'=>0,'name'=>$name,'detail'=>'HTTP fixture','active'=>'1']);
