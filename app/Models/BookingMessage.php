@@ -8,17 +8,19 @@ use Core\ProcedureConnection;
 final class BookingMessage
 {
     public const MAX_LENGTH = 2000;
+    /** What draws nothing: control and format characters (zero-width ones included), separators, variation selectors and the blank letters. */
+    private const INVISIBLE = '/[\p{Cc}\p{Cf}\p{Z}\x{034F}\x{FE00}-\x{FE0F}\x{E0100}-\x{E01EF}\x{2800}\x{3164}\x{FFA0}\x{115F}\x{1160}]/u';
     private ProcedureConnection $db;
 
     public function __construct() { $this->db = ProcedureConnection::connection(); }
 
-    /** Shape check only: plain UTF-8 text, unified line breaks, 1-2000 characters after trimming. */
+    /** Shape check only: plain UTF-8 text, unified line breaks, no control characters but newline and tab, 1-2000 characters after trimming, something visible. sp_booking_message_send applies the same rule. */
     public static function normalize(mixed $raw): ?string
     {
         if (!is_string($raw) || !mb_check_encoding($raw, 'UTF-8')) { return null; }
-        $body = trim(str_replace(["\r\n", "\r"], "\n", $raw));
-        $length = mb_strlen($body);
-        return $length >= 1 && $length <= self::MAX_LENGTH ? $body : null;
+        $body = trim((string) preg_replace('/(?![\n\t])\p{Cc}/u', '', str_replace(["\r\n", "\r"], "\n", $raw)));
+        if (preg_replace(self::INVISIBLE, '', $body) === '') { return null; }
+        return mb_strlen($body) <= self::MAX_LENGTH ? $body : null;
     }
 
     public function send(int $bookingId, int $actorId, string $body): int

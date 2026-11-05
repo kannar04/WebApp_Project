@@ -45,6 +45,8 @@ BEGIN
     DECLARE v_sender VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_body TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_check_out DATE;
+    DECLARE v_code INT DEFAULT 0;
+    DECLARE v_length INT;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -76,8 +78,21 @@ BEGIN
     IF v_status NOT IN ('pending','confirmed','completed') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking ở trạng thái này không nhận tin nhắn.';
     END IF;
-    SET v_body=REGEXP_REPLACE(COALESCE(p_body,''),'^[[:space:]]+|[[:space:]]+$','');
-    IF CHAR_LENGTH(v_body)<1 OR CHAR_LENGTH(v_body)>2000 THEN
+    -- Same rule as BookingMessage::normalize: no control characters but newline and tab are stored, and a body that draws nothing is empty.
+    -- REGEXP_REPLACE on text turns every 4-byte character into '?' on MariaDB 10.4, so it may judge the body but never rewrite it: REPLACE and TRIM keep emoji intact.
+    SET v_body=COALESCE(p_body,'');
+    WHILE v_code<=159 DO
+        IF (v_code<32 AND v_code NOT IN (9,10)) OR v_code>=127 THEN
+            SET v_body=REPLACE(v_body,CONVERT(CHAR(v_code USING ucs2) USING utf8mb4) COLLATE utf8mb4_unicode_ci,'');
+        END IF;
+        SET v_code=v_code+1;
+    END WHILE;
+    REPEAT
+        SET v_length=CHAR_LENGTH(v_body);
+        SET v_body=TRIM(BOTH ' ' FROM TRIM(BOTH '\t' FROM TRIM(BOTH '\n' FROM v_body)));
+    UNTIL CHAR_LENGTH(v_body)=v_length END REPEAT;
+    -- The inner call works on bytes, because the blank 4-byte characters (tags and variation selectors, U+E0000-E01FF) would read as a visible '?' otherwise.
+    IF CHAR_LENGTH(v_body)>2000 OR CHAR_LENGTH(REGEXP_REPLACE(CONVERT(REGEXP_REPLACE(CAST(v_body AS BINARY),'\\xF3\\xA0[\\x80-\\x87][\\x80-\\xBF]','') USING utf8mb4),'[\\p{Cc}\\p{Cf}\\p{Z}\\x{034F}\\x{FE00}-\\x{FE0F}\\x{2800}\\x{3164}\\x{FFA0}\\x{115F}\\x{1160}]',''))<1 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tin nhắn cần từ 1 đến 2000 ký tự.';
     END IF;
     INSERT INTO booking_messages(booking_id,sender_id,recipient_id,body,created_at) VALUES(p_booking,p_actor,v_recipient,v_body,NOW(6));

@@ -183,7 +183,25 @@ try {
     conversationRejects('conversationSendRaw', [$bookingA, $guestId, str_repeat('a', 2001)], '2001-character body accepted by SQL.');
     $long = $messages->send($bookingA, $guestId, str_repeat('ệ', 2000));
     conversationExpect($long > 0, '2000 multibyte characters rejected.');
+    // A body that draws nothing is empty; control characters but newline and tab are never stored; emoji and Vietnamese stay as typed.
+    foreach (["\u{200B}", "\u{200D}\u{200D}", "\u{0000}", "\u{0001}\u{007F}", "\u{0085}", "\u{FEFF} \u{00A0}\u{3000}", "\u{2060}\u{00AD}", "\u{3164}", "\u{2800}", "\u{FE0F}", "\u{E0001}", "\u{E0100}\u{200B}", "\n\t\u{200B}\n"] as $blank) {
+        conversationExpect(BookingMessage::normalize($blank) === null, 'A blank body passed PHP: '.bin2hex($blank));
+        conversationRejects('conversationSendRaw', [$bookingA, $guestId, $blank], 'A blank body passed the routine: '.bin2hex($blank));
+    }
+    $emojiBody = "👨\u{200D}👩\u{200D}👧\u{200D}👦 🏳\u{FE0F}\u{200D}🌈 Phòng đẹp lắm ạ — Nguyễn Văn Ấn";
+    conversationExpect(BookingMessage::normalize($emojiBody) === $emojiBody, 'PHP changed emoji or Vietnamese.');
+    conversationExpect(BookingMessage::normalize("a\u{0000}b\u{0007}c\u{007F}\td\ne\u{0085}") === "abc\td\ne", 'PHP kept a control character or lost a newline or tab.');
+    conversationExpect(BookingMessage::normalize("\u{200D}👍") === "\u{200D}👍", 'PHP refused a body with something visible.');
+    $database->beginTransaction();
+    try {
+        conversationSendRaw($bookingA, $guestId, "a\u{0000}b\u{0007}c\u{007F}\td\ne\u{0085}");
+        conversationSendRaw($bookingA, $guestId, $emojiBody);
+        $storedBodies = array_column($messages->thread($bookingA, $guestId), 'body');
+        conversationExpect(in_array("abc\td\ne", $storedBodies, true), 'The routine stored a control character or lost a newline or tab.');
+        conversationExpect(in_array($emojiBody, $storedBodies, true), 'The routine changed emoji or Vietnamese.');
+    } finally { if ($database->inTransaction()) { $database->rollBack(); } }
     echo "PASS validation: 1-2000 characters (multibyte), whitespace/NULL/oversized refused in PHP and in the routine\n";
+    echo "PASS validation: blank bodies refused, control characters stripped, emoji and Vietnamese kept, in PHP and in the routine\n";
 
     // Ownership, role and state guards.
     conversationRejects([$messages, 'send'], [$bookingA, $adminId, 'Admin không phải người tham gia'], 'Admin sent as a participant.');

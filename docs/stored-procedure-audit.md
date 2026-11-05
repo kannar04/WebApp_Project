@@ -428,6 +428,7 @@ Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
 | `sp_admin_listing_moderate` | `030_atomic_writes.sql` | Từ chối lý do hoặc ghi chú dài hơn 5000 ký tự | procedure_flow_test, feature_trust_test |
 | `sp_booking_create` | `020_booking.sql` | Từ chối tài khoản không có vai trò Guest; booking đã có vẫn thuộc về người đặt (các routine xem, hủy, thanh toán kiểm tra `guest_id`) | procedure_flow_test, feature_trust_test |
 | `sp_booking_message_state`, `sp_booking_message_send`, `sp_admin_message_thread` | `080_conversation.sql` | Tài khoản bên kia đã xóa: trả `other_deleted`, cuộc trò chuyện chỉ còn để xem, không gửi tin và không tạo thông báo; khôi phục tài khoản thì mở lại. Admin thấy `guest_deleted`/`host_deleted` | feature_conversation_test |
+| `sp_booking_message_send` | `080_conversation.sql` | Bỏ ký tự điều khiển trừ xuống dòng và tab khỏi nội dung lưu; nội dung không có gì nhìn thấy được xem như rỗng. Emoji (kể cả chuỗi ZWJ) và tiếng Việt giữ nguyên | feature_conversation_test |
 
 ### Routine mới
 
