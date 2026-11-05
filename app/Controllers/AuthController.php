@@ -83,7 +83,10 @@ final class AuthController extends Controller
         Csrf::ensure();
         try {
             $token=$_POST['token']??''; $password=$_POST['password']??''; $confirmation=$_POST['password_confirmation']??'';
-            if (!is_string($token) || !is_string($password) || !is_string($confirmation) || $password!==$confirmation) { throw new \DomainException('Xác nhận mật khẩu không khớp.'); }
+            if (!is_string($token) || !preg_match('/^[a-f0-9]{64}$/D',$token)) { throw new \DomainException('Liên kết không hợp lệ, đã hết hạn hoặc đã sử dụng.'); }
+            // A typing mistake keeps the link: the form stays open and the token is not spent.
+            $problem=!is_string($password) || $password!==$confirmation ? 'Xác nhận mật khẩu không khớp.' : (Validator::passwordAllowed($password) ? null : Validator::PASSWORD_RULE);
+            if ($problem!==null) { Session::flash('error',$problem); $this->redirect('/reset-password?token='.$token); }
             (new \App\Models\PasswordReset())->consume($token,$password);
             if (Auth::check()) { Auth::logout(); Session::start(); }
             Session::flash('success','Đã đặt mật khẩu mới. Vui lòng đăng nhập lại.'); $this->redirect('/login');

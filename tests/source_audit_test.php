@@ -329,10 +329,15 @@ try {
         (new \App\Models\PasswordReset())->issue($fixtureId, $rawToken);
         $reader = auditBrowser();
         $resetForm = auditRequest($reader, $url.'/reset-password?token='.$rawToken)['body'];
-        foreach ([$tooLong, $withNul, 'short'] as $badPassword) {
-            auditRequest($reader, $url.'/reset-password', ['_token' => auditFormToken($resetForm), 'token' => $rawToken, 'password' => $badPassword, 'password_confirmation' => $badPassword]);
+        $resetReturn = '/reset-password?token='.$rawToken;
+        foreach ([[$tooLong, $tooLong, \Core\Validator::PASSWORD_RULE], [$withNul, $withNul, \Core\Validator::PASSWORD_RULE], ['short', 'short', \Core\Validator::PASSWORD_RULE], ['Abcdefgh1', 'Abcdefgh2', 'Xác nhận mật khẩu không khớp.']] as [$badPassword, $confirmation, $message]) {
+            $refused = auditRequest($reader, $url.'/reset-password', ['_token' => auditFormToken($resetForm), 'token' => $rawToken, 'password' => $badPassword, 'password_confirmation' => $confirmation]);
             expect($passwordModel->findByEmail($fixtureEmail)['password_hash'] === $fixtureHash, 'Reset accepted a bad password.');
+            expect($refused['location'] === $resetReturn, 'A reset form error must stay on the form with its token.');
+            $returned = auditRequest($reader, $url.$resetReturn)['body'];
+            expect(str_contains($returned, $message) && str_contains($returned, 'name="token" value="'.$rawToken.'"'), 'The reset form must show the error and keep the token.');
         }
+        expect(auditRequest($reader, $url.'/reset-password', ['_token' => auditFormToken($resetForm), 'token' => 'not-a-token', 'password' => 'Abcdefgh1', 'password_confirmation' => 'Abcdefgh1'])['location'] === '/forgot-password', 'A malformed link must still go to the forgot page.');
         $exact = str_repeat('E', 72);
         auditRequest($admin, $url.'/admin/users/'.$fixtureId, ['_token' => $adminToken, 'full_name' => 'Audit password fixture', 'email' => $fixtureEmail, 'phone' => '', 'password' => '', 'roles' => ['guest']]);
         expect($passwordModel->findByEmail($fixtureEmail)['password_hash'] === $fixtureHash, 'A blank password on admin edit must keep the current one.');
@@ -341,7 +346,7 @@ try {
     } finally {
         $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$fixtureId]);
     }
-    echo "PASS password rule 8-72 bytes without NUL on register, admin create and edit, change and reset; login stays lenient\n";
+    echo "PASS password rule 8-72 bytes without NUL on register, admin create and edit, change and reset; login stays lenient; a reset form error keeps the form and token\n";
 
     auditOversizedPost(['display_startup_errors' => '1', 'output_buffering' => '4096'], true);
     auditOversizedPost(['display_startup_errors' => '0', 'output_buffering' => '0'], false);
