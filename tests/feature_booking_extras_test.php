@@ -690,6 +690,22 @@ try {
         if ($newListing!==null) { $extraListings[]=$newListing; }
         $owned=$newListing===null?[]:$listings->findOwned($newListing,$hostId);
         bxExpect((float)($owned['nightly_price']??0)===480000.0 && (float)($owned['cleaning_fee']??-1)===0.0,'Host create form refused plain numbers.');
+        // A stored price with real decimals can be saved unchanged: every money and percent input takes the two decimals the server takes.
+        foreach (['/host/listings/'.$listingId.'/edit'=>[$hostClient,['nightly_price','cleaning_fee']],'/admin/listings/'.$listingId.'/edit'=>[$adminClient,['nightly_price','cleaning_fee']],
+            '/host/listings/'.$listingId.'/pricing'=>[$hostClient,['weekend_nightly_rate','holiday_nightly_rate','weekly_discount_pct','monthly_discount_pct']],
+            '/admin/promotions'=>[$adminClient,['discount_value','max_discount_amount','min_subtotal']]] as $path=>[$client,$fields]) {
+            $page=bxHttp($client,$baseUrl,$path)['body'];
+            foreach ($fields as $field) {
+                bxExpect((bool)preg_match('/<input[^>]*name="'.$field.'"[^>]*>/',$page,$input) && str_contains($input[0],'step="0.01"'),$path.' blocks decimals in '.$field.'.');
+            }
+        }
+        // A Host save sends the listing back to review, so it runs on the listing created just above.
+        bxHttp($hostClient,$baseUrl,'/host/listings/'.$newListing,['_token'=>$hostToken]+array_merge($data,['nightly_price'=>'500000.50','cleaning_fee'=>'33333.33']));
+        $owned=$listings->findOwned($newListing,$hostId);
+        bxExpect((string)$owned['nightly_price']==='500000.50' && (string)$owned['cleaning_fee']==='33333.33','Host form did not save a price with decimals unchanged: '.json_encode([$owned['nightly_price'],$owned['cleaning_fee']]));
+        bxHttp($adminClient,$baseUrl,'/admin/listings/'.$listingId,['_token'=>$adminToken]+array_merge($data,['nightly_price'=>'500000.50','cleaning_fee'=>'33333.33']));
+        $owned=$listings->findOwned($listingId,$hostId);
+        bxExpect((string)$owned['nightly_price']==='500000.50' && (string)$owned['cleaning_fee']==='33333.33','Admin form did not save a price with decimals unchanged: '.json_encode([$owned['nightly_price'],$owned['cleaning_fee']]));
         bxHttp($adminClient,$baseUrl,'/admin/listings/'.$listingId,['_token'=>$adminToken]+array_merge($data,['nightly_price'=>'120000','cleaning_fee'=>'30000']));
         $owned=$listings->findOwned($listingId,$hostId);
         bxExpect((float)$owned['nightly_price']===120000.0 && (float)$owned['cleaning_fee']===30000.0,'Admin listing form refused plain numbers.');
