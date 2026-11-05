@@ -714,6 +714,34 @@ $page=$request('/login'); $valid=$request('/login',['_token'=>$token($page),'ema
 qaExpect(!str_contains($valid['url'],'/login'),'New password rejected.');
 $logout(); $passwordUser->softDelete($passwordId); curl_close($stale);
 echo "PASS QA real HTTP password change/current-password validation/hash/old-password rejection and invalidation of second session\n";
+// An Admin who changes their own password sees that it saved and signs in again, and the session's form data goes with it. Anything else leaves the Admin signed in.
+$adminEmail='audit-admin-'.bin2hex(random_bytes(6)).'@home2home.test'; $otherEmail='audit-other-'.bin2hex(random_bytes(6)).'@home2home.test';
+$adminId=$passwordUser->create($adminEmail,$oldPassword,'Quality admin fixture',null); $otherId=$passwordUser->create($otherEmail,$oldPassword,'Quality other fixture',null);
+$passwordUser->replaceRoles($adminId,['admin'],1);
+$ownRecord=['full_name'=>'Quality admin fixture','email'=>$adminEmail,'phone'=>'','roles'=>['admin']]; $otherRecord=['full_name'=>'Quality other fixture','email'=>$otherEmail,'phone'=>'','roles'=>['guest']];
+$page=$request('/login'); $request('/login',['_token'=>$token($page),'email'=>$adminEmail,'password'=>$oldPassword]);
+$page=$request('/admin/users/'.$adminId.'/edit');
+$saved=$request('/admin/users/'.$adminId,['_token'=>$token($page),'password'=>'']+$ownRecord);
+qaExpect(!str_contains($saved['url'],'/login') && str_contains($saved['body'],'Đã cập nhật tài khoản.') && !str_contains($saved['body'],'đăng nhập lại'),'Own record without a password signed the Admin out.');
+$saved=$request('/admin/users/'.$otherId,['_token'=>$token($page),'password'=>$newPassword]+$otherRecord);
+qaExpect(!str_contains($saved['url'],'/login') && str_contains($saved['body'],'Đã cập nhật tài khoản.') && !str_contains($saved['body'],'đăng nhập lại') && password_verify($newPassword,$passwordUser->findByEmail($otherEmail)['password_hash']),'Another person\'s password signed the Admin out.');
+$refused=$request('/admin/users/'.$adminId,['_token'=>$token($page),'password'=>'short']+$ownRecord);
+qaExpect(str_contains($refused['url'],'/admin/users/'.$adminId.'/edit') && password_verify($oldPassword,$passwordUser->findByEmail($adminEmail)['password_hash']),'A refused password left the edit page.');
+$page=$request('/admin/users/'.$adminId.'/edit');
+$refused=$request('/admin/users/'.$adminId,['_token'=>$token($page),'password'=>$newPassword,'email'=>$otherEmail]+$ownRecord);
+qaExpect(str_contains($refused['url'],'/admin/users/'.$adminId.'/edit') && str_contains($refused['body'],'Email đã được sử dụng.') && password_verify($oldPassword,$passwordUser->findByEmail($adminEmail)['password_hash']),'A refused save changed the password or signed the Admin out.');
+// A refused edit of someone else is left unread in the session while the Admin changes their own password.
+$page=$request('/admin/users/'.$adminId.'/edit');
+curl_setopt($curl,CURLOPT_FOLLOWLOCATION,false); $request('/admin/users/'.$otherId,['_token'=>$token($page),'password'=>'','email'=>'left-by-the-admin']+$otherRecord); curl_setopt($curl,CURLOPT_FOLLOWLOCATION,true);
+$saved=$request('/admin/users/'.$adminId,['_token'=>$token($page),'password'=>$newPassword]+$ownRecord);
+qaExpect(str_contains($saved['url'],'/login') && str_contains($saved['body'],'alert-success') && str_contains($saved['body'],'Đã cập nhật tài khoản. Vui lòng đăng nhập lại.') && !str_contains($saved['body'],'Vui lòng đăng nhập để tiếp tục.'),'The Admin cannot tell their own password was saved.');
+qaExpect(password_verify($newPassword,$passwordUser->findByEmail($adminEmail)['password_hash']) && str_contains($request('/admin')['url'],'/login'),'The Admin\'s own password was not saved, or the session survived it.');
+qaExpect(!str_contains($request('/login')['body'],'alert-success'),'The message showed twice.');
+$page=$request('/login'); $valid=$request('/login',['_token'=>$token($page),'email'=>$adminEmail,'password'=>$newPassword]);
+qaExpect(str_contains($valid['url'],'/admin'),'The new password did not sign the Admin in.');
+qaExpect(!str_contains($request('/admin/users/'.$otherId.'/edit')['body'],'left-by-the-admin'),'Form data outlived the session that ended.');
+$logout(); qaCall('CALL sp_test_cleanup_user(?)',[$adminId]); qaCall('CALL sp_test_cleanup_user(?)',[$otherId]);
+echo "PASS HTTP Admin's own password: saved message on the login page, form data gone; own record or another person's password leaves the Admin signed in\n";
 $recovery=new \App\Models\PasswordReset();
 $recoveryId=$passwordUser->create('quality-recovery-'.bin2hex(random_bytes(6)).'@home2home.test',$oldPassword,'Quality recovery fixture',null);
 $rawToken=bin2hex(random_bytes(32)); $recovery->issue($recoveryId,$rawToken);

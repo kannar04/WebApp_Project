@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\Trust;
 use App\Models\User;
 use App\Services\BookingService;
+use Core\Auth;
 use Core\Controller;
 use Core\Csrf;
 use Core\Database;
@@ -138,6 +139,11 @@ final class AdminController extends Controller
             Session::old(array_diff_key($data, ['password'=>1]) + ['roles'=>$roles], 'user:'.$userId);
             Session::flash('error', $message);
             $this->redirect('/admin/users/'.$userId.'/edit');
+        }
+        // A new password of one's own ends this session, as on the profile page; signing out here lets the message survive that.
+        if ($userId === (int) $admin['id'] && $data['password'] !== '') {
+            Auth::logout(); Session::start(); Session::flash('success', 'Đã cập nhật tài khoản. Vui lòng đăng nhập lại.');
+            $this->redirect('/login');
         }
         $this->redirect('/admin');
     }

@@ -108,6 +108,7 @@ return [
     'Trạng thái lọc booking không hợp lệ.' => 'Invalid booking status filter.',
     'Trạng thái tài khoản không hợp lệ.' => 'Invalid account status.',
     'Đã cập nhật tài khoản.' => 'Account updated.',
+    'Đã cập nhật tài khoản. Vui lòng đăng nhập lại.' => 'Account updated. Please log in again.',
     'Vai trò không hợp lệ.' => 'Invalid role.',
     'Đã cập nhật vai trò.' => 'Roles updated.',
     'Thông tin tài khoản mới không hợp lệ.' => 'The new account details are invalid.',
