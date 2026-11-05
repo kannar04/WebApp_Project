@@ -289,6 +289,13 @@ body { overflow-wrap: break-word; }
     .site-header .navbar-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
     .site-header .navbar-actions .btn { padding-left: .55rem; padding-right: .55rem; font-size: .875rem; white-space: nowrap; }
     .site-header .navbar-actions .btn-soft { max-width: 11rem; overflow: hidden; text-overflow: ellipsis; }
+    /* Without room for one row (Host and Admin below 1200 px) the actions go on top and the links below as a whole, so no button sits alone on a row of its own. */
+    .site-header .navbar-collapse { flex-wrap: wrap-reverse; justify-content: flex-end; }
+}
+/* From 1200 px every role fits on one row in both languages. */
+@media (min-width: 1200px) {
+    .site-header .navbar-nav .nav-link { margin: 0; }
+    .site-header .navbar-actions .btn { padding-left: .45rem; padding-right: .45rem; }
 }
 /* Phones and tablets: the admin article table becomes stacked rows so every action stays visible without sideways scrolling. */
 @media (max-width: 991.98px) {

@@ -244,6 +244,23 @@ function Check-AdminFilterCarry {
     Write-Output 'PASS browser admin user search and booking filter keep each other'
 }
 
+function Check-HeaderRows {
+    # From 1200 px one row in both languages. Below that a role may need two rows, but the actions stay together: no button alone on a row.
+    $read="(function(){const middle=function(el){const box=el.getBoundingClientRect();return box.top+box.height/2;};const actions=[...document.querySelectorAll('.site-header .navbar-actions > *')].map(middle);return {spread:Math.max.apply(null,actions)-Math.min.apply(null,actions),linksGap:Math.abs(middle(document.querySelector('.site-header .navbar-nav'))-actions[0]),over:document.documentElement.scrollWidth-window.innerWidth};})()"
+    foreach ($language in 1,2) {
+        foreach ($width in 992,1199,1200,1440,1920) {
+            Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+            Navigate '/'
+            $header=Evaluate $read
+            if ($header.spread -gt 12 -or $header.over -gt 0 -or ($width -ge 1200 -and $header.linksGap -gt 12)) { throw "Header wraps at $width px: $($header | ConvertTo-Json -Compress)" }
+        }
+        $current=Evaluate "document.documentElement.lang"
+        Evaluate "document.querySelector('.locale-toggle').click();true" | Out-Null
+        Wait-FilterPage "document.documentElement.lang!=='$current'&&document.readyState==='complete'"
+    }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+}
+
 function Check-LongTableTitle([string]$Path, [switch]$IfPresent) {
     # One unbroken title must wrap in its cell: the table stays inside its box at desktop width, so the action buttons stay on screen. Put into the real cells, so no fixture rows are needed.
     $fill="(function(){const cells=document.querySelectorAll('td.table-title');for(const cell of cells){(cell.querySelector('strong a, strong, a')||cell).textContent='W'.repeat(200);}let wider=0;for(const cell of cells){const table=cell.closest('table');wider=Math.max(wider,table.getBoundingClientRect().width-table.closest('.table-responsive').getBoundingClientRect().width);}return {found:cells.length,wider:wider,over:document.documentElement.scrollWidth-window.innerWidth};})()"
@@ -467,6 +484,8 @@ try {
     Navigate '/login'
     Check-Page 'login'
     if ((Login-Role 'guest') -ne '/') { throw 'Guest login redirect failed' }
+    Check-HeaderRows
+    Write-Output 'PASS browser header keeps one row from 1200 px and its actions together below that, in both languages'
     foreach ($width in @(375,768,1024,1440)) {
         Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
         foreach ($path in @('/profile','/bookings','/wishlist','/notifications','/reports','/messages','/map','/')) { Navigate $path; Check-Page "Guest $path $width" }
@@ -514,6 +533,7 @@ try {
     Write-Output 'PASS browser Enter picks no action on the Host availability form'
     Check-LongText '/host/listings/1/availability' '.section-title h1, .section-title p'
     Check-LongTableTitle '/host'
+    Check-HeaderRows
     Write-Output 'PASS browser a long unbroken title wraps in its cell on the Host tables'
     Write-Output 'PASS browser long unbroken text wraps at 375 on Host pages'
     Check-CalendarNavigation '/host/listings/1/availability'
@@ -533,6 +553,7 @@ try {
     }
     Check-LongText '/admin' 'table tbody td:nth-child(2)'
     Check-LongTableTitle '/admin'
+    Check-HeaderRows
     Check-LongTableTitle '/admin/payments' -IfPresent
     Check-LongTableTitle '/admin/articles' -IfPresent
     Write-Output 'PASS browser a long unbroken title wraps in its cell on the Admin tables'
