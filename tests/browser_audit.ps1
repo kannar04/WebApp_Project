@@ -48,7 +48,7 @@ function Evaluate([string]$Expression) {
 }
 
 function Navigate([string]$Path) {
-    if ($Path -match '^https?://') { $Path=([Uri]$Path).PathAndQuery }
+    if ($Path -match '^https?://') { $Path=([Uri]$Path).PathAndQuery+([Uri]$Path).Fragment }
     $targetUri=[Uri]($BaseUrl.TrimEnd('/')+$Path)
     Send-Cdp 'Page.navigate' @{url=$targetUri.AbsoluteUri} | Out-Null
     $expectedPath=ConvertTo-Json $targetUri.AbsolutePath -Compress
@@ -244,13 +244,13 @@ function Check-MenuWithoutScript {
 function Check-SearchStayToListing {
     # A search's dates and guests reach the listing: the total shows by itself, and the month arrows and the sign-in link keep them. Without them every link stays plain.
     $stay='check_in=2035-08-10&check_out=2035-08-12&guests=2'
-    $cardLinks="Array.from(document.querySelectorAll('.listing-card a')).map(function(link){return link.getAttribute('href');})"
+    $cardLinks="Array.from(document.querySelectorAll('.listing-card a')).map(function(link){return link.pathname+link.search;})"
     Navigate '/'
     if (@(Evaluate $cardLinks) -match '\?') { throw 'Ordinary card links gained a query' }
     Navigate '/?location=&check_in=&check_out=&guests=1'
     if (@(Evaluate $cardLinks) -match '\?') { throw 'The default one guest added a query to card links' }
     Navigate '/listings/1'
-    if ((Evaluate "document.querySelector('[data-login-next]').getAttribute('href')") -ne '/login') { throw 'Plain listing gained a sign-in query' }
+    if ((Evaluate "(function(){const link=document.querySelector('[data-login-next]');return link.pathname+link.search;})()") -ne '/login') { throw 'Plain listing gained a sign-in query' }
     Navigate '/?check_in=2020-01-01&check_out=2020-01-02&guests=2'
     if (@(Evaluate $cardLinks).Count) { throw 'A refused search still lists cards' }
 
@@ -276,7 +276,7 @@ function Check-SearchStayToListing {
     if ($seen.guests -ne '2' -or $seen.next -ne $link) { throw "Guests-only stay lost: $($seen | ConvertTo-Json -Compress)" }
 
     # Map list and popup links, which map.js rebuilds from the API.
-    $mapLinks="new Promise(function(resolve){setTimeout(function(){resolve(Array.from(document.querySelectorAll('.discovery-map-item-link')).map(function(link){return link.getAttribute('href');}));},1500);})"
+    $mapLinks="new Promise(function(resolve){setTimeout(function(){resolve(Array.from(document.querySelectorAll('.discovery-map-item-link')).map(function(link){return link.pathname+link.search;}));},1500);})"
     Navigate '/map'
     if (@(Evaluate $mapLinks) -match '\?') { throw 'Plain map links gained a query' }
     Navigate ('/map?'+$stay)
@@ -290,7 +290,7 @@ function Check-DetailHeart {
     Navigate '/'
     $before=[bool](Evaluate "$heart.classList.contains('is-saved')")
     $flipped=if ($before) { 'false' } else { 'true' }
-    Evaluate "document.querySelector('.listing-card a[href^=""/listings/3""]').click();true" | Out-Null
+    Evaluate "document.querySelector('.listing-card a[href$=""/listings/3""]').click();true" | Out-Null
     Wait-FilterPage "location.pathname==='/listings/3'"
     $shown=Evaluate "({count:document.querySelectorAll('[data-favorite]').length,saved:$heart.classList.contains('is-saved'),pressed:$heart.getAttribute('aria-pressed'),label:$heart.getAttribute('aria-label'),type:$heart.type})"
     if ($shown.count -ne 1 -or $shown.saved -ne $before -or $shown.pressed -ne ([string]$before).ToLower() -or !$shown.label -or $shown.type -ne 'button') { throw "Detail heart wrong: $($shown | ConvertTo-Json -Compress)" }
