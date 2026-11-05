@@ -8,7 +8,8 @@ CREATE OR REPLACE PROCEDURE sp_discovery_map_search(
     IN p_location VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_guests INT, IN p_type BIGINT UNSIGNED,
     IN p_min DECIMAL(12,2), IN p_max DECIMAL(12,2), IN p_start DATE, IN p_end DATE, IN p_limit INT)
 BEGIN
-    DECLARE v_location VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT TRIM(COALESCE(p_location,''));
+    -- đ has its own weight in every collation of MariaDB 10.4, unlike the other Vietnamese accents, so "Da Lat" only finds "Đà Lạt" with it folded on both sides. REPLACE is case-sensitive, hence both cases.
+    DECLARE v_location VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(TRIM(COALESCE(p_location,'')),'đ','d'),'Đ','D');
     DECLARE v_box BOOL DEFAULT p_north IS NOT NULL;
     IF (p_north IS NULL)<>(p_south IS NULL) OR (p_north IS NULL)<>(p_east IS NULL) OR (p_north IS NULL)<>(p_west IS NULL) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Khung bản đồ cần đủ bốn cạnh bắc, nam, đông, tây.';
@@ -35,7 +36,7 @@ BEGIN
         AND l.latitude IS NOT NULL AND l.longitude IS NOT NULL
         AND (NOT v_box OR (l.latitude BETWEEN p_south AND p_north
             AND ((p_west<p_east AND l.longitude BETWEEN p_west AND p_east) OR (p_west>p_east AND (l.longitude>=p_west OR l.longitude<=p_east)))))
-        AND (v_location='' OR l.city LIKE CONCAT('%',v_location,'%') OR l.address LIKE CONCAT('%',v_location,'%') OR l.title LIKE CONCAT('%',v_location,'%'))
+        AND (v_location='' OR REPLACE(REPLACE(l.city,'đ','d'),'Đ','D') LIKE CONCAT('%',v_location,'%') OR REPLACE(REPLACE(l.address,'đ','d'),'Đ','D') LIKE CONCAT('%',v_location,'%') OR REPLACE(REPLACE(l.title,'đ','d'),'Đ','D') LIKE CONCAT('%',v_location,'%'))
         AND (COALESCE(p_guests,0)=0 OR l.max_guests>=p_guests) AND (COALESCE(p_type,0)=0 OR l.property_type_id=p_type)
         AND (COALESCE(p_min,0)=0 OR l.base_nightly_rate>=p_min) AND (COALESCE(p_max,0)=0 OR l.base_nightly_rate<=p_max)
         AND (p_start IS NULL OR (
@@ -168,9 +169,9 @@ BEGIN
             COALESCE((SELECT SUM(LEAST(v.view_count,5)) FROM listing_views v JOIN listings vl ON vl.id=v.listing_id
                 WHERE v.user_id=p_user AND vl.id<>l.id AND vl.city=l.city),0) city_views,
             (SELECT COUNT(*) FROM search_history s WHERE s.user_id=p_user AND s.location IS NOT NULL
-                AND (l.city LIKE CONCAT('%',s.location,'%') OR l.address LIKE CONCAT('%',s.location,'%') OR l.title LIKE CONCAT('%',s.location,'%'))) search_hits,
+                AND (REPLACE(REPLACE(l.city,'đ','d'),'Đ','D') LIKE CONCAT('%',REPLACE(REPLACE(s.location,'đ','d'),'Đ','D'),'%') OR REPLACE(REPLACE(l.address,'đ','d'),'Đ','D') LIKE CONCAT('%',REPLACE(REPLACE(s.location,'đ','d'),'Đ','D'),'%') OR REPLACE(REPLACE(l.title,'đ','d'),'Đ','D') LIKE CONCAT('%',REPLACE(REPLACE(s.location,'đ','d'),'Đ','D'),'%'))) search_hits,
             (SELECT s.location FROM search_history s WHERE s.user_id=p_user AND s.location IS NOT NULL
-                AND (l.city LIKE CONCAT('%',s.location,'%') OR l.address LIKE CONCAT('%',s.location,'%') OR l.title LIKE CONCAT('%',s.location,'%'))
+                AND (REPLACE(REPLACE(l.city,'đ','d'),'Đ','D') LIKE CONCAT('%',REPLACE(REPLACE(s.location,'đ','d'),'Đ','D'),'%') OR REPLACE(REPLACE(l.address,'đ','d'),'Đ','D') LIKE CONCAT('%',REPLACE(REPLACE(s.location,'đ','d'),'Đ','D'),'%') OR REPLACE(REPLACE(l.title,'đ','d'),'Đ','D') LIKE CONCAT('%',REPLACE(REPLACE(s.location,'đ','d'),'Đ','D'),'%'))
                 ORDER BY s.id DESC LIMIT 1) search_location,
             (SELECT COUNT(*) FROM listing_views v JOIN listings vl ON vl.id=v.listing_id WHERE v.user_id=p_user AND vl.id<>l.id AND vl.property_type_id=l.property_type_id)
                 +(SELECT COUNT(*) FROM search_history s WHERE s.user_id=p_user AND s.property_type_id=l.property_type_id) type_hits,

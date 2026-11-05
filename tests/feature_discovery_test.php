@@ -96,7 +96,7 @@ $alpha='Discovery QA '.$marker.' Alpha'; $beta='Discovery QA '.$marker.' Beta';
 $curl=null;
 try {
     $people=[];
-    foreach (['host','guest','fresh','searcher','web'] as $name) {
+    foreach (['host','guest','fresh','searcher','web','folded'] as $name) {
         $people[$name]=$users->create('discovery-test-'.$marker.'-'.$name.'@home2home.test',$secret,'Discovery QA '.ucfirst($name),null);
         discoveryExpect($people[$name]>0,'Fixture account was not created.');
     }
@@ -240,6 +240,36 @@ try {
     discoveryRejects([$discovery,'recommendations'],[$guest,0],'Zero recommendation limit accepted.');
     discoveryRejects([$discovery,'recommendations'],[$guest,25],'Oversized recommendation limit accepted.');
     echo "PASS discovery recommendations: viewed-city ranking, seen ranked lower, own/non-public excluded, searched place, rating fallback without history\n";
+
+    // Đ has its own weight in every collation here, so it is folded on both sides of each location comparison; the other accents already match and the stored text never changes.
+    // Each fixture holds the marker and the place in one column only, so city, address and title are proved separately.
+    $foldedCity='Discovery QA '.$marker.' Đà Lạt';
+    $foldedIds=[
+        'city'=>$listings->create($host,discoveryListingData($marker,'FC',$foldedCity,-40.6,-140.6,1,1000000,2)),
+        'address'=>$listings->create($host,array_replace(discoveryListingData($marker,'FA','Discovery QA '.$marker.'x',-40.61,-140.61,1,1000000,2),['address'=>$marker.' Lâm Đồng'])),
+        'title'=>$listings->create($host,discoveryListingData($marker,'Đèo','Discovery QA '.$marker.'x',-40.62,-140.62,1,1000000,2)),
+        'plain'=>$listings->create($host,discoveryListingData($marker,'FP','Discovery QA '.$marker.' Da Nang',-40.63,-140.63,1,1000000,2)),
+        'accent'=>$listings->create($host,discoveryListingData($marker,'FH','Discovery QA '.$marker.' Hội An',-40.64,-140.64,1,1000000,2)),
+    ];
+    foreach ($foldedIds as $foldedId) { discoveryCall('CALL sp_test_discovery_listing_state(?,?,?,?)',[$foldedId,'approved',true,false]); }
+    foreach ([
+        'Da Lat'=>['city'],'da lat'=>['city'],'DA LAT'=>['city'],'Đà Lạt'=>['city'],'đà lạt'=>['city'],'Đà'=>['city','plain'],'dà lạt'=>['city'],
+        'Lam Dong'=>['address'],'Lâm Đồng'=>['address'],'Lam Đong'=>['address'],'Deo'=>['title'],'Đèo'=>['title'],
+        'Đà Nẵng'=>['plain'],'Da Nang'=>['plain'],'Hoi An'=>['accent'],'Hội An'=>['accent'],'Ha Noi'=>[],'Đà Hội'=>[],
+    ] as $typed=>$expectedKeys) {
+        $expectedIds=array_values(array_intersect_key($foldedIds,array_flip($expectedKeys)));
+        $location=$marker.' '.$typed;
+        $home=$listings->searchPage(['location'=>$location],100);
+        discoveryExpect(discoverySameSet(discoveryIds($home['listings']),$expectedIds) && $home['total']===count($expectedIds),'Home and /api/listings location wrong for: '.$typed);
+        discoveryExpect(discoverySameSet(discoveryIds($discovery->mapSearch(null,['location'=>$location],100)['listings']),$expectedIds),'Map location wrong for: '.$typed);
+        discoveryExpect(discoverySameSet(discoveryIds(discoveryCall('CALL sp_listing_search(?,?,?,?,?,?,?,?,?,?,?)',[$location,0,0,0,0,0,null,null,'',100,0])),$expectedIds),'Older search routine location wrong for: '.$typed);
+    }
+    discoveryExpect($listings->searchPage(['location'=>$marker.' Da Lat'],100)['listings'][0]['city']===$foldedCity,'Folding changed the text shown for a result.');
+    discoveryExpect($discovery->recordSearch($people['folded'],'home',['location'=>$marker.' Da Lat']),'Unaccented search not recorded.');
+    $byFolded=$discovery->recommendations($people['folded'],4);
+    discoveryExpect((int)$byFolded[0]['id']===$foldedIds['city'] && $byFolded[0]['reason']==='Vì bạn đã tìm kiếm “'.$marker.' Da Lat”','An unaccented past search did not lead to its place.');
+    foreach ($foldedIds as $foldedId) { discoveryCall('CALL sp_test_discovery_listing_state(?,?,?,?)',[$foldedId,'pending',true,false]); }
+    echo "PASS discovery location search: Đ folded on both sides for city, address and title on home, map and recommendations; other accents and stored text unchanged\n";
 
     // Search history: empty searches skipped, repeats refreshed, invalid rejected, trimmed to the latest 20.
     discoveryExpect(!$discovery->recordSearch($fresh,'home',['guests'=>1]),'Empty search stored.');

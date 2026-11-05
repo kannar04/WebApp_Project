@@ -5,6 +5,8 @@ CREATE OR REPLACE PROCEDURE sp_listing_search_filtered(
     IN p_location VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_guests INT,IN p_type BIGINT UNSIGNED,IN p_min DECIMAL(12,2),IN p_max DECIMAL(12,2),IN p_bedrooms INT,
     IN p_start DATE,IN p_end DATE,IN p_sort VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_limit INT,IN p_offset INT, IN p_amenities LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
+    -- đ has its own weight in every collation of MariaDB 10.4, unlike the other Vietnamese accents, so "Da Lat" only finds "Đà Lạt" with it folded on both sides. REPLACE is case-sensitive, hence both cases.
+    DECLARE v_location VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(p_location,'đ','d'),'Đ','D');
     DECLARE v_i INT DEFAULT 0;
     DECLARE v_amenity BIGINT UNSIGNED;
     IF p_amenities IS NULL OR NOT JSON_VALID(p_amenities) OR JSON_TYPE(p_amenities)<>'ARRAY' OR JSON_LENGTH(p_amenities)>100 THEN
@@ -23,7 +25,7 @@ BEGIN
         (SELECT COUNT(*) FROM reviews r JOIN bookings b ON b.id=r.booking_id WHERE b.listing_id=l.id AND r.moderation_status='visible') review_count
     FROM listings l JOIN property_types pt ON pt.id=l.property_type_id JOIN users u ON u.id=l.host_id
     WHERE l.moderation_status='approved' AND l.is_visible=1 AND l.deleted_at IS NULL AND u.status='active' AND u.deleted_at IS NULL
-        AND (p_location='' OR l.city LIKE CONCAT('%',p_location,'%') OR l.address LIKE CONCAT('%',p_location,'%') OR l.title LIKE CONCAT('%',p_location,'%'))
+        AND (p_location='' OR REPLACE(REPLACE(l.city,'đ','d'),'Đ','D') LIKE CONCAT('%',v_location,'%') OR REPLACE(REPLACE(l.address,'đ','d'),'Đ','D') LIKE CONCAT('%',v_location,'%') OR REPLACE(REPLACE(l.title,'đ','d'),'Đ','D') LIKE CONCAT('%',v_location,'%'))
         AND (p_guests=0 OR l.max_guests>=p_guests) AND (p_type=0 OR l.property_type_id=p_type)
         AND (p_min=0 OR l.base_nightly_rate>=p_min) AND (p_max=0 OR l.base_nightly_rate<=p_max)
         AND (p_bedrooms=0 OR l.bedroom_count>=p_bedrooms)

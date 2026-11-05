@@ -44,6 +44,8 @@ CREATE OR REPLACE PROCEDURE sp_listing_search(
     IN p_location VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_guests INT,IN p_type BIGINT UNSIGNED,IN p_min DECIMAL(12,2),IN p_max DECIMAL(12,2),IN p_bedrooms INT,
     IN p_start DATE,IN p_end DATE,IN p_sort VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_limit INT,IN p_offset INT)
 BEGIN
+    -- đ has its own weight in every collation of MariaDB 10.4, unlike the other Vietnamese accents, so "Da Lat" only finds "Đà Lạt" with it folded on both sides. REPLACE is case-sensitive, hence both cases.
+    DECLARE v_location VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(p_location,'đ','d'),'Đ','D');
     IF p_limit<1 OR p_limit>100 OR p_offset<0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Phân trang không hợp lệ.'; END IF;
     SELECT l.id,l.host_id,l.property_type_id,l.cancellation_policy_id,l.title,l.description,l.address,l.city,l.country_code,l.latitude,l.longitude,l.time_zone,l.base_nightly_rate,l.fee_amount,l.currency,l.max_guests,l.room_count,l.bedroom_count,l.bed_count,l.check_in_time,l.check_out_time,l.smoking_allowed,l.pets_allowed,l.parties_allowed,l.house_rules,l.moderation_status,l.moderation_reason,l.reviewed_by,l.reviewed_at,l.is_visible,l.created_at,l.updated_at,l.deleted_at,l.base_nightly_rate nightly_price,l.fee_amount cleaning_fee,pt.name property_type,u.full_name host_name,
         (SELECT image_url FROM listing_photos WHERE listing_id=l.id ORDER BY sort_order,id LIMIT 1) image_url,
@@ -51,7 +53,7 @@ BEGIN
         (SELECT COUNT(*) FROM reviews r JOIN bookings b ON b.id=r.booking_id WHERE b.listing_id=l.id AND r.moderation_status='visible') review_count
     FROM listings l JOIN property_types pt ON pt.id=l.property_type_id JOIN users u ON u.id=l.host_id
     WHERE l.moderation_status='approved' AND l.is_visible=1 AND l.deleted_at IS NULL AND u.status='active' AND u.deleted_at IS NULL
-        AND (p_location='' OR l.city LIKE CONCAT('%',p_location,'%') OR l.address LIKE CONCAT('%',p_location,'%') OR l.title LIKE CONCAT('%',p_location,'%'))
+        AND (p_location='' OR REPLACE(REPLACE(l.city,'đ','d'),'Đ','D') LIKE CONCAT('%',v_location,'%') OR REPLACE(REPLACE(l.address,'đ','d'),'Đ','D') LIKE CONCAT('%',v_location,'%') OR REPLACE(REPLACE(l.title,'đ','d'),'Đ','D') LIKE CONCAT('%',v_location,'%'))
         AND (p_guests=0 OR l.max_guests>=p_guests) AND (p_type=0 OR l.property_type_id=p_type)
         AND (p_min=0 OR l.base_nightly_rate>=p_min) AND (p_max=0 OR l.base_nightly_rate<=p_max)
         AND (p_bedrooms=0 OR l.bedroom_count>=p_bedrooms)
