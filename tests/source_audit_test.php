@@ -353,6 +353,9 @@ try {
     echo "PASS json() always emits valid JSON, never a blank body\n";
 
     expect(!\Core\Validator::passwordAllowed(str_repeat('a', 7)) && \Core\Validator::passwordAllowed(str_repeat('a', 8)) && \Core\Validator::passwordAllowed(str_repeat('a', 72)) && !\Core\Validator::passwordAllowed(str_repeat('a', 73)) && !\Core\Validator::passwordAllowed("abcdefgh\0ijkl") && !\Core\Validator::passwordAllowed(str_repeat('é', 36).'x'), 'Password rule must be 8-72 bytes without NUL.');
+    foreach ([[str_repeat('a', 7), \Core\Validator::PASSWORD_RULE], [str_repeat('a', 8), null], [str_repeat('a', 72), null], [str_repeat('a', 73), \Core\Validator::PASSWORD_RULE], [str_repeat('ậ', 3), null], [str_repeat('ậ', 25), \Core\Validator::PASSWORD_RULE], ["abcdefgh\0ijkl", \Core\Validator::PASSWORD_HIDDEN_CHARACTER], ["\0", \Core\Validator::PASSWORD_HIDDEN_CHARACTER], [str_repeat('a', 72)."\0", \Core\Validator::PASSWORD_HIDDEN_CHARACTER]] as [$password, $problem]) {
+        expect(\Core\Validator::passwordProblem($password) === $problem && \Core\Validator::passwordAllowed($password) === ($problem === null), 'passwordProblem must follow passwordAllowed and name the problem.');
+    }
     $passwordModel = new User();
     $tooLong = str_repeat('Z', 73);
     $withNul = "abcdefgh\0ijkl";
@@ -363,9 +366,12 @@ try {
         $form = auditRequest($browser, $url.'/register')['body'];
         $result = auditRequest($browser, $url.'/register', ['_token' => auditFormToken($form), 'full_name' => 'Audit', 'email' => $email, 'password' => $badPassword]);
         expect($result['location'] === '/register' && $passwordModel->findByEmail($email) === null, "Register accepted a bad password: $name");
-        expect(str_contains(auditRequest($browser, $url.'/register')['body'], \Core\Validator::PASSWORD_RULE), 'Register must state the password rule.');
+        $refusal = $badPassword === $withNul ? \Core\Validator::PASSWORD_HIDDEN_CHARACTER : \Core\Validator::PASSWORD_RULE;
+        $refusedPage = auditRequest($browser, $url.'/register')['body'];
+        expect(str_contains($refusedPage, $refusal) && !str_contains($refusedPage, $badPassword === $withNul ? \Core\Validator::PASSWORD_RULE : \Core\Validator::PASSWORD_HIDDEN_CHARACTER), "Register must say what is wrong with the password: $name");
         $result = auditRequest($admin, $url.'/admin/users', ['_token' => $adminToken, 'full_name' => 'Audit', 'email' => $email, 'password' => $badPassword, 'roles' => ['guest']]);
         expect($result['location'] === '/admin' && $passwordModel->findByEmail($email) === null, "Admin create accepted a bad password: $name");
+        expect(str_contains(auditRequest($admin, $url.'/admin')['body'], $refusal), "Admin create must say what is wrong with the password: $name");
     }
     // Passwords are never trimmed: eight spaces meet the rule on register as on every other path, and the spaces count at login.
     $spaces = str_repeat(' ', 8);
@@ -396,18 +402,19 @@ try {
         $form = auditRequest($legacy, $url.'/login')['body'];
         expect(auditRequest($legacy, $url.'/login', ['_token' => auditFormToken($form), 'email' => $fixtureEmail, 'password' => $legacyPassword])['location'] === '/', 'A longer existing password must still log in.');
         $profileToken = auditFormToken(auditRequest($legacy, $url.'/profile')['body']);
-        foreach ([$tooLong, $withNul] as $badPassword) {
+        foreach ([[$tooLong, \Core\Validator::PASSWORD_RULE], [$withNul, \Core\Validator::PASSWORD_HIDDEN_CHARACTER]] as [$badPassword, $refusal]) {
             auditRequest($legacy, $url.'/profile/password', ['_token' => $profileToken, 'current_password' => $legacyPassword, 'new_password' => $badPassword, 'password_confirmation' => $badPassword]);
             auditRequest($admin, $url.'/admin/users/'.$fixtureId, ['_token' => $adminToken, 'full_name' => 'Audit password fixture', 'email' => $fixtureEmail, 'phone' => '', 'password' => $badPassword, 'roles' => ['guest']]);
             expect($passwordModel->findByEmail($fixtureEmail)['password_hash'] === $fixtureHash, 'Change or admin edit accepted a bad password.');
+            expect(str_contains(auditRequest($legacy, $url.'/profile')['body'], $refusal), 'Change password must say what is wrong with the password.');
+            expect(str_contains(auditRequest($admin, $url.'/admin/users/'.$fixtureId.'/edit')['body'], $refusal), 'Admin edit must say what is wrong with the password.');
         }
-        expect(str_contains(auditRequest($legacy, $url.'/profile')['body'], \Core\Validator::PASSWORD_RULE), 'Change password must state the rule.');
         $rawToken = bin2hex(random_bytes(32));
         (new \App\Models\PasswordReset())->issue($fixtureId, $rawToken);
         $reader = auditBrowser();
         $resetForm = auditRequest($reader, $url.'/reset-password?token='.$rawToken)['body'];
         $resetReturn = '/reset-password?token='.$rawToken;
-        foreach ([[$tooLong, $tooLong, \Core\Validator::PASSWORD_RULE], [$withNul, $withNul, \Core\Validator::PASSWORD_RULE], ['short', 'short', \Core\Validator::PASSWORD_RULE], ['Abcdefgh1', 'Abcdefgh2', 'Xác nhận mật khẩu không khớp.']] as [$badPassword, $confirmation, $message]) {
+        foreach ([[$tooLong, $tooLong, \Core\Validator::PASSWORD_RULE], [$withNul, $withNul, \Core\Validator::PASSWORD_HIDDEN_CHARACTER], ['short', 'short', \Core\Validator::PASSWORD_RULE], ['Abcdefgh1', 'Abcdefgh2', 'Xác nhận mật khẩu không khớp.']] as [$badPassword, $confirmation, $message]) {
             $refused = auditRequest($reader, $url.'/reset-password', ['_token' => auditFormToken($resetForm), 'token' => $rawToken, 'password' => $badPassword, 'password_confirmation' => $confirmation]);
             expect($passwordModel->findByEmail($fixtureEmail)['password_hash'] === $fixtureHash, 'Reset accepted a bad password.');
             expect($refused['location'] === $resetReturn, 'A reset form error must stay on the form with its token.');
@@ -432,18 +439,22 @@ try {
     } finally {
         $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$fixtureId]);
     }
-    echo "PASS password rule 8-72 bytes without NUL on register, admin create and edit, change and reset; login stays lenient; a reset form error keeps the form and token\n";
+    echo "PASS password rule 8-72 bytes without NUL on register, admin create and edit, change and reset, each saying which problem it found; login stays lenient; a reset form error keeps the form and token\n";
 
-    // Hints state the byte rule the server enforces. minlength and maxlength count characters, so they would block a valid short accented password and pass an over-long one.
+    // Hints state the rule in words a person can act on, not in bytes. minlength and maxlength count characters, so they would block a valid short accented password and pass an over-long one.
     foreach ([[auditBrowser(), '/register'], [auditBrowser(), '/reset-password?token='.str_repeat('a', 64)], [$hostBrowser, '/profile'], [$admin, '/admin'], [$admin, '/admin/users/3/edit']] as [$hintBrowser, $hintPath]) {
         $hintPage = auditRequest($hintBrowser, $url.$hintPath)['body'];
-        expect(str_contains($hintPage, '8–72 byte') && !str_contains($hintPage, '8–72 ký tự') && !str_contains($hintPage, '8 ký tự'), "$hintPath must state the byte rule.");
+        expect(str_contains(mb_strtolower($hintPage), 'ít nhất 8 ký tự') && !preg_match('/\bbytes?\b|\bNUL\b|8–72/i', $hintPage), "$hintPath must state the rule in plain words.");
+        expect($hintPath === '/admin' || str_contains($hintPage, 'quá dài có thể bị từ chối, và chữ có dấu được tính nhiều hơn một ký tự.'), "$hintPath must warn about long passwords and accented letters.");
         expect(preg_match_all('/<input\b[^>]*type="password"[^>]*>/', $hintPage, $passwordInputs) > 0, "$hintPath has no password input.");
         foreach ($passwordInputs[0] as $passwordInput) { expect(!preg_match('/\b(?:min|max)length=/', $passwordInput), "$hintPath counts password characters in the browser: $passwordInput"); }
     }
-    $englishHints = array_merge(require dirname(__DIR__).'/lang/en/common.php', require dirname(__DIR__).'/lang/en/guest.php', require dirname(__DIR__).'/lang/en/admin.php');
-    foreach (['Mật khẩu (8–72 byte, chữ có dấu tính 2–3 byte)', 'Mật khẩu mới cần dài 8–72 byte, chữ có dấu tính 2–3 byte. Sau khi đặt lại, các phiên cũ hết hiệu lực.', 'Mật khẩu mới (8–72 byte, chữ có dấu tính 2–3 byte)', 'Dài 8–72 byte, chữ có dấu tính 2–3 byte.', '8–72 byte'] as $hint) {
-        expect(str_contains((string) ($englishHints[$hint] ?? ''), '8–72 bytes'), "English must state the byte rule for: $hint");
+    $englishHints = array_merge(require dirname(__DIR__).'/lang/en/common.php', require dirname(__DIR__).'/lang/en/admin.php', require dirname(__DIR__).'/lang/en/messages.php');
+    foreach (['Ít nhất 8 ký tự. Mật khẩu quá dài có thể bị từ chối, và chữ có dấu được tính nhiều hơn một ký tự.', 'Mật khẩu mới cần có ít nhất 8 ký tự. Mật khẩu quá dài có thể bị từ chối, và chữ có dấu được tính nhiều hơn một ký tự. Sau khi đặt lại, các phiên cũ hết hiệu lực.', 'Ít nhất 8 ký tự', \Core\Validator::PASSWORD_RULE] as $hint) {
+        expect(stripos((string) ($englishHints[$hint] ?? ''), 'at least 8 characters') !== false, "English must state the rule in plain words for: $hint");
+    }
+    foreach ([\Core\Validator::PASSWORD_RULE, \Core\Validator::PASSWORD_HIDDEN_CHARACTER] as $refusal) {
+        expect(($englishHints[$refusal] ?? '') !== '' && !preg_match('/\bbytes?\b|\bNUL\b/i', $refusal.' '.$englishHints[$refusal]), "A refusal must be plain in both languages: $refusal");
     }
     $accentEmail = "audit-accent-$tag@home2home.test";
     $accentBrowser = auditBrowser();
@@ -453,7 +464,7 @@ try {
     $accentUser = $passwordModel->findByEmail($accentEmail);
     expect($accentUser !== null && password_verify('mậtkhẩu', $accentUser['password_hash']), 'Seven accented characters are 11 bytes, within the rule.');
     $database->prepare('CALL sp_test_cleanup_user(?)')->execute([(int) $accentUser['id']]);
-    echo "PASS password hints state the byte rule in Vietnamese and English, and no password input counts characters in the browser\n";
+    echo "PASS password hints and refusals are in plain words in Vietnamese and English, and no password input counts characters in the browser\n";
 
     // A session that ends and a login that starts leave nothing of the last person's forms; every bag a controller keeps is covered, so a new one has to be too.
     $bagNames = ['_flash', '_old', '_message_draft'];

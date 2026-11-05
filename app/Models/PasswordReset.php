@@ -12,7 +12,8 @@ final class PasswordReset
     public function consume(string $rawToken,string $password): void
     {
         if (!preg_match('/^[a-f0-9]{64}$/D',$rawToken)) { throw new \DomainException('Liên kết không hợp lệ, đã hết hạn hoặc đã sử dụng.'); }
-        if (!\Core\Validator::passwordAllowed($password)) { throw new \DomainException(\Core\Validator::PASSWORD_RULE); }
+        $problem = \Core\Validator::passwordProblem($password);
+        if ($problem !== null) { throw new \DomainException($problem); }
         ProcedureConnection::connection()->prepare('CALL sp_password_reset_consume(?,?)')->execute([hash('sha256',$rawToken),password_hash($password,PASSWORD_DEFAULT)]);
     }
 }

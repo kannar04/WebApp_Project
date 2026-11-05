@@ -111,8 +111,7 @@ return [
     'Cập nhật hồ sơ, mật khẩu và vai trò.' => 'Update the profile, password and roles.',
     'Xem yêu cầu xác minh danh tính' => 'View identity verification requests',
     'Mật khẩu mới (để trống nếu giữ nguyên)' => 'New password (leave blank to keep the current one)',
-    'Dài 8–72 byte, chữ có dấu tính 2–3 byte.' => '8–72 bytes long; an accented letter counts as 2–3 bytes.',
-    '8–72 byte' => '8–72 bytes',
+    'Ít nhất 8 ký tự' => 'At least 8 characters',
     'Lưu tài khoản' => 'Save account',
 
     // Listing edit

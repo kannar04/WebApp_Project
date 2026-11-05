@@ -6,7 +6,8 @@ namespace Core;
 
 final class Validator
 {
-    public const PASSWORD_RULE = 'Mật khẩu cần dài 8–72 byte (chữ có dấu tính 2–3 byte) và không chứa ký tự NUL.';
+    public const PASSWORD_RULE = 'Mật khẩu cần có ít nhất 8 ký tự. Mật khẩu quá dài có thể bị từ chối, và chữ có dấu được tính nhiều hơn một ký tự.';
+    public const PASSWORD_HIDDEN_CHARACTER = 'Mật khẩu có ký tự ẩn không dùng được. Vui lòng gõ lại mật khẩu thay vì dán từ nơi khác.';
     public const MONEY_MAX = 9999999999.99;
     /** A TEXT column holds 65535 bytes, not characters: 21845 'ế' or 16383 emoji fill it, and MariaDB in non-strict mode cuts the rest and reports success. */
     public const TEXT_COLUMN_BYTES = 65535;
@@ -51,6 +52,13 @@ final class Validator
     public static function passwordAllowed(string $password): bool
     {
         return strlen($password) >= 8 && strlen($password) <= 72 && !str_contains($password, "\0");
+    }
+
+    /** What to tell a person about a password passwordAllowed refuses, in words they can act on; null when it is allowed. */
+    public static function passwordProblem(string $password): ?string
+    {
+        if (self::passwordAllowed($password)) { return null; }
+        return str_contains($password, "\0") ? self::PASSWORD_HIDDEN_CHARACTER : self::PASSWORD_RULE;
     }
 
     /** For text fields: all spaces counts as blank. Never list a password here, a password is not trimmed anywhere; passwordAllowed decides. */

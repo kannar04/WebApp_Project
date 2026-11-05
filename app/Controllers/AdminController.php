@@ -66,7 +66,8 @@ final class AdminController extends Controller
             || !$this->rolesAreValid($roles)) {
             Session::flash('error','Thông tin tài khoản mới không hợp lệ.'); $this->redirect('/admin');
         }
-        if (!Validator::passwordAllowed($data['password'])) { Session::flash('error',Validator::PASSWORD_RULE); $this->redirect('/admin'); }
+        $passwordProblem=Validator::passwordProblem($data['password']);
+        if ($passwordProblem!==null) { Session::flash('error',$passwordProblem); $this->redirect('/admin'); }
         if (!Trust::phoneAllowed($data['phone'])) { Session::flash('error',Trust::PHONE_RULE); $this->redirect('/admin'); }
         $database=Database::connection(); $database->beginTransaction();
         try {
@@ -103,9 +104,10 @@ final class AdminController extends Controller
             Session::flash('error', 'Thông tin cập nhật không hợp lệ.');
             $this->redirect('/admin/users/'.$userId.'/edit');
         }
-        if ($data['password'] !== '' && !Validator::passwordAllowed($data['password'])) {
+        $passwordProblem = $data['password'] === '' ? null : Validator::passwordProblem($data['password']);
+        if ($passwordProblem !== null) {
             Session::old(array_diff_key($data, ['password'=>1]), 'user:'.$userId);
-            Session::flash('error', Validator::PASSWORD_RULE);
+            Session::flash('error', $passwordProblem);
             $this->redirect('/admin/users/'.$userId.'/edit');
         }
         if (!Trust::phoneAllowed($data['phone'])) {
