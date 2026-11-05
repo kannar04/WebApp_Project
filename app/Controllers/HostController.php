@@ -79,11 +79,7 @@ final class HostController extends Controller
                     throw new \DomainException('Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.');
                 }
             }
-            // Prices are charged in whole dong, so a price that rounds to 0 would make the nights free.
-            if (round($data['nightly_price']) < 1 || $data['cleaning_fee'] < 0
-                || $data['nightly_price'] > 9999999999.99 || $data['cleaning_fee'] > 9999999999.99) {
-                throw new \DomainException('Giá mỗi đêm phải từ 1đ trở lên và phụ phí không được âm.');
-            }
+            $data = \Core\Validator::listingPrices($data);
             foreach (['max_guests', 'room_count', 'bedroom_count', 'bed_count'] as $field) {
                 if ($data[$field] < 1 || $data[$field] > 65535) {
                     throw new \DomainException('Sức chứa, số phòng và số giường phải từ 1 đến 65535.');
@@ -150,7 +146,7 @@ final class HostController extends Controller
             }
         }
     }
-    private function listingInput(): array {return ['property_type_id'=>(int)input_text($_POST,'property_type_id','0'),'cancellation_policy_id'=>(int)input_text($_POST,'cancellation_policy_id','0'),'title'=>trim(input_text($_POST,'title')),'address'=>trim(input_text($_POST,'address')),'city'=>trim(input_text($_POST,'city')),'description'=>trim(input_text($_POST,'description')),'nightly_price'=>(float)input_text($_POST,'nightly_price','0'),'cleaning_fee'=>(float)input_text($_POST,'cleaning_fee','0'),'max_guests'=>(int)input_text($_POST,'max_guests','0'),'room_count'=>(int)input_text($_POST,'room_count','1'),'bedroom_count'=>(int)input_text($_POST,'bedroom_count','1'),'bed_count'=>(int)input_text($_POST,'bed_count','1'),'check_in_time'=>input_text($_POST,'check_in_time','14:00'),'check_out_time'=>input_text($_POST,'check_out_time','11:00'),'allows_smoking'=>is_string($_POST['allows_smoking']??null),'allows_pets'=>is_string($_POST['allows_pets']??null),'allows_parties'=>is_string($_POST['allows_parties']??null)];}
+    private function listingInput(): array {return ['property_type_id'=>(int)input_text($_POST,'property_type_id','0'),'cancellation_policy_id'=>(int)input_text($_POST,'cancellation_policy_id','0'),'title'=>trim(input_text($_POST,'title')),'address'=>trim(input_text($_POST,'address')),'city'=>trim(input_text($_POST,'city')),'description'=>trim(input_text($_POST,'description')),'nightly_price'=>trim(input_text($_POST,'nightly_price','0')),'cleaning_fee'=>trim(input_text($_POST,'cleaning_fee','0')),'max_guests'=>(int)input_text($_POST,'max_guests','0'),'room_count'=>(int)input_text($_POST,'room_count','1'),'bedroom_count'=>(int)input_text($_POST,'bedroom_count','1'),'bed_count'=>(int)input_text($_POST,'bed_count','1'),'check_in_time'=>input_text($_POST,'check_in_time','14:00'),'check_out_time'=>input_text($_POST,'check_out_time','11:00'),'allows_smoking'=>is_string($_POST['allows_smoking']??null),'allows_pets'=>is_string($_POST['allows_pets']??null),'allows_parties'=>is_string($_POST['allows_parties']??null)];}
     public function visibility(string $id): never
     {
         Csrf::ensure(); $user=$this->requireRole('host');

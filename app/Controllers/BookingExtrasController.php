@@ -6,6 +6,7 @@ use App\Models\BookingExtras;
 use Core\Controller;
 use Core\Csrf;
 use Core\Session;
+use Core\Validator;
 
 /** Host pricing rules, Admin holidays/promotions/payments, and recording pay-at-check-in payments. */
 final class BookingExtrasController extends Controller
@@ -31,10 +32,10 @@ final class BookingExtrasController extends Controller
             'instant_book'=>($_POST['instant_book'] ?? '') === '1'];
         try {
             // Rates are charged in whole dong, so anything under 0.5 would round to free nights.
-            $weekend = $this->optionalNumber($input['weekend_nightly_rate'], 0.5, 9999999999.99, 'Giá cuối tuần phải là số từ 1đ trở lên.');
-            $holiday = $this->optionalNumber($input['holiday_nightly_rate'], 0.5, 9999999999.99, 'Giá ngày lễ phải là số từ 1đ trở lên.');
-            $weekly = $this->optionalNumber($input['weekly_discount_pct'], 0, 90, 'Giảm giá theo tuần phải từ 0 đến 90%.');
-            $monthly = $this->optionalNumber($input['monthly_discount_pct'], 0, 90, 'Giảm giá theo tháng phải từ 0 đến 90%.');
+            $weekend = Validator::decimal($input['weekend_nightly_rate'], 0.5, Validator::MONEY_MAX, 'Giá cuối tuần phải là số từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.');
+            $holiday = Validator::decimal($input['holiday_nightly_rate'], 0.5, Validator::MONEY_MAX, 'Giá ngày lễ phải là số từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.');
+            $weekly = Validator::decimal($input['weekly_discount_pct'], 0, 90, 'Giảm giá theo tuần phải từ 0 đến 90%.');
+            $monthly = Validator::decimal($input['monthly_discount_pct'], 0, 90, 'Giảm giá theo tháng phải từ 0 đến 90%.');
             (new BookingExtras())->saveHostSettings((int) $id, (int) $user['id'], $weekend, $holiday, $weekly, $monthly, $input['instant_book']);
             Session::flash('success', 'Đã lưu giá & tùy chọn đặt chỗ. Thay đổi áp dụng cho báo giá mới, không cần Admin duyệt lại tin.');
         } catch (\Throwable $exception) {
@@ -110,10 +111,10 @@ final class BookingExtrasController extends Controller
             if ($input['description'] === '' || mb_strlen($input['description']) > 255) { throw new \DomainException('Mô tả khuyến mãi cần từ 1 đến 255 ký tự.'); }
             if (!in_array($input['discount_type'], ['percent', 'fixed'], true)) { throw new \DomainException('Loại giảm giá không hợp lệ.'); }
             $data = ['code'=>$input['code'], 'description'=>$input['description'], 'type'=>$input['discount_type'],
-                'value'=>$this->optionalNumber($input['discount_value'], 0.01, 9999999999.99, 'Giá trị giảm phải lớn hơn 0.'),
-                'max'=>$this->optionalNumber($input['max_discount_amount'], 1, 9999999999.99, 'Mức giảm tối đa phải lớn hơn 0.'),
+                'value'=>Validator::decimal($input['discount_value'], 0.01, Validator::MONEY_MAX, 'Giá trị giảm phải lớn hơn 0. Viết liền không dấu chấm, ví dụ 50000.'),
+                'max'=>Validator::decimal($input['max_discount_amount'], 1, Validator::MONEY_MAX, 'Mức giảm tối đa phải lớn hơn 0. Viết liền không dấu chấm, ví dụ 50000.'),
                 'min_nights'=>$this->optionalInteger($input['min_nights'], 1, 365, 'Số đêm tối thiểu phải từ 1 đến 365.'),
-                'min_subtotal'=>$this->optionalNumber($input['min_subtotal'], 0, 9999999999.99, 'Tiền phòng tối thiểu không hợp lệ.'),
+                'min_subtotal'=>Validator::decimal($input['min_subtotal'], 0, Validator::MONEY_MAX, 'Tiền phòng tối thiểu không hợp lệ. Viết liền không dấu chấm, ví dụ 500000.'),
                 'from'=>$this->date($input['valid_from'], 'Ngày bắt đầu không hợp lệ.'), 'to'=>$this->date($input['valid_to'], 'Ngày kết thúc không hợp lệ.'),
                 'limit'=>$this->optionalInteger($input['usage_limit'], 1, 1000000, 'Giới hạn lượt dùng phải từ 1 trở lên.'), 'active'=>$input['is_active']];
             if ($data['value'] === null) { throw new \DomainException('Vui lòng nhập giá trị giảm.'); }
@@ -205,13 +206,6 @@ final class BookingExtrasController extends Controller
     private function text(string $field, int $limit): string
     {
         return mb_substr(trim(input_text($_POST, $field)), 0, $limit + 1);
-    }
-
-    private function optionalNumber(string $value, float $minimum, float $maximum, string $message): ?string
-    {
-        if ($value === '') { return null; }
-        if (!preg_match('/^\d{1,10}(\.\d{1,2})?$/D', $value) || (float) $value < $minimum || (float) $value > $maximum) { throw new \DomainException($message); }
-        return $value;
     }
 
     private function optionalInteger(string $value, int $minimum, int $maximum, string $message): ?int

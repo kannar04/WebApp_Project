@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\User;
 use App\Services\BookingService;
 use Core\ProcedureConnection;
+use Core\Validator;
 
 /*
  * Booking extras: flexible pricing (weekend/holiday/weekly/monthly), promo codes, Instant Book, pay-at-check-in payment status.
@@ -59,6 +60,14 @@ function bxRevenue(int $hostId): array
 {
     $host=new App\Models\HostRepository();
     return [(float)$host->stats($hostId)['revenue'],array_sum(array_map('floatval',array_column($host->monthlyRevenue($hostId),'revenue'))),(float)(new AdminRepository())->stats()['revenue']];
+}
+
+function bxHostListingId(Listing $listings, int $hostId, string $title): ?int
+{
+    foreach ($listings->hostListings($hostId) as $row) {
+        if ($row['title']===$title) { return (int)$row['id']; }
+    }
+    return null;
 }
 
 function bxBookingCount(int $listingId): int
@@ -533,6 +542,16 @@ try {
     echo "PASS Admin take-down: refused with the count while a confirmed stay is unfinished, atomic, pending auto-rejected with event/notification/audit, finished stay still completable, confirm refused on a removed listing\n";
 
     // ---- HTTP (controllers, CSRF, roles, pages) when a server is available.
+    // One parser for every form that saves money: to a Vietnamese user 500.000 is five hundred thousand, never 500đ.
+    foreach (['500.000','1.200.000','500,000','1e3','0x1A','-5','abc','0.4','12345678901'] as $typed) {
+        $refused=false;
+        try { Validator::decimal($typed,0.5,Validator::MONEY_MAX,'refused'); }
+        catch (DomainException $exception) { $refused=$exception->getMessage()==='refused'; }
+        bxExpect($refused,'Money parser accepted '.$typed);
+    }
+    bxExpect(Validator::decimal(' 500000 ',0.5,Validator::MONEY_MAX,'refused')==='500000' && Validator::decimal('150000.50',0.5,Validator::MONEY_MAX,'refused')==='150000.50'
+        && Validator::decimal('',0.5,Validator::MONEY_MAX,'refused')===null,'Money parser refused a plain number or a blank.');
+
     $baseUrl=rtrim((string)(getenv('HOME2HOME_TEST_URL')?:($app['url']?:'')),'/');
     $probe=null;
     if ($baseUrl!=='') {
@@ -578,6 +597,36 @@ try {
         bxExpect(str_contains(bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/edit')['body'],'Giá mỗi đêm phải từ 1đ trở lên') && (string)$listings->findOwned($listingId,$hostId)['nightly_price']===$priceBefore,'Host listing form accepted a nightly price that rounds to 0.');
         bxHttp($adminClient,$baseUrl,'/admin/listings/'.$listingId,['_token'=>$adminToken]+array_merge($data,['nightly_price'=>'0.4']));
         bxExpect(str_contains(bxHttp($adminClient,$baseUrl,'/admin/listings/'.$listingId.'/edit')['body'],'Giá mỗi đêm phải từ 1đ trở lên') && (string)$listings->findOwned($listingId,$hostId)['nightly_price']===$priceBefore,'Admin listing form accepted a nightly price that rounds to 0.');
+        $feeBefore=(string)$listings->findOwned($listingId,$hostId)['cleaning_fee'];
+        foreach (['nightly_price'=>'500.000','cleaning_fee'=>'100.000'] as $field=>$typed) {
+            foreach ([[$hostClient,$hostToken,'/host/listings/'],[$adminClient,$adminToken,'/admin/listings/']] as [$client,$token,$path]) {
+                bxHttp($client,$baseUrl,$path.$listingId,['_token'=>$token]+array_merge($data,[$field=>$typed]));
+                $page=bxHttp($client,$baseUrl,$path.$listingId.'/edit')['body'];
+                $owned=$listings->findOwned($listingId,$hostId);
+                bxExpect(str_contains($page,'Viết liền không dấu chấm') && str_contains($page,'value="'.$typed.'"') && (string)$owned['nightly_price']===$priceBefore && (string)$owned['cleaning_fee']===$feeBefore,$path.' saved a dotted '.$field.' or lost what was typed.');
+            }
+        }
+        $newTitle='Audit fixture BX money '.$suffix;
+        bxHttp($hostClient,$baseUrl,'/host/listings',['_token'=>$hostToken]+array_merge($data,['title'=>$newTitle,'nightly_price'=>'500.000']));
+        $page=bxHttp($hostClient,$baseUrl,'/host/listings/create')['body'];
+        bxExpect(str_contains($page,'Viết liền không dấu chấm') && str_contains($page,'value="500.000"') && bxHostListingId($listings,$hostId,$newTitle)===null,'Host create form saved a dotted price or lost what was typed.');
+        // Plain whole numbers keep working on both forms, and a blank fee still means no fee.
+        bxHttp($hostClient,$baseUrl,'/host/listings',['_token'=>$hostToken]+array_merge($data,['title'=>$newTitle,'nightly_price'=>'480000','cleaning_fee'=>'']));
+        $newListing=bxHostListingId($listings,$hostId,$newTitle);
+        if ($newListing!==null) { $extraListings[]=$newListing; }
+        $owned=$newListing===null?[]:$listings->findOwned($newListing,$hostId);
+        bxExpect((float)($owned['nightly_price']??0)===480000.0 && (float)($owned['cleaning_fee']??-1)===0.0,'Host create form refused plain numbers.');
+        bxHttp($adminClient,$baseUrl,'/admin/listings/'.$listingId,['_token'=>$adminToken]+array_merge($data,['nightly_price'=>'120000','cleaning_fee'=>'30000']));
+        $owned=$listings->findOwned($listingId,$hostId);
+        bxExpect((float)$owned['nightly_price']===120000.0 && (float)$owned['cleaning_fee']===30000.0,'Admin listing form refused plain numbers.');
+        bxHttp($adminClient,$baseUrl,'/admin/listings/'.$listingId,['_token'=>$adminToken]+$data);
+        $owned=$listings->findOwned($listingId,$hostId);
+        bxExpect((string)$owned['nightly_price']===$priceBefore && (string)$owned['cleaning_fee']===$feeBefore,'Admin listing form did not restore the fixture price.');
+        foreach (['weekend_nightly_rate'=>'500.000','holiday_nightly_rate'=>'500.000'] as $field=>$typed) {
+            bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing',['_token'=>$hostToken]+array_merge($form,[$field=>$typed]));
+            $page=bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing')['body'];
+            bxExpect(str_contains($page,'Viết liền không dấu chấm') && str_contains($page,'value="500.000"') && (string)$extras->hostSettings($listingId,$hostId)['weekend_nightly_rate']===$savedRate,'Pricing form saved a dotted '.$field.' or lost what was typed.');
+        }
         $response=bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing',array_merge($form,['_token'=>$hostToken,'weekly_discount_pct'=>'abc']));
         bxExpect($response['status']===302 && str_contains(bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing')['body'],'Giảm giá theo tuần phải từ 0 đến 90%'),'Invalid pricing input was not rejected with a message.');
         $response=bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing',['_token'=>$hostToken]+$form);
@@ -639,6 +688,11 @@ try {
         $promotions[$codeH]=(int)$saved['id'];
         $response=bxHttp($adminClient,$baseUrl,'/admin/promotions',['_token'=>$adminToken]+array_merge($promoForm,['code'=>'x!']));
         bxExpect($response['status']===302 && str_contains(bxHttp($adminClient,$baseUrl,'/admin/promotions')['body'],'4–20'),'Invalid promotion code was not rejected over HTTP.');
+        foreach (['discount_value'=>'50.000','max_discount_amount'=>'50.000','min_subtotal'=>'500.000'] as $field=>$typed) {
+            bxHttp($adminClient,$baseUrl,'/admin/promotions',['_token'=>$adminToken]+array_merge($promoForm,[$field=>$typed]));
+            $page=bxHttp($adminClient,$baseUrl,'/admin/promotions')['body'];
+            bxExpect(str_contains($page,'Viết liền không dấu chấm') && str_contains($page,'value="'.$typed.'"'),'Promotion form took a dotted '.$field.' or lost what was typed.');
+        }
         bxHttp($adminClient,$baseUrl,'/admin/promotions/'.$saved['id'].'/toggle',['_token'=>$adminToken,'active'=>'0']);
         bxExpect((int)bxFindPromotion($extras,$adminId,$codeH)['is_active']===0,'Admin promotion toggle POST failed.');
         bxHttp($adminClient,$baseUrl,'/admin/promotions/'.$saved['id'].'/delete',['_token'=>$adminToken]);

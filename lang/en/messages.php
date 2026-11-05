@@ -122,7 +122,7 @@ return [
     'Từ chối bài đăng phải có lý do.' => 'Rejecting a listing requires a reason.',
     'Đã cập nhật kiểm duyệt bài đăng.' => 'Listing moderation updated.',
     'Không thể kiểm duyệt bài đăng. Vui lòng thử lại.' => 'Could not moderate the listing. Please try again.',
-    'Giá mỗi đêm phải từ 1đ trở lên, phụ phí không được âm và sức chứa phải hợp lệ.' => 'The nightly price must be at least 1đ, the cleaning fee cannot be negative and capacity must be valid.',
+    'Sức chứa phải từ 1 đến 65535.' => 'Capacity must be between 1 and 65535.',
     'Đã cập nhật chỗ ở.' => 'Listing updated.',
     'Đã cập nhật hiển thị listing.' => 'Listing visibility updated.',
     'Đã gỡ listing (soft delete).' => 'Listing removed (soft delete).',
@@ -131,7 +131,8 @@ return [
 
     // ---- Host listings, photos, availability (HostController)
     'Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.' => 'Please fill in all fields within the length limits.',
-    'Giá mỗi đêm phải từ 1đ trở lên và phụ phí không được âm.' => 'The nightly price must be at least 1đ and the cleaning fee cannot be negative.',
+    'Giá mỗi đêm phải từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.' => 'The nightly price must be at least 1đ. Write it without dots, for example 500000.',
+    'Phụ phí không được âm. Viết liền không dấu chấm, ví dụ 50000.' => 'The cleaning fee cannot be negative. Write it without dots, for example 50000.',
     'Sức chứa, số phòng và số giường phải từ 1 đến 65535.' => 'Capacity, rooms and beds must be between 1 and 65535.',
     'Giờ nhận hoặc trả phòng không hợp lệ.' => 'Invalid check-in or check-out time.',
     'Loại chỗ ở hoặc chính sách hủy không hợp lệ.' => 'Invalid property type or cancellation policy.',
@@ -170,8 +171,8 @@ return [
     'Chỉ booking đã hoàn thành và chưa đánh giá mới được thực hiện.' => 'Only completed bookings that have not been reviewed yet can be reviewed.',
 
     // ---- Pricing, holidays, promotions, payments (BookingExtrasController)
-    'Giá cuối tuần phải là số từ 1đ trở lên.' => 'The weekend price must be a number of at least 1đ.',
-    'Giá ngày lễ phải là số từ 1đ trở lên.' => 'The holiday price must be a number of at least 1đ.',
+    'Giá cuối tuần phải là số từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.' => 'The weekend price must be a number of at least 1đ. Write it without dots, for example 500000.',
+    'Giá ngày lễ phải là số từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.' => 'The holiday price must be a number of at least 1đ. Write it without dots, for example 500000.',
     'Giảm giá theo tuần phải từ 0 đến 90%.' => 'Weekly discount must be between 0 and 90%.',
     'Giảm giá theo tháng phải từ 0 đến 90%.' => 'Monthly discount must be between 0 and 90%.',
     'Đã lưu giá & tùy chọn đặt chỗ. Thay đổi áp dụng cho báo giá mới, không cần Admin duyệt lại tin.' => 'Pricing and booking options saved. Changes apply to new quotes; no Admin re-approval needed.',
@@ -181,10 +182,10 @@ return [
     'Mã khuyến mãi phải gồm 4–20 chữ cái A–Z hoặc số.' => 'Promo code must be 4–20 letters A–Z or digits.',
     'Mô tả khuyến mãi cần từ 1 đến 255 ký tự.' => 'Promotion description must be 1 to 255 characters.',
     'Loại giảm giá không hợp lệ.' => 'Invalid discount type.',
-    'Giá trị giảm phải lớn hơn 0.' => 'Discount value must be greater than 0.',
-    'Mức giảm tối đa phải lớn hơn 0.' => 'Maximum discount must be greater than 0.',
+    'Giá trị giảm phải lớn hơn 0. Viết liền không dấu chấm, ví dụ 50000.' => 'Discount value must be greater than 0. Write it without dots, for example 50000.',
+    'Mức giảm tối đa phải lớn hơn 0. Viết liền không dấu chấm, ví dụ 50000.' => 'Maximum discount must be greater than 0. Write it without dots, for example 50000.',
     'Số đêm tối thiểu phải từ 1 đến 365.' => 'Minimum nights must be between 1 and 365.',
-    'Tiền phòng tối thiểu không hợp lệ.' => 'Invalid minimum room subtotal.',
+    'Tiền phòng tối thiểu không hợp lệ. Viết liền không dấu chấm, ví dụ 500000.' => 'Invalid minimum room subtotal. Write it without dots, for example 500000.',
     'Ngày bắt đầu không hợp lệ.' => 'Invalid start date.',
     'Ngày kết thúc không hợp lệ.' => 'Invalid end date.',
     'Giới hạn lượt dùng phải từ 1 trở lên.' => 'Usage limit must be 1 or more.',
