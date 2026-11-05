@@ -105,6 +105,9 @@ BEGIN
     IF NOT EXISTS(SELECT 1 FROM users WHERE id=p_guest AND status='active' AND deleted_at IS NULL) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản không khả dụng.';
     END IF;
+    IF NOT EXISTS(SELECT 1 FROM user_roles WHERE user_id=p_guest AND role='guest') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản của bạn không có vai trò Guest nên không thể đặt chỗ. Hãy liên hệ Admin nếu cần.';
+    END IF;
     -- A current locking read avoids a stale caller REPEATABLE READ snapshot.
     SELECT COUNT(*) INTO v_conflicts FROM bookings WHERE listing_id=p_listing AND status IN ('pending','confirmed') AND (status='confirmed' OR check_in>=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) AND check_in<p_end AND check_out>p_start FOR UPDATE;
     IF v_conflicts>0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Khoảng ngày này đã có yêu cầu đặt chỗ khác.'; END IF;

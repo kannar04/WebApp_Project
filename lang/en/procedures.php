@@ -10,6 +10,7 @@ declare(strict_types=1);
 return [
     // ---- 010_models.sql
     'Tài khoản không khả dụng.' => 'This account is not available.',
+    'Tài khoản của bạn không có vai trò Guest nên không thể đặt chỗ. Hãy liên hệ Admin nếu cần.' => 'Your account does not have the Guest role, so it cannot book. Contact an Admin if you need to.',
     'Admin đã gỡ vai trò Host của bạn. Hãy liên hệ Admin nếu bạn muốn làm Host trở lại.' => 'An Admin removed your Host role. Contact an Admin if you want to be a Host again.',
     'Trạng thái tài khoản không hợp lệ.' => 'Invalid account status.',
     'Không tìm thấy tài khoản đã xóa để khôi phục.' => 'No deleted account was found to restore.',

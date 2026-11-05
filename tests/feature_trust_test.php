@@ -562,6 +562,23 @@ try {
         trustExpect(trustHttp($guestOfLeaving, $baseUrl, '/host')['status'] === 200 && !str_contains(trustHttp($guestOfLeaving, $baseUrl, '/profile')['body'], 'data-host-role-removed'), 'An Admin giving the role back did not lift the removal.');
         echo "PASS Host role removal: the profile explains, a direct POST is refused, an Admin giving it back lifts it\n";
 
+        // Without the Guest role: a note in place of the form, the POST refused, and what was already booked stays theirs.
+        [$keptIn, $keptOut] = trustDates(44);
+        $keptStay = $service->create($listingId, $leavingGuest, $keptIn, $keptOut, 1);
+        trustHttp($adminClient, $baseUrl, '/admin/users/'.$leavingGuest.'/roles', ['_token' => trustToken(trustHttp($adminClient, $baseUrl, '/admin')['body']), 'roles' => ['host']]);
+        $noGuestPage = trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$listingId)['body'];
+        trustExpect(str_contains($noGuestPage, 'data-no-guest-role') && !str_contains($noGuestPage, 'data-booking-form'), 'A person without the Guest role was offered the booking form.');
+        [$refusedIn, $refusedOut] = trustDates(45);
+        $refusedBook = trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$listingId.'/book', ['_token' => trustToken(trustHttp($guestOfLeaving, $baseUrl, '/profile')['body']), 'check_in' => $refusedIn, 'check_out' => $refusedOut, 'guests' => '1', 'promo_code' => '']);
+        trustExpect(str_contains($refusedBook['body'], 'alert-danger') && str_contains($refusedBook['body'], 'không có vai trò Guest'), 'A booking POST without the Guest role was not refused with the reason.');
+        trustExpect(trustHttp($guestOfLeaving, $baseUrl, '/bookings/'.$keptStay)['status'] === 200 && str_contains(trustHttp($guestOfLeaving, $baseUrl, '/bookings')['body'], '/bookings/'.$keptStay), 'A person lost sight of their booking with the Guest role.');
+        $keptCancel = trustHttp($guestOfLeaving, $baseUrl, '/bookings/'.$keptStay.'/cancel', ['_token' => trustToken(trustHttp($guestOfLeaving, $baseUrl, '/bookings/'.$keptStay)['body']), 'reason' => 'Trust role fixture']);
+        trustExpect(str_contains($keptCancel['body'], 'alert-success'), 'A person could not cancel their booking without the Guest role.');
+        trustHttp($adminClient, $baseUrl, '/admin/users/'.$leavingGuest.'/roles', ['_token' => trustToken(trustHttp($adminClient, $baseUrl, '/admin')['body']), 'roles' => ['guest', 'host']]);
+        $withGuestPage = trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$listingId)['body'];
+        trustExpect(str_contains($withGuestPage, 'data-booking-form') && !str_contains($withGuestPage, 'data-no-guest-role'), 'The booking form did not return with the Guest role.');
+        echo "PASS no Guest role: note in place of the form, POST refused, own booking still opens and cancels\n";
+
         foreach ([$guestOfLeaving, $quietClient] as $client) { curl_close($client); }
         echo "PASS contact note: pending for the two parties, missing phone when confirmed, nothing when cancelled or rejected or for the Admin\n";
 

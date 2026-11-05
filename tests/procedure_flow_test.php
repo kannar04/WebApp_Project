@@ -454,6 +454,26 @@ try {
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS moderation reason: 5000 characters kept, 5001 refused with nothing changed\n";
 
+    // Booking needs the Guest role; what someone already booked stays theirs, and no ordinary path loses the role. Everything rolls back.
+    $db->beginTransaction();
+    try {
+        $service=new BookingService(); $tag=bin2hex(random_bytes(6));
+        foreach ([$host,$guest,$admin] as $seeded) { ensure(in_array('guest',$users->findWithRoles((int)$seeded['id'])['roles'],true),'A seed account has no Guest role.'); }
+        $registered=$users->create('audit-'.$tag.'-registered@home2home.test',bin2hex(random_bytes(16)),'Audit registered',null);
+        ensure($users->findWithRoles($registered)['roles']===['guest'],'Registering does not give the Guest role.');
+        $users->grantHost($registered);
+        ensure($users->findWithRoles($registered)['roles']===['guest','host'],'Becoming a Host changed the Guest role.');
+        $day=new DateTimeImmutable($start);
+        $keptBooking=$service->create($listingId,$registered,$start,$end,1);
+        $users->replaceRoles($registered,['host']);
+        refusedSaying([$service,'create'],[$listingId,$registered,$day->modify('+20 days')->format('Y-m-d'),$day->modify('+22 days')->format('Y-m-d'),1],'không có vai trò Guest');
+        ensure(bookingState($keptBooking)['status']==='pending','Losing the Guest role changed a booking.');
+        ensure(callRows('CALL sp_booking_detail(?,?)',[$keptBooking,$registered])!==[],'A person lost sight of their booking with the Guest role.');
+        $service->cancelByGuest($keptBooking,$registered,'Procedure role fixture');
+        ensure(bookingState($keptBooking)['status']==='cancelled','A person could not cancel their booking without the Guest role.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS Guest role: no new booking without it, existing bookings stay theirs, seed, register and become-host keep it\n";
+
     // A hide by an Admin holds until an Admin shows the listing; a Host's own hide stays theirs. Everything rolls back.
     $db->beginTransaction();
     try {
