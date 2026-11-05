@@ -44,6 +44,7 @@ return [
     'Khách gửi yêu cầu đặt chỗ.' => 'Guest sent a booking request.',
     'Đặt ngay (Instant Book): hệ thống tự xác nhận.' => 'Instant Book: confirmed automatically by the system.',
     'Admin cập nhật trạng thái.' => 'Admin updated the status.',
+    'Admin gỡ chỗ ở nên yêu cầu bị từ chối tự động.' => 'Admin took the listing down, so the request was rejected automatically.',
     'Host cập nhật trạng thái.' => 'Host updated the status.',
     'Khách hủy booking.' => 'Guest cancelled the booking.',
 
@@ -73,6 +74,7 @@ return [
 
     // ---- 050_quality_core.sql
     'Không có quyền quản lý chỗ ở.' => 'You do not have permission to manage this listing.',
+    'Chỗ ở đã bị gỡ nên không thể xác nhận booking này.' => 'This listing has been taken down, so the booking cannot be confirmed.',
     'Hãy xử lý booking đang chờ hoặc đã xác nhận trước khi xóa. Có thể ẩn tin để ngừng nhận yêu cầu mới.' => 'Handle pending or confirmed bookings before deleting. You can hide the listing to stop receiving new requests.',
     'Ảnh đã thay đổi đồng thời. Hãy tải lại trang trước khi lưu.' => 'The photos were changed at the same time elsewhere. Reload the page before saving.',
     'Danh sách ảnh không hợp lệ.' => 'Invalid photo list.',

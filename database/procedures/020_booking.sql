@@ -153,6 +153,7 @@ BEGIN
     DECLARE v_start DATE;
     DECLARE v_end DATE;
     DECLARE v_conflicts INT DEFAULT 0;
+    DECLARE v_deleted DATETIME(6);
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -163,7 +164,7 @@ BEGIN
     SET v_own=(@@in_transaction=0);
     IF v_own THEN START TRANSACTION; ELSE SAVEPOINT h2h_booking_transition; END IF;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=p_booking;
-    SELECT host_id INTO v_host FROM listings WHERE id=v_listing FOR UPDATE;
+    SELECT host_id,deleted_at INTO v_host,v_deleted FROM listings WHERE id=v_listing FOR UPDATE;
     SELECT guest_id,status,check_in,check_out INTO v_guest,v_status,v_start,v_end FROM bookings WHERE id=p_booking FOR UPDATE;
     IF v_guest IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking không tồn tại.'; END IF;
     IF p_admin IS NULL OR p_admin NOT IN (0,1) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Quyền cập nhật không hợp lệ.'; END IF;
@@ -179,6 +180,8 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ có thể hoàn thành booking sau ngày trả phòng.';
     END IF;
     IF p_target='confirmed' THEN
+        -- A past stay on a removed listing can still be completed; a request can no longer be accepted.
+        IF v_deleted IS NOT NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở đã bị gỡ nên không thể xác nhận booking này.'; END IF;
         SELECT COUNT(*) INTO v_conflicts FROM bookings WHERE listing_id=v_listing AND id<>p_booking AND status='confirmed' AND check_in<v_end AND check_out>v_start FOR UPDATE;
         IF v_conflicts>0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Ngày này vừa được booking khác xác nhận.'; END IF;
         SELECT COUNT(*) INTO v_conflicts FROM listing_availability WHERE listing_id=v_listing AND is_open=0 AND stay_date>=v_start AND stay_date<v_end FOR UPDATE;

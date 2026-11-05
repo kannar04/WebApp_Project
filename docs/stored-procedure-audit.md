@@ -298,7 +298,7 @@ Quy ước chung cho mọi routine ghi dữ liệu mới: tự `START TRANSACTIO
 | `sp_admin_article_save` | `090` | Tạo/sửa bài; kiểm tra chuyên mục, tiêu đề 5–200, slug, tóm tắt, nội dung 20–50000; slug tự sinh thêm `-2`, `-3`… | Admin; `FOR UPDATE`; audit `create_article`/`update_article` | feature_content_test |
 | `sp_admin_article_set_status` / `sp_admin_article_delete` | `090` | Xuất bản/ẩn, xóa mềm | Admin; `FOR UPDATE`; audit `publish_article`/`unpublish_article`/`delete_article` | feature_content_test |
 
-Test fixture routines mới (23, chỉ cài bằng `--include-tests` trong DB test riêng): 8 `testing_booking_extras.sql`, 5 `testing_trust.sql`, 4 `testing_conversation.sql`, 4 `testing_discovery.sql`, 2 `testing_content.sql`.
+Test fixture routines mới (24, chỉ cài bằng `--include-tests` trong DB test riêng): 9 `testing_booking_extras.sql`, 5 `testing_trust.sql`, 4 `testing_conversation.sql`, 4 `testing_discovery.sql`, 2 `testing_content.sql`.
 
 Giới hạn giữ nguyên từ báo cáo các nhánh: VNPay/MoMo chưa tích hợp (đã bổ sung VietQR + VNPay ngày 2026-10-15, xem mục dưới); booking tạo trước tính năng chưa có dòng thanh toán cho đến khi được đánh dấu đã thu; gợi ý tính trực tiếp mỗi lần, không cache; huy hiệu Host uy tín tính trong SQL mỗi lần tải trang.
 

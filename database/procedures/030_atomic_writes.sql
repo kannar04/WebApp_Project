@@ -245,6 +245,8 @@ CREATE OR REPLACE PROCEDURE sp_admin_listing_soft_delete(IN p_1 bigint unsigned,
 BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_lock BIGINT UNSIGNED;
+    DECLARE v_count INT DEFAULT 0;
+    DECLARE v_message VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -257,8 +259,22 @@ BEGIN
     CALL sp_admin_assert_role(p_2);
     SELECT id INTO v_lock FROM listings WHERE id=p_1 AND deleted_at IS NULL FOR UPDATE;
     IF v_lock IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở không tồn tại.'; END IF;
+    -- A stay is finished once it can be completed (check-out date reached). No admin route cancels a confirmed stay, so the message points to the people involved.
+    SELECT COUNT(*) INTO v_count FROM bookings WHERE listing_id=p_1 AND status='confirmed' AND check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) FOR UPDATE;
+    IF v_count>0 THEN
+        SET v_message=CONCAT('Không thể gỡ chỗ ở: còn ',v_count,' booking đã xác nhận chưa kết thúc. Hãy liên hệ Host và khách để xử lý trước. Có thể ẩn tin để ngừng nhận yêu cầu mới.');
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=v_message;
+    END IF;
+    -- Pending requests cannot be honoured any more: rejected here, with the same event and notification a manual rejection leaves.
+    SELECT COUNT(*) INTO v_count FROM bookings WHERE listing_id=p_1 AND status='pending' FOR UPDATE;
+    INSERT INTO booking_events(booking_id,actor_id,from_status,to_status,reason,created_at)
+        SELECT id,p_2,'pending','rejected','Admin gỡ chỗ ở nên yêu cầu bị từ chối tự động.',NOW(6) FROM bookings WHERE listing_id=p_1 AND status='pending';
+    INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+        SELECT b.guest_id,b.id,'in_app','booking_rejected','Cập nhật booking',CONCAT('Yêu cầu đặt chỗ #',b.id,' cho “',l.title,'” đã bị từ chối vì chỗ ở đã được gỡ khỏi hệ thống.'),'sent',1,NOW(6)
+        FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.listing_id=p_1 AND b.status='pending';
+    UPDATE bookings SET status='rejected',updated_at=NOW(6) WHERE listing_id=p_1 AND status='pending';
     UPDATE listings SET is_visible=0,deleted_at=NOW(6),updated_at=NOW(6) WHERE id=p_1;
-    INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at) VALUES(p_2,'delete_listing','listing',p_1,JSON_OBJECT('details','Soft delete'),NOW(6));
+    INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at) VALUES(p_2,'delete_listing','listing',p_1,JSON_OBJECT('details','Soft delete','rejected_pending',v_count),NOW(6));
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_admin_listing_soft_delete; END IF;
 END$$
 

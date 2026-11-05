@@ -87,7 +87,7 @@ return [
     'Lý do / ghi chú' => 'Reason / note',
     'Ẩn' => 'Hide',
     'Hiện' => 'Show',
-    'Gỡ listing này?' => 'Remove this listing?',
+    'Gỡ listing này? Các yêu cầu đặt chỗ đang chờ duyệt sẽ bị từ chối tự động.' => 'Remove this listing? Pending booking requests will be rejected automatically.',
     'Gỡ' => 'Remove',
     'Booking toàn hệ thống' => 'All bookings',
     'ID, tên tin, Guest hoặc Host' => 'ID, listing title, Guest or Host',

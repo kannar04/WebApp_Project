@@ -37,6 +37,15 @@ BEGIN
 END$$
 
 -- Simulates a booking created before payment tracking existed.
+-- Simulates a listing removed before take-downs rejected pending requests.
+CREATE OR REPLACE PROCEDURE sp_test_booking_extras_legacy_takedown(IN p_listing BIGINT UNSIGNED)
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM listings WHERE id=p_listing AND city='Audit' AND title LIKE 'Audit fixture BX %') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to change a non-fixture listing.';
+    END IF;
+    UPDATE listings SET is_visible=0,deleted_at=NOW(6) WHERE id=p_listing;
+END$$
+
 CREATE OR REPLACE PROCEDURE sp_test_booking_extras_forget_payment(IN p_booking BIGINT UNSIGNED)
 BEGIN
     IF NOT EXISTS(SELECT 1 FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=p_booking AND l.city='Audit' AND l.title LIKE 'Audit fixture BX %') THEN

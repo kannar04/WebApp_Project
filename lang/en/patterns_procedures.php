@@ -19,6 +19,10 @@ return [
     'Booking #{id} chuyển sang completed.' => 'Booking #{id} is now completed.',
     'Booking #{id} chuyển sang {status}.' => 'Booking #{id} changed to {status}.',
 
+    // ---- 030_atomic_writes.sql: sp_admin_listing_soft_delete refusal and Guest notification
+    'Không thể gỡ chỗ ở: còn {count} booking đã xác nhận chưa kết thúc. Hãy liên hệ Host và khách để xử lý trước. Có thể ẩn tin để ngừng nhận yêu cầu mới.' => 'This listing cannot be taken down: {count} confirmed booking(s) have not finished. Contact the Host and guest to resolve them first. You can hide the listing to stop new requests.',
+    'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì chỗ ở đã được gỡ khỏi hệ thống.' => 'Booking request #{id} for “{listing}” was rejected because the listing has been taken down.',
+
     // ---- 020_booking.sql: sp_booking_cancel Guest notification (now e.g. 1.500.000đ / 100; the second entry keeps older rows stored as 1500000.00 / 100.00)
     'Booking #{id} đã hủy. Theo chính sách hủy, khoản đã thanh toán không được hoàn.' => 'Booking #{id} was cancelled. Under the cancellation policy, the payment is not refunded.',
     'Booking #{id} đã hủy khi đã thanh toán. Cần hoàn {amount}đ cho khách theo chính sách ({percent}%).' => 'Booking #{id} was cancelled after payment. Refund {amount}đ to the guest under the policy ({percent}%).',

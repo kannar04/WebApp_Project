@@ -2,8 +2,11 @@
 declare(strict_types=1);
 require dirname(__DIR__).'/core/bootstrap.php';
 
+use App\Models\AdminRepository;
+use App\Models\Booking;
 use App\Models\BookingExtras;
 use App\Models\Listing;
+use App\Models\Notification;
 use App\Models\User;
 use App\Services\BookingService;
 use Core\ProcedureConnection;
@@ -138,7 +141,7 @@ $host=$users->findByEmail('host@home2home.test'); $guest=$users->findByEmail('gu
 bxExpect($host && $guest && $admin,'Local seed accounts required.');
 $hostId=(int)$host['id']; $guestId=(int)$guest['id']; $adminId=(int)$admin['id'];
 $listings=new Listing(); $extras=new BookingExtras(); $service=new BookingService();
-$listingId=null; $promotions=[]; $holidayDates=[]; $processes=[]; $completed=false;
+$listingId=null; $extraListings=[]; $promotions=[]; $holidayDates=[]; $processes=[]; $completed=false;
 $suffix=strtoupper(bin2hex(random_bytes(3)));
 $today=new DateTimeImmutable('today');
 $monday=$today->modify('+4100 days');
@@ -387,6 +390,47 @@ try {
     bxCall('CALL sp_test_listing_approve(?)',[$listingId]);
     $extras->saveHostSettings($listingId,$hostId,'150000','300000','10','20',true);
     echo "PASS whole dong pricing: decimal weekend/holiday rate, fee, fixed promo and promo cap round per component; rows, total, nights and amount due agree\n";
+    // ---- Admin take-down: unfinished confirmed stays refuse it, pending requests are auto-rejected, all in one transaction.
+    $repository=new AdminRepository();
+    $takedownId=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]+$data);
+    $extraListings[]=$takedownId;
+    bxCall('CALL sp_test_listing_approve(?)',[$takedownId]);
+    $waiting=$service->create($takedownId,$guestId,bxDay($monday,0),bxDay($monday,2),1);
+    $future=$service->create($takedownId,$guestId,bxDay($monday,10),bxDay($monday,12),1);
+    $service->hostTransition($future,$hostId,'confirmed');
+    $endsToday=$service->create($takedownId,$guestId,bxDay($monday,20),bxDay($monday,21),1);
+    $service->hostTransition($endsToday,$hostId,'confirmed');
+    bxCall('CALL sp_test_booking_extras_backdate(?)',[$endsToday]);
+    bxRejects([$repository,'softDeleteListing'],[$takedownId,$hostId],'','Host used the Admin take-down');
+    bxRejects([$repository,'softDeleteListing'],[$takedownId,$adminId],'còn 1 booking đã xác nhận chưa kết thúc','Take-down with an unfinished confirmed stay');
+    bxExpect($repository->findListing($takedownId)!==null && bxInspect($waiting)['status']==='pending' && (int)bxInspect($waiting)['events']===1,'A refused take-down changed the listing or its requests.');
+    bxCall('CALL sp_test_booking_extras_backdate(?)',[$future]);
+    bxRejects([$repository,'softDeleteListing'],[$takedownId,$adminId],'còn 1 booking','Take-down during a stay in progress');
+    $service->cancelByGuest($future,$guestId,'Take-down test');
+    $repository->softDeleteListing($takedownId,$adminId);
+    bxExpect($repository->findListing($takedownId)===null,'Take-down left the listing in place.');
+    bxExpect(bxInspect($waiting)['status']==='rejected' && bxInspect($endsToday)['status']==='confirmed' && bxInspect($future)['status']==='cancelled','Take-down changed the wrong bookings.');
+    $lastEvent=null;
+    foreach ((new Booking())->detail($waiting,$guestId)['events'] as $event) { $lastEvent=$event; }
+    bxExpect($lastEvent['from_status']==='pending' && $lastEvent['to_status']==='rejected' && str_contains((string)$lastEvent['reason'],'từ chối tự động'),'Take-down left no booking event.');
+    $notices=0;
+    foreach ((new Notification())->forUser($guestId) as $notice) {
+        if ((int)$notice['booking_id']===$waiting && $notice['event_type']==='booking_rejected' && str_contains((string)$notice['body'],'#'.$waiting.' ')) { $notices++; }
+    }
+    bxExpect($notices===1,'Take-down must notify the Guest exactly once.');
+    bxExpect(bxAudits('delete_listing',$takedownId)===1,'Take-down left no audit row.');
+    $service->hostTransition($endsToday,$hostId,'completed');
+    bxExpect(bxInspect($endsToday)['status']==='completed','A finished stay on a removed listing cannot be completed.');
+    // Requests left pending by a take-down from before this rule can be rejected but never confirmed.
+    $legacyId=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]+$data);
+    $extraListings[]=$legacyId;
+    bxCall('CALL sp_test_listing_approve(?)',[$legacyId]);
+    $legacyRequest=$service->create($legacyId,$guestId,bxDay($monday,0),bxDay($monday,2),1);
+    bxCall('CALL sp_test_booking_extras_legacy_takedown(?)',[$legacyId]);
+    bxRejects([$service,'hostTransition'],[$legacyRequest,$hostId,'confirmed'],'đã bị gỡ','Host confirmed on a removed listing');
+    bxRejects([$service,'adminTransition'],[$legacyRequest,$adminId,'confirmed'],'đã bị gỡ','Admin confirmed on a removed listing');
+    $service->hostTransition($legacyRequest,$hostId,'rejected');
+    echo "PASS Admin take-down: refused with the count while a confirmed stay is unfinished, atomic, pending auto-rejected with event/notification/audit, finished stay still completable, confirm refused on a removed listing\n";
 
     // ---- HTTP (controllers, CSRF, roles, pages) when a server is available.
     $baseUrl=rtrim((string)(getenv('HOME2HOME_TEST_URL')?:($app['url']?:'')),'/');
@@ -507,6 +551,16 @@ try {
             && str_contains(bxHttp($guestClient,$baseUrl,'/bookings/'.$runningStay['booking_id'])['body'],$runningCancel),'Booking page cancel button is wrong around check-out.');
         $response=bxHttp($guestClient,$baseUrl,$endedCancel,['_token'=>$guestToken,'reason'=>'Audit fixture']);
         bxExpect($response['status']===302 && bxInspect($endedStay['booking_id'])['status']==='confirmed' && str_contains(bxHttp($guestClient,$baseUrl,'/bookings')['body'],'Chuyến ở đã kết thúc'),'Direct cancel POST after the stay was not refused.');
+        // Take-down refusal reaches the Admin as a flash message, not an error page.
+        $blockedId=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]+$data);
+        $extraListings[]=$blockedId;
+        bxCall('CALL sp_test_listing_approve(?)',[$blockedId]);
+        $service->hostTransition($service->create($blockedId,$guestId,bxDay($monday,0),bxDay($monday,2),1),$hostId,'confirmed');
+        $response=bxHttp($adminClient,$baseUrl,'/admin/listings/'.$blockedId.'/delete',['_token'=>$adminToken]);
+        bxExpect($response['status']===302 && $response['location']==='/admin','Refused take-down did not return to the dashboard.');
+        $page=bxHttp($adminClient,$baseUrl,'/admin')['body'];
+        bxExpect(str_contains($page,'alert-danger') && str_contains($page,'còn 1 booking đã xác nhận chưa kết thúc') && str_contains($page,'liên hệ Host và khách'),'Refused take-down message missing from the dashboard.');
+        bxExpect($repository->findListing($blockedId)!==null,'Refused take-down removed the listing.');
         foreach ([$anonymous,$guestClient,$hostClient,$adminClient] as $client) { curl_close($client); }
         echo "PASS booking extras HTTP: role 403s, CSRF rejection, pricing/promotions/holidays/payments pages and POSTs, quote API promo, Instant Book POST, mark paid/refund\n";
     }
@@ -521,6 +575,10 @@ try {
     if ($listingId!==null) {
         try { bxCall('CALL sp_test_booking_extras_cleanup(?)',[$listingId]); }
         catch (Throwable $exception) { $cleanupErrors[]='listing '.$listingId.': '.$exception->getMessage(); }
+    }
+    foreach ($extraListings as $extraListing) {
+        try { bxCall('CALL sp_test_booking_extras_cleanup(?)',[$extraListing]); }
+        catch (Throwable $exception) { $cleanupErrors[]='listing '.$extraListing.': '.$exception->getMessage(); }
     }
     foreach ($promotions as $code=>$id) {
         try { bxCall('CALL sp_test_booking_extras_cleanup_promotion(?,?)',[$code,$id]); }
