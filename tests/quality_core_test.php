@@ -36,6 +36,11 @@ function qaSignInRedirect(string $baseUrl,string $visit,string $form,string $ref
     curl_exec($curl); $location=(string)curl_getinfo($curl,CURLINFO_REDIRECT_URL); curl_close($curl);
     return (string)parse_url($location,PHP_URL_PATH);
 }
+function qaIssueRefused(\App\Models\PasswordReset $recovery,int $userId): bool
+{
+    try { $recovery->issue($userId,bin2hex(random_bytes(32))); } catch (DomainException $exception) { return true; }
+    return false;
+}
 function qaCall(string $sql,array $parameters=[]): array
 {
     $s=ProcedureConnection::connection()->prepare($sql); $s->execute($parameters); return $s->fetchAll();
@@ -362,6 +367,20 @@ qaReject(fn()=>$recovery->consume($expiredToken,$newPassword),'Expired reset tok
 $unconfigured=$request('/forgot-password');
 qaExpect($unconfigured['status']===200 && str_contains($unconfigured['body'],'disabled') && !str_contains($unconfigured['body'],$rawToken),'Unconfigured mail flow exposed a token or falsely enabled delivery.');
 echo "PASS QA recovery hashed token/one-use/expiry/issuance throttle/HTTP consume; mail delivery explicitly BLOCKED, not simulated\n";
+// With mail on, unknown, throttled and deleted accounts all end silently in the issuing routine, and none of them reaches the mail step.
+putenv('MAIL_ENABLED=true'); putenv('MAIL_FROM=no-reply@home2home.test'); putenv('PASSWORD_RESET_BASE_URL=http://127.0.0.1');
+$recoveryService=new \App\Services\PasswordRecoveryService();
+qaExpect($recoveryService->configured() && !preg_match('/\[.(status|deleted_at).\]/',(string)file_get_contents(dirname(__DIR__).'/app/Services/PasswordRecoveryService.php')),'Recovery must leave account state to the issuing routine.');
+$recoveryFixtureEmail='quality-silent-'.bin2hex(random_bytes(6)).'@home2home.test';
+$recoveryFixture=$passwordUser->create($recoveryFixtureEmail,$oldPassword,'Quality silent fixture',null);
+$recovery->issue($recoveryFixture,bin2hex(random_bytes(32)));
+$recoveryService->request('quality-nobody-'.bin2hex(random_bytes(6)).'@home2home.test');
+$recoveryService->request($recoveryFixtureEmail);
+$passwordUser->softDelete($recoveryFixture);
+$recoveryService->request($recoveryFixtureEmail);
+qaExpect(qaIssueRefused($recovery,0) && qaIssueRefused($recovery,$recoveryFixture),'Issuing routine accepted an unknown or deleted account.');
+putenv('MAIL_ENABLED=false'); putenv('MAIL_FROM'); putenv('PASSWORD_RESET_BASE_URL');
+echo "PASS QA recovery request takes the same silent path for unknown, throttled and deleted accounts\n";
 
 // More than one UI page, with real approval and filter-preserving navigation.
 $paginationFixtures=[]; $paginationData=$listings->findOwned(1,2); $paginationData['city']='QualityPagination';

@@ -20,9 +20,9 @@ final class PasswordRecoveryService
     {
         if (!$this->configured()) { throw new \DomainException('Khôi phục mật khẩu đang chờ cấu hình gửi email. Vui lòng liên hệ quản trị viên.'); }
         $user=(new User())->findByEmail($email);
-        if (!$user || $user['status']!=='active' || $user['deleted_at']!==null) { return; }
         $rawToken=bin2hex(random_bytes(32));
-        try { (new PasswordReset())->issue((int)$user['id'],$rawToken); }
+        // Unknown, inactive and deleted accounts go through the same routine as an active one, which refuses them, so only a real send takes longer.
+        try { (new PasswordReset())->issue((int)($user['id']??0),$rawToken); }
         catch (\DomainException $exception) { return; } // Generic response avoids account/throttle enumeration.
         $config=require dirname(__DIR__,2).'/config/mail.php';
         $link=$config['reset_base_url'].'/reset-password?token='.$rawToken;
