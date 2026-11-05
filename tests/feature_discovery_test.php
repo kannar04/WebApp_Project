@@ -313,6 +313,14 @@ try {
         discoveryExpect(discoveryRequest($curl,$baseUrl,'/map?'.http_build_query(['location'=>$alpha]))['status']===200,'Signed-in map search failed.');
         $searches=discoveryCall('CALL sp_test_discovery_searches(?)',[$web]);
         discoveryExpect(count($searches)===2 && $searches[0]['source']==='map' && $searches[0]['location']===$alpha && $searches[1]['source']==='home' && $searches[1]['location']===$beta,'Home/map searches not recorded.');
+        // The untouched hero sends blanks plus its default of one guest: the same as the plain home page, on the page and in the API.
+        $emptyHero=http_build_query(['location'=>'','check_in'=>'','check_out'=>'','guests'=>'1','type'=>'','min_price'=>'','max_price'=>'','bedrooms'=>'','sort'=>'']);
+        $hero=discoveryRequest($curl,$baseUrl,'/?'.$emptyHero);
+        discoveryExpect($hero['status']===200 && str_contains($hero['body'],'Đang hiển thị tất cả chỗ ở.') && !str_contains($hero['body'],'Đã áp dụng điều kiện tìm kiếm.') && str_contains($hero['body'],'data-discovery-shelf'),'Empty hero search counted as filtered.');
+        discoveryExpect(count(discoveryCall('CALL sp_test_discovery_searches(?)',[$web]))===2,'Empty hero search was stored as a search.');
+        $plainApi=discoveryJson(discoveryRequest($curl,$baseUrl,'/api/listings'));
+        $heroApi=discoveryJson(discoveryRequest($curl,$baseUrl,'/api/listings?'.$emptyHero));
+        discoveryExpect($heroApi['success']===true && $heroApi['data']===$plainApi['data'],'Empty hero API result differs from the unfiltered one.');
         $home=discoveryRequest($curl,$baseUrl,'/');
         discoveryExpect($home['status']===200 && str_contains($home['body'],'data-discovery-shelf') && str_contains($home['body'],'Gợi ý cho bạn')
             && str_contains($home['body'],'Vì bạn đã xem chỗ ở tại '.e($alpha)) && str_contains($home['body'],'Đã xem gần đây'),'Signed-in home recommendations missing.');
@@ -331,6 +339,10 @@ try {
         discoveryExpect(!str_contains($anonymous['body'],'data-discovery-shelf') && !str_contains($anonymous['body'],'id="discovery-history"'),'Anonymous visitor saw personal history.');
         $guarded=discoveryRequest($curl,$baseUrl,'/profile/history/clear',['_token'=>discoveryToken($anonymous['body'])]);
         discoveryExpect(parse_url($guarded['url'],PHP_URL_PATH)==='/login','Anonymous clear was not sent to login.');
+        // Signed out here so these searches stay out of the history counts above.
+        foreach ([['guests'=>'2'],['guests'=>'1','location'=>$beta],['guests'=>'1','sort'=>'price_asc'],['guests'=>'1','amenities'=>[1]]] as $realSearch) {
+            discoveryExpect(str_contains(discoveryRequest($curl,$baseUrl,'/?'.http_build_query($realSearch))['body'],'Đã áp dụng điều kiện tìm kiếm.'),'A real search lost its filtered state.');
+        }
         echo "PASS discovery HTTP signed-in views/searches recorded, home recommendations + recent views, profile summary, CSRF-protected clear, anonymous guard\n";
     }
 } finally {

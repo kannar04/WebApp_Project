@@ -22,10 +22,7 @@ final class HomeController extends Controller
             $page=$pages; $filters['page']=$page;
             $result=$model->searchPage($filters,$perPage,($page-1)*$perPage);
         }
-        $hasFilters=false;
-        foreach ($filters as $name=>$value) {
-            if ($name!=='page' && ($name==='amenities'?count($value)>0:trim((string)$value)!=='')) { $hasFilters=true; }
-        }
+        $hasFilters=self::hasActiveFilters($filters);
         $favorites=Auth::check()?(new Wishlist())->ids((int)Auth::id()):[];
         if ($searchError===null && $hasFilters) { DiscoveryService::recordSearch('home',$filters); }
         $discovery=Auth::check() && !$hasFilters && $page===1 ? DiscoveryService::homeShelf((int)Auth::id()) : null;
@@ -36,6 +33,19 @@ final class HomeController extends Controller
             'trustBadges'=>(new \App\Models\Trust())->badges(array_column($result['listings'],'host_id'),Auth::id()),
             'discovery'=>$discovery
         ]);
+    }
+
+    /** The hero always sends its default of one guest. Every listing takes at least one, so that alone is not a search. */
+    private static function hasActiveFilters(array $filters): bool
+    {
+        foreach ($filters as $name=>$value) {
+            if ($name==='page') { continue; }
+            if ($name==='amenities') { $active=count($value)>0; }
+            elseif ($name==='guests') { $active=(int)$value>1; }
+            else { $active=trim((string)$value)!==''; }
+            if ($active) { return true; }
+        }
+        return false;
     }
 
     public function search(): never
