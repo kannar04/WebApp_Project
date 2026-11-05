@@ -43,6 +43,7 @@ final class Validator
         return strlen($password) >= 8 && strlen($password) <= 72 && !str_contains($password, "\0");
     }
 
+    /** For text fields: all spaces counts as blank. Never list a password here, a password is not trimmed anywhere; passwordAllowed decides. */
     public static function required(array $data, array $fields): array
     {
         $errors = [];

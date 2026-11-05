@@ -333,6 +333,26 @@ try {
         $result = auditRequest($admin, $url.'/admin/users', ['_token' => $adminToken, 'full_name' => 'Audit', 'email' => $email, 'password' => $badPassword, 'roles' => ['guest']]);
         expect($result['location'] === '/admin' && $passwordModel->findByEmail($email) === null, "Admin create accepted a bad password: $name");
     }
+    // Passwords are never trimmed: eight spaces meet the rule on register as on every other path, and the spaces count at login.
+    $spaces = str_repeat(' ', 8);
+    $spacesEmail = "audit-spaces-$tag@home2home.test";
+    $spacesBrowser = auditBrowser();
+    $form = auditRequest($spacesBrowser, $url.'/register')['body'];
+    $registered = auditRequest($spacesBrowser, $url.'/register', ['_token' => auditFormToken($form), 'full_name' => 'Audit spaces', 'email' => $spacesEmail, 'password' => $spaces]);
+    $spacesUser = $passwordModel->findByEmail($spacesEmail);
+    try {
+        expect($registered['location'] === '/' && $spacesUser !== null && password_verify($spaces, $spacesUser['password_hash']), 'Register must keep an 8-space password untrimmed, like the other password paths.');
+        $spacesLogin = auditBrowser();
+        $form = auditRequest($spacesLogin, $url.'/login')['body'];
+        expect(auditRequest($spacesLogin, $url.'/login', ['_token' => auditFormToken($form), 'email' => $spacesEmail, 'password' => str_repeat(' ', 7)])['location'] === '/login', 'Login must count every space of a password.');
+        expect(auditRequest($spacesLogin, $url.'/login', ['_token' => auditFormToken($form), 'email' => $spacesEmail, 'password' => $spaces])['location'] === '/', 'An 8-space password must log in.');
+    } finally {
+        if ($spacesUser !== null) { $database->prepare('CALL sp_test_cleanup_user(?)')->execute([(int) $spacesUser['id']]); }
+    }
+    $spacesBrowser = auditBrowser();
+    $form = auditRequest($spacesBrowser, $url.'/register')['body'];
+    auditRequest($spacesBrowser, $url.'/register', ['_token' => auditFormToken($form), 'full_name' => 'Audit spaces', 'email' => $spacesEmail, 'password' => str_repeat(' ', 7)]);
+    expect($passwordModel->findByEmail($spacesEmail) === null && str_contains(auditRequest($spacesBrowser, $url.'/register')['body'], \Core\Validator::PASSWORD_RULE), 'Seven spaces are under the minimum.');
     $legacyPassword = str_repeat('L', 80);
     $fixtureEmail = "audit-password-$tag@home2home.test";
     $fixtureId = $passwordModel->create($fixtureEmail, $legacyPassword, 'Audit password fixture', null);
