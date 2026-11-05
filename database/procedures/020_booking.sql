@@ -186,6 +186,7 @@ BEGIN
     IF p_target='confirmed' THEN
         -- A past stay on a removed listing can still be completed; a request can no longer be accepted.
         IF v_deleted IS NOT NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở đã bị gỡ nên không thể xác nhận booking này.'; END IF;
+        IF v_start<DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Đã qua ngày nhận phòng nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.'; END IF;
         SELECT COUNT(*) INTO v_conflicts FROM bookings WHERE listing_id=v_listing AND id<>p_booking AND status='confirmed' AND check_in<v_end AND check_out>v_start FOR UPDATE;
         IF v_conflicts>0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Ngày này vừa được booking khác xác nhận.'; END IF;
         SELECT COUNT(*) INTO v_conflicts FROM listing_availability WHERE listing_id=v_listing AND is_open=0 AND stay_date>=v_start AND stay_date<v_end FOR UPDATE;

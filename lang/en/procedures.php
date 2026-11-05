@@ -76,6 +76,7 @@ return [
 
     // ---- 050_quality_core.sql
     'Không có quyền quản lý chỗ ở.' => 'You do not have permission to manage this listing.',
+    'Đã qua ngày nhận phòng nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.' => 'The check-in date has passed, so this request can no longer be confirmed. You can still reject it.',
     'Chỗ ở đã bị gỡ nên không thể xác nhận booking này.' => 'This listing has been taken down, so the booking cannot be confirmed.',
     'Hãy xử lý booking đang chờ hoặc đã xác nhận trước khi xóa. Có thể ẩn tin để ngừng nhận yêu cầu mới.' => 'Handle pending or confirmed bookings before deleting. You can hide the listing to stop receiving new requests.',
     'Ảnh đã thay đổi đồng thời. Hãy tải lại trang trước khi lưu.' => 'The photos were changed at the same time elsewhere. Reload the page before saving.',

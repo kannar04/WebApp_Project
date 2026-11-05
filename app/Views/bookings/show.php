@@ -62,7 +62,7 @@ $extras=$extras??[];
         <form method="post" action="<?= e(url('/bookings/'.$booking['id'].'/cancel')) ?>"><?= csrf_field() ?><label for="cancel-reason"><?= e(__('Lý do hủy')) ?></label><input class="form-control mb-2" id="cancel-reason" name="reason" maxlength="2000"><button class="btn btn-outline-danger" data-confirm="<?= e($moneyTaken?__('Hủy booking theo mức hoàn đang áp dụng?'):__('Bạn chắc chắn muốn hủy booking này?')) ?>"><?= e(__('Hủy booking')) ?></button></form>
         <?php endif; ?>
         <?php if($actorId===(int)$booking['host_id'] || \Core\Auth::hasRole('admin')): ?>
-        <div class="action-row mt-3"><?php foreach($booking['status']==='pending'?['confirmed','rejected']:($booking['status']==='confirmed'&&$booking['check_out']<=date('Y-m-d')?['completed']:[]) as $target): ?>
+        <div class="action-row mt-3"><?php foreach($booking['status']==='pending'?($booking['check_in']>=date('Y-m-d')?['confirmed','rejected']:['rejected']):($booking['status']==='confirmed'&&$booking['check_out']<=date('Y-m-d')?['completed']:[]) as $target): ?>
         <form method="post" action="<?= e(url((\Core\Auth::hasRole('admin')?'/admin':'/host').'/bookings/'.$booking['id'].'/transition')) ?>"><?= csrf_field() ?><input type="hidden" name="status" value="<?= $target ?>"><button class="btn btn-outline-primary"><?= e($actionLabels[$target]) ?></button></form>
         <?php endforeach; ?></div><?php endif; ?>
         <?php if($actorId===(int)$booking['guest_id']): ?><p class="mt-3"><a href="<?= e(url('/reports?booking='.$booking['id'])) ?>"><?= e(__('Gửi khiếu nại booking này')) ?></a></p><?php endif; ?><h2 class="h4 mt-4"><?= e(__('Lịch sử trạng thái')) ?></h2>

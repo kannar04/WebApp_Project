@@ -116,6 +116,12 @@ function bxLogin(CurlHandle $curl, string $baseUrl, string $email, string $passw
     bxExpect($result['status']===302 && $result['location']!=='/login','HTTP login failed for '.$email);
 }
 
+/** Whether the page offers a booking transition form with this target status. */
+function bxOffersTransition(string $html, int $bookingId, string $status): bool
+{
+    return preg_match('~/bookings/'.$bookingId.'/transition"[^>]*>(?:(?!</form>).)*name="status" value="'.$status.'"~s',$html)===1;
+}
+
 $app=require dirname(__DIR__).'/config/app.php';
 $config=require dirname(__DIR__).'/config/database.php';
 bxExpect(PHP_SAPI==='cli' && $app['env']==='local' && in_array($config['host'],['localhost','127.0.0.1','::1'],true),'Local test only.');
@@ -390,6 +396,26 @@ try {
     bxCall('CALL sp_test_listing_approve(?)',[$listingId]);
     $extras->saveHostSettings($listingId,$hostId,'150000','300000','10','20',true);
     echo "PASS whole dong pricing: decimal weekend/holiday rate, fee, fixed promo and promo cap round per component; rows, total, nights and amount due agree\n";
+    // ---- Stale requests: no confirmation after the check-in date; Host and Admin can still reject and the Guest can still cancel.
+    $staleListing=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]+$data);
+    $extraListings[]=$staleListing;
+    bxCall('CALL sp_test_listing_approve(?)',[$staleListing]);
+    $staleRejected=$service->create($staleListing,$guestId,bxDay($monday,0),bxDay($monday,2),1);
+    bxCall('CALL sp_test_booking_extras_backdate(?)',[$staleRejected]);
+    bxRejects([$service,'hostTransition'],[$staleRejected,$hostId,'confirmed'],'Đã qua ngày nhận phòng','Host confirmed a stale request');
+    bxRejects([$service,'adminTransition'],[$staleRejected,$adminId,'confirmed'],'Đã qua ngày nhận phòng','Admin confirmed a stale request');
+    bxExpect(bxInspect($staleRejected)['status']==='pending','A refused confirmation changed the request.');
+    $service->hostTransition($staleRejected,$hostId,'rejected');
+    bxExpect(bxInspect($staleRejected)['status']==='rejected','Host could not reject a stale request.');
+    $staleCancelled=$service->create($staleListing,$guestId,bxDay($monday,3),bxDay($monday,5),1);
+    bxCall('CALL sp_test_booking_extras_backdate(?)',[$staleCancelled]);
+    $service->cancelByGuest($staleCancelled,$guestId,'Stale request test');
+    bxExpect(bxInspect($staleCancelled)['status']==='cancelled','Guest could not cancel a stale request.');
+    $checkInToday=$service->create($staleListing,$guestId,$today->format('Y-m-d'),bxDay($today,1),1);
+    $service->hostTransition($checkInToday,$hostId,'confirmed');
+    bxExpect(bxInspect($checkInToday)['status']==='confirmed','A request checking in today must still be confirmable.');
+    echo "PASS stale requests: confirm refused for Host and Admin after the check-in date, reject and guest cancel still work, check-in today still confirmable\n";
+
     // ---- Maximum stay and money limits: refused by the service and by the routine, never silently capped.
     $limitIds=[];
     foreach (['plain'=>100000,'high'=>30000000,'top'=>9999999999.99,'exact'=>9999979999.99] as $limitName=>$limitPrice) {
@@ -576,6 +602,27 @@ try {
             && str_contains(bxHttp($guestClient,$baseUrl,'/bookings/'.$runningStay['booking_id'])['body'],$runningCancel),'Booking page cancel button is wrong around check-out.');
         $response=bxHttp($guestClient,$baseUrl,$endedCancel,['_token'=>$guestToken,'reason'=>'Audit fixture']);
         bxExpect($response['status']===302 && bxInspect($endedStay['booking_id'])['status']==='confirmed' && str_contains(bxHttp($guestClient,$baseUrl,'/bookings')['body'],'Chuyến ở đã kết thúc'),'Direct cancel POST after the stay was not refused.');
+        // Stale request: the pages offer Reject but not Confirm; a forged POST gets the message; the Guest keeps Cancel.
+        $staleHttpListing=$listings->create($hostId,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]+$data);
+        $extraListings[]=$staleHttpListing;
+        bxCall('CALL sp_test_listing_approve(?)',[$staleHttpListing]);
+        $freshHttp=$service->create($staleHttpListing,$guestId,bxDay($monday,10),bxDay($monday,12),1);
+        $staleHttp=$service->create($staleHttpListing,$guestId,bxDay($monday,20),bxDay($monday,22),1);
+        bxCall('CALL sp_test_booking_extras_backdate(?)',[$staleHttp]);
+        $page=bxHttp($hostClient,$baseUrl,'/host')['body'];
+        bxExpect(bxOffersTransition($page,$staleHttp,'rejected') && !bxOffersTransition($page,$staleHttp,'confirmed'),'Host dashboard offered Confirm on a stale request.');
+        bxExpect(bxOffersTransition($page,$freshHttp,'rejected') && bxOffersTransition($page,$freshHttp,'confirmed'),'Host dashboard lost Confirm on a current request.');
+        $page=bxHttp($hostClient,$baseUrl,'/bookings/'.$staleHttp)['body'];
+        bxExpect(bxOffersTransition($page,$staleHttp,'rejected') && !bxOffersTransition($page,$staleHttp,'confirmed'),'Booking detail offered Confirm on a stale request.');
+        bxExpect(bxOffersTransition(bxHttp($hostClient,$baseUrl,'/bookings/'.$freshHttp)['body'],$freshHttp,'confirmed'),'Booking detail lost Confirm on a current request.');
+        $page=bxHttp($adminClient,$baseUrl,'/admin?'.http_build_query(['q'=>(string)$staleHttp]))['body'];
+        bxExpect(bxOffersTransition($page,$staleHttp,'rejected') && !bxOffersTransition($page,$staleHttp,'confirmed'),'Admin dashboard offered Confirm on a stale request.');
+        $response=bxHttp($hostClient,$baseUrl,'/host/bookings/'.$staleHttp.'/transition',['_token'=>$hostToken,'status'=>'confirmed']);
+        $page=bxHttp($hostClient,$baseUrl,$response['location'])['body'];
+        bxExpect(bxInspect($staleHttp)['status']==='pending' && str_contains($page,'alert-danger') && str_contains($page,'Đã qua ngày nhận phòng'),'Forged Confirm on a stale request was not refused with the message.');
+        bxExpect(str_contains(bxHttp($guestClient,$baseUrl,'/bookings/'.$staleHttp)['body'],'/bookings/'.$staleHttp.'/cancel'),'Guest lost Cancel on a stale request.');
+        $response=bxHttp($guestClient,$baseUrl,'/bookings/'.$staleHttp.'/cancel',['_token'=>$guestToken,'reason'=>'Stale']);
+        bxExpect($response['status']===302 && bxInspect($staleHttp)['status']==='cancelled','Guest could not cancel a stale request over HTTP.');
         // Maximum stay: the quote API answers 422 with the message the form shows; the booking POST flashes it.
         $response=bxHttp($anonymous,$baseUrl,'/api/listings/'.$limitIds['plain'].'/quote?'.http_build_query(['check_in'=>$d0,'check_out'=>$tooFar,'guests'=>1]),null,'application/json');
         $decoded=json_decode($response['body'],true);
