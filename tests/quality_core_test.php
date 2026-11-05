@@ -410,6 +410,42 @@ qaExpect(!str_contains($malformed,'"><script>') && str_contains($malformed,'valu
 $logout();
 echo "PASS QA refused booking keeps dates, guests and promo code, escaped, once and on that listing only\n";
 
+// Refused admin forms keep what was typed, never a password, and only for one page load.
+$login('admin');
+$kept=$request('/admin/users',['_token'=>$token($request('/admin')),'full_name'=>'Giu <b>ten','email'=>'guest@home2home.test','phone'=>'0912000111','password'=>'KhongLuu!12345','roles'=>['guest']]);
+qaExpect(str_contains($kept['body'],'alert-danger'),'Taken email was not refused.');
+foreach (['name="full_name" value="Giu &lt;b&gt;ten"','name="email" value="guest@home2home.test"','name="phone" value="0912000111"'] as $field) { qaExpect(str_contains($kept['body'],$field),'Admin create lost input: '.$field); }
+qaExpect(!str_contains($kept['body'],'KhongLuu!12345') && !str_contains($kept['body'],'Giu <b>ten'),'Admin create printed the password or unescaped input.');
+qaExpect(str_contains($request('/admin')['body'],'name="full_name" value=""'),'Admin create input survived the next page load.');
+$invalid=$request('/admin/users',['_token'=>$token($request('/admin')),'full_name'=>'   ','email'=>'giu-lai@home2home.test','phone'=>'0912000222','password'=>'KhongLuu!12345','roles'=>['guest']])['body'];
+qaExpect(str_contains($invalid,'name="email" value="giu-lai@home2home.test"') && str_contains($invalid,'name="phone" value="0912000222"') && !str_contains($invalid,'KhongLuu!12345'),'Invalid admin create lost input.');
+$createdEmail='quality-kept-'.bin2hex(random_bytes(6)).'@home2home.test';
+$created=$request('/admin/users',['_token'=>$token($request('/admin')),'full_name'=>'Quality kept','email'=>$createdEmail,'phone'=>'09'.random_int(10000000,99999999),'password'=>'KhongLuu!12345','roles'=>['guest']])['body'];
+qaExpect(str_contains($created,'alert-success') && !str_contains($created,'name="email" value="'.$createdEmail.'"'),'Successful admin create kept the form input.');
+$catalogPage=$request('/admin/catalog');
+qaExpect((bool)preg_match('/id="catalog-name-type-([1-9]\d*)" name="name" value="([^"]*)"/',$catalogPage['body'],$existingType),'No catalog item to duplicate.');
+$takenName=html_entity_decode($existingType[2],ENT_QUOTES);
+$catalogKept=$request('/admin/catalog',['_token'=>$token($catalogPage),'kind'=>'type','id'=>'0','name'=>$takenName,'detail'=>'Mo ta <i>giu lai','active'=>'1'])['body'];
+qaExpect(str_contains($catalogKept,'alert-danger') && str_contains($catalogKept,'id="catalog-name-type-0" name="name" value="'.$existingType[2].'"') && str_contains($catalogKept,'id="catalog-detail-type-0" name="detail" value="Mo ta &lt;i&gt;giu lai"'),'Refused new catalog item lost input.');
+qaExpect(str_contains($catalogKept,'id="catalog-name-amenity-0" name="name" value=""') && str_contains($catalogKept,'id="catalog-detail-amenity-0" name="detail" value=""'),'Catalog input leaked into the other kind.');
+qaExpect(str_contains($request('/admin/catalog')['body'],'id="catalog-name-type-0" name="name" value=""'),'Catalog input survived the next page load.');
+$tooLong=$request('/admin/catalog',['_token'=>$token($catalogPage),'kind'=>'amenity','id'=>'0','name'=>str_repeat('x',81),'detail'=>'icon-giu','active'=>'1'])['body'];
+qaExpect(str_contains($tooLong,'id="catalog-name-amenity-0" name="name" value="'.str_repeat('x',80).'"') && str_contains($tooLong,'id="catalog-detail-amenity-0" name="detail" value="icon-giu"'),'Invalid catalog item lost input.');
+$logout();
+$login('host');
+$monthPage=$request('/host/listings/1/availability?month=2031-02');
+qaExpect(str_contains($monthPage['body'],'name="month" value="2031-02"'),'Availability form does not carry the month on screen.');
+$blocked=$request('/api/host/listings/1/availability',['_token'=>$token($monthPage),'date'=>'2031-02-10','reason'=>'Quality month','open'=>'0','month'=>'2031-02']);
+qaExpect(str_contains($blocked['url'],'/host/listings/1/availability?month=2031-02') && str_contains($blocked['body'],'alert-success') && str_contains($blocked['body'],'data-date="2031-02-10" data-status="blocked"'),'Saved availability did not stay on the month.');
+$refusedDay=$request('/api/host/listings/1/availability',['_token'=>$token($monthPage),'date'=>'2031-02-30','reason'=>'Ly do "><b>giu','open'=>'0','month'=>'2031-02']);
+qaExpect(str_contains($refusedDay['url'],'?month=2031-02') && str_contains($refusedDay['body'],'alert-danger') && str_contains($refusedDay['body'],'value="2031-02-30"') && str_contains($refusedDay['body'],'value="Ly do &quot;&gt;&lt;b&gt;giu"'),'Refused availability lost the month or the input.');
+qaExpect(!str_contains($request('/host/listings/1/availability?month=2031-02')['body'],'value="2031-02-30"'),'Availability input survived the next page load.');
+$forgedDay=$request('/api/host/listings/1/availability',['_token'=>$token($monthPage),'date'=>'"><script>','reason'=>'','open'=>'0','month'=>'//evil.example/x']);
+qaExpect((string)parse_url($forgedDay['url'],PHP_URL_HOST)===(string)parse_url($baseUrl,PHP_URL_HOST) && (string)parse_url($forgedDay['url'],PHP_URL_QUERY)==='' && !str_contains($forgedDay['body'],'"><script>'),'Forged month or date was kept.');
+$request('/api/host/listings/1/availability',['_token'=>$token($monthPage),'date'=>'2031-02-10','reason'=>'','open'=>'1','month'=>'2031-02']);
+$logout();
+echo "PASS QA refused admin create, catalog and availability forms keep their input, availability stays on its month\n";
+
 $passwordUser=new User(); $email='quality-password-'.bin2hex(random_bytes(6)).'@home2home.test';
 $oldPassword='QaOld!'.bin2hex(random_bytes(10)); $newPassword='QaNew!'.bin2hex(random_bytes(10));
 $passwordId=$passwordUser->create($email,$oldPassword,'Quality password test',null);

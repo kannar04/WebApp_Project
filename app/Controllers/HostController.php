@@ -21,7 +21,8 @@ final class HostController extends Controller
         if (!$listing) { http_response_code(404); $this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']); return; }
         try { $calendar=\Core\Calendar::month($_GET['month']??date('Y-m')); }
         catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
-        $this->render('host/availability',['title'=>'Lịch khả dụng','listing'=>$listing,
+        $old=Session::pullOld(); if (($old['listing_id']??null)!==(int)$id) { $old=[]; }
+        $this->render('host/availability',['title'=>'Lịch khả dụng','listing'=>$listing,'old'=>$old,
             'dates'=>$model->availability((int)$id,(int)$user['id']),'calendar'=>$calendar,
             'calendarDays'=>$model->calendar((int)$id,(int)$user['id'],$calendar['start'],$calendar['end']),
             'calendarPath'=>'/host/listings/'.$id.'/availability']);
@@ -161,7 +162,7 @@ final class HostController extends Controller
         }
         $this->redirect('/host');
     }
-    public function availability(string $id): never {Csrf::ensure();$u=$this->requireRole('host');$date=input_text($_POST,'date');$valid=\Core\Calendar::date($date);$message='Ngày không hợp lệ.';$ok=$valid&&$valid>=new \DateTimeImmutable('today');if($ok){$ok=(new Listing())->setAvailability((int)$id,(int)$u['id'],$date,!empty(input_text($_POST,'open')),input_text($_POST,'reason'));$message=$ok?'Đã cập nhật lịch.':'Không thể chặn ngày đã có booking xác nhận.';}if(str_contains((string)($_SERVER['HTTP_ACCEPT']??''),'application/json')){$this->json($ok,$message,null,[],$ok?200:422);}Session::flash($ok?'success':'error',$message);$this->redirect('/host/listings/'.$id.'/availability');}
+    public function availability(string $id): never {Csrf::ensure();$u=$this->requireRole('host');$date=input_text($_POST,'date');$valid=\Core\Calendar::date($date);$message='Ngày không hợp lệ.';$ok=$valid&&$valid>=new \DateTimeImmutable('today');if($ok){$ok=(new Listing())->setAvailability((int)$id,(int)$u['id'],$date,!empty(input_text($_POST,'open')),input_text($_POST,'reason'));$message=$ok?'Đã cập nhật lịch.':'Không thể chặn ngày đã có booking xác nhận.';}if(str_contains((string)($_SERVER['HTTP_ACCEPT']??''),'application/json')){$this->json($ok,$message,null,[],$ok?200:422);}Session::flash($ok?'success':'error',$message);if(!$ok){Session::old(['listing_id'=>(int)$id,'date'=>preg_match('/^\d{4}-\d{2}-\d{2}$/D',$date)?$date:'','reason'=>mb_substr(input_text($_POST,'reason'),0,255)]);}$month=input_text($_POST,'month');$this->redirect('/host/listings/'.$id.'/availability'.(preg_match('/^\d{4}-\d{2}$/D',$month)?'?month='.$month:''));}
     public function transition(string $id): never {Csrf::ensure();$u=$this->requireRole('host');try{(new BookingService())->hostTransition((int)$id,(int)$u['id'],input_text($_POST,'status'));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/host');}
 }
 

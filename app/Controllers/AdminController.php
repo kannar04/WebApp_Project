@@ -23,7 +23,7 @@ final class AdminController extends Controller
         // Translated here with a {brand} slot (same key as the dashboard h1): the plain text "Quản trị Home2Home" is also the seeded Admin's display name.
         $this->render('admin/dashboard',['title'=>__('Quản trị {brand}',['brand'=>'Home2Home']),'stats'=>$repo->stats(),
             'users'=>$users,'listings'=>$repo->listings(),
-            'bookings'=>(new Booking())->adminSearch((int)$admin['id'],$query,$status),'bookingQuery'=>$query,'bookingStatus'=>$status,
+            'bookings'=>(new Booking())->adminSearch((int)$admin['id'],$query,$status),'bookingQuery'=>$query,'bookingStatus'=>$status,'old'=>Session::pullOld(),
             'trustBadges'=>(new \App\Models\Trust())->badges(array_column($users,'id'),(int)$admin['id'])]);
     }
     public function listingPreview(string $id): void
@@ -58,6 +58,7 @@ final class AdminController extends Controller
         Csrf::ensure(); $admin=$this->requireRole('admin');
         $data=['full_name'=>trim(input_text($_POST,'full_name')),'email'=>trim(input_text($_POST,'email')),
             'phone'=>trim(input_text($_POST,'phone')),'password'=>input_password($_POST,'password')];
+        Session::old(['full_name'=>$data['full_name'],'email'=>$data['email'],'phone'=>$data['phone']]); // For every refusal below; never the password.
         $roles=$_POST['roles']??['guest'];
         if ($data['full_name']==='' || mb_strlen($data['full_name'])>150 || !filter_var($data['email'],FILTER_VALIDATE_EMAIL)
             || strlen($data['email'])>254 || strlen($data['phone'])>20
@@ -70,7 +71,7 @@ final class AdminController extends Controller
         try {
             $newId=(new User())->adminCreate($data,$roles);
             (new AdminRepository())->audit((int)$admin['id'],'create_user','user',$newId,$data['email']);
-            $database->commit(); Session::flash('success','Đã tạo tài khoản.');
+            $database->commit(); Session::pullOld(); Session::flash('success','Đã tạo tài khoản.');
         } catch (\Throwable $exception) {
             if ($database->inTransaction()) { $database->rollBack(); }
             Session::flash('error','Không thể tạo tài khoản. Kiểm tra email đã tồn tại và thử lại.');
