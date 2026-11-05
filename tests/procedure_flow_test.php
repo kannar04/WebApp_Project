@@ -302,6 +302,45 @@ try {
     } finally { if ($db->inTransaction()) { $db->rollBack(); } }
     echo "PASS account delete refused with the count for an unfinished stay as guest or Host; otherwise requests close with event and notice to the other party\n";
 
+    // Confirming needs both accounts live, for any actor; reject stays possible and confirmed stays are left alone. Everything rolls back.
+    $db->beginTransaction();
+    try {
+        $service=new BookingService(); $adminId=(int)$admin['id']; $hostId=(int)$host['id']; $guestId=(int)$guest['id']; $day=new DateTimeImmutable($start); $tag=bin2hex(random_bytes(6));
+        $stay=[$day->modify('+10 days')->format('Y-m-d'),$day->modify('+12 days')->format('Y-m-d')];
+        $later=[$day->modify('+20 days')->format('Y-m-d'),$day->modify('+22 days')->format('Y-m-d')];
+        $lockedGuest=$users->adminCreate(['email'=>'audit-'.$tag.'-guest@home2home.test','password'=>bin2hex(random_bytes(16)),'full_name'=>'Audit locked guest','phone'=>''],['guest']);
+        $lockedHost=$users->adminCreate(['email'=>'audit-'.$tag.'-host@home2home.test','password'=>bin2hex(random_bytes(16)),'full_name'=>'Audit locked host','phone'=>''],['guest','host']);
+        $lockedListing=$model->create($lockedHost,['title'=>'Audit fixture '.$tag]+$data);
+        callRows('CALL sp_test_listing_approve(?)',[$lockedListing]);
+
+        $request=$service->create($listingId,$lockedGuest,$start,$end,1);
+        $held=$service->create($listingId,$lockedGuest,$stay[0],$stay[1],1);
+        $service->hostTransition($held,$hostId,'confirmed');
+        $users->setStatus($lockedGuest,'suspended');
+        refusedSaying([$service,'hostTransition'],[$request,$hostId,'confirmed'],'Tài khoản khách đang bị khóa');
+        refusedSaying([$service,'adminTransition'],[$request,$adminId,'confirmed'],'Tài khoản khách đang bị khóa');
+        ensure(bookingState($request)['status']==='pending','A refused confirm changed the request.');
+        ensure(bookingState($held)['status']==='confirmed','Suspending a guest changed a confirmed stay.');
+        $service->hostTransition($request,$hostId,'rejected');
+        ensure(bookingState($request)['status']==='rejected','A request from a suspended guest could not be rejected.');
+
+        $hostRequest=$service->create($lockedListing,$guestId,$start,$end,1);
+        $hostHeld=$service->create($lockedListing,$guestId,$stay[0],$stay[1],1);
+        $service->hostTransition($hostHeld,$lockedHost,'confirmed');
+        $users->setStatus($lockedHost,'suspended');
+        refusedSaying([$service,'adminTransition'],[$hostRequest,$adminId,'confirmed'],'Tài khoản Host đang bị khóa');
+        ensure(bookingState($hostRequest)['status']==='pending' && bookingState($hostHeld)['status']==='confirmed','Suspending a Host changed the bookings.');
+        $service->adminTransition($hostRequest,$adminId,'rejected');
+        ensure(bookingState($hostRequest)['status']==='rejected','An Admin could not reject a request on a suspended Host listing.');
+
+        // Back to active, a confirm goes through again.
+        $users->setStatus($lockedHost,'active');
+        $reopened=$service->create($lockedListing,$guestId,$later[0],$later[1],1);
+        $service->hostTransition($reopened,$lockedHost,'confirmed');
+        ensure(bookingState($reopened)['status']==='confirmed','An active Host could not confirm.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS confirm refused for a suspended guest or Host for any actor; reject still works and confirmed stays are unchanged\n";
+
     for ($i=0;$i<2;$i++) {
         $pipes=[];
         $process=proc_open([PHP_BINARY,__FILE__,'--worker',(string)$listingId,(string)$guest['id'],$start,$end],

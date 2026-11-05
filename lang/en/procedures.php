@@ -85,6 +85,8 @@ return [
     'Đã qua ngày nhận phòng nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.' => 'The check-in date has passed, so this request can no longer be confirmed. You can still reject it.',
     'Chỗ ở đã bị gỡ nên không thể xác nhận booking này.' => 'This listing has been taken down, so the booking cannot be confirmed.',
     'Chỗ ở đã bị từ chối kiểm duyệt nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.' => 'This listing was rejected in moderation, so this request cannot be confirmed. You can still reject it.',
+    'Tài khoản khách đang bị khóa hoặc đã xóa nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.' => 'The guest account is suspended or deleted, so this request cannot be confirmed. You can still reject it.',
+    'Tài khoản Host đang bị khóa hoặc đã xóa nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.' => 'The Host account is suspended or deleted, so this request cannot be confirmed. You can still reject it.',
     'Hãy xử lý booking đang chờ hoặc đã xác nhận trước khi xóa. Có thể ẩn tin để ngừng nhận yêu cầu mới.' => 'Handle pending or confirmed bookings before deleting. You can hide the listing to stop receiving new requests.',
     'Ảnh đã thay đổi đồng thời. Hãy tải lại trang trước khi lưu.' => 'The photos were changed at the same time elsewhere. Reload the page before saving.',
     'Danh sách ảnh không hợp lệ.' => 'Invalid photo list.',

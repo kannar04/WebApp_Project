@@ -159,6 +159,7 @@ BEGIN
     DECLARE v_conflicts INT DEFAULT 0;
     DECLARE v_deleted DATETIME(6);
     DECLARE v_moderation VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_account_ok BOOL;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -189,6 +190,11 @@ BEGIN
         IF v_deleted IS NOT NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở đã bị gỡ nên không thể xác nhận booking này.'; END IF;
         -- Only an Admin rejection closes a listing to requests; a Host edit back to review ('pending') or a hidden listing still honours them.
         IF v_moderation='rejected' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở đã bị từ chối kiểm duyệt nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.'; END IF;
+        -- Locking reads: a suspension committed while this routine waited on the locks above must be seen.
+        SELECT status='active' AND deleted_at IS NULL INTO v_account_ok FROM users WHERE id=v_guest LOCK IN SHARE MODE;
+        IF NOT v_account_ok THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản khách đang bị khóa hoặc đã xóa nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.'; END IF;
+        SELECT status='active' AND deleted_at IS NULL INTO v_account_ok FROM users WHERE id=v_host LOCK IN SHARE MODE;
+        IF NOT v_account_ok THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản Host đang bị khóa hoặc đã xóa nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.'; END IF;
         IF v_start<DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Đã qua ngày nhận phòng nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.'; END IF;
         SELECT COUNT(*) INTO v_conflicts FROM bookings WHERE listing_id=v_listing AND id<>p_booking AND status='confirmed' AND check_in<v_end AND check_out>v_start FOR UPDATE;
         IF v_conflicts>0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Ngày này vừa được booking khác xác nhận.'; END IF;
