@@ -235,6 +235,41 @@ function Check-MessageFlash([string]$BookingPath) {
     Write-Output 'PASS browser refused message lands on the thread with its result and draft on screen at 375 and 1440'
 }
 
+function Press-Enter {
+    # A real key press: only this reaches the browser's implicit form submit.
+    Send-Cdp 'Input.dispatchKeyEvent' @{type='rawKeyDown';key='Enter';code='Enter';windowsVirtualKeyCode=13;nativeVirtualKeyCode=13} | Out-Null
+    Send-Cdp 'Input.dispatchKeyEvent' @{type='char';key='Enter';code='Enter';text="`r";unmodifiedText="`r";windowsVirtualKeyCode=13;nativeVirtualKeyCode=13} | Out-Null
+    Send-Cdp 'Input.dispatchKeyEvent' @{type='keyUp';key='Enter';code='Enter';windowsVirtualKeyCode=13;nativeVirtualKeyCode=13} | Out-Null
+    Start-Sleep -Milliseconds 150
+}
+
+function Check-BookingEnter {
+    # Enter on instant-book listing 3 used to confirm a stay from the promo box. Every submit is stopped here, so nothing is booked.
+    Navigate '/listings/3'
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');window.h2hSubmits=0;window.h2hQuotes=0;const realFetch=window.fetch;window.fetch=function(url,options){if(String(url).includes('/quote?')){window.h2hQuotes++;}return realFetch(url,options);};f.addEventListener('submit',function(e){window.h2hSubmits++;e.preventDefault();});f.elements.check_in.value='2035-07-10';f.elements.check_out.value='2035-07-12';f.elements.promo_code.value='CHAOHE10';return true;})()" | Out-Null
+    foreach ($field in 'promo_code','check_in','check_out','guests') {
+        Evaluate "(function(){document.querySelector('[data-booking-form]').elements.$field.focus();window.h2hQuotes=0;return true;})()" | Out-Null
+        Press-Enter
+        Start-Sleep -Milliseconds 500
+        $after=Evaluate "({submits:window.h2hSubmits,quotes:window.h2hQuotes,total:!!document.querySelector('[data-quote] .is-total'),promo:document.querySelector('[data-promo-feedback]').classList.contains('is-valid')})"
+        if ($after.submits -ne 0 -or $after.quotes -ne 1 -or !$after.total -or !$after.promo) { throw "Enter in $field did not just quote: $($after | ConvertTo-Json -Compress)" }
+    }
+    Evaluate "document.querySelector('[data-booking-form] button[type=submit]').focus();true" | Out-Null
+    Press-Enter
+    if ((Evaluate "window.h2hSubmits") -ne 1) { throw 'Enter on the focused booking button did not submit' }
+    Navigate '/listings/3'
+    $click=Evaluate "(function(){const f=document.querySelector('[data-booking-form]');let submits=0;f.addEventListener('submit',function(e){submits++;e.preventDefault();});f.elements.check_in.value='2035-07-10';f.elements.check_out.value='2035-07-12';f.querySelector('button[type=submit]').click();return submits;})()"
+    if ($click -ne 1) { throw 'Click on the booking button did not submit' }
+    # With JS off nothing can quote, but Enter still must not book: a disabled default button stops it.
+    Send-Cdp 'Emulation.setScriptExecutionDisabled' @{value=$true} | Out-Null
+    Navigate '/listings/3'
+    $noScript=Evaluate "(function(){const f=document.querySelector('[data-booking-form]');const first=f.querySelector('button[type=submit]');return first.disabled&&first.hidden&&f.querySelectorAll('button[type=submit]').length===2;})()"
+    Send-Cdp 'Emulation.setScriptExecutionDisabled' @{value=$false} | Out-Null
+    if (!$noScript) { throw 'Booking form has no disabled default button with JS off' }
+    if (Evaluate "document.querySelector('[data-booking-form] noscript button')===null&&document.querySelectorAll('[data-booking-form] button[type=submit]').length!==1") { throw 'Default button leaked into the page with JS on' }
+    Write-Output 'PASS browser Enter in a booking field quotes and never books, the focused button and a click still submit'
+}
+
 function Send-DoubleClick([string]$Selector) {
     # A real double click through the browser's input pipeline, the way a mouse sends it.
     $selectorJson=ConvertTo-Json $Selector -Compress
@@ -360,6 +395,7 @@ try {
     Check-SubmitStopRelease '[data-booking-form]' '/listings/1' "f.elements.check_in.value='2035-05-10';f.elements.check_out.value='2035-05-12'"
     Write-Output 'PASS browser booking guard releases on the timer after Stop'
     Check-BookingRefusal
+    Check-BookingEnter
     Check-LongText '/' '.card-body h3 a'
     Check-LongText '/listings/1' '.detail-heading h1, .detail-heading p, .detail-page .col-lg-8 p'
     Check-LongText '/bookings' '.booking-info h2, .booking-info p' -IfPresent

@@ -65,6 +65,13 @@
         form.removeAttribute('aria-busy');
     }
 
+    // Enter in a booking field only works the price out again, or an instant-book listing confirms a stay from the promo box. Booking takes the button itself.
+    function requoteOnEnter(event) {
+        if (event.key !== 'Enter' || event.isComposing || !event.target.matches('input')) { return; }
+        event.preventDefault();
+        event.currentTarget.elements.namedItem('check_out').dispatchEvent(new Event('input', {bubbles: true}));
+    }
+
     // Stopping the page load fires no event, so give the form back in case the request never left.
     function scheduleFormRelease(form) {
         window.clearTimeout(Number(form.dataset.releaseTimer));
@@ -290,6 +297,7 @@
             fields.forEach(field => field.addEventListener('input', updateQuote));
             // Dates kept after a refused request need a total too, so the panel matches the form.
             if (fields[0].value && fields[1].value) { updateQuote(); }
+            bookingForm.addEventListener('keydown', requoteOnEnter);
             bookingForm.addEventListener('submit', handleBookingSubmit);
         }
 
