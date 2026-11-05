@@ -58,6 +58,7 @@ return [
     'Liên hệ qua Zalo' => 'Contact via Zalo',
     'với {name} (mở tab mới)' => 'with {name} (opens in a new tab)',
     'Xác nhận đã thu {amount}đ của booking #{id}?' => 'Confirm that you received {amount}đ for booking #{id}?',
+    'Khách đã báo chuyển khoản cho booking #{id} và Admin đang kiểm tra. Nếu thu thêm {amount}đ, khách có thể trả hai lần. Vẫn ghi nhận đã thu?' => 'The guest has reported a bank transfer for booking #{id} and an Admin is checking it. If you also collect {amount}đ, the guest may pay twice. Record it as collected anyway?',
     '⚡ Đặt ngay' => '⚡ Instant Book',
     'Doanh thu theo tháng' => 'Monthly revenue',
     'Chỉ đơn hoàn thành, nhóm theo tháng trả phòng; gồm phụ phí, đã trừ tiền đã hoàn.' => 'Completed bookings only, grouped by check-out month; fees included, refunds deducted.',

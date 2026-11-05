@@ -9,6 +9,7 @@ $bookingPath = '/bookings/'.(int)$checkout['booking_id'];
 <?php if($checkout['payment_status']!=='unpaid'): ?>
 <div class="alert alert-success" role="status"><?= e(__('Booking này đã được ghi nhận thanh toán.')) ?></div>
 <?php elseif($checkout['host_locked']): ?>
+<?php if($checkout['transfer_status']==='submitted'): ?><div class="alert alert-info" role="status"><?= e(__('Bạn đã báo chuyển khoản với nội dung {reference}. Admin đang kiểm tra tài khoản và sẽ xác nhận thanh toán.', ['reference'=>$checkout['transfer_reference']])) ?></div><?php endif; ?>
 <div class="alert alert-info" role="status"><?= e(__('Tài khoản Host đang tạm khóa nên hiện chưa thể thanh toán online. Hãy liên hệ Admin nếu cần.')) ?></div>
 <?php if($checkout['transfer_id']): ?><a class="btn btn-outline-primary" href="<?= e(url('/payments/'.(int)$checkout['transfer_id'])) ?>"><?= e(__('Xem giao dịch chuyển khoản')) ?></a><?php endif; ?>
 <?php elseif(!$checkout['can_pay_online']): ?>

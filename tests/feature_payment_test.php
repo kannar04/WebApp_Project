@@ -971,7 +971,51 @@ try {
         payExpect(str_contains($page,$lockedText) && !str_contains($page,'đã bị gỡ') && !str_contains($page,'img.vietqr.io') && str_contains($page,'/transferred'),'The transfer page gives the wrong reason or still shows the QR with a suspended Host.');
         payHttp($guestClient,$baseUrl,'/bookings/'.$lockedHttp.'/pay/vnpay',['_token'=>$guestToken]);
         payExpect((int)payInspect($lockedHttp)['attempts']===1,'A direct POST started VNPay with a suspended Host.');
+        // A transfer reported while the Host is locked is being checked: the pages say that as well as the lock, and the Guest's list says it too.
+        $payments->submitTransfer((int)$lockedHttpQr['transaction_id'],$guestId);
+        foreach (['/bookings/'.$lockedHttp,'/bookings/'.$lockedHttp.'/pay'] as $path) {
+            $page=payHttp($guestClient,$baseUrl,$path)['body'];
+            payExpect(str_contains($page,'Admin đang kiểm tra tài khoản') && str_contains($page,$lockedText) && !str_contains($page,'Khách thanh toán trực tiếp'),$path.' does not say the transfer is being checked with a suspended Host.');
+        }
+        payExpect((bool)preg_match('/Chi tiết booking #'.$lockedHttp.'.{0,300}Đã báo chuyển khoản, chờ Admin xác nhận/su',payHttp($guestClient,$baseUrl,'/bookings')['body']),'The Guest list hides a reported transfer with a suspended Host.');
         $users->setStatus($lockedHost,'active');
+        // While a reported transfer waits for Admin, nobody reads "pay the Host directly" and whoever records cash is warned first. A QR nobody reported changes nothing.
+        $directText='Khách thanh toán trực tiếp cho Host'; $checkingText='Đang kiểm tra chuyển khoản'; $payTwiceText='khách có thể trả hai lần';
+        $checkingStay=payConfirmedBooking($service,$policyListings[50],$guestId,$hostId,$base,232);
+        payCall('CALL sp_test_payment_finish_stay(?,?)',[$checkingStay,-1]);
+        $checkingQr=$payments->start($checkingStay,$guestId,'vietqr');
+        $page=payHttp($hostClient,$baseUrl,'/bookings/'.$checkingStay)['body'];
+        payExpect(str_contains($page,$directText) && str_contains($page,'Xác nhận đã thu') && !str_contains($page,$payTwiceText) && !str_contains($page,$checkingText),'A QR nobody reported changed the Host page.');
+        $payments->submitTransfer((int)$checkingQr['transaction_id'],$guestId);
+        foreach ([$guestClient,$hostClient,$adminClient] as $client) {
+            $page=payHttp($client,$baseUrl,'/bookings/'.$checkingStay)['body'];
+            payExpect(str_contains($page,$checkingText) && str_contains($page,'Chuyển khoản VietQR') && !str_contains($page,$directText) && !str_contains($page,'Thanh toán khi nhận phòng'),'The booking page does not say the transfer is being checked.');
+        }
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$checkingStay)['body'];
+        payExpect(str_contains($page,'Bạn đã báo chuyển khoản với nội dung '.$checkingQr['reference']) && str_contains($page,'/payments/'.(int)$checkingQr['transaction_id']) && !str_contains($page,$payTwiceText),'The Guest panel does not say the transfer is being checked.');
+        $page=payHttp($hostClient,$baseUrl,'/bookings/'.$checkingStay)['body'];
+        payExpect(str_contains($page,'Hãy chờ kết quả') && str_contains($page,'Nếu thu thêm 220.000 VND, '.$payTwiceText) && !str_contains($page,'Xác nhận đã thu'),'The Host is not warned on the booking page.');
+        $page=payHttp($adminClient,$baseUrl,'/bookings/'.$checkingStay)['body'];
+        payExpect(str_contains($page,'Nếu thu thêm 220.000 VND, '.$payTwiceText) && !str_contains($page,'Xác nhận đã thu'),'The Admin is not warned on the booking page.');
+        foreach ([[$hostClient,'/host'],[$adminClient,'/admin/payments']] as [$client,$path]) {
+            $page=payHttp($client,$baseUrl,$path)['body'];
+            payExpect(str_contains($page,'booking #'.$checkingStay.' và Admin đang kiểm tra') && str_contains($page,$checkingText) && !str_contains($page,'của booking #'.$checkingStay.'?'),$path.' does not warn before recording cash.');
+        }
+        // A warning only: the Host may still have been handed the money, so the record still goes through, and then the panel reads paid.
+        $response=payHttp($hostClient,$baseUrl,'/host/bookings/'.$checkingStay.'/payment',['_token'=>payToken($hostClient,$baseUrl,'/host'),'return_to'=>'detail']);
+        payExpect($response['status']===302 && payInspect($checkingStay)['payment_status']==='paid','A warned Host could not record cash.');
+        $page=payHttp($hostClient,$baseUrl,'/bookings/'.$checkingStay)['body'];
+        payExpect(!str_contains($page,$checkingText) && !str_contains($page,$payTwiceText) && !str_contains($page,$directText),'The panel still says the transfer is being checked after payment was recorded.');
+        // A refused transfer puts the panel back the way it was.
+        $checkingRefused=payConfirmedBooking($service,$policyListings[50],$guestId,$hostId,$base,235);
+        $checkingRefusedQr=$payments->start($checkingRefused,$guestId,'vietqr');
+        $payments->submitTransfer((int)$checkingRefusedQr['transaction_id'],$guestId);
+        payExpect(str_contains(payHttp($hostClient,$baseUrl,'/bookings/'.$checkingRefused)['body'],$checkingText),'A stay before check-in does not say the transfer is being checked.');
+        $payments->decideTransfer((int)$checkingRefusedQr['transaction_id'],$adminId,'reject','Audit fixture');
+        foreach ([$guestClient,$hostClient] as $client) {
+            $page=payHttp($client,$baseUrl,'/bookings/'.$checkingRefused)['body'];
+            payExpect(str_contains($page,$directText) && !str_contains($page,$checkingText),'A refused transfer left the panel saying it is being checked.');
+        }
         // A refunded booking offers no further refund, before or after cancelling, and keeps the figure that went back; a row refunded by older code too.
         $refundedOpen=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,104,'14000052');
         payHttp($adminClient,$baseUrl,'/admin/payments/'.$refundedOpen.'/refund',['_token'=>$adminToken,'note'=>'Hoàn trước khi hủy']);
