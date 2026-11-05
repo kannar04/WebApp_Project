@@ -19,18 +19,19 @@ final class Csrf
         return is_string($token) && isset($_SESSION['_csrf']) && hash_equals($_SESSION['_csrf'], $token);
     }
 
-    public static function ensure(): void
+    /** $fallback is where a browser form returns when its Referer is missing or unusable. */
+    public static function ensure(string $fallback = '/'): void
     {
         $limit = self::exceededPostLimit();
         if ($limit !== null) {
             // PHP's own startup warning may be waiting in the output buffer and must not come before the answer.
             while (ob_get_level() > 0) { ob_end_clean(); }
             $size = $limit >= 1048576 ? ((int) floor($limit / 1048576)) . ' MB' : ((int) ceil($limit / 1024)) . ' KB';
-            self::refuse(__('Dữ liệu gửi lên quá lớn (vượt giới hạn {limit} của máy chủ) nên chưa được lưu. Vui lòng chọn tệp nhỏ hơn rồi thử lại.', ['limit' => $size]), 413);
+            self::refuse(__('Dữ liệu gửi lên quá lớn (vượt giới hạn {limit} của máy chủ) nên chưa được lưu. Vui lòng chọn tệp nhỏ hơn rồi thử lại.', ['limit' => $size]), 413, $fallback);
         }
         $token = $_POST['_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null);
         if (!self::verify(is_string($token) ? $token : null)) {
-            self::refuse('Phiên biểu mẫu đã hết hạn. Vui lòng thử lại.', 419);
+            self::refuse('Phiên biểu mẫu đã hết hạn. Vui lòng thử lại.', 419, $fallback);
         }
     }
 
@@ -42,7 +43,7 @@ final class Csrf
     }
 
     /** Stops the request: JSON for scripts, otherwise back to the page it came from with the message. */
-    private static function refuse(string $message, int $ajaxStatus): never
+    private static function refuse(string $message, int $ajaxStatus, string $fallback): never
     {
         $accept = (string) ($_SERVER['HTTP_ACCEPT'] ?? '');
         $isAjax = str_contains($accept, 'application/json') || strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
@@ -58,7 +59,7 @@ final class Csrf
         $refererHost = (string) (parse_url($referer, PHP_URL_HOST) ?? '');
         $requestHost = explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0];
         if ($refererHost !== $requestHost || $path === null || I18n::safeReturnPath($path) !== $path) {
-            $path = '/';
+            $path = $fallback;
             $query = '';
         }
         // Keep the query so a filtered search or ?tab=messages survives the retry.

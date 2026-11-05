@@ -83,10 +83,13 @@ final class AuthController extends Controller
     }
     public function reset(): never
     {
-        Csrf::ensure();
+        $token=$_POST['token']??'';
+        $tokenIsWellFormed=is_string($token) && preg_match('/^[a-f0-9]{64}$/D',$token)===1;
+        // The reset form sends no Referer (see resetForm), so a stale form needs telling where it came from. Only a well-formed token goes into the redirect.
+        Csrf::ensure($tokenIsWellFormed ? '/reset-password?token='.$token : '/');
         try {
-            $token=$_POST['token']??''; $password=$_POST['password']??''; $confirmation=$_POST['password_confirmation']??'';
-            if (!is_string($token) || !preg_match('/^[a-f0-9]{64}$/D',$token)) { throw new \DomainException('Liên kết không hợp lệ, đã hết hạn hoặc đã sử dụng.'); }
+            $password=$_POST['password']??''; $confirmation=$_POST['password_confirmation']??'';
+            if (!$tokenIsWellFormed) { throw new \DomainException('Liên kết không hợp lệ, đã hết hạn hoặc đã sử dụng.'); }
             // A typing mistake keeps the link: the form stays open and the token is not spent.
             $problem=!is_string($password) || $password!==$confirmation ? 'Xác nhận mật khẩu không khớp.' : (Validator::passwordAllowed($password) ? null : Validator::PASSWORD_RULE);
             if ($problem!==null) { Session::flash('error',$problem); $this->redirect('/reset-password?token='.$token); }
