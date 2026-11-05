@@ -278,6 +278,18 @@ try {
     expect(auditRequest($elsewhere, $subfolderServer['url'].'/WebApp/public/login', ['_token' => 'stale'], $subfolderServer['url'].'/phpmyadmin/')['location'] === '/WebApp/public/', 'Expired form followed a Referer outside the app.');
     echo "PASS sign-in return, expired form and language switch keep the base exactly once at the root and under a sub-folder\n";
 
+    // parse_url reads //x as a host with no path, and the home route's optional slash takes a bare //: a path starting with // is an ordinary 404.
+    foreach ([[$rootServer['url'], ''], [$subfolderServer['url'], '/WebApp/public']] as [$serverUrl, $base]) {
+        foreach (['//x', '//', '///', '//login', '//x/login', '//x/', '//?a=1', '//x?a=1', '/%2f'] as $doubleSlash) {
+            $answer = auditRequest(auditBrowser(), $serverUrl.$base.$doubleSlash);
+            expect($answer['status'] === 404 && str_contains($answer['body'], 'Không tìm thấy'), "$base$doubleSlash must be the normal 404, got {$answer['status']}.");
+        }
+        foreach (['/', '/?a=1', '/login', '/login/', '/listings/1'] as $normal) {
+            expect(auditRequest(auditBrowser(), $serverUrl.$base.$normal)['status'] === 200, "$base$normal must still open.");
+        }
+    }
+    echo "PASS a path starting with // is the normal 404 at the root and under a sub-folder, and / still opens\n";
+
     $url = $rootServer['url'];
     foreach (["\0", "2027-02-01\0", "\x002027-02-01", '2027-02-30', '2027-2-1', '', 'x'] as $badDate) {
         expect(\Core\Calendar::date($badDate) === null, 'Bad date accepted.');
