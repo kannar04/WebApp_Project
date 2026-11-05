@@ -141,6 +141,44 @@ function jsonHelperOutput(string $data): array
     return ['body' => json_decode(substr($output, 0, $split), true), 'status' => (int) substr($output, $split + 1)];
 }
 
+/** A POST over a 2 KB post_max_size. $warningShown: display_startup_errors prints PHP's warning before a urlencoded body reaches any code. */
+function auditOversizedPost(array $phpSettings, bool $warningShown): void
+{
+    $server = auditServerStart('', $phpSettings + ['post_max_size' => '2K', 'display_errors' => '1']);
+    try {
+        $url = $server['url'];
+        $browser = auditBrowser();
+        auditSignIn($browser, $url, auditRequest($browser, $url.'/login')['body'], 'guest@home2home.test');
+        $page = auditRequest($browser, $url.'/profile')['body'];
+        $token = auditFormToken($page);
+        $message = 'vượt giới hạn 2 KB của máy chủ';
+        $boundary = 'audit-boundary';
+        $multipart = "--$boundary\r\nContent-Disposition: form-data; name=\"_token\"\r\n\r\n$token\r\n--$boundary\r\nContent-Disposition: form-data; name=\"full_name\"\r\n\r\nOversized name\r\n--$boundary\r\nContent-Disposition: form-data; name=\"avatar\"; filename=\"a.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n".str_repeat('A', 3000)."\r\n--$boundary--\r\n";
+        $headers = ["Content-Type: multipart/form-data; boundary=$boundary", 'Expect:'];
+        $refused = auditRequest($browser, $url.'/profile', $multipart, $url.'/profile?tab=x', $headers);
+        expect($refused['status'] === 302 && $refused['location'] === '/profile?tab=x' && trim($refused['body']) === '', 'Oversized upload must return to its page.');
+        $returned = auditRequest($browser, $url.'/profile')['body'];
+        expect(str_contains($returned, $message) && !str_contains($returned, 'Phiên biểu mẫu') && !str_contains($returned, 'Oversized name'), 'Oversized upload must name the limit and change nothing.');
+        $outside = auditRequest($browser, $url.'/profile', $multipart, 'https://elsewhere.example/page', $headers);
+        expect($outside['location'] === '/', 'Oversized upload must not leave the site.');
+        auditRequest($browser, $url.'/profile');
+        $json = auditRequest($browser, $url.'/profile', $multipart, '', array_merge($headers, ['Accept: application/json']));
+        $answer = json_decode($json['body'], true);
+        expect($json['status'] === 413 && ($answer['success'] ?? null) === false && str_contains((string) ($answer['message'] ?? ''), $message), 'Oversized script request must get a clean JSON 413.');
+        $encoded = auditRequest($browser, $url.'/profile', '_token='.$token.'&full_name='.str_repeat('A', 3000), $url.'/profile', ['Expect:']);
+        if ($warningShown) {
+            expect($encoded['status'] === 200 && str_contains($encoded['body'], $message) && str_contains($encoded['body'], 'href="/profile"'), 'After a printed startup warning the message must be on the page with a way back.');
+        } else {
+            expect($encoded['status'] === 302 && $encoded['location'] === '/profile', 'Oversized text form must return to its page.');
+            expect(str_contains(auditRequest($browser, $url.'/profile')['body'], $message), 'Oversized text form must name the limit.');
+        }
+        expect(str_contains(auditRequest($browser, $url.'/profile', '_x=1', $url.'/profile')['location'], '/profile'), 'A small POST without a token is still refused.');
+        expect(str_contains(auditRequest($browser, $url.'/profile')['body'], 'Phiên biểu mẫu'), 'A small POST without a token is still an expired form.');
+    } finally {
+        auditServerStop($server);
+    }
+}
+
 $appConfig = require dirname(__DIR__).'/config/app.php';
 $dbConfig = require dirname(__DIR__).'/config/database.php';
 expect($appConfig['env'] === 'local' && in_array($dbConfig['host'], ['localhost', '127.0.0.1', '::1'], true), 'Run fixture tests only on a local database.');
@@ -304,6 +342,10 @@ try {
         $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$fixtureId]);
     }
     echo "PASS password rule 8-72 bytes without NUL on register, admin create and edit, change and reset; login stays lenient\n";
+
+    auditOversizedPost(['display_startup_errors' => '1', 'output_buffering' => '4096'], true);
+    auditOversizedPost(['display_startup_errors' => '0', 'output_buffering' => '0'], false);
+    echo "PASS a POST over post_max_size says so with the limit, returns to its page and changes nothing\n";
 } finally {
     auditServerStop($rootServer); auditServerStop($subfolderServer);
 }

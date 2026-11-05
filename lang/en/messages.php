@@ -74,6 +74,7 @@ return [
     'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' => 'Your session has expired. Please log in again.',
     'Vui lòng đăng nhập để tiếp tục.' => 'Please log in to continue.',
     'Phiên biểu mẫu đã hết hạn. Vui lòng thử lại.' => 'The form session has expired. Please try again.',
+    'Dữ liệu gửi lên quá lớn (vượt giới hạn {limit} của máy chủ) nên chưa được lưu. Vui lòng chọn tệp nhỏ hơn rồi thử lại.' => 'The data you sent is too large (over the server limit of {limit}) and was not saved. Please choose a smaller file and try again.',
     'Tháng không hợp lệ.' => 'Invalid month.',
     'Ngôn ngữ không được hỗ trợ.' => 'Language not supported.',
 
