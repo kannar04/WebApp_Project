@@ -292,6 +292,44 @@ try {
     trustExpect(display_trust_rating(['average_rating' => 3.24, 'average_rating_floor' => 3.24, 'rating_met' => 0, 'min_rating' => 4.5]) === '3,2' && display_trust_rating(['average_rating' => 4.96, 'average_rating_floor' => 4.96, 'rating_met' => 1, 'min_rating' => 4.5]) === '5,0', 'An average far from the minimum changed format.');
     echo "PASS trust rating near the minimum: the rule stays exact and the panel never reads 4,5 against a 4,5 minimum as unmet\n";
 
+    // Closing a request whose check-in has passed is not a refusal: Accept is already impossible and Reject is the only tidy-up the site offers.
+    $rateHost = $users->adminCreate(['email' => sprintf($emailFor, 'rate'), 'password' => $password, 'full_name' => 'Trust Rate Host', 'phone' => ''], ['guest', 'host']);
+    $rateListing = $listings->create($rateHost, ['title' => 'Audit fixture trust '.$tag.' rate'] + $listingData);
+    trustCall('CALL sp_test_listing_approve(?)', [$rateListing]);
+    $rateReviewed = $listings->create($rateHost, ['title' => 'Audit fixture trust '.$tag.' rate reviewed'] + $listingData);
+    trustCall('CALL sp_test_listing_approve(?)', [$rateReviewed]);
+    foreach ([400, 395, 390] as $daysAgo) {
+        $rateStay = (int) trustCall('CALL sp_test_trust_completed_booking(?,?,?)', [$rateReviewed, $guestId, $daysAgo])[0]['booking_id'];
+        trustExpect($reviews->create($rateStay, $guestId, 5, 'Kỳ nghỉ kiểm thử tỷ lệ từ chối'), 'Rate fixture review failed.');
+    }
+    for ($i = 0; $i < 3; $i++) {
+        [$checkIn, $checkOut] = trustDates($slot++);
+        $service->hostTransition($service->create($rateListing, $otherGuestId, $checkIn, $checkOut, 1), $rateHost, 'confirmed');
+    }
+    $metrics = trustBadge($trust, $rateHost, $rateHost);
+    trustExpect((int) $metrics['decided_requests'] === 3 && (int) $metrics['host_side_cancellations'] === 0 && (int) $metrics['is_trusted_host'] === 1, 'The rate fixture Host is not trusted.');
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $expiredRequest = $service->create($rateListing, $otherGuestId, $checkIn, $checkOut, 1);
+    trustCall('CALL sp_test_trust_move_booking(?,?)', [$expiredRequest, -1]);
+    trustRejects([$service, 'hostTransition'], [$expiredRequest, $rateHost, 'confirmed'], 'A request whose check-in passed could be accepted.');
+    $service->hostTransition($expiredRequest, $rateHost, 'rejected');
+    $metrics = trustBadge($trust, $rateHost, $rateHost);
+    trustExpect((int) $metrics['decided_requests'] === 3 && (int) $metrics['host_side_cancellations'] === 0 && (int) $metrics['is_trusted_host'] === 1, 'Closing a request whose check-in passed cost the Host the badge.');
+    // Check-in today can still be accepted, so rejecting it is a refusal.
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $todayRequest = $service->create($rateListing, $otherGuestId, $checkIn, $checkOut, 1);
+    trustCall('CALL sp_test_trust_move_booking(?,?)', [$todayRequest, 0]);
+    $service->hostTransition($todayRequest, $rateHost, 'rejected');
+    $metrics = trustBadge($trust, $rateHost, $rateHost);
+    trustExpect((int) $metrics['decided_requests'] === 4 && (int) $metrics['host_side_cancellations'] === 1 && (int) $metrics['is_trusted_host'] === 0, 'Rejecting on the check-in day did not count as a refusal.');
+    // A refusal ahead of the dates counts, as it always did.
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $service->hostTransition($service->create($rateListing, $otherGuestId, $checkIn, $checkOut, 1), $rateHost, 'rejected');
+    $metrics = trustBadge($trust, $rateHost, $rateHost);
+    trustExpect((int) $metrics['decided_requests'] === 5 && (int) $metrics['host_side_cancellations'] === 2, 'A refusal before the check-in day did not count.');
+    echo "PASS trust rate: closing a request whose check-in passed counts nothing; rejecting on or before the check-in day still counts\n";
+
+
     // G. Check-in guide: owner-only editing, entitlement by booking status and participant.
     $guide = ['arrival_instructions' => 'Lấy chìa khóa ở hộp khóa cạnh cổng xanh, đi thang bộ lên tầng 2.', 'door_code' => 'K-4821',
         'wifi_name' => 'H2H-Trust', 'wifi_password' => 'pw-'.$tag, 'note' => 'Giữ yên lặng sau 22:00.'];

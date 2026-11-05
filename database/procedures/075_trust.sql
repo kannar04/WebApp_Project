@@ -134,6 +134,8 @@ BEGIN
     DECLARE v_min_decided INT DEFAULT 3;
     DECLARE v_window_months INT DEFAULT 12;
     DECLARE v_admin BOOL DEFAULT FALSE;
+    -- Seconds from server time to the Vietnam time the Accept rule in sp_booking_transition uses, as booking_events stores server time.
+    DECLARE v_vn_shift INT DEFAULT TIMESTAMPDIFF(SECOND,NOW(),UTC_TIMESTAMP())+7*3600;
     IF p_user_ids IS NULL OR p_user_ids NOT REGEXP '^[0-9]{1,20}(,[0-9]{1,20}){0,199}$' THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Danh sách tài khoản không hợp lệ.';
     END IF;
@@ -159,13 +161,13 @@ BEGIN
                 WHERE l.host_id=u.id AND rv.moderation_status='visible') review_count,
             COALESCE((SELECT AVG(rv.rating) FROM reviews rv JOIN bookings b ON b.id=rv.booking_id JOIN listings l ON l.id=b.listing_id
                 WHERE l.host_id=u.id AND rv.moderation_status='visible'),0) average_rating,
-            -- booking_events says who rejected: a request closed automatically or by an Admin is neither a Host refusal nor a Host decision.
+            -- booking_events says who rejected and when: a request closed automatically, by an Admin, or after its check-in day (when Accept is refused and Reject is the only way to tidy it up) is neither a Host refusal nor a Host decision.
             (SELECT COUNT(*) FROM bookings b JOIN listings l ON l.id=b.listing_id
                 WHERE l.host_id=u.id AND b.status<>'pending' AND b.created_at>=NOW(6)-INTERVAL v_window_months MONTH
-                    AND (b.status<>'rejected' OR EXISTS(SELECT 1 FROM booking_events e WHERE e.booking_id=b.id AND e.to_status='rejected' AND e.actor_id=l.host_id))) decided_requests,
+                    AND (b.status<>'rejected' OR EXISTS(SELECT 1 FROM booking_events e WHERE e.booking_id=b.id AND e.to_status='rejected' AND e.actor_id=l.host_id AND DATE(e.created_at+INTERVAL v_vn_shift SECOND)<=b.check_in))) decided_requests,
             (SELECT COUNT(*) FROM bookings b JOIN listings l ON l.id=b.listing_id
                 WHERE l.host_id=u.id AND b.created_at>=NOW(6)-INTERVAL v_window_months MONTH
-                    AND ((b.status='rejected' AND EXISTS(SELECT 1 FROM booking_events e WHERE e.booking_id=b.id AND e.to_status='rejected' AND e.actor_id=l.host_id))
+                    AND ((b.status='rejected' AND EXISTS(SELECT 1 FROM booking_events e WHERE e.booking_id=b.id AND e.to_status='rejected' AND e.actor_id=l.host_id AND DATE(e.created_at+INTERVAL v_vn_shift SECOND)<=b.check_in))
                         OR (b.status='cancelled' AND EXISTS(SELECT 1 FROM booking_cancellations c WHERE c.booking_id=b.id AND c.cancelled_by=l.host_id)))) host_side_cancellations
         FROM users u WHERE FIND_IN_SET(u.id,p_user_ids)>0 AND u.status='active' AND u.deleted_at IS NULL
     ) m ORDER BY m.user_id;
