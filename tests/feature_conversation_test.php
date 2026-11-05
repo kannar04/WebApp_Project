@@ -294,6 +294,18 @@ try {
     $messages->moderate($first, $adminId, 'unhide', 'Đã xác minh nội dung an toàn');
     conversationRejects([$messages, 'moderate'], [$first, $adminId, 'unhide', 'Hiện lần thứ hai'], 'Message restored twice.');
     conversationExpect((int) $messages->thread($bookingA, $guestId)[0]['is_hidden'] === 0 && (int) conversationInspect($bookingA, $guestId)['message_audits'] === 3, 'Unhide/audit failed.');
+    // The hide reason keeps its emoji through trimming, and every kind of padding still counts as nothing.
+    $emojiReason = 'Nội dung 🚫 không phù hợp 😀';
+    $reasonPadding = " \r\n\t\x0B\x0C ";
+    conversationRejects([$messages, 'moderate'], [$first, $adminId, 'hide', $reasonPadding.$reasonPadding], 'A blank hide reason was accepted.');
+    conversationRejects([$messages, 'moderate'], [$first, $adminId, 'hide', $reasonPadding.'🚫😀'.$reasonPadding], 'A too-short hide reason was accepted.');
+    $messages->moderate($first, $adminId, 'hide', $reasonPadding.$emojiReason.$reasonPadding);
+    conversationExpect($messages->adminThread($adminId, $bookingA)[0]['hidden_reason'] === $emojiReason, 'The hide reason lost its emoji or kept its padding.');
+    $messages->moderate($first, $adminId, 'unhide', 'Đã xem lại 😀');
+    conversationRejects([$messages, 'moderate'], [$first, $adminId, 'hide', str_repeat('😀', 501)], 'A 501-character hide reason was accepted.');
+    $messages->moderate($first, $adminId, 'hide', str_repeat('😀', 500));
+    conversationExpect($messages->adminThread($adminId, $bookingA)[0]['hidden_reason'] === str_repeat('😀', 500), 'A 500-emoji hide reason did not survive.');
+    $messages->moderate($first, $adminId, 'unhide', 'Đã xem lại 😀');
     echo "PASS admin: keyword/booking/user search (wildcards literal), read-only thread, hide/unhide with reason, idempotency guard, audit log, role guards\n";
 
     // G31/A35: idempotent check-in reminders (Vietnam date window), throttled page-load trigger, CLI job.

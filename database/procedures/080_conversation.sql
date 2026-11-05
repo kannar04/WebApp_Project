@@ -203,6 +203,7 @@ BEGIN
     DECLARE v_booking BIGINT UNSIGNED;
     DECLARE v_hidden DATETIME(6);
     DECLARE v_reason TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_length INT;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -216,7 +217,12 @@ BEGIN
     IF p_action IS NULL OR p_action NOT IN ('hide','unhide') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Thao tác kiểm duyệt tin nhắn không hợp lệ.';
     END IF;
-    SET v_reason=REGEXP_REPLACE(COALESCE(p_reason,''),'^[[:space:]]+|[[:space:]]+$','');
+    -- Trimmed with TRIM as sp_booking_message_send does: REGEXP_REPLACE on text turns every 4-byte character into '?' on MariaDB 10.4.
+    SET v_reason=COALESCE(p_reason,'');
+    REPEAT
+        SET v_length=CHAR_LENGTH(v_reason);
+        SET v_reason=TRIM(BOTH ' ' FROM TRIM(BOTH '\t' FROM TRIM(BOTH '\n' FROM TRIM(BOTH '\r' FROM TRIM(BOTH _utf8mb4 x'0B' FROM TRIM(BOTH _utf8mb4 x'0C' FROM v_reason))))));
+    UNTIL CHAR_LENGTH(v_reason)=v_length END REPEAT;
     IF CHAR_LENGTH(v_reason)<5 OR CHAR_LENGTH(v_reason)>500 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Lý do kiểm duyệt cần từ 5 đến 500 ký tự.';
     END IF;
