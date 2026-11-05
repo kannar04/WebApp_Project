@@ -17,8 +17,13 @@ final class Validator
     {
         $value = trim($value);
         if ($value === '') { return null; }
-        if (!preg_match('/^\d{1,10}(\.\d{1,2})?$/D', $value) || (float) $value < $minimum || (float) $value > $maximum) { throw new \DomainException($message); }
+        if (!self::isDecimal($value) || (float) $value < $minimum || (float) $value > $maximum) { throw new \DomainException($message); }
         return $value;
+    }
+
+    public static function isDecimal(string $value): bool
+    {
+        return preg_match('/^\d{1,10}(\.\d{1,2})?$/D', $value) === 1;
     }
 
     /**

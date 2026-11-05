@@ -37,12 +37,15 @@ final class BookingService
         return $this->book($listingId, $guestId, $checkIn, $checkOut, $guests, $promoCode)['booking_id'];
     }
 
-    /** Returns the new booking ID and its status: 'confirmed' for Instant Book listings, otherwise 'pending'. */
-    public function book(int $listingId, int $guestId, string $checkIn, string $checkOut, int $guests, string $promoCode=''): array
+    /**
+     * Returns the new booking ID and its status: 'confirmed' for Instant Book listings, otherwise 'pending'.
+     * $shownTotal is the total the Guest saw, as a decimal string: if it no longer matches, nothing is booked. Null means no total was shown.
+     */
+    public function book(int $listingId, int $guestId, string $checkIn, string $checkOut, int $guests, string $promoCode='', ?string $shownTotal=null): array
     {
         $this->validateDates($checkIn, $checkOut, $guests);
-        $statement = $this->db->prepare('CALL sp_booking_create(?,?,?,?,?,?)');
-        $statement->execute([$listingId, $guestId, $checkIn, $checkOut, $guests, $this->promoCode($promoCode)]);
+        $statement = $this->db->prepare('CALL sp_booking_create(?,?,?,?,?,?,?)');
+        $statement->execute([$listingId, $guestId, $checkIn, $checkOut, $guests, $this->promoCode($promoCode), $shownTotal]);
         $row = $statement->fetch();
         return ['booking_id'=>(int) $row['booking_id'], 'status'=>(string) $row['booking_status']];
     }

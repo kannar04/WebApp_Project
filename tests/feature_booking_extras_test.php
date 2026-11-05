@@ -488,7 +488,7 @@ try {
     bxRejects([$service,'quote'],[$limitIds['plain'],$d0,$tooFar,1],'tối đa 365 đêm','Service quoted 366 nights');
     bxRejects([$service,'book'],[$limitIds['plain'],$guestId,$d0,$tooFar,1],'tối đa 365 đêm','Service booked 366 nights');
     bxRejects('bxCall',['CALL sp_booking_quote(?,?,?,?,?)',[$limitIds['plain'],$d0,$tooFar,1,'']],'tối đa 365 đêm','Routine quoted 366 nights');
-    bxRejects('bxCall',['CALL sp_booking_create(?,?,?,?,?,?)',[$limitIds['plain'],$guestId,$d0,$tooFar,1,'']],'tối đa 365 đêm','Routine booked 366 nights');
+    bxRejects('bxCall',['CALL sp_booking_create(?,?,?,?,?,?,?)',[$limitIds['plain'],$guestId,$d0,$tooFar,1,'',null]],'tối đa 365 đêm','Routine booked 366 nights');
     bxExpect(bxBookingCount($limitIds['plain'])===0,'A refused stay left a booking behind.');
     // 365 × 30.000.000đ = 10,95 tỷ overflows the money columns; one night at the column maximum overflows only once the fee is added.
     bxRejects([$service,'quote'],[$limitIds['high'],$d0,$yearEnd,1],'vượt quá giới hạn','Overflowing subtotal was quoted');
@@ -542,6 +542,17 @@ try {
     echo "PASS Admin take-down: refused with the count while a confirmed stay is unfinished, atomic, pending auto-rejected with event/notification/audit, finished stay still completable, confirm refused on a removed listing\n";
 
     // ---- HTTP (controllers, CSRF, roles, pages) when a server is available.
+    // The form carries the total the quote showed: a different total books nothing and names the new one, the right one or none books as before.
+    $shownListing=$listings->create($hostId,array_merge($data,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]));
+    $extraListings[]=$shownListing;
+    bxCall('CALL sp_test_listing_approve(?)',[$shownListing]);
+    $quoted=$service->quote($shownListing,bxDay($monday,14),bxDay($monday,16),1);
+    bxExpect((float)$quoted['total']===220000.0,'The shown-total fixture is not priced as expected.');
+    bxRejects([$service,'book'],[$shownListing,$guestId,bxDay($monday,14),bxDay($monday,16),1,'','219999'],'Tổng tiền mới: 220.000đ','A total the Guest never saw was booked');
+    bxExpect(bxBookingCount($shownListing)===0,'A refused total left a booking behind.');
+    $shownBooking=$service->book($shownListing,$guestId,bxDay($monday,14),bxDay($monday,16),1,'',(string)$quoted['total']);
+    bxExpect($shownBooking['status']==='pending' && bxBookingCount($shownListing)===1,'The total the quote showed was refused.');
+
     // One parser for every form that saves money: to a Vietnamese user 500.000 is five hundred thousand, never 500đ.
     foreach (['500.000','1.200.000','500,000','1e3','0x1A','-5','abc','0.4','12345678901'] as $typed) {
         $refused=false;
@@ -645,6 +656,22 @@ try {
         $listingPage=bxHttp($guestClient,$baseUrl,'/listings/'.$listingId)['body'];
         bxExpect(str_contains($listingPage,'name="promo_code"') && str_contains($listingPage,'>Đặt ngay</button>') && str_contains($listingPage,'js/booking-extras.js')
             && str_contains($listingPage,'Giảm 10% khi ở từ 7 đêm'),'Listing page lacks promo input / Instant Book button / rules.');
+        // Booking form: the price moved after the quote, so the Guest comes back to the form with the new total and the dates kept.
+        $listingPage=bxHttp($guestClient,$baseUrl,'/listings/'.$shownListing)['body'];
+        bxExpect(str_contains($listingPage,'name="shown_total"'),'The booking form does not carry the shown total.');
+        $before=bxBookingCount($shownListing);
+        $shownFields=['_token'=>$guestToken,'check_in'=>bxDay($monday,30),'check_out'=>bxDay($monday,32),'guests'=>1];
+        $response=bxHttp($guestClient,$baseUrl,'/listings/'.$shownListing.'/book',$shownFields+['shown_total'=>'219999']);
+        $listingPage=bxHttp($guestClient,$baseUrl,'/listings/'.$shownListing)['body'];
+        bxExpect($response['status']===302 && $response['location']==='/listings/'.$shownListing && bxBookingCount($shownListing)===$before
+            && str_contains($listingPage,'Tổng tiền mới: 220.000đ') && str_contains($listingPage,'value="'.bxDay($monday,30).'"'),'A moved price did not return the Guest to the form with the new total.');
+        $response=bxHttp($guestClient,$baseUrl,'/listings/'.$shownListing.'/book',$shownFields+['shown_total'=>'220000']);
+        bxExpect($response['status']===302 && $response['location']==='/bookings' && bxBookingCount($shownListing)===$before+1,'The shown total was refused over HTTP.');
+        foreach (['','abc'] as $offset=>$shownTotal) {
+            $response=bxHttp($guestClient,$baseUrl,'/listings/'.$shownListing.'/book',['_token'=>$guestToken,'check_in'=>bxDay($monday,40+3*$offset),'check_out'=>bxDay($monday,42+3*$offset),'guests'=>1,'shown_total'=>$shownTotal]);
+            bxExpect($response['status']===302 && $response['location']==='/bookings' && bxBookingCount($shownListing)===$before+2+$offset,'A booking with no usable shown total did not go through as before: "'.$shownTotal.'"');
+        }
+
         $before=bxBookingCount($listingId);
         $bookFields=['_token'=>$guestToken,'check_in'=>bxDay($monday,70),'check_out'=>bxDay($monday,72),'guests'=>1];
         $response=bxHttp($guestClient,$baseUrl,'/listings/'.$listingId.'/book',$bookFields+['promo_code'=>$codeE]);

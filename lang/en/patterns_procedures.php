@@ -8,6 +8,8 @@ declare(strict_types=1);
  * Order matters: the first matching template wins, so specific templates come before generic ones.
  */
 return [
+    // ---- 020_booking.sql: sp_booking_create refusal when the price moved after the quote
+    'Giá đã thay đổi nên chưa có booking nào được tạo. Tổng tiền mới: {amount}đ. Hãy xem lại rồi đặt lại.' => 'The price has changed, so no booking was made. New total: {amount}đ. Please review it and book again.',
     // ---- 020_booking.sql: sp_booking_create notifications
     'Đặt ngay thành công: booking #{id} đã được tự động xác nhận.' => 'Instant Book: booking #{id} has been confirmed automatically.',
     'Bạn có booking Đặt ngay mới cho “{listing}” (#{id}), đã được tự động xác nhận.' => 'You have a new Instant Book booking for “{listing}” (#{id}); it was confirmed automatically.',

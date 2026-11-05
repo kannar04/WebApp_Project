@@ -29,6 +29,7 @@
         const feedback = form.querySelector('[data-promo-feedback]');
         const checkIn = form.elements.namedItem('check_in');
         const checkOut = form.elements.namedItem('check_out');
+        const shownTotal = form.querySelector('[data-shown-total]');
 
         function showFeedback(message, state) {
             if (!feedback) { return; }
@@ -75,6 +76,19 @@
             checkOut.dispatchEvent(new Event('input', {bubbles: true}));
         }
 
+        // The form sends the total on screen, so the server can refuse a price the Guest never saw. Blank while no quote is showing.
+        function rememberShownTotal(event) {
+            const total = (event.detail || {}).total;
+            if (shownTotal) { shownTotal.value = total === undefined || total === null ? '' : String(total); }
+        }
+
+        function forgetShownTotal() {
+            if (shownTotal) { shownTotal.value = ''; }
+        }
+
+        form.addEventListener('h2h:quote', rememberShownTotal);
+        form.addEventListener('h2h:quote-failed', forgetShownTotal);
+        form.addEventListener('input', forgetShownTotal);
         form.addEventListener('h2h:quote', renderQuote);
         form.addEventListener('h2h:quote-failed', quoteFailed);
         if (promo && checkIn && checkOut) { promo.addEventListener('input', promoChanged); }

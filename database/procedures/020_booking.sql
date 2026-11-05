@@ -56,11 +56,12 @@ BEGIN
 END$$
 
 CREATE OR REPLACE PROCEDURE sp_booking_create(IN p_listing BIGINT UNSIGNED, IN p_guest BIGINT UNSIGNED, IN p_start DATE, IN p_end DATE, IN p_guests INT,
-    IN p_promo VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
+    IN p_promo VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_shown_total DECIMAL(12,2))
 BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_host BIGINT UNSIGNED;
     DECLARE v_id BIGINT UNSIGNED;
+    DECLARE v_message VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_title VARCHAR(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_currency CHAR(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_rate DECIMAL(12,2);
@@ -113,6 +114,11 @@ BEGIN
     -- Same pricing routine as the quote; strict mode re-validates the promo code under a row lock.
     CALL sp_booking_extras_price(p_listing,p_start,p_end,p_promo,TRUE,v_nights,v_base,v_weekend_nights,v_weekend_rate,v_holiday_nights,v_holiday_rate,
         v_subtotal,v_length_type,v_length_pct,v_length_amount,v_promo_id,v_promo_code,v_promo_amount,v_promo_message,v_fee,v_total,v_instant);
+    -- The form carries the total the quote showed. NULL means no quote was on screen (no JavaScript, or before any quote).
+    IF p_shown_total IS NOT NULL AND p_shown_total<>v_total THEN
+        SET v_message=CONCAT('Giá đã thay đổi nên chưa có booking nào được tạo. Tổng tiền mới: ',REPLACE(FORMAT(v_total,0),',','.'),'đ. Hãy xem lại rồi đặt lại.');
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=v_message;
+    END IF;
     -- Instant Book confirms inside this transaction: overlaps and closed dates were already checked under the listing lock.
     SET v_status=IF(v_instant,'confirmed','pending');
     SELECT JSON_OBJECT('name',cp.name,'cutoff_hours',cp.cutoff_hours,'early_refund_pct',cp.early_refund_pct,
