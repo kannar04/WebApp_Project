@@ -89,13 +89,13 @@ function ignoredByGit(string $path): bool
 }
 $private = ['.env','.env.local','.env.production','config/database.local.php','secrets/key.pem','logs/app.log','tmp/work.tmp',
     '.idea/workspace.xml','.vscode/settings.json','.DS_Store','Thumbs.db','node_modules/pkg/index.js','vendor/pkg/file.php',
-    'coverage/report.html','database/dumps/customer-export.sql','public/uploads/avatar.jpg'];
+    'coverage/report.html','database/dumps/customer-export.sql','public/uploads/avatar.jpg','public/uploads/planted.php'];
 $shared = ['.env.example','.env.sample','.htaccess','public/.htaccess','README.md','skill_web.md','skill_UIUX.md','skill_user.md','File_Ideas/Functions.txt',
     'image/erd-home2home.drawio.png','image/so-do-lop_web.png','image/so-do-phan-ra-chuc-nang_web.png',
     'app/Models/Listing.php','core/ProcedureConnection.php','config/database.php','routes/web.php','tests/codebase_cleanup_test.php',
     'database/schema.sql','database/seed.sql','database/procedures/020_booking.sql','database/migrations/example.sql',
     'docs/codebase-cleanup-report.md','public/assets/css/app.css','public/assets/js/app.js',
-    'public/assets/images/demo/1600585154340-be6161a56a0c.jpg','public/uploads/.gitkeep','composer.lock','package-lock.json'];
+    'public/assets/images/demo/1600585154340-be6161a56a0c.jpg','public/uploads/.gitkeep','public/uploads/.htaccess','composer.lock','package-lock.json'];
 foreach ($private as $path) { cleanupExpect(ignoredByGit($path), 'Private path is shareable: '.$path); }
 foreach ($shared as $path) { cleanupExpect(!ignoredByGit($path), 'Shared path is ignored: '.$path); }
 echo 'PASS Git rules: '.count($private).' private / '.count($shared)." shareable paths\n";

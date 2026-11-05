@@ -59,6 +59,7 @@ composer.phar
 # User uploads: preserve the empty directory; demo images belong in assets.
 /public/uploads/*
 !/public/uploads/.gitkeep
+!/public/uploads/.htaccess
 
 # Local database exports/backups; NEVER ignore all *.sql.
 /database/backups/

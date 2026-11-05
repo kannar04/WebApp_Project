@@ -242,6 +242,16 @@ expect(str_contains($rootHtaccess, 'RewriteRule ^(.*)$ public/$1 [L]') && str_co
     && (bool) preg_match('/<FilesMatch "\^\\\\\.">\s*Require all denied/', $rootHtaccess)
     && (bool) preg_match('/<IfModule !mod_rewrite\.c>\s*Require all denied/', $rootHtaccess), 'Root .htaccess must serve only public/ and deny dotfiles.');
 expect(str_contains((string) file_get_contents(dirname(__DIR__).'/public/.htaccess'), 'Options -Indexes'), 'public/ must not list directories.');
+// Apache applies this pattern to the file name it resolved, so "planted.php/x.jpg" is checked as planted.php; on Windows a trailing dot or space resolves to the same file.
+$uploadsHtaccess = (string) file_get_contents(dirname(__DIR__).'/public/uploads/.htaccess');
+expect((bool) preg_match('/^Options -ExecCGI -Includes -Indexes$/m', $uploadsHtaccess) && (bool) preg_match('/^<IfModule php_module>\s*php_flag engine off\s*<\/IfModule>$/m', $uploadsHtaccess)
+    && (bool) preg_match('/^Require all denied\s*<FilesMatch "([^"]+)">\s*Require all granted\s*<\/FilesMatch>$/m', $uploadsHtaccess, $uploadsPattern), 'public/uploads must deny by default, serve only its pattern and run nothing.');
+foreach (['a.jpg', 'a.JPG', 'a.jpeg', 'a.png', 'a.webp', 'a.gif', 'avatar-3-0123abc.jpg'] as $servedUpload) {
+    expect(preg_match('~'.$uploadsPattern[1].'~', $servedUpload) === 1, 'Image refused in public/uploads: '.$servedUpload);
+}
+foreach (['planted.php', 'planted.PHP', 'planted.phtml', 'planted.phar', 'planted.phps', 'planted.php.', 'planted.php ', 'planted.pl', 'planted.cgi', 'planted.shtml', 'planted.svg', 'planted.jpg.php', '.htaccess', '.gitkeep', '.x.jpg'] as $refusedUpload) {
+    expect(preg_match('~'.$uploadsPattern[1].'~', $refusedUpload) !== 1, 'public/uploads would serve '.$refusedUpload);
+}
 foreach (glob(__DIR__.'/*.php') as $testScript) {
     expect((bool) preg_match('/^(?:\s*if \(|[a-zA-Z]+\()PHP_SAPI ?[!=]==? ?\'cli\'/m', (string) file_get_contents($testScript)), 'Test script runs over HTTP: '.basename($testScript));
 }

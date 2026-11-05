@@ -27,7 +27,7 @@ The authoritative rule list is the root `.gitignore`.
   directories at the root or under `storage/`. No blanket nested `cache/` rule.
 - Dependencies/generated tests: root `vendor/`, `node_modules/`, Composer binary,
   coverage and PHPUnit cache. Keep dependency manifests and lockfiles.
-- Runtime uploads: `public/uploads/*`, with `public/uploads/.gitkeep` retained.
+- Runtime uploads: `public/uploads/*`, with `public/uploads/.gitkeep` and `public/uploads/.htaccess` retained.
 - Database: dedicated backup/dump/export directories and dump/compressed backup
   extensions. Plain SQL is shareable by default; private SQL exports must be placed
   in `database/backups/`, `database/dumps/` or `database/exports/`.

@@ -27,6 +27,7 @@ foreach ($iterator as $file) {
         str_starts_with($path, 'routes/') => 'Dynamic route registry',
         str_starts_with($path, 'public/assets/') => 'Frontend/design/demo asset',
         $path === 'public/uploads/.gitkeep' => 'Runtime upload directory placeholder',
+        $path === 'public/uploads/.htaccess' => 'Keeps scripts from running in the upload directory',
         str_starts_with($path, 'public/uploads/') => 'Private runtime user upload',
         str_starts_with($path, 'public/') => 'Web entry/rewrite',
         str_starts_with($path, 'image/') => 'Source diagram/design evidence',
