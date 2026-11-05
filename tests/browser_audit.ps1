@@ -270,6 +270,22 @@ function Check-BookingEnter {
     Write-Output 'PASS browser Enter in a booking field quotes and never books, the focused button and a click still submit'
 }
 
+function Check-SeveralActions([string]$Path, [string]$Selector, [string]$Field, [string[]]$Actions, [switch]$IfPresent) {
+    # Enter in a form with several actions must pick none of them; each button still sends its own name and value. Every submit is stopped here, so nothing is saved.
+    Navigate $Path
+    $selectorJson=ConvertTo-Json $Selector -Compress
+    if (!(Evaluate "!!document.querySelector($selectorJson)")) {
+        if ($IfPresent) { Write-Output "SKIP browser several actions on $($Path): no such form"; return }
+        throw "No $Selector on $Path"
+    }
+    $fieldJson=ConvertTo-Json $Field -Compress
+    Evaluate "(function(){const f=document.querySelector($selectorJson);window.h2hSent=[];window.confirm=function(){return true;};f.addEventListener('submit',function(e){e.preventDefault();e.stopImmediatePropagation();const n=e.submitter;window.h2hSent.push(n?n.name+'='+n.value:'none');},true);f.querySelector($fieldJson).focus();return true;})()" | Out-Null
+    Press-Enter
+    if ((Evaluate "window.h2hSent.length") -ne 0) { throw "Enter chose an action on $($Path): $(Evaluate 'window.h2hSent.join()')" }
+    $sent=Evaluate "(function(){window.h2hSent=[];const f=document.querySelector($selectorJson);f.noValidate=true;for(const b of f.querySelectorAll('button[type=submit],button:not([type])')){b.click();}return window.h2hSent.join();})()"
+    if ($sent -ne ($Actions -join ',')) { throw "Buttons on $Path sent $sent, expected $($Actions -join ',')" }
+}
+
 function Send-DoubleClick([string]$Selector) {
     # A real double click through the browser's input pipeline, the way a mouse sends it.
     $selectorJson=ConvertTo-Json $Selector -Compress
@@ -418,6 +434,8 @@ try {
     $own=Evaluate "(function(){const link=document.querySelector('.booking-box a[href$=`"/host/listings/1/edit`"]');return {form:!!document.querySelector('[data-booking-form]'),note:!!document.querySelector('[data-own-listing]'),link:!!link,price:!!document.querySelector('.booking-price'),calendar:!!document.querySelector('#availability-calendar')};})()"
     if ($own.form -or !$own.note -or !$own.link -or !$own.price -or !$own.calendar) { throw "Own listing page wrong for the Host: $($own | ConvertTo-Json -Compress)" }
     Write-Output 'PASS browser Host sees a note and manage link instead of the booking form on their own listing'
+    Check-SeveralActions '/host/listings/1/availability' 'form[action*="/availability"]' '[name=date]' @('open=0','open=1')
+    Write-Output 'PASS browser Enter picks no action on the Host availability form'
     Check-LongText '/host/listings/1/availability' '.section-title h1, .section-title p'
     Write-Output 'PASS browser long unbroken text wraps at 375 on Host pages'
     Check-CalendarNavigation '/host/listings/1/availability'
@@ -438,6 +456,21 @@ try {
     Check-LongText '/admin' 'table tbody td:nth-child(2)'
     Check-LongText '/admin/reports' 'article.surface-card h2'
     Write-Output 'PASS browser long unbroken text wraps at 375 on Admin pages, wide tables scroll inside themselves'
+    Check-SeveralActions '/admin' 'form.moderation-form' '[name=note]' @('action=approved','action=rejected')
+    Check-SeveralActions '/admin/verifications' 'form[action*="/decide"]' '[name=reason]' @('decision=approved','decision=rejected') -IfPresent
+    Check-SeveralActions '/admin/articles/create' 'form.article-form' '[name=title]' @('intent=draft','intent=publish')
+    Check-SeveralActions '/admin/catalog' 'form[action$="/admin/catalog"]:has(button[name=active])' 'input[name=name]' @('=','active=0')
+    # A textarea keeps its new lines, and a form with one action still sends on Enter.
+    Navigate '/admin/articles/create'
+    Evaluate "(function(){const f=document.querySelector('form.article-form');window.h2hSent=0;f.addEventListener('submit',function(e){window.h2hSent++;e.preventDefault();e.stopImmediatePropagation();},true);f.elements.excerpt.focus();f.elements.excerpt.value='';return true;})()" | Out-Null
+    Press-Enter
+    $textarea=Evaluate "(function(){return {value:document.querySelector('form.article-form').elements.excerpt.value,sent:window.h2hSent};})()"
+    if ($textarea.value -ne "`n" -or $textarea.sent -ne 0) { throw "Textarea Enter wrong: $($textarea | ConvertTo-Json -Compress)" }
+    Navigate '/admin'
+    Evaluate "(function(){const f=document.querySelector('#booking-query').form;window.h2hSent=0;f.addEventListener('submit',function(e){window.h2hSent++;e.preventDefault();e.stopImmediatePropagation();},true);document.querySelector('#booking-query').focus();return true;})()" | Out-Null
+    Press-Enter
+    if ((Evaluate "window.h2hSent") -ne 1) { throw 'Enter stopped working in a one-action form' }
+    Write-Output 'PASS browser Enter picks no action in forms with several, each button sends its own value, textarea new lines and one-action forms unchanged'
     Check-AdminFilterCarry
     Check-AdminCreateDoubleClick
     Check-CalendarNavigation '/admin/listings/1/preview'

@@ -3,6 +3,7 @@
 
     const SUBMIT_RELEASE_MS = 20000;
     const SELF_GUARDED_FORMS = '[data-report-form], [data-booking-form], [data-message-form]';
+    const ENTER_SUBMITS_FROM = 'input:not([type="submit"], [type="image"], [type="button"], [type="reset"], [type="file"]), select';
 
     // Nice-to-have i18n: Vietnamese source text is the key; the layout emits English strings as JSON (empty in Vietnamese).
     let scriptDictionary = null;
@@ -105,6 +106,17 @@
         scheduleFormRelease(form);
     }
 
+    // Enter sends the form's first button, which may be the opposite of what was being typed: a refusal reason would approve the listing.
+    // So a form with several different actions waits for the button the user chooses.
+    function holdEnterWhenActionsDiffer(event) {
+        if (event.key !== 'Enter' || event.isComposing || !event.target.matches(ENTER_SUBMITS_FROM) || !event.target.form) { return; }
+        const actions = new Set();
+        for (const control of event.target.form.elements) {
+            if (control.type === 'submit' || control.type === 'image') { actions.add(control.name + '=' + control.value); }
+        }
+        if (actions.size > 1) { event.preventDefault(); }
+    }
+
     // Result messages print at the top of the page, but a #fragment in the URL is where the user was working: the message moves right above it.
     // In a conversation that means above its form: a long thread would push a form placed further down off screen, with the kept draft in it.
     function moveFlashToFragment() {
@@ -177,6 +189,7 @@
         document.querySelectorAll('[data-filter-form], [data-search-form]').forEach(watchSearchSubmit);
         document.querySelector('[data-report-form]')?.addEventListener('submit', handleReportSubmit);
         document.addEventListener('submit', guardPostSubmit);
+        document.addEventListener('keydown', holdEnterWhenActionsDiffer);
 
         moveFlashToFragment();
         // The browser's own fragment scroll keeps running until the page has loaded.
