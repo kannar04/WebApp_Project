@@ -493,6 +493,13 @@ try {
     expect(auditRequest($scopeHost, $url.'/host/listings/99999/edit')['status'] === 404 && stripos(auditRequest($scopeHost, $url.'/host/listings/1/edit')['body'], $typed) === false, 'A save refused on a missing listing filled another listing\'s form.');
     echo 'PASS refused input returns only to the form of its own record across '.count($scopedForms)." forms, and a call with no scope still works\n";
 
+    // Apache answers 500 to a bare 419, so the status line has to name it. Checked by hand on Apache; here the line itself and the JSON body.
+    $expired = curl_init($url.'/login');
+    curl_setopt_array($expired, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => 'x=1', CURLOPT_HTTPHEADER => ['Accept: application/json'], CURLOPT_TIMEOUT => 20]);
+    $expiredAnswer = (string) curl_exec($expired);
+    expect(str_starts_with($expiredAnswer, "HTTP/1.1 419 Page Expired\r\n") && str_contains($expiredAnswer, '"success":false') && str_contains($expiredAnswer, 'application/json'), 'A stale JSON request must answer 419 Page Expired with the JSON body.');
+    echo "PASS a stale JSON request sends the whole 419 Page Expired status line and the JSON body\n";
+
     auditOversizedPost(['display_startup_errors' => '1', 'output_buffering' => '4096'], true);
     auditOversizedPost(['display_startup_errors' => '0', 'output_buffering' => '0'], false);
     echo "PASS a POST over post_max_size says so with the limit, returns to its page and changes nothing\n";

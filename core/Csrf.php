@@ -27,11 +27,11 @@ final class Csrf
             // PHP's own startup warning may be waiting in the output buffer and must not come before the answer.
             while (ob_get_level() > 0) { ob_end_clean(); }
             $size = $limit >= 1048576 ? ((int) floor($limit / 1048576)) . ' MB' : ((int) ceil($limit / 1024)) . ' KB';
-            self::refuse(__('Dữ liệu gửi lên quá lớn (vượt giới hạn {limit} của máy chủ) nên chưa được lưu. Vui lòng chọn tệp nhỏ hơn rồi thử lại.', ['limit' => $size]), 413, $fallback);
+            self::refuse(__('Dữ liệu gửi lên quá lớn (vượt giới hạn {limit} của máy chủ) nên chưa được lưu. Vui lòng chọn tệp nhỏ hơn rồi thử lại.', ['limit' => $size]), '413 Content Too Large', $fallback);
         }
         $token = $_POST['_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null);
         if (!self::verify(is_string($token) ? $token : null)) {
-            self::refuse('Phiên biểu mẫu đã hết hạn. Vui lòng thử lại.', 419, $fallback);
+            self::refuse('Phiên biểu mẫu đã hết hạn. Vui lòng thử lại.', '419 Page Expired', $fallback);
         }
     }
 
@@ -43,12 +43,13 @@ final class Csrf
     }
 
     /** Stops the request: JSON for scripts, otherwise back to the page it came from with the message. */
-    private static function refuse(string $message, int $ajaxStatus, string $fallback): never
+    private static function refuse(string $message, string $ajaxStatusLine, string $fallback): never
     {
         $accept = (string) ($_SERVER['HTTP_ACCEPT'] ?? '');
         $isAjax = str_contains($accept, 'application/json') || strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
         if ($isAjax) {
-            http_response_code($ajaxStatus);
+            // A whole status line: Apache has no 419 in its table and answers 500 to the bare code.
+            header('HTTP/1.1 ' . $ajaxStatusLine);
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode(['success' => false, 'message' => I18n::translate($message), 'data' => null, 'errors' => []], JSON_UNESCAPED_UNICODE);
             exit;
