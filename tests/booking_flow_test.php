@@ -45,7 +45,8 @@ try {
     $service->hostTransition($bookingId, 2, 'confirmed');
     $refund = $service->cancelByGuest($bookingId, 3, 'Automated integration test');
     $status = fixtureRead($db, $bookingId, 'status');
-    if ($status !== 'cancelled' || (float) $refund['refund_amount'] !== 2650000.0) {
+    // Confirmed but unpaid: nothing was collected, so no refund is recorded.
+    if ($status !== 'cancelled' || (float) $refund['refund_amount'] !== 0.0) {
         throw new RuntimeException('Vòng đời hoặc tính hoàn tiền không đúng.');
     }
 

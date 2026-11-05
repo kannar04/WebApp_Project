@@ -148,12 +148,15 @@ BEGIN
     DECLARE v_base DECIMAL(12,2) DEFAULT 0;
     DECLARE v_zone TEXT;
     DECLARE v_arrival DATETIME;
+    DECLARE v_payment VARCHAR(10);
     CALL sp_quality_assert_booking(p_booking,p_actor);
     SELECT status,check_in,total_amount,fee_amount,policy_snapshot INTO v_status,v_start,v_total,v_fee,v_policy FROM bookings WHERE id=p_booking;
+    SELECT status INTO v_payment FROM booking_payments WHERE booking_id=p_booking;
     IF v_status='cancelled' THEN
         SELECT refund_amount,calculation_details,reason,created_at FROM booking_cancellations WHERE booking_id=p_booking;
     ELSE
-        IF v_status='pending' THEN SET v_percent=100; SET v_base=v_total;
+        IF COALESCE(v_payment,'unpaid')='unpaid' THEN SET v_percent=0; SET v_base=0; -- Nothing collected yet, nothing to refund.
+        ELSEIF v_status='pending' THEN SET v_percent=100; SET v_base=v_total;
         ELSEIF v_status='confirmed' THEN
             SET v_zone=JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.time_zone'));
             SET v_zone=CASE v_zone WHEN 'Asia/Ho_Chi_Minh' THEN '+07:00' WHEN 'UTC' THEN '+00:00' ELSE v_zone END;

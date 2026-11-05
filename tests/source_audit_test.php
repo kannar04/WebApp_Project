@@ -82,11 +82,11 @@ try {
     $bookingId = $service->create($listingId, (int) $guest['id'], $checkIn, $checkOut, 2);
     $bookingIds[] = $bookingId;
     $refund = $service->cancelByGuest($bookingId, (int) $guest['id'], 'Fixture pending cancellation');
-    expect($refund['refund_amount'] === 220000.0, 'Pending refund must include the fee.');
+    expect($refund['refund_amount'] === 0.0 && !$refund['was_paid'], 'A pending unpaid booking must record no refund.');
     $statement = $database->prepare('CALL sp_test_booking_inspect(?)');
     $statement->execute([$bookingId]);
     expect(json_decode($statement->fetch()['policy_snapshot'], true)['check_in_time'] === '16:00:00', 'Arrival time not snapshotted.');
-    echo "PASS pending refund and arrival-time snapshot\n";
+    echo "PASS pending booking records no refund and arrival-time snapshot\n";
 
     $bookingId = $service->create($listingId, (int) $guest['id'], $checkIn, $checkOut, 2);
     $bookingIds[] = $bookingId;

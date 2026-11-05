@@ -373,6 +373,39 @@ try {
     payExpect((int)$normal['admin_refund_notices']===0,'An ordinary payment asked Admins for a refund.');
     echo "PASS taken-down listing: checkout, start and report refuse with a clear message, money already sent is recorded and flagged to Admins\n";
 
+    // ---- Nothing collected, nothing refunded; money that lands after the cancellation goes back whole.
+    $bookingModel=new \App\Models\Booking();
+    $unpaidPending=$service->create($policyListings[100],$guestId,$base->modify('+77 days')->format('Y-m-d'),$base->modify('+79 days')->format('Y-m-d'),1);
+    $unpaidConfirmed=payConfirmedBooking($service,$policyListings[100],$guestId,$hostId,$base,80);
+    foreach ([$unpaidPending,$unpaidConfirmed] as $unpaid) {
+        payExpect((float)$bookingModel->detail($unpaid,$guestId)['refund']['refund_amount']===0.0,'Refund preview of an unpaid booking is not zero.');
+        $cancelled=$service->cancelByGuest($unpaid,$guestId,'Audit fixture nothing paid');
+        $state=payInspect($unpaid);
+        payExpect(!$cancelled['was_paid'] && $cancelled['refund_amount']===0.0 && $cancelled['refund_percent']===0.0 && (float)$state['cancel_refund']===0.0,'An unpaid booking recorded a refund: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+        payExpect(!str_contains((string)$state['guest_cancel_body'],'hoàn') && (int)$state['admin_refund_notices']===0,'An unpaid cancellation talks about a refund: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+        payExpect((float)$bookingModel->detail($unpaid,$guestId)['refund']['refund_amount']===0.0 && (float)$extras->bookingDetail($unpaid,$guestId)['refund_amount']===0.0,'Stored refund of an unpaid booking is not zero.');
+    }
+    $bookingW=payConfirmedBooking($service,$policyListings[50],$guestId,$hostId,$base,83);
+    $lateVnpay=$payments->start($bookingW,$guestId,'vnpay');
+    $service->cancelByGuest($bookingW,$guestId,'Audit fixture cancelled while paying');
+    payExpect((float)payInspect($bookingW)['cancel_refund']===0.0,'Cancelling before the money arrived recorded a refund.');
+    $payments->vnpayResult($lateVnpay['reference'],'220000.00','00','00','14000040','NCB');
+    $state=payInspect($bookingW);
+    payExpect($state['payment_status']==='paid' && (float)$state['cancel_refund']===220000.0 && (int)$state['admin_refund_notices']>=1 && str_contains((string)$state['admin_refund_body'],'220.000đ'),'Late VNPay money does not go back whole: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $extras->refund($bookingW,$adminId,'Trả lại khoản nhận sau khi hủy');
+    $state=payInspect($bookingW);
+    payExpect($state['payment_status']==='refunded' && (float)$state['refund_audit_amount']===220000.0,'Admin could not refund late VNPay money: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $bookingX=payConfirmedBooking($service,$policyListings[50],$guestId,$hostId,$base,86);
+    $lateTransfer=$payments->start($bookingX,$guestId,'vietqr');
+    $payments->submitTransfer((int)$lateTransfer['transaction_id'],$guestId);
+    $service->cancelByGuest($bookingX,$guestId,'Audit fixture cancelled after the transfer');
+    $payments->decideTransfer((int)$lateTransfer['transaction_id'],$adminId,'confirm','');
+    $state=payInspect($bookingX);
+    payExpect($state['payment_status']==='paid' && (float)$state['cancel_refund']===220000.0 && (int)$state['admin_refund_notices']>=1 && str_contains((string)$state['admin_refund_body'],'đã hủy nhưng vẫn nhận'),'Late transfer does not go back whole: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $extras->refund($bookingX,$adminId,'Trả lại khoản nhận sau khi hủy');
+    payExpect(payInspect($bookingX)['payment_status']==='refunded','Admin could not refund a late transfer.');
+    echo "PASS unpaid cancel: pending and confirmed record 0 and say nothing about a refund, late VNPay or transfer money is owed back whole\n";
+
     // ---- Signing and QR links (pure PHP).
     $gateway=VnpayGateway::enabled($paymentConfig) ? $paymentConfig
         : ['vnpay_tmn_code'=>'H2HTEST1','vnpay_hash_secret'=>bin2hex(random_bytes(16)),'vnpay_pay_url'=>'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'];
@@ -534,6 +567,25 @@ try {
         $page=payHttp($guestClient,$baseUrl,'/payments/'.(int)$uQr['transaction_id'])['body'];
         payExpect(str_contains($page,'đã bị gỡ') && !str_contains($page,'img.vietqr.io') && !str_contains($page,'/transferred'),'Transfer page of a taken-down listing still takes money.');
         payCall('CALL sp_test_payment_listing_removed(?,?)',[$removedListing,0]);
+        // An unpaid booking over HTTP: no refund figure or wording for the Guest or the Admin; a paid one keeps them.
+        $bookingY=payConfirmedBooking($service,$policyListings[100],$guestId,$hostId,$base,89);
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingY)['body'];
+        foreach (['Số tiền hoàn','mức hoàn','Mức hoàn'] as $word) { payExpect(!str_contains($page,$word),'Unpaid booking page shows: '.$word); }
+        payExpect(str_contains($page,'/bookings/'.$bookingY.'/cancel') && str_contains($page,'Bạn chắc chắn muốn hủy booking này?'),'Unpaid booking lost its plain cancel button.');
+        $response=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingY.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
+        $page=payHttp($guestClient,$baseUrl,'/bookings')['body'];
+        payExpect($response['status']===302 && str_contains($page,'Đã hủy booking.') && !str_contains($page,'Mức hoàn'),'Unpaid cancel flash talks about a refund.');
+        foreach ([$guestClient,$adminClient] as $client) {
+            $page=payHttp($client,$baseUrl,'/bookings/'.$bookingY)['body'];
+            payExpect(str_contains($page,'Audit fixture PAY') || str_contains($page,(string)$bookingY),'Cancelled booking page did not load.');
+            foreach (['Số tiền hoàn','mức hoàn','Mức hoàn','hoàn tiền','được hoàn','Chính sách hủy tại thời điểm đặt'] as $word) { payExpect(!str_contains($page,$word),'Cancelled unpaid booking page shows: '.$word); }
+        }
+        $bookingZ=payPaidBooking($service,$payments,$policyListings[100],$guestId,$hostId,$base,92,'14000042');
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ)['body'];
+        payExpect(str_contains($page,'Số tiền hoàn nếu hủy lúc này') && str_contains($page,'Hủy booking theo mức hoàn đang áp dụng?') && str_contains($page,'Chính sách hủy tại thời điểm đặt'),'A paid booking lost its refund figure.');
+        payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
+        payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings')['body'],'Mức hoàn dự kiến: 100'),'A paid cancel lost its refund flash.');
+        payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ)['body'],'Số tiền hoàn đã ghi nhận'),'A paid cancelled booking lost its recorded refund.');
         foreach ([$anonymous,$guestClient,$hostClient,$adminClient] as $client) { curl_close($client); }
         echo "PASS online payment HTTP: Guest-only pages, CSRF, QR page with account and reference, report, Admin queue/403/confirm, VNPay redirect signature, forged return/IPN 97, valid return, IPN 02/01/04\n";
     }

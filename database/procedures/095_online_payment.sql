@@ -161,6 +161,7 @@ BEGIN
     DECLARE v_amount DECIMAL(12,2);
     DECLARE v_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_removed DATETIME(6);
+    DECLARE v_booking_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -179,7 +180,7 @@ BEGIN
     SELECT booking_id INTO v_booking FROM payment_transactions WHERE id=p_transaction;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
     SELECT id,deleted_at INTO v_lock,v_removed FROM listings WHERE id=v_listing FOR UPDATE;
-    SELECT guest_id,total_amount INTO v_guest,v_total FROM bookings WHERE id=v_booking FOR UPDATE;
+    SELECT guest_id,total_amount,status INTO v_guest,v_total,v_booking_status FROM bookings WHERE id=v_booking FOR UPDATE;
     IF v_guest IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không tìm thấy giao dịch thanh toán.'; END IF;
     SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
     SELECT provider,status,reference,ROUND(amount,0) INTO v_provider,v_status,v_reference,v_amount FROM payment_transactions WHERE id=p_transaction FOR UPDATE;
@@ -205,7 +206,15 @@ BEGIN
         INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
             VALUES(v_guest,v_booking,'in_app','payment_paid','Đã ghi nhận thanh toán',
             CONCAT('Booking #',v_booking,' đã được xác nhận thanh toán chuyển khoản ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,').'),'sent',1,NOW(6));
-        IF v_removed IS NOT NULL THEN
+        IF v_booking_status NOT IN ('confirmed','completed') THEN
+            -- The Guest cancelled with this transfer still open: the money is recorded as paid so the Admin can record the refund of all of it.
+            UPDATE booking_cancellations SET refund_amount=v_amount WHERE booking_id=v_booking;
+            INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+                SELECT r.user_id,v_booking,'in_app','payment_refund_needed','Cần hoàn tiền',
+                    CONCAT('Booking #',v_booking,' đã hủy nhưng vẫn nhận ',REPLACE(FORMAT(v_amount,0),',','.'),'đ qua chuyển khoản (mã ',v_reference,'). Vui lòng hoàn tiền cho khách.'),
+                    'sent',1,NOW(6)
+                FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='admin' AND u.status='active' AND u.deleted_at IS NULL;
+        ELSEIF v_removed IS NOT NULL THEN
             -- The money did reach the account, so it is recorded; the stay is gone, so the Admins are asked to return it.
             INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
                 SELECT r.user_id,v_booking,'in_app','payment_refund_needed','Cần hoàn tiền',
@@ -337,7 +346,8 @@ BEGIN
                     VALUES(v_guest,v_booking,'in_app','payment_paid','Đã ghi nhận thanh toán',
                     CONCAT('Booking #',v_booking,' đã thanh toán thành công qua VNPay ',REPLACE(FORMAT(v_amount,0),',','.'),'đ.'),'sent',1,NOW(6));
                 IF v_booking_status NOT IN ('confirmed','completed') THEN
-                    -- The Guest cancelled while VNPay was open: the money is recorded as paid so the Admin can record the refund.
+                    -- The Guest cancelled while VNPay was open: the money is recorded as paid so the Admin can record the refund of all of it.
+                    UPDATE booking_cancellations SET refund_amount=v_amount WHERE booking_id=v_booking;
                     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
                         SELECT r.user_id,v_booking,'in_app','payment_refund_needed','Cần hoàn tiền',
                             CONCAT('Booking #',v_booking,' đã hủy nhưng vẫn nhận ',REPLACE(FORMAT(v_amount,0),',','.'),'đ qua VNPay (mã ',p_reference,'). Vui lòng hoàn tiền cho khách.'),

@@ -165,6 +165,9 @@ try {
         $configured['cancellation_policy_id']=$policyId; $listings->update(1,2,$configured);
         (new AdminRepository())->moderate(1,1,'approved','Owned policy fixture');
         $policyBooking=$service->create(1,3,$first,$last,2); $service->hostTransition($policyBooking,2,'confirmed');
+        // A refund exists only once money was collected.
+        $policyPayments=new \App\Models\Payment(); $policyAttempt=$policyPayments->start($policyBooking,3,'vnpay');
+        $policyPayments->vnpayResult($policyAttempt['reference'],(string)$policyAttempt['amount'],'00','00','QAPOLICY'.$policyId,'NCB');
         qaExpect((float)$bookings->detail($policyBooking,3)['refund']['refund_amount']===$expectedRefund,'Policy refund preview wrong: '.$policyId);
         qaExpect($service->cancelByGuest($policyBooking,3,'Owned policy fixture')['refund_amount']===$expectedRefund,'Policy refund record wrong: '.$policyId);
     }

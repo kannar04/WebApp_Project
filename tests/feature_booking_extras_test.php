@@ -360,8 +360,9 @@ try {
     bxExpect(bxInspect($finished['booking_id'])['status']==='completed','Host could not complete the finished stay.');
     $inProgress=$service->book($listingId,$guestId,bxDay($monday,72),bxDay($monday,74),1);
     bxCall('CALL sp_test_booking_extras_backdate(?)',[$inProgress['booking_id']]);
+    $extras->markPaid($inProgress['booking_id'],$hostId,false,'');
     $late=$service->cancelByGuest($inProgress['booking_id'],$guestId,'Audit fixture leaving early');
-    bxExpect($late['refund_percent']===0.0 && $late['refund_amount']===0.0 && bxInspect($inProgress['booking_id'])['status']==='cancelled','A stay in progress did not follow the late refund.');
+    bxExpect($late['was_paid'] && $late['refund_percent']===0.0 && $late['refund_amount']===0.0 && bxInspect($inProgress['booking_id'])['status']==='cancelled','A stay in progress did not follow the late refund.');
     echo "PASS guest cancel window: refused from the check-out day (Host can still complete), stay in progress keeps the policy's late refund\n";
 
     // ---- VND has no fractions: decimal rates, fee and promo values price in whole dong, and the rows add up.

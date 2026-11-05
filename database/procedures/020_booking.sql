@@ -238,7 +238,8 @@ BEGIN
     -- Vietnam date, as everywhere in booking rules: from the check-out day on, the Host can complete the stay.
     IF v_end<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chuyến ở đã kết thúc nên không thể hủy booking.'; END IF;
     SELECT status INTO v_payment FROM booking_payments WHERE booking_id=p_booking FOR UPDATE;
-    IF v_status='pending' THEN SET v_percent=100; SET v_base=v_total;
+    IF COALESCE(v_payment,'unpaid')='unpaid' THEN SET v_percent=0; SET v_base=0; -- Nothing was collected, so nothing goes back.
+    ELSEIF v_status='pending' THEN SET v_percent=100; SET v_base=v_total;
     ELSE
         SET v_zone=COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.time_zone')),'null'),v_default_zone);
         -- XAMPP may not load named timezone tables. Vietnam has a fixed UTC+07 offset.
@@ -258,8 +259,9 @@ BEGIN
         VALUES(v_host,p_booking,'in_app','booking_cancelled','Cập nhật booking','Khách đã hủy booking.','sent',1,NOW(6));
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
         VALUES(v_guest,p_booking,'in_app','booking_cancelled','Đã hủy booking',
-        IF(v_payment='paid' AND v_refund=0,CONCAT('Booking #',p_booking,' đã hủy. Theo chính sách hủy, khoản đã thanh toán không được hoàn.'),
-            CONCAT('Booking #',p_booking,' đã hủy. Mức hoàn: ',REPLACE(FORMAT(v_refund,0),',','.'),'đ (',TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM v_percent)),'%).')),'sent',1,NOW(6));
+        IF(COALESCE(v_payment,'unpaid')='unpaid',CONCAT('Booking #',p_booking,' đã hủy.'),
+            IF(v_payment='paid' AND v_refund=0,CONCAT('Booking #',p_booking,' đã hủy. Theo chính sách hủy, khoản đã thanh toán không được hoàn.'),
+            CONCAT('Booking #',p_booking,' đã hủy. Mức hoàn: ',REPLACE(FORMAT(v_refund,0),',','.'),'đ (',TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM v_percent)),'%).'))),'sent',1,NOW(6));
     IF v_payment='paid' THEN
         -- Money was collected: every Admin learns what is owed, in the same transaction as the cancellation.
         INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)

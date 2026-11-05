@@ -23,6 +23,7 @@ return [
     'Booking #{id} đã hủy. Theo chính sách hủy, khoản đã thanh toán không được hoàn.' => 'Booking #{id} was cancelled. Under the cancellation policy, the payment is not refunded.',
     'Booking #{id} đã hủy khi đã thanh toán. Cần hoàn {amount}đ cho khách theo chính sách ({percent}%).' => 'Booking #{id} was cancelled after payment. Refund {amount}đ to the guest under the policy ({percent}%).',
     'Booking #{id} đã hủy khi đã thanh toán. Theo chính sách hủy, khoản hoàn là 0đ nên không cần hoàn tiền.' => 'Booking #{id} was cancelled after payment. Under the cancellation policy the refund is 0đ, so nothing needs refunding.',
+    'Booking #{id} đã hủy.' => 'Booking #{id} was cancelled.',
     'Booking #{id} đã hủy. Mức hoàn: {amount}đ ({percent}%).' => 'Booking #{id} was cancelled. Refund: {amount}đ ({percent}%).',
     'Booking #{id} đã hủy. Mức hoàn: {amount} ({percent}%).' => 'Booking #{id} was cancelled. Refund: {amount} ({percent}%).',
 
@@ -53,6 +54,7 @@ return [
     'Booking #{id} đã được xác nhận thanh toán chuyển khoản {amount}đ (mã {reference}).' => 'Bank transfer payment of {amount}đ confirmed for booking #{id} (reference {reference}).',
     'Chưa xác nhận được chuyển khoản cho booking #{id} (mã {reference}). Lý do: {reason}' => 'The bank transfer for booking #{id} (reference {reference}) could not be confirmed. Reason: {reason}',
     'Booking #{id} đã thanh toán thành công qua VNPay {amount}đ.' => 'Booking #{id} was paid via VNPay: {amount}đ.',
+    'Booking #{id} đã hủy nhưng vẫn nhận {amount}đ qua chuyển khoản (mã {reference}). Vui lòng hoàn tiền cho khách.' => 'Booking #{id} was cancelled but still received {amount}đ by bank transfer (reference {reference}). Please refund the guest.',
     'Booking #{id} đã hủy nhưng vẫn nhận {amount}đ qua VNPay (mã {reference}). Vui lòng hoàn tiền cho khách.' => 'Booking #{id} was cancelled but still received {amount}đ via VNPay (reference {reference}). Please refund the guest.',
     'Booking #{id} đã được thanh toán trước đó nên khoản VNPay {amount}đ (mã {reference}) là thanh toán trùng. Admin sẽ hoàn lại khoản này cho bạn.' => 'Booking #{id} was already paid, so the VNPay payment of {amount}đ (reference {reference}) is a duplicate. An admin will refund it to you.',
     'Khoản VNPay {amount}đ (mã {reference}) của booking #{id} đã được hoàn lại. Booking vẫn được giữ là đã thanh toán.' => 'The VNPay payment of {amount}đ (reference {reference}) on booking #{id} was refunded. The booking stays paid.',
