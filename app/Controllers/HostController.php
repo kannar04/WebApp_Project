@@ -75,6 +75,7 @@ final class HostController extends Controller
             if ($listingId && !$listingModel->findOwned($listingId, $hostId)) {
                 throw new \DomainException('Không có quyền sửa chỗ ở.');
             }
+            \Core\Validator::listingDescription($data['description']);
             foreach (['title' => 180, 'address' => 255, 'city' => 100, 'description' => 65535] as $field => $maxLength) {
                 if ($data[$field] === '' || mb_strlen($data[$field]) > $maxLength) {
                     throw new \DomainException('Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.');
@@ -159,7 +160,7 @@ final class HostController extends Controller
         }
         $this->redirect('/host');
     }
-    public function availability(string $id): never {Csrf::ensure();$u=$this->requireRole('host');$date=input_text($_POST,'date');$valid=\Core\Calendar::date($date);$message='Ngày không hợp lệ.';$ok=$valid&&$valid>=new \DateTimeImmutable('today');if($ok){$ok=(new Listing())->setAvailability((int)$id,(int)$u['id'],$date,!empty(input_text($_POST,'open')),input_text($_POST,'reason'));$message=$ok?'Đã cập nhật lịch.':'Không thể chặn ngày đã có booking xác nhận.';}if(str_contains((string)($_SERVER['HTTP_ACCEPT']??''),'application/json')){$this->json($ok,$message,null,[],$ok?200:422);}Session::flash($ok?'success':'error',$message);if(!$ok){Session::old(['listing_id'=>(int)$id,'date'=>preg_match('/^\d{4}-\d{2}-\d{2}$/D',$date)?$date:'','reason'=>mb_substr(input_text($_POST,'reason'),0,255)]);}$month=input_text($_POST,'month');$this->redirect('/host/listings/'.$id.'/availability'.(preg_match('/^\d{4}-\d{2}$/D',$month)?'?month='.$month:''));}
+    public function availability(string $id): never {Csrf::ensure();$u=$this->requireRole('host');$date=input_text($_POST,'date');$valid=\Core\Calendar::date($date);$message='Ngày không hợp lệ.';$ok=$valid&&$valid>=new \DateTimeImmutable('today');$open=!empty(input_text($_POST,'open'));$reason=input_text($_POST,'reason');if($ok&&!$open&&mb_strlen($reason)>5000){$ok=false;$message='Lý do chặn ngày tối đa 5000 ký tự.';}elseif($ok){$ok=(new Listing())->setAvailability((int)$id,(int)$u['id'],$date,$open,$reason);$message=$ok?'Đã cập nhật lịch.':'Không thể chặn ngày đã có booking xác nhận.';}if(str_contains((string)($_SERVER['HTTP_ACCEPT']??''),'application/json')){$this->json($ok,$message,null,[],$ok?200:422);}Session::flash($ok?'success':'error',$message);if(!$ok){Session::old(['listing_id'=>(int)$id,'date'=>preg_match('/^\d{4}-\d{2}-\d{2}$/D',$date)?$date:'','reason'=>$reason]);}$month=input_text($_POST,'month');$this->redirect('/host/listings/'.$id.'/availability'.(preg_match('/^\d{4}-\d{2}$/D',$month)?'?month='.$month:''));}
     public function transition(string $id): never {Csrf::ensure();$u=$this->requireRole('host');try{(new BookingService())->hostTransition((int)$id,(int)$u['id'],input_text($_POST,'status'));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/host');}
 }
 

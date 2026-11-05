@@ -8,6 +8,8 @@ final class Validator
 {
     public const PASSWORD_RULE = 'Mật khẩu cần dài 8–72 byte (chữ có dấu tính 2–3 byte) và không chứa ký tự NUL.';
     public const MONEY_MAX = 9999999999.99;
+    /** A TEXT column holds 65535 bytes, not characters: 21845 'ế' or 16383 emoji fill it, and MariaDB in non-strict mode cuts the rest and reports success. */
+    public const TEXT_COLUMN_BYTES = 65535;
 
     /**
      * A price, fee or percent on any form: digits with up to 2 decimals after a dot, so the Vietnamese 500.000 is refused instead of read as 500.
@@ -37,6 +39,12 @@ final class Validator
         $data['nightly_price'] = self::decimal($data['nightly_price'] ?: '0', 0.5, self::MONEY_MAX, 'Giá mỗi đêm phải từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.', 'Giá mỗi đêm tối đa là 9.999.999.999đ.');
         $data['cleaning_fee'] = self::decimal($data['cleaning_fee'] ?: '0', 0, self::MONEY_MAX, 'Phụ phí không được âm. Viết liền không dấu chấm, ví dụ 50000.', 'Phụ phí tối đa là 9.999.999.999đ.');
         return $data;
+    }
+
+    /** The description of the Host and Admin listing forms, measured as the column measures it. Throws before changing anything, so the caller still holds what was typed. */
+    public static function listingDescription(string $description): void
+    {
+        if (strlen($description) > self::TEXT_COLUMN_BYTES) { throw new \DomainException('Mô tả quá dài nên chưa được lưu. Hãy rút ngắn: giới hạn khoảng 20.000 chữ có dấu, emoji chiếm nhiều chỗ hơn.'); }
     }
 
     /** For setting a password only: bcrypt ignores what follows byte 72 or a NUL. Login stays lenient so older, longer passwords still open. */

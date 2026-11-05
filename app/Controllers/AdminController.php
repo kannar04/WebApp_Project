@@ -186,6 +186,7 @@ final class AdminController extends Controller
             'nightly_price'=>trim(input_text($_POST,'nightly_price','0')),'cleaning_fee'=>trim(input_text($_POST,'cleaning_fee','0')),
             'max_guests'=>(int)input_text($_POST,'max_guests','0')];
         try {
+            \Core\Validator::listingDescription($data['description']);
             foreach (['title'=>180,'address'=>255,'city'=>100,'description'=>65535] as $field=>$maximum) {
                 if ($data[$field]==='' || mb_strlen($data[$field])>$maximum) { throw new \DomainException('Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.'); }
             }

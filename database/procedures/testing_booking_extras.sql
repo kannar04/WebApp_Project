@@ -6,6 +6,7 @@ BEGIN
     SELECT b.status,b.total_amount,b.fee_amount,bp.nights_subtotal,bp.length_discount_type,bp.length_discount_amount,bp.promotion_id,bp.promotion_code,
         bp.promotion_discount_amount,bp.is_instant_book,bp.total_amount breakdown_total,pay.status payment_status,pay.amount_due,pay.paid_by,pay.refunded_by,
         (SELECT COUNT(*) FROM booking_events WHERE booking_id=b.id) events,
+        (SELECT reason FROM booking_cancellations WHERE booking_id=b.id) cancel_reason,
         (SELECT COUNT(*) FROM booking_events WHERE booking_id=b.id AND from_status='pending' AND to_status='confirmed' AND actor_id IS NULL
             AND reason='Đặt ngay (Instant Book): hệ thống tự xác nhận.') instant_events,
         (SELECT COUNT(*) FROM notifications WHERE booking_id=b.id AND user_id=b.guest_id AND event_type='booking_confirmed') guest_confirmed_notices,

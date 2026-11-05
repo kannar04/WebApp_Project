@@ -132,6 +132,7 @@ return [
 
     // ---- Host listings, photos, availability (HostController)
     'Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.' => 'Please fill in all fields within the length limits.',
+    'Mô tả quá dài nên chưa được lưu. Hãy rút ngắn: giới hạn khoảng 20.000 chữ có dấu, emoji chiếm nhiều chỗ hơn.' => 'The description is too long and was not saved. Please shorten it: the limit is about 20,000 accented letters, and emoji take up more room.',
     'Giá mỗi đêm phải từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.' => 'The nightly price must be at least 1đ. Write it without dots, for example 500000.',
     'Giá mỗi đêm tối đa là 9.999.999.999đ.' => 'The nightly price can be at most 9,999,999,999đ.',
     'Phụ phí không được âm. Viết liền không dấu chấm, ví dụ 50000.' => 'The cleaning fee cannot be negative. Write it without dots, for example 50000.',
@@ -159,6 +160,7 @@ return [
     'Ngày không hợp lệ.' => 'Invalid date.',
     'Đã cập nhật lịch.' => 'Calendar updated.',
     'Không thể chặn ngày đã có booking xác nhận.' => 'You cannot block a date that already has a confirmed booking.',
+    'Lý do chặn ngày tối đa 5000 ký tự.' => 'A block reason can be up to 5000 characters.',
     'Không tìm thấy chỗ ở.' => 'Place not found.',
 
     // ---- Booking, quotes, reviews (BookingController, BookingService, ListingController, Booking, BookingMessage)
@@ -297,6 +299,7 @@ return [
     'Đã báo chuyển khoản. Admin sẽ kiểm tra tài khoản và xác nhận thanh toán.' => 'Transfer reported. An Admin will check the account and confirm the payment.',
     'Đã xác nhận nhận được tiền chuyển khoản.' => 'Bank transfer receipt confirmed.',
     'Đã hủy booking.' => 'Booking cancelled.',
+    'Lý do hủy tối đa 5000 ký tự.' => 'A cancellation reason can be up to 5000 characters.',
     'Đã hủy booking. Theo chính sách hủy, khoản đã thanh toán không được hoàn.' => 'Booking cancelled. Under the cancellation policy, the payment is not refunded.',
     'Đã ghi nhận hoàn khoản thanh toán trùng. Booking vẫn ở trạng thái đã thanh toán.' => 'Duplicate payment refund recorded. The booking stays paid.',
     'Đã ghi nhận hoàn khoản thanh toán trùng. Khoản thanh toán chính của booking này cũng đã được hoàn trước đó.' => 'Duplicate payment refund recorded. The main payment on this booking was refunded earlier too.',

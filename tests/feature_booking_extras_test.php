@@ -764,6 +764,52 @@ try {
         bxHttp($adminClient,$baseUrl,'/admin/promotions',['_token'=>$adminToken,'code'=>$capped,'description'=>'Audit cap of 0.5','discount_type'=>'percent','discount_value'=>'10','max_discount_amount'=>'0.5','valid_from'=>bxDay($monday,0),'valid_to'=>bxDay($monday,30)]);
         $promotions[$capped]=null;
         bxExpect(bxFindPromotion($extras,$adminId,$capped)!==null,'A cap of 0.5 was refused by the server though the routine and the form take it.');
+        // Long text is saved whole or refused, never cut. A TEXT column holds 65535 bytes, so the description's limit is the column's and not a count of characters.
+        foreach ([[$hostClient,'/host/listings/'.$newListing,'/host/listings/'.$newListing.'/edit',$hostToken,$newListing],[$adminClient,'/admin/listings/'.$listingId,'/admin/listings/'.$listingId.'/edit',$adminToken,$listingId]] as [$client,$action,$formPath,$token,$targetListing]) {
+            foreach ([str_repeat('ế',21845),str_repeat('😀',16383),str_repeat('😀',16383).'abc',str_repeat('a',65535)] as $text) {
+                bxHttp($client,$baseUrl,$action,['_token'=>$token]+array_merge($data,['description'=>$text]));
+                bxExpect($listings->findOwned($targetListing,$hostId)['description']===$text,$action.' did not save '.strlen($text).' bytes of text whole.');
+            }
+            $saved=$listings->findOwned($targetListing,$hostId)['description'];
+            foreach ([str_repeat('ế',21846),str_repeat('ế',30000),str_repeat('😀',16384),str_repeat('😀',16383).'abcd',str_repeat('a',65536)] as $text) {
+                $response=bxHttp($client,$baseUrl,$action,['_token'=>$token]+array_merge($data,['description'=>$text]));
+                $body=bxHttp($client,$baseUrl,$formPath)['body'];
+                bxExpect($response['location']===$formPath && str_contains($body,'Mô tả quá dài nên chưa được lưu') && str_contains($body,'>'.$text.'</textarea>'),$action.' did not refuse '.strlen($text).' bytes with a clear message, or lost what was typed.');
+                bxExpect($listings->findOwned($targetListing,$hostId)['description']===$saved,$action.' changed the description when it refused.');
+            }
+        }
+        bxHttp($adminClient,$baseUrl,'/admin/listings/'.$listingId,['_token'=>$adminToken]+$data);
+        // A block reason has a server limit, only when blocking: opening a day stores no reason, so nothing there can be refused.
+        $blockPath='/api/host/listings/'.$listingId.'/availability'; $blockPage='/host/listings/'.$listingId.'/availability';
+        $blockDay=bxDay($monday,70); $blockEnd=bxDay($monday,71);
+        foreach ([str_repeat('ế',5001),str_repeat('😀',5001)] as $text) {
+            bxHttp($hostClient,$baseUrl,$blockPath,['_token'=>$hostToken,'date'=>$blockDay,'reason'=>$text,'open'=>'0']);
+            $body=bxHttp($hostClient,$baseUrl,$blockPage)['body'];
+            bxExpect(str_contains($body,'Lý do chặn ngày tối đa 5000 ký tự.') && str_contains($body,'value="'.$text.'"'),'A block reason over the limit was not refused, or lost what was typed.');
+            bxExpect((string)$listings->calendar($listingId,$hostId,$blockDay,$blockEnd)[0]['block_reason']==='','A refused block reason still blocked the day.');
+        }
+        $response=bxHttp($hostClient,$baseUrl,$blockPath,['_token'=>$hostToken,'date'=>$blockDay,'reason'=>str_repeat('ế',5001),'open'=>'0'],'application/json');
+        bxExpect($response['status']===422 && (string)(json_decode($response['body'],true)['message']??'')==='Lý do chặn ngày tối đa 5000 ký tự.','The calendar API did not refuse a long block reason.');
+        foreach ([str_repeat('ế',5000),str_repeat('😀',5000)] as $text) {
+            bxHttp($hostClient,$baseUrl,$blockPath,['_token'=>$hostToken,'date'=>$blockDay,'reason'=>$text,'open'=>'0']);
+            bxExpect($listings->calendar($listingId,$hostId,$blockDay,$blockEnd)[0]['block_reason']===$text,'A block reason at the limit was not saved whole.');
+            bxHttp($hostClient,$baseUrl,$blockPage);
+        }
+        bxHttp($hostClient,$baseUrl,$blockPath,['_token'=>$hostToken,'date'=>$blockDay,'reason'=>str_repeat('ế',5001),'open'=>'1']);
+        bxExpect(!str_contains(bxHttp($hostClient,$baseUrl,$blockPage)['body'],'Lý do chặn ngày tối đa') && (string)$listings->calendar($listingId,$hostId,$blockDay,$blockEnd)[0]['block_reason']==='','Opening a day was refused because of a reason it does not store.');
+        // A cancel reason too: refused on the booking page, which keeps what was typed and leaves the booking as it was.
+        foreach ([str_repeat('ế',5000),str_repeat('😀',5000)] as $offset=>$text) {
+            $longReason=$service->create($listingId,$guestId,bxDay($monday,80+3*$offset),bxDay($monday,82+3*$offset),1);
+            $tooLong=$offset===0?str_repeat('ế',5001):str_repeat('😀',30000);
+            $response=bxHttp($guestClient,$baseUrl,'/bookings/'.$longReason.'/cancel',['_token'=>$guestToken,'reason'=>$tooLong]);
+            $body=bxHttp($guestClient,$baseUrl,'/bookings/'.$longReason)['body'];
+            bxExpect($response['location']==='/bookings/'.$longReason && str_contains($body,'Lý do hủy tối đa 5000 ký tự.') && str_contains($body,'value="'.$tooLong.'"'),'A cancel reason over the limit was not refused, or lost what was typed.');
+            bxExpect(bxInspect($longReason)['status']!=='cancelled','A refused cancel reason still cancelled the booking.');
+            bxExpect(!str_contains(bxHttp($guestClient,$baseUrl,'/bookings/'.$longReason)['body'],'value="'.$tooLong.'"'),'The refused text stayed in the form after the page was left.');
+            $response=bxHttp($guestClient,$baseUrl,'/bookings/'.$longReason.'/cancel',['_token'=>$guestToken,'reason'=>$text]);
+            $state=bxInspect($longReason);
+            bxExpect($response['location']==='/bookings' && $state['status']==='cancelled' && $state['cancel_reason']===$text,'A cancel reason at the limit was not saved whole.');
+        }
         foreach (['weekend_nightly_rate'=>'500.000','holiday_nightly_rate'=>'500.000'] as $field=>$typed) {
             bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing',['_token'=>$hostToken]+array_merge($form,[$field=>$typed]));
             $page=bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing')['body'];

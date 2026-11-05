@@ -63,7 +63,7 @@ $extras=$extras??[];
         <?php if($booking['status']!=='cancelled'): ?><p class="text-muted small"><?= e(__('Đây là mức hoàn theo chính sách; không phải xác nhận đã chuyển tiền. Khi hủy, máy chủ tính lại theo thời điểm thực hiện.')) ?></p><?php endif; ?>
         <?php endif; ?>
         <?php if($actorId===(int)$booking['guest_id'] && $canStillCancel): ?>
-        <form method="post" action="<?= e(url('/bookings/'.$booking['id'].'/cancel')) ?>"><?= csrf_field() ?><label for="cancel-reason"><?= e(__('Lý do hủy')) ?></label><input class="form-control mb-2" id="cancel-reason" name="reason" maxlength="2000"><button class="btn btn-outline-danger" data-confirm="<?= e($moneyHeld?__('Hủy booking theo mức hoàn đang áp dụng?'):__('Bạn chắc chắn muốn hủy booking này?')) ?>"><?= e(__('Hủy booking')) ?></button></form>
+        <form method="post" action="<?= e(url('/bookings/'.$booking['id'].'/cancel')) ?>"><?= csrf_field() ?><label for="cancel-reason"><?= e(__('Lý do hủy')) ?></label><input class="form-control mb-2" id="cancel-reason" name="reason" maxlength="5000" value="<?= e($cancelOld['reason']??'') ?>"><button class="btn btn-outline-danger" data-confirm="<?= e($moneyHeld?__('Hủy booking theo mức hoàn đang áp dụng?'):__('Bạn chắc chắn muốn hủy booking này?')) ?>"><?= e(__('Hủy booking')) ?></button></form>
         <?php endif; ?>
         <?php if($actorId===(int)$booking['host_id'] || \Core\Auth::hasRole('admin')): ?>
         <div class="action-row mt-3"><?php foreach($booking['status']==='pending'?($booking['check_in']>=date('Y-m-d')?['confirmed','rejected']:['rejected']):($booking['status']==='confirmed'&&$booking['check_out']<=date('Y-m-d')?['completed']:[]) as $target): ?>

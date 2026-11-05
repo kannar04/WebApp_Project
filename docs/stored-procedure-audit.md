@@ -496,6 +496,8 @@ Vòng 4, giá, khuyến mãi, hoàn tiền và Host bị khóa:
 | `sp_booking_detail` | `050_quality_core.sql` | Trả thêm `policy_description` (tìm theo tên chính sách trong snapshot) để chính sách có mốc không bao giờ tới hiện đúng lời của nó thay vì “99999 giờ” | `feature_payment_test.php` |
 | `sp_booking_refund_terms`, `sp_booking_cancel`, `sp_booking_refund_preview` | `050_quality_core.sql`, `020_booking.sql` | Thêm `p_booking`. Booking đã có thông báo “Khoản thanh toán sẽ được hoàn lại” được hoàn đủ `amount_due` bất kể chính sách, kể cả sau khi chỗ ở hoặc Host được khôi phục, nên form hoàn tiền của Admin vẫn còn | `feature_payment_test.php` |
 
+`sp_test_booking_extras_inspect` trả thêm `cancel_reason` để kiểm tra lý do hủy được lưu nguyên vẹn.
+
 Test fixture routine mới (1, chỉ cài trong DB test riêng): `sp_test_payment_snapshot_value` (`testing_payment.sql`) ghi một giá trị JSON vào snapshot của booking fixture.
 
 ### Routine mới
