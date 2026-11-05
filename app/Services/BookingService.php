@@ -128,9 +128,9 @@ final class BookingService
 
     private function validateDates(string $checkIn, string $checkOut, int $guests): void
     {
-        $start = DateTimeImmutable::createFromFormat('!Y-m-d', $checkIn);
-        $end = DateTimeImmutable::createFromFormat('!Y-m-d', $checkOut);
-        if (!$start || $start->format('Y-m-d') !== $checkIn || !$end || $end->format('Y-m-d') !== $checkOut) {
+        $start = \Core\Calendar::date($checkIn);
+        $end = \Core\Calendar::date($checkOut);
+        if (!$start || !$end) {
             throw new DomainException('Ngày nhận hoặc trả phòng không hợp lệ.');
         }
         if ($start < new DateTimeImmutable('today')) { throw new DomainException('Không thể đặt ngày trong quá khứ.'); }

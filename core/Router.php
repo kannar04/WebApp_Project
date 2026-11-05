@@ -24,8 +24,10 @@ final class Router
     {
         $uriPath = parse_url($uri, PHP_URL_PATH) ?: '/';
         $path = rawurldecode(app_path($uriPath) ?? $uriPath);
+        // No route has a control character; a NUL or line break must not reach a controller's id or a redirect header.
+        $routes = preg_match('/[\x00-\x1F\x7F]/', $path) ? [] : ($this->routes[$method] ?? []);
 
-        foreach ($this->routes[$method] ?? [] as $route) {
+        foreach ($routes as $route) {
             if (!preg_match($route['pattern'], $path, $matches)) {
                 continue;
             }

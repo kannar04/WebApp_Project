@@ -22,6 +22,12 @@ function expectDomainFailure(callable $operation, string $message): void
     throw new RuntimeException($message);
 }
 
+function calendarMonthRefused(string $value): bool
+{
+    try { \Core\Calendar::month($value); } catch (DomainException $exception) { return true; }
+    return false;
+}
+
 /** app_path() as a request whose front controller is $scriptName sees it. */
 function appPathUnder(string $scriptName, string $path): ?string
 {
@@ -198,10 +204,43 @@ try {
     expect(auditSignIn($viaFolder, $subfolderServer['url'].'/WebApp/public', $form, 'guest@home2home.test') === '/WebApp/public/bookings', 'Folder address lost the protected page.');
     $elsewhere = auditBrowser();
     expect(auditRequest($elsewhere, $subfolderServer['url'].'/WebApp/public/login', ['_token' => 'stale'], $subfolderServer['url'].'/phpmyadmin/')['location'] === '/WebApp/public/', 'Expired form followed a Referer outside the app.');
+    echo "PASS sign-in return, expired form and language switch keep the base exactly once at the root and under a sub-folder\n";
+
+    $url = $rootServer['url'];
+    foreach (["\0", "2027-02-01\0", "\x002027-02-01", '2027-02-30', '2027-2-1', '', 'x'] as $badDate) {
+        expect(\Core\Calendar::date($badDate) === null, 'Bad date accepted.');
+    }
+    expect(\Core\Calendar::date('2027-02-01')?->format('Y-m-d') === '2027-02-01', 'Good date refused.');
+    expect(calendarMonthRefused("\0") && calendarMonthRefused("2027-02\0") && !calendarMonthRefused('2027-02'), 'Month parser must refuse a NUL as invalid.');
+    $anonymous = auditBrowser(); $admin = auditBrowser(); $hostBrowser = auditBrowser();
+    auditSignIn($admin, $url, auditRequest($admin, $url.'/login')['body'], 'admin@home2home.test');
+    auditSignIn($hostBrowser, $url, auditRequest($hostBrowser, $url.'/login')['body'], 'host@home2home.test');
+    $adminToken = auditFormToken(auditRequest($admin, $url.'/profile')['body']);
+    foreach ($routes as $method => $methodRoutes) {
+        foreach ($methodRoutes as $route) {
+            $path = (string) preg_replace('~^#\^|/\?\$#$~', '', $route['pattern']);
+            $withControl = str_contains($path, '(?P<') ? [preg_replace('/\(\?P<\w+>\[\^\/\]\+\)/', '%00', $path), preg_replace('/\(\?P<\w+>\[\^\/\]\+\)/', '1%0A', $path)] : [$path.'%00', $path.'%0A'];
+            foreach ($withControl as $badPath) {
+                $response = auditRequest($admin, $url.$badPath, $method === 'POST' ? ['_token' => $adminToken] : null);
+                expect($response['status'] === 404 && str_contains($response['body'], '<html'), "Control character in a path must give the normal 404: $method $badPath got ".$response['status']);
+            }
+            if ($method === 'GET') {
+                $response = auditRequest($admin, $url.preg_replace('/\(\?P<\w+>\[\^\/\]\+\)/', '1', $path).'?month=%00&check_in=%00&check_out=%00&guests=%00&q=%00&status=%00&page=%00&next=%00&promo_code=%00');
+                expect($response['status'] < 500 && ($response['location'] !== '' || trim($response['body']) !== ''), "NUL in a query must not break: GET $path got ".$response['status']);
+            }
+        }
+    }
+    $monthPage = auditRequest($anonymous, $url.'/listings/1?month=%00');
+    expect($monthPage['status'] === 200 && str_contains($monthPage['body'], 'Tháng không hợp lệ.'), 'NUL month must read as an invalid month.');
+    $quote = auditRequest($anonymous, $url.'/api/listings/1/quote?check_in=%00&check_out=2027-02-03&guests=1');
+    expect($quote['status'] === 422 && (json_decode($quote['body'], true)['success'] ?? null) === false, 'NUL date in a quote must be a 422.');
+    $hostToken = auditFormToken(auditRequest($hostBrowser, $url.'/profile')['body']);
+    $blocked = auditRequest($hostBrowser, $url.'/api/host/listings/1/availability', '_token='.$hostToken.'&date=%00&open=1', '', ['Accept: application/json']);
+    expect($blocked['status'] === 422 && (json_decode($blocked['body'], true)['message'] ?? '') === 'Ngày không hợp lệ.', 'NUL date on the availability form must be refused.');
+    echo "PASS control characters in any route path give the 404 page; NUL in query and date values is an ordinary invalid value\n";
 } finally {
     auditServerStop($rootServer); auditServerStop($subfolderServer);
 }
-echo "PASS sign-in return, expired form and language switch keep the base exactly once at the root and under a sub-folder\n";
 
 $userModel = new User();
 $host = $userModel->findByEmail('host@home2home.test');

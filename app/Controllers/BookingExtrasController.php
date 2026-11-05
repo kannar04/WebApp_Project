@@ -225,8 +225,7 @@ final class BookingExtrasController extends Controller
 
     private function date(string $value, string $message): string
     {
-        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-        if (!$date || $date->format('Y-m-d') !== $value) { throw new \DomainException($message); }
+        if (\Core\Calendar::date($value) === null) { throw new \DomainException($message); }
         return $value;
     }
 }
