@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Controllers;
 use App\Models\Booking;
+use App\Models\Trust;
 use App\Models\User;
 use App\Services\DiscoveryService;
 use App\Services\UploadService;
@@ -32,6 +33,11 @@ final class ProfileController extends Controller
         if (!is_string($rawName) || !is_string($rawPhone) || $name === '' || mb_strlen($name) > 150 || strlen($phone) > 20) {
             Session::put('_profile_old', ['full_name' => $name, 'phone' => $phone]);
             Session::flash('error', 'Họ tên và số điện thoại không hợp lệ hoặc vượt giới hạn độ dài.');
+            $this->redirect('/profile#personal');
+        }
+        if (!Trust::phoneAllowed($phone)) {
+            Session::put('_profile_old', ['full_name' => $name, 'phone' => $phone]);
+            Session::flash('error', Trust::PHONE_RULE);
             $this->redirect('/profile#personal');
         }
         try {

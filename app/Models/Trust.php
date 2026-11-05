@@ -13,6 +13,14 @@ final class Trust
     public function __construct() { $this->db = Database::connection(); }
 
     /** Keeps digits only and rewrites +84/84 to the domestic 0 prefix; the routine validates the result. */
+    public const PHONE_RULE = 'Số điện thoại di động Việt Nam không hợp lệ (10 chữ số, bắt đầu bằng 03, 05, 07, 08 hoặc 09).';
+
+    /** Identity verification's phone rule, for the forms where a phone is optional: blank passes. Spaces and +84 are accepted, as there. */
+    public static function phoneAllowed(string $raw): bool
+    {
+        return trim($raw) === '' || preg_match('/^0[35789][0-9]{8}$/D', self::normalizePhone($raw)) === 1;
+    }
+
     public static function normalizePhone(string $raw): string
     {
         $phone = preg_replace('/[\s.\-()]+/u', '', trim($raw)) ?? '';

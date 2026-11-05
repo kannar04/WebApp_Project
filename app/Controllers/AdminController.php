@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 use App\Models\AdminRepository;
 use App\Models\Booking;
+use App\Models\Trust;
 use App\Models\User;
 use App\Services\BookingService;
 use Core\Controller;
@@ -64,6 +65,7 @@ final class AdminController extends Controller
             Session::flash('error','Thông tin tài khoản mới không hợp lệ.'); $this->redirect('/admin');
         }
         if (!Validator::passwordAllowed($data['password'])) { Session::flash('error',Validator::PASSWORD_RULE); $this->redirect('/admin'); }
+        if (!Trust::phoneAllowed($data['phone'])) { Session::flash('error',Trust::PHONE_RULE); $this->redirect('/admin'); }
         $database=Database::connection(); $database->beginTransaction();
         try {
             $newId=(new User())->adminCreate($data,$roles);
@@ -102,6 +104,11 @@ final class AdminController extends Controller
         if ($data['password'] !== '' && !Validator::passwordAllowed($data['password'])) {
             Session::old(array_diff_key($data, ['password'=>1]));
             Session::flash('error', Validator::PASSWORD_RULE);
+            $this->redirect('/admin/users/'.$userId.'/edit');
+        }
+        if (!Trust::phoneAllowed($data['phone'])) {
+            Session::old(array_diff_key($data, ['password'=>1]));
+            Session::flash('error', Trust::PHONE_RULE);
             $this->redirect('/admin/users/'.$userId.'/edit');
         }
         $roles = $_POST['roles'] ?? ['guest'];

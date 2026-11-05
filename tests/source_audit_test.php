@@ -364,6 +364,57 @@ try {
     auditOversizedPost(['display_startup_errors' => '1', 'output_buffering' => '4096'], true);
     auditOversizedPost(['display_startup_errors' => '0', 'output_buffering' => '0'], false);
     echo "PASS a POST over post_max_size says so with the limit, returns to its page and changes nothing\n";
+
+    foreach (['', '   ', '0912345678', '0912 345 678', '+84 912 345 678', '84912345678', '(091) 234-5678'] as $goodPhone) {
+        expect(\App\Models\Trust::phoneAllowed($goodPhone), "Phone refused: $goodPhone");
+    }
+    foreach (['abc', '0212345678', '091234567', '09123456789', '---', "0912345678\xff", "09\x0012345678", '"><img src=x>'] as $badPhone) {
+        expect(!\App\Models\Trust::phoneAllowed($badPhone), 'Bad phone accepted.');
+    }
+    $phoneEmail = "audit-phone-$tag@home2home.test";
+    $browser = auditBrowser();
+    $form = auditRequest($browser, $url.'/register')['body'];
+    $result = auditRequest($browser, $url.'/register', ['_token' => auditFormToken($form), 'full_name' => 'Audit', 'email' => $phoneEmail, 'phone' => 'abc', 'password' => 'Abcdefgh1']);
+    expect($result['location'] === '/register' && $passwordModel->findByEmail($phoneEmail) === null, 'Register accepted a bad phone.');
+    expect(str_contains(auditRequest($browser, $url.'/register')['body'], \App\Models\Trust::PHONE_RULE), 'Register must state the phone rule.');
+    $result = auditRequest($admin, $url.'/admin/users', ['_token' => $adminToken, 'full_name' => 'Audit', 'email' => $phoneEmail, 'phone' => 'abc', 'password' => 'Abcdefgh1', 'roles' => ['guest']]);
+    expect($result['location'] === '/admin' && $passwordModel->findByEmail($phoneEmail) === null, 'Admin create accepted a bad phone.');
+    expect(str_contains(auditRequest($admin, $url.'/admin')['body'], \App\Models\Trust::PHONE_RULE), 'Admin create must state the phone rule.');
+    $phoneFixture = $passwordModel->create($phoneEmail, 'Password123!', 'Audit phone fixture', '0912345678');
+    $seedGuest = $passwordModel->findByEmail('guest@home2home.test');
+    $phoneBookingId = null;
+    try {
+        auditRequest($admin, $url.'/admin/users/'.$phoneFixture, ['_token' => $adminToken, 'full_name' => 'Audit phone fixture', 'email' => $phoneEmail, 'phone' => 'abc', 'password' => '', 'roles' => ['guest']]);
+        expect($passwordModel->findByEmail($phoneEmail)['phone'] === '0912345678', 'Admin edit accepted a bad phone.');
+        auditRequest($admin, $url.'/admin/users/'.$phoneFixture, ['_token' => $adminToken, 'full_name' => 'Audit phone fixture', 'email' => $phoneEmail, 'phone' => '+84 912 345 679', 'password' => '', 'roles' => ['guest']]);
+        expect($passwordModel->findByEmail($phoneEmail)['phone'] === '+84 912 345 679', 'Admin edit refused a good phone.');
+        $phoneBrowser = auditBrowser();
+        auditSignIn($phoneBrowser, $url, auditRequest($phoneBrowser, $url.'/login')['body'], $phoneEmail);
+        $profileToken = auditFormToken(auditRequest($phoneBrowser, $url.'/profile')['body']);
+        auditRequest($phoneBrowser, $url.'/profile', ['_token' => $profileToken, 'full_name' => 'Audit phone fixture', 'phone' => 'abc'], $url.'/profile');
+        $returned = auditRequest($phoneBrowser, $url.'/profile')['body'];
+        expect($passwordModel->findByEmail($phoneEmail)['phone'] === '+84 912 345 679' && str_contains($returned, \App\Models\Trust::PHONE_RULE) && str_contains($returned, 'value="abc"'), 'Profile must refuse a bad phone and keep what was typed.');
+        auditRequest($phoneBrowser, $url.'/profile', ['_token' => $profileToken, 'full_name' => 'Audit phone fixture', 'phone' => ''], $url.'/profile');
+        expect($passwordModel->findByEmail($phoneEmail)['phone'] === null, 'The phone stays optional on the profile.');
+        // A value stored before this rule still has to display safely wherever it is shown.
+        $badStored = '"><img src=x>';
+        $passwordModel->updateProfile((int) $seedGuest['id'], $seedGuest['full_name'], $badStored, $seedGuest['avatar_url']);
+        $service = new BookingService();
+        $hostRow = $passwordModel->findByEmail('host@home2home.test');
+        $booked = $service->book(1, (int) $seedGuest['id'], '2098-03-01', '2098-03-03', 1);
+        $phoneBookingId = $booked['booking_id'];
+        if ($booked['status'] === 'pending') { $service->hostTransition($phoneBookingId, (int) $hostRow['id'], 'confirmed'); }
+        foreach ([$url.'/bookings/'.$phoneBookingId, $url.'/host'] as $page) {
+            $shown = auditRequest($hostBrowser, $page);
+            expect($shown['status'] === 200 && str_contains($shown['body'], e($badStored)) && !str_contains($shown['body'], $badStored), 'A stored bad phone must display escaped: '.$page);
+        }
+        expect(str_contains(auditRequest($hostBrowser, $url.'/bookings/'.$phoneBookingId)['body'], 'href="tel:'.e($badStored).'"'), 'A stored bad phone must stay inside its tel: link.');
+    } finally {
+        if ($phoneBookingId !== null) { $database->prepare('CALL sp_test_cleanup_booking(?)')->execute([$phoneBookingId]); }
+        $passwordModel->updateProfile((int) $seedGuest['id'], $seedGuest['full_name'], $seedGuest['phone'], $seedGuest['avatar_url']);
+        $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$phoneFixture]);
+    }
+    echo "PASS phone uses the identity verification rule on register, profile, admin create and edit, blank allowed; a stored bad value displays escaped\n";
 } finally {
     auditServerStop($rootServer); auditServerStop($subfolderServer);
 }
