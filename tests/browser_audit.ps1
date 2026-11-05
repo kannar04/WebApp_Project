@@ -148,6 +148,14 @@ function Check-SubmitGuards([string]$BookingPath) {
     Write-Output 'PASS browser message guard covers button and Ctrl+Enter, released for retry with the text kept'
 }
 
+function Check-SubmitStopRelease([string]$Selector, [string]$Path, [string]$Fill) {
+    # Pressing Stop fires no event, so the search and booking buttons must come back on the timer. Events only, so nothing is sent.
+    Navigate $Path
+    $selectorJson=ConvertTo-Json $Selector -Compress
+    $release=Evaluate "(function(){const f=document.querySelector($selectorJson);$Fill;const b=f.querySelector('button[type=submit]');const idle=b.textContent;const realTimeout=window.setTimeout;const timers=[];window.setTimeout=function(callback,delay,form){if(delay===20000){timers.push({callback,form});return 0;}return realTimeout(callback,delay,form);};const send=function(){const e=new Event('submit',{cancelable:true});f.dispatchEvent(e);return e.defaultPrevented;};const first=send();const second=send();window.setTimeout=realTimeout;const locked=b.disabled&&f.dataset.submitting==='true';const armed=timers.length;timers[0].callback(timers[0].form);const released=!b.disabled&&!f.dataset.submitting&&!f.hasAttribute('aria-busy')&&b.textContent===idle;return {first,second,locked,armed,released};})()"
+    if ($release.first -or !$release.second -or !$release.locked -or $release.armed -ne 1 -or !$release.released) { throw "Submit guard has no timer release on $Path`: $($release | ConvertTo-Json -Compress)" }
+}
+
 function Check-BookingRefusal {
     # The promo code does not exist, so nothing is booked: the form comes back filled and the quote panel matches it.
     Navigate '/listings/1'
@@ -270,6 +278,9 @@ try {
     if (!$quoteRecovery) { throw 'Quote error recovery/reset failed' }
     Write-Output 'PASS quote error recovery and clearing stale totals'
     Check-FilterResubmit
+    Check-SubmitStopRelease '[data-search-form]' '/' "f.elements.location.value='Stop test'"
+    Check-SubmitStopRelease '[data-filter-form]' '/' "f.elements.min_price.value='7000'"
+    Write-Output 'PASS browser search and filter guards release on the timer after Stop'
     Check-RegisterDoubleClick
 
     Navigate '/login'
@@ -291,6 +302,8 @@ try {
         }
     }
     Check-SubmitGuards $bookingPath
+    Check-SubmitStopRelease '[data-booking-form]' '/listings/1' "f.elements.check_in.value='2035-05-10';f.elements.check_out.value='2035-05-12'"
+    Write-Output 'PASS browser booking guard releases on the timer after Stop'
     Check-BookingRefusal
     Check-FlashReveal
     Check-PostGuardEvents

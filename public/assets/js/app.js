@@ -48,6 +48,7 @@
         if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
         if (isFragmentOnlySubmit(form)) { return; }
         markFormBusy(form, h2hT('Đang tìm…'));
+        scheduleFormRelease(form);
     }
 
     function watchSearchSubmit(form) {
@@ -74,6 +75,13 @@
         const form = event.currentTarget;
         if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
         markFormBusy(form, h2hT('Đang gửi…'));
+        scheduleFormRelease(form);
+    }
+
+    function handleBookingSubmit(event) {
+        const form = event.currentTarget;
+        if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
+        markFormBusy(form, h2hT('Đang gửi yêu cầu…'));
         scheduleFormRelease(form);
     }
 
@@ -255,14 +263,7 @@
             fields.forEach(field => field.addEventListener('input', updateQuote));
             // Dates kept after a refused request need a total too, so the panel matches the form.
             if (fields[0].value && fields[1].value) { updateQuote(); }
-            bookingForm.addEventListener('submit', () => {
-                const submitButton = bookingForm.querySelector('button[type="submit"]');
-                if (submitButton) {
-                    submitButton.dataset.idleLabel = submitButton.textContent;
-                    submitButton.disabled = true;
-                    submitButton.textContent = h2hT('Đang gửi yêu cầu…');
-                }
-            });
+            bookingForm.addEventListener('submit', handleBookingSubmit);
         }
 
         document.querySelectorAll('[data-confirm]').forEach(button => {
