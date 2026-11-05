@@ -88,7 +88,7 @@ final class AdminArticleController extends Controller
         Csrf::ensure();
         $user = $this->requireRole('admin');
         $status = $_POST['status'] ?? '';
-        $back = ($_POST['return'] ?? '') === 'edit' ? '/admin/articles/'.(int) $id.'/edit' : '/admin/articles';
+        $back = ($_POST['return'] ?? '') === 'edit' ? '/admin/articles/'.(int) $id.'/edit' : self::listReturnPath('/admin/articles');
         try {
             if (!is_string($status) || !isset(self::STATUSES[$status])) { throw new \DomainException('Trạng thái bài viết không hợp lệ.'); }
             (new Article())->setStatus((int) $user['id'], (int) $id, $status);
@@ -109,7 +109,7 @@ final class AdminArticleController extends Controller
         } catch (\DomainException $exception) {
             Session::flash('error', $exception->getMessage());
         }
-        $this->redirect('/admin/articles');
+        $this->redirect(self::listReturnPath('/admin/articles'));
     }
 
     private function persist(array $user, ?array $existing): never

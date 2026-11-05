@@ -446,6 +446,32 @@ $request('/api/host/listings/1/availability',['_token'=>$token($monthPage),'date
 $logout();
 echo "PASS QA refused admin create, catalog and availability forms keep their input, availability stays on its month\n";
 
+// Article actions on the admin list return to the same filtered page; a forged return path gives the plain list.
+$login('admin');
+$articleMark='qa-return-'.bin2hex(random_bytes(4));
+foreach ([1,2] as $number) { $request('/admin/articles',['_token'=>$token($request('/admin/articles/create')),'title'=>'Bai '.$articleMark.' '.$number,'category'=>'guide','slug'=>$articleMark.'-'.$number,'excerpt'=>'Tom tat bai','body'=>'Noi dung du dai cho bai kiem thu tro ve danh sach.','intent'=>'draft']); }
+$listPath='/admin/articles?q='.$articleMark.'&category=guide&status=draft&page=1';
+$list=$request($listPath);
+qaExpect(preg_match_all('#/admin/articles/(\d+)/status"#',$list['body'],$found)===2,'Article list fixtures were not created.');
+qaExpect(preg_match_all('#/admin/articles/\d+/(?:status|delete)"><input type="hidden" name="_token" value="[^"]+"><input type="hidden" name="return_path" value="'.preg_quote(e($listPath),'#').'">#',$list['body'])===4,'Article list forms do not carry the current page and filters.');
+$articleOne=(int)$found[1][0]; $articleTwo=(int)$found[1][1];
+$articleToken=$token($list);
+$toggled=$request('/admin/articles/'.$articleOne.'/status',['_token'=>$articleToken,'status'=>'published','return_path'=>$listPath]);
+qaExpect($toggled['url']===$baseUrl.$listPath && str_contains($toggled['body'],'alert-success'),'Article status change left the filtered list.');
+foreach (['//evil.example/admin/articles','https://evil.example/admin/articles','/admin/users','/admin/articles/../users','/admin/articles/'.$articleOne.'/edit','/\\evil.example/admin/articles',"/admin/articles?x=1\r\nX-Evil: 1",''] as $forged) {
+    $sent=$request('/admin/articles/'.$articleOne.'/status',['_token'=>$articleToken,'status'=>'draft','return_path'=>$forged]);
+    qaExpect($sent['url']===$baseUrl.'/admin/articles','Article status followed a forged return path: '.$forged);
+}
+$toEdit=$request('/admin/articles/'.$articleOne.'/status',['_token'=>$articleToken,'status'=>'draft','return'=>'edit','return_path'=>$listPath]);
+qaExpect($toEdit['url']===$baseUrl.'/admin/articles/'.$articleOne.'/edit','Status change from the edit page no longer returns to it.');
+$pastEnd='/admin/articles?q='.$articleMark.'&page=9';
+$deleted=$request('/admin/articles/'.$articleTwo.'/delete',['_token'=>$articleToken,'return_path'=>$pastEnd]);
+qaExpect($deleted['url']===$baseUrl.$pastEnd && $deleted['status']===200 && str_contains($deleted['body'],'alert-success') && substr_count($deleted['body'],'/articles/'.$articleMark.'-')===1,'Article delete left the filtered list.');
+$deleted=$request('/admin/articles/'.$articleOne.'/delete',['_token'=>$articleToken,'return_path'=>'//evil.example/admin/articles']);
+qaExpect($deleted['url']===$baseUrl.'/admin/articles','Article delete followed a forged return path.');
+$logout();
+echo "PASS QA admin article actions return to the same list page and filters, forged return paths give the plain list\n";
+
 $passwordUser=new User(); $email='quality-password-'.bin2hex(random_bytes(6)).'@home2home.test';
 $oldPassword='QaOld!'.bin2hex(random_bytes(10)); $newPassword='QaNew!'.bin2hex(random_bytes(10));
 $passwordId=$passwordUser->create($email,$oldPassword,'Quality password test',null);
