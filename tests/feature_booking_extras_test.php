@@ -616,6 +616,31 @@ try {
     $shownBooking=$service->book($shownListing,$guestId,bxDay($monday,14),bxDay($monday,16),1,'',(string)$quoted['total']);
     bxExpect($shownBooking['status']==='pending' && bxBookingCount($shownListing)===1,'The total the quote showed was refused.');
 
+    // A real number above the maximum is told the maximum; anything else, however long, is still the format and minimum message.
+    foreach (['10000000000','9999999999.999','10000000000.50','99999999999999999999'] as $typed) {
+        $said='';
+        try { Validator::decimal($typed,0.5,Validator::MONEY_MAX,'format','too large'); }
+        catch (DomainException $exception) { $said=$exception->getMessage(); }
+        bxExpect($said==='too large','A too-large '.$typed.' got: '.$said);
+    }
+    foreach (['500.000','1.200.000','500.000.000.000','500,000','1e30','-10000000000','abc','0.4'] as $typed) {
+        $said='';
+        try { Validator::decimal($typed,0.5,Validator::MONEY_MAX,'format','too large'); }
+        catch (DomainException $exception) { $said=$exception->getMessage(); }
+        bxExpect($said==='format','A malformed or too small '.$typed.' got: '.$said);
+    }
+    bxExpect(Validator::decimal('9999999999.99',0.5,Validator::MONEY_MAX,'format','too large')==='9999999999.99','The largest price was refused.');
+    $said='';
+    try { Validator::listingPrices(['nightly_price'=>'10000000000','cleaning_fee'=>'0']); } catch (DomainException $exception) { $said=$exception->getMessage(); }
+    bxExpect($said==='Giá mỗi đêm tối đa là 9.999.999.999đ.','A too-large nightly price got: '.$said);
+    $said='';
+    try { Validator::listingPrices(['nightly_price'=>'500000','cleaning_fee'=>'10000000000']); } catch (DomainException $exception) { $said=$exception->getMessage(); }
+    bxExpect($said==='Phụ phí tối đa là 9.999.999.999đ.','A too-large fee got: '.$said);
+    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,'0.4',null,null,null,false],'phải từ 1đ trở lên','The routine accepted a rate rounding to 0');
+    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,null,'0.4',null,null,false],'phải từ 1đ trở lên','The routine accepted a holiday rate rounding to 0');
+    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,'10000000000',null,null,null,false],'tối đa là 9.999.999.999đ','The routine clipped a weekend rate over the maximum');
+    bxRejects([$extras,'saveHostSettings'],[$listingId,$hostId,null,'10000000000',null,null,false],'tối đa là 9.999.999.999đ','The routine clipped a holiday rate over the maximum');
+
     // One parser for every form that saves money: to a Vietnamese user 500.000 is five hundred thousand, never 500đ.
     foreach (['500.000','1.200.000','500,000','1e3','0x1A','-5','abc','0.4','12345678901'] as $typed) {
         $refused=false;
@@ -712,6 +737,33 @@ try {
         bxHttp($adminClient,$baseUrl,'/admin/listings/'.$listingId,['_token'=>$adminToken]+$data);
         $owned=$listings->findOwned($listingId,$hostId);
         bxExpect((string)$owned['nightly_price']===$priceBefore && (string)$owned['cleaning_fee']===$feeBefore,'Admin listing form did not restore the fixture price.');
+        // Each field over its maximum says the maximum, not the minimum, in Vietnamese and in English.
+        foreach ([['/host/listings/'.$listingId.'/edit','/host/listings/'.$listingId,$hostClient,['_token'=>$hostToken]+array_merge($data,['nightly_price'=>'10000000000']),'Giá mỗi đêm tối đa là 9.999.999.999đ.','Giá mỗi đêm phải từ'],
+            ['/host/listings/'.$listingId.'/edit','/host/listings/'.$listingId,$hostClient,['_token'=>$hostToken]+array_merge($data,['cleaning_fee'=>'10000000000']),'Phụ phí tối đa là 9.999.999.999đ.','Phụ phí không được âm'],
+            ['/admin/listings/'.$listingId.'/edit','/admin/listings/'.$listingId,$adminClient,['_token'=>$adminToken]+array_merge($data,['nightly_price'=>'10000000000']),'Giá mỗi đêm tối đa là 9.999.999.999đ.','Giá mỗi đêm phải từ'],
+            ['/host/listings/'.$listingId.'/pricing','/host/listings/'.$listingId.'/pricing',$hostClient,['_token'=>$hostToken]+array_merge($form,['weekend_nightly_rate'=>'10000000000']),'Giá cuối tuần tối đa là 9.999.999.999đ.','Giá cuối tuần phải là số'],
+            ['/host/listings/'.$listingId.'/pricing','/host/listings/'.$listingId.'/pricing',$hostClient,['_token'=>$hostToken]+array_merge($form,['holiday_nightly_rate'=>'10000000000']),'Giá ngày lễ tối đa là 9.999.999.999đ.','Giá ngày lễ phải là số']] as [$page,$action,$client,$fields,$right,$wrong]) {
+            $saved=(string)$listings->findOwned($listingId,$hostId)['nightly_price'];
+            $savedFee=(string)$listings->findOwned($listingId,$hostId)['cleaning_fee'];
+            $savedWeekend=(string)$extras->hostSettings($listingId,$hostId)['weekend_nightly_rate'];
+            bxHttp($client,$baseUrl,$action,$fields);
+            $body=bxHttp($client,$baseUrl,$page)['body'];
+            bxExpect(str_contains($body,$right) && !str_contains($body,$wrong) && str_contains($body,'value="10000000000"'),$action.' did not name the maximum or lost what was typed.');
+            bxExpect((string)$listings->findOwned($listingId,$hostId)['nightly_price']===$saved && (string)$listings->findOwned($listingId,$hostId)['cleaning_fee']===$savedFee && (string)$extras->hostSettings($listingId,$hostId)['weekend_nightly_rate']===$savedWeekend,$action.' saved a price over the maximum.');
+        }
+        $promotions['TBXOVER'.$suffix]=null;
+        foreach ([['discount_value','10000000000','Giá trị giảm quá lớn: số tiền tối đa là 9.999.999.999đ, phần trăm tối đa là 100.','Giá trị giảm phải lớn hơn 0'],['max_discount_amount','10000000000','Mức giảm tối đa không được quá 9.999.999.999đ.','Mức giảm tối đa phải từ'],
+            ['max_discount_amount','0.4','Mức giảm tối đa phải từ 1đ trở lên.','phải lớn hơn 0'],['min_subtotal','10000000000','Tiền phòng tối thiểu không được quá 9.999.999.999đ.','Tiền phòng tối thiểu không hợp lệ'],['usage_limit','1000001','Giới hạn lượt dùng phải từ 1 đến 1.000.000.','phải từ 1 trở lên']] as [$field,$typed,$right,$wrong]) {
+            bxHttp($adminClient,$baseUrl,'/admin/promotions',array_merge(['_token'=>$adminToken,'code'=>'TBXOVER'.$suffix,'description'=>'Audit over the maximum','discount_type'=>'fixed','discount_value'=>'50000','valid_from'=>bxDay($monday,0),'valid_to'=>bxDay($monday,30)],[$field=>$typed]));
+            $body=bxHttp($adminClient,$baseUrl,'/admin/promotions')['body'];
+            bxExpect(str_contains($body,$right) && !str_contains($body,$wrong),'/admin/promotions gave the wrong message for '.$field.'='.$typed);
+            bxExpect(bxFindPromotion($extras,$adminId,'TBXOVER'.$suffix)===null,'A promotion over the maximum was saved: '.$field.'='.$typed);
+        }
+        // A cap of 0.5 charges 1đ everywhere else, so the form, the controller and the routine take it alike.
+        $capped='TBXCAP'.$suffix;
+        bxHttp($adminClient,$baseUrl,'/admin/promotions',['_token'=>$adminToken,'code'=>$capped,'description'=>'Audit cap of 0.5','discount_type'=>'percent','discount_value'=>'10','max_discount_amount'=>'0.5','valid_from'=>bxDay($monday,0),'valid_to'=>bxDay($monday,30)]);
+        $promotions[$capped]=null;
+        bxExpect(bxFindPromotion($extras,$adminId,$capped)!==null,'A cap of 0.5 was refused by the server though the routine and the form take it.');
         foreach (['weekend_nightly_rate'=>'500.000','holiday_nightly_rate'=>'500.000'] as $field=>$typed) {
             bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing',['_token'=>$hostToken]+array_merge($form,[$field=>$typed]));
             $page=bxHttp($hostClient,$baseUrl,'/host/listings/'.$listingId.'/pricing')['body'];

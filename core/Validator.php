@@ -12,11 +12,13 @@ final class Validator
     /**
      * A price, fee or percent on any form: digits with up to 2 decimals after a dot, so the Vietnamese 500.000 is refused instead of read as 500.
      * Blank gives null: each form decides what blank means. Returns the number as text, for the DECIMAL parameter of a routine.
+     * $message names the minimum and the format. A real number above the maximum gets $tooLarge instead; a caller whose $message names both limits leaves it out.
      */
-    public static function decimal(string $value, float $minimum, float $maximum, string $message): ?string
+    public static function decimal(string $value, float $minimum, float $maximum, string $message, ?string $tooLarge = null): ?string
     {
         $value = trim($value);
         if ($value === '') { return null; }
+        if ($tooLarge !== null && preg_match('/^\d+(\.\d+)?$/D', $value) === 1 && (float) $value > $maximum) { throw new \DomainException($tooLarge); }
         if (!self::isDecimal($value) || (float) $value < $minimum || (float) $value > $maximum) { throw new \DomainException($message); }
         return $value;
     }
@@ -32,8 +34,8 @@ final class Validator
      */
     public static function listingPrices(array $data): array
     {
-        $data['nightly_price'] = self::decimal($data['nightly_price'] ?: '0', 0.5, self::MONEY_MAX, 'Giá mỗi đêm phải từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.');
-        $data['cleaning_fee'] = self::decimal($data['cleaning_fee'] ?: '0', 0, self::MONEY_MAX, 'Phụ phí không được âm. Viết liền không dấu chấm, ví dụ 50000.');
+        $data['nightly_price'] = self::decimal($data['nightly_price'] ?: '0', 0.5, self::MONEY_MAX, 'Giá mỗi đêm phải từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.', 'Giá mỗi đêm tối đa là 9.999.999.999đ.');
+        $data['cleaning_fee'] = self::decimal($data['cleaning_fee'] ?: '0', 0, self::MONEY_MAX, 'Phụ phí không được âm. Viết liền không dấu chấm, ví dụ 50000.', 'Phụ phí tối đa là 9.999.999.999đ.');
         return $data;
     }
 

@@ -141,6 +141,7 @@ return [
     // ---- 070_booking_extras.sql: Host pricing, holidays, promotions, payments
     'Số ngày lễ cần hiển thị không hợp lệ.' => 'Invalid number of holidays to show.',
     'Giá cuối tuần/ngày lễ phải từ 1đ trở lên.' => 'Weekend/holiday prices must be at least 1đ.',
+    'Giá cuối tuần/ngày lễ tối đa là 9.999.999.999đ.' => 'Weekend/holiday prices can be at most 9,999,999,999đ.',
     'Phần trăm giảm giá phải từ 0 đến 90.' => 'Discount percentage must be between 0 and 90.',
     'Tùy chọn Đặt ngay không hợp lệ.' => 'Invalid Instant Book option.',
     'Vui lòng nhập ngày và tên ngày lễ.' => 'Please enter the holiday date and name.',

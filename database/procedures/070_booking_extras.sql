@@ -172,7 +172,7 @@ END$$
 
 -- Saving booking rules never touches moderation: prices/rules are not part of the moderated listing content.
 CREATE OR REPLACE PROCEDURE sp_host_booking_settings_save(IN p_listing BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED,
-    IN p_weekend DECIMAL(12,2), IN p_holiday DECIMAL(12,2), IN p_weekly DECIMAL(5,2), IN p_monthly DECIMAL(5,2), IN p_instant BOOL)
+    IN p_weekend DECIMAL(20,2), IN p_holiday DECIMAL(20,2), IN p_weekly DECIMAL(5,2), IN p_monthly DECIMAL(5,2), IN p_instant BOOL)
 BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_lock BIGINT UNSIGNED;
@@ -189,8 +189,11 @@ BEGIN
     SELECT id INTO v_lock FROM listings WHERE id=p_listing FOR UPDATE;
     CALL sp_quality_assert_host(p_listing,p_actor);
     -- A rate that rounds to 0 would make those nights free; leave the field empty to keep the base price.
-    IF (p_weekend IS NOT NULL AND (ROUND(p_weekend,0)<1 OR p_weekend>9999999999.99)) OR (p_holiday IS NOT NULL AND (ROUND(p_holiday,0)<1 OR p_holiday>9999999999.99)) THEN
+    IF ROUND(p_weekend,0)<1 OR ROUND(p_holiday,0)<1 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giá cuối tuần/ngày lễ phải từ 1đ trở lên.';
+    END IF;
+    IF p_weekend>9999999999.99 OR p_holiday>9999999999.99 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giá cuối tuần/ngày lễ tối đa là 9.999.999.999đ.';
     END IF;
     IF (p_weekly IS NOT NULL AND (p_weekly<0 OR p_weekly>90)) OR (p_monthly IS NOT NULL AND (p_monthly<0 OR p_monthly>90)) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Phần trăm giảm giá phải từ 0 đến 90.';

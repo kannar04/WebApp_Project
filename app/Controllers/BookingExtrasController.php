@@ -32,8 +32,8 @@ final class BookingExtrasController extends Controller
             'instant_book'=>($_POST['instant_book'] ?? '') === '1'];
         try {
             // Rates are charged in whole dong, so anything under 0.5 would round to free nights.
-            $weekend = Validator::decimal($input['weekend_nightly_rate'], 0.5, Validator::MONEY_MAX, 'Giá cuối tuần phải là số từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.');
-            $holiday = Validator::decimal($input['holiday_nightly_rate'], 0.5, Validator::MONEY_MAX, 'Giá ngày lễ phải là số từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.');
+            $weekend = Validator::decimal($input['weekend_nightly_rate'], 0.5, Validator::MONEY_MAX, 'Giá cuối tuần phải là số từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.', 'Giá cuối tuần tối đa là 9.999.999.999đ.');
+            $holiday = Validator::decimal($input['holiday_nightly_rate'], 0.5, Validator::MONEY_MAX, 'Giá ngày lễ phải là số từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.', 'Giá ngày lễ tối đa là 9.999.999.999đ.');
             $weekly = Validator::decimal($input['weekly_discount_pct'], 0, 90, 'Giảm giá theo tuần phải từ 0 đến 90%.');
             $monthly = Validator::decimal($input['monthly_discount_pct'], 0, 90, 'Giảm giá theo tháng phải từ 0 đến 90%.');
             (new BookingExtras())->saveHostSettings((int) $id, (int) $user['id'], $weekend, $holiday, $weekly, $monthly, $input['instant_book']);
@@ -111,12 +111,12 @@ final class BookingExtrasController extends Controller
             if ($input['description'] === '' || mb_strlen($input['description']) > 255) { throw new \DomainException('Mô tả khuyến mãi cần từ 1 đến 255 ký tự.'); }
             if (!in_array($input['discount_type'], ['percent', 'fixed'], true)) { throw new \DomainException('Loại giảm giá không hợp lệ.'); }
             $data = ['code'=>$input['code'], 'description'=>$input['description'], 'type'=>$input['discount_type'],
-                'value'=>Validator::decimal($input['discount_value'], 0.01, Validator::MONEY_MAX, 'Giá trị giảm phải lớn hơn 0. Viết liền không dấu chấm, ví dụ 50000.'),
-                'max'=>Validator::decimal($input['max_discount_amount'], 1, Validator::MONEY_MAX, 'Mức giảm tối đa phải lớn hơn 0. Viết liền không dấu chấm, ví dụ 50000.'),
+                'value'=>Validator::decimal($input['discount_value'], 0.01, Validator::MONEY_MAX, 'Giá trị giảm phải lớn hơn 0. Viết liền không dấu chấm, ví dụ 50000.', 'Giá trị giảm quá lớn: số tiền tối đa là 9.999.999.999đ, phần trăm tối đa là 100.'),
+                'max'=>Validator::decimal($input['max_discount_amount'], 0.5, Validator::MONEY_MAX, 'Mức giảm tối đa phải từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 50000.', 'Mức giảm tối đa không được quá 9.999.999.999đ.'),
                 'min_nights'=>$this->optionalInteger($input['min_nights'], 1, 365, 'Số đêm tối thiểu phải từ 1 đến 365.'),
-                'min_subtotal'=>Validator::decimal($input['min_subtotal'], 0, Validator::MONEY_MAX, 'Tiền phòng tối thiểu không hợp lệ. Viết liền không dấu chấm, ví dụ 500000.'),
+                'min_subtotal'=>Validator::decimal($input['min_subtotal'], 0, Validator::MONEY_MAX, 'Tiền phòng tối thiểu không hợp lệ. Viết liền không dấu chấm, ví dụ 500000.', 'Tiền phòng tối thiểu không được quá 9.999.999.999đ.'),
                 'from'=>$this->date($input['valid_from'], 'Ngày bắt đầu không hợp lệ.'), 'to'=>$this->date($input['valid_to'], 'Ngày kết thúc không hợp lệ.'),
-                'limit'=>$this->optionalInteger($input['usage_limit'], 1, 1000000, 'Giới hạn lượt dùng phải từ 1 trở lên.'), 'active'=>$input['is_active']];
+                'limit'=>$this->optionalInteger($input['usage_limit'], 1, 1000000, 'Giới hạn lượt dùng phải từ 1 đến 1.000.000.'), 'active'=>$input['is_active']];
             if ($data['value'] === null) { throw new \DomainException('Vui lòng nhập giá trị giảm.'); }
             if ($data['type'] === 'percent' && ((float) $data['value'] < 1 || (float) $data['value'] > 100)) { throw new \DomainException('Giá trị giảm không hợp lệ (phần trăm từ 1 đến 100).'); }
             if ($data['type'] === 'fixed' && round((float) $data['value']) < 1) { throw new \DomainException('Giá trị giảm không hợp lệ (số tiền từ 1đ trở lên).'); }
