@@ -432,6 +432,7 @@ Giá giữ nguyên cách tính; các routine dưới đây sửa lỗi tại ch�
 | Routine | File | Thay đổi | Test |
 |---|---|---|---|
 | `sp_booking_create` | `020_booking.sql` | Thêm `p_shown_total` (7 tham số): tổng khách thấy khác tổng tính dưới khóa listing thì không tạo gì và báo tổng mới; `NULL` (không có báo giá trên màn hình) giữ hành vi cũ | feature_booking_extras_test |
+| `sp_booking_extras_price`, `sp_admin_promotions` | `070_booking_extras.sql` | Yêu cầu `pending` đã qua ngày nhận phòng không còn tính vào lượt dùng mã, ở cả báo giá, lúc tạo booking và số lượt Admin thấy | feature_booking_extras_test |
 | `sp_booking_cancel`, `sp_booking_refund_preview` | `020_booking.sql`, `050_quality_core.sql` | Cùng gọi `sp_booking_refund_terms`, nên bản xem trước có cùng fallback và cùng con số với lúc hủy thật; preview lấy giờ nhận phòng và múi giờ hiện tại của listing | feature_payment_test |
 
 ### Routine mới

@@ -542,6 +542,23 @@ try {
     echo "PASS Admin take-down: refused with the count while a confirmed stay is unfinished, atomic, pending auto-rejected with event/notification/audit, finished stay still completable, confirm refused on a removed listing\n";
 
     // ---- HTTP (controllers, CSRF, roles, pages) when a server is available.
+    // A request whose check-in has passed can never be confirmed, so it stops using up the limit: quote, create and the Admin count agree. A confirmed stay still counts.
+    $codeL='TBX'.$suffix.'L';
+    bxPromotion($extras,$adminId,$promotions,$codeL,['limit'=>1]);
+    $promoListing=$listings->create($hostId,array_merge($data,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]));
+    $extraListings[]=$promoListing;
+    bxCall('CALL sp_test_listing_approve(?)',[$promoListing]);
+    $staleUse=$service->book($promoListing,$guestId,bxDay($monday,14),bxDay($monday,16),1,$codeL);
+    bxExpect($staleUse['status']==='pending' && str_contains((string)$service->quote($promoListing,bxDay($monday,20),bxDay($monday,22),1,$codeL)['promo']['message'],'hết lượt'),'A live request does not use up the limit.');
+    bxCall('CALL sp_test_booking_extras_backdate(?)',[$staleUse['booking_id']]);
+    $freed=$service->quote($promoListing,bxDay($monday,20),bxDay($monday,22),1,$codeL);
+    bxExpect($freed['promo']['code']===$codeL && empty($freed['promo']['message']) && (int)bxFindPromotion($extras,$adminId,$codeL)['used_count']===0,'A stale request still uses up the promo limit in the quote or the Admin count.');
+    $liveUse=$service->book($promoListing,$guestId,bxDay($monday,20),bxDay($monday,22),1,$codeL);
+    bxExpect(bxInspect($liveUse['booking_id'])['promotion_code']===$codeL && (int)bxFindPromotion($extras,$adminId,$codeL)['used_count']===1,'Create disagrees with the quote about a stale request.');
+    $service->hostTransition($liveUse['booking_id'],$hostId,'confirmed');
+    bxCall('CALL sp_test_booking_extras_backdate(?)',[$liveUse['booking_id']]);
+    bxExpect(str_contains((string)$service->quote($promoListing,bxDay($monday,26),bxDay($monday,28),1,$codeL)['promo']['message'],'hết lượt') && (int)bxFindPromotion($extras,$adminId,$codeL)['used_count']===1,'A confirmed stay stopped counting once its check-in passed.');
+
     // The form carries the total the quote showed: a different total books nothing and names the new one, the right one or none books as before.
     $shownListing=$listings->create($hostId,array_merge($data,['title'=>'Audit fixture BX '.bin2hex(random_bytes(6))]));
     $extraListings[]=$shownListing;

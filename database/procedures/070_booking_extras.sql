@@ -90,15 +90,16 @@ BEGIN
                     INTO v_pid,v_type,v_value,v_max,v_min_nights,v_min_subtotal,v_from,v_to,v_limit,v_active FROM promotions WHERE code=v_code FOR UPDATE;
                 IF v_pid IS NOT NULL THEN
                     -- Locking read: a caller's stale REPEATABLE READ snapshot must not hide recent uses.
+                    -- A pending request whose check-in has passed can never be confirmed (as in sp_booking_validate), so it stops using up the limit.
                     SELECT COUNT(*) INTO v_used FROM booking_price_breakdowns bp JOIN bookings b ON b.id=bp.booking_id
-                        WHERE bp.promotion_id=v_pid AND b.status IN ('pending','confirmed','completed') LOCK IN SHARE MODE;
+                        WHERE bp.promotion_id=v_pid AND (b.status IN ('confirmed','completed') OR (b.status='pending' AND b.check_in>=v_today)) LOCK IN SHARE MODE;
                 END IF;
             ELSE
                 SELECT id,discount_type,discount_value,max_discount_amount,min_nights,min_subtotal,valid_from,valid_to,usage_limit,is_active=1
                     INTO v_pid,v_type,v_value,v_max,v_min_nights,v_min_subtotal,v_from,v_to,v_limit,v_active FROM promotions WHERE code=v_code;
                 IF v_pid IS NOT NULL THEN
                     SELECT COUNT(*) INTO v_used FROM booking_price_breakdowns bp JOIN bookings b ON b.id=bp.booking_id
-                        WHERE bp.promotion_id=v_pid AND b.status IN ('pending','confirmed','completed');
+                        WHERE bp.promotion_id=v_pid AND (b.status IN ('confirmed','completed') OR (b.status='pending' AND b.check_in>=v_today));
                 END IF;
             END IF;
             IF v_pid IS NULL THEN SET o_promo_message='Mã khuyến mãi không tồn tại.';
@@ -254,7 +255,7 @@ BEGIN
     CALL sp_admin_assert_role(p_actor);
     SELECT p.id,p.code,p.description,p.discount_type,p.discount_value,p.max_discount_amount,p.min_nights,p.min_subtotal,p.valid_from,p.valid_to,
         p.usage_limit,p.is_active,p.created_at,p.updated_at,
-        (SELECT COUNT(*) FROM booking_price_breakdowns bp JOIN bookings b ON b.id=bp.booking_id WHERE bp.promotion_id=p.id AND b.status IN ('pending','confirmed','completed')) used_count,
+        (SELECT COUNT(*) FROM booking_price_breakdowns bp JOIN bookings b ON b.id=bp.booking_id WHERE bp.promotion_id=p.id AND (b.status IN ('confirmed','completed') OR (b.status='pending' AND b.check_in>=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)))) used_count,
         (SELECT COUNT(*) FROM booking_price_breakdowns bp WHERE bp.promotion_id=p.id) booking_count
     FROM promotions p ORDER BY p.is_active DESC,p.valid_to DESC,p.id DESC;
 END$$
