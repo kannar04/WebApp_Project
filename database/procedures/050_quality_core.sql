@@ -31,6 +31,19 @@ BEGIN
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_host_delete; END IF;
 END$$
 
+-- Rejects a listing's pending requests with the same event and Guest notification a manual rejection leaves. The caller holds the transaction and the listing lock.
+CREATE OR REPLACE PROCEDURE sp_listing_reject_pending(IN p_listing BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED,
+    IN p_event TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_cause VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, OUT p_rejected INT)
+BEGIN
+    SELECT COUNT(*) INTO p_rejected FROM bookings WHERE listing_id=p_listing AND status='pending' FOR UPDATE;
+    INSERT INTO booking_events(booking_id,actor_id,from_status,to_status,reason,created_at)
+        SELECT id,p_actor,'pending','rejected',p_event,NOW(6) FROM bookings WHERE listing_id=p_listing AND status='pending';
+    INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+        SELECT b.guest_id,b.id,'in_app','booking_rejected','Cập nhật booking',CONCAT('Yêu cầu đặt chỗ #',b.id,' cho “',l.title,'” đã bị từ chối vì ',p_cause,'.'),'sent',1,NOW(6)
+        FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.listing_id=p_listing AND b.status='pending';
+    UPDATE bookings SET status='rejected',updated_at=NOW(6) WHERE listing_id=p_listing AND status='pending';
+END$$
+
 CREATE OR REPLACE PROCEDURE sp_host_photos_manage(IN p_listing BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED,
     IN p_ids LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_expected LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN

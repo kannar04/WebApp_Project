@@ -9,6 +9,7 @@ use App\Models\Wishlist;
 use App\Models\AdminRepository;
 use App\Models\Catalog;
 use App\Models\Report;
+use App\Models\Notification;
 use App\Services\BookingService;
 use Core\ProcedureConnection;
 
@@ -41,6 +42,26 @@ function refused(callable $call, array $arguments): void
 {
     try { $call(...$arguments); } catch (DomainException $exception) { return; }
     throw new RuntimeException('A routine accepted an invalid business operation.');
+}
+function refusedSaying(callable $call, array $arguments, string $needle): void
+{
+    try { $call(...$arguments); } catch (DomainException $exception) {
+        ensure(str_contains($exception->getMessage(),$needle),'Refused with the wrong message: '.$exception->getMessage());
+        return;
+    }
+    throw new RuntimeException('A routine accepted: '.$needle);
+}
+function bookingState(int $id): array
+{
+    return callRows('CALL sp_test_booking_inspect(?)',[$id])[0];
+}
+function noticesFor(int $userId, ?int $bookingId, string $eventType): array
+{
+    $found=[];
+    foreach ((new Notification())->forUser($userId) as $notice) {
+        if ($notice['event_type']===$eventType && ($bookingId===null ? $notice['booking_id']===null : (int)$notice['booking_id']===$bookingId)) { $found[]=$notice; }
+    }
+    return $found;
 }
 
 $app=require dirname(__DIR__).'/config/app.php';
@@ -176,6 +197,49 @@ try {
     $db->rollBack();
     ensure(callRows('CALL sp_test_booking_inspect(?)',[$id])===[],'Caller rollback left a booking behind.');
     echo "PASS routine savepoint preserves outer transaction and full booking rollback\n";
+
+    // Rejecting a listing closes its requests the way a take-down does; everything rolls back with the outer transaction.
+    $db->beginTransaction();
+    try {
+        $service=new BookingService(); $moderation=new AdminRepository(); $adminId=(int)$admin['id']; $hostId=(int)$host['id']; $guestId=(int)$guest['id'];
+        $day=new DateTimeImmutable($start);
+        $stay=[$day->modify('+10 days')->format('Y-m-d'),$day->modify('+12 days')->format('Y-m-d')];
+        $later=[$day->modify('+20 days')->format('Y-m-d'),$day->modify('+22 days')->format('Y-m-d')];
+
+        $closed=$service->create($listingId,$guestId,$start,$end,1);
+        $kept=$service->create($listingId,$guestId,$later[0],$later[1],1);
+        $service->hostTransition($kept,$hostId,'confirmed');
+        $moderation->moderate($listingId,$adminId,'rejected','Procedure rejected fixture');
+        $state=bookingState($closed);
+        ensure($state['status']==='rejected' && (int)$state['events']===2,'Rejecting a listing left its request open or without an event.');
+        $notices=noticesFor($guestId,$closed,'booking_rejected');
+        ensure(count($notices)===1 && str_contains($notices[0]['body'],'chỗ ở không được duyệt'),'Rejecting a listing did not tell the guest why.');
+        ensure(bookingState($kept)['status']==='confirmed','Rejecting a listing changed a confirmed stay.');
+
+        // Only rows from before this rule are pending on a rejected listing. Nobody can confirm them; reject still works.
+        callRows('CALL sp_test_listing_approve(?)',[$listingId]);
+        $old=$service->create($listingId,$guestId,$start,$end,1);
+        callRows('CALL sp_test_listing_mark_rejected(?)',[$listingId]);
+        refusedSaying([$service,'hostTransition'],[$old,$hostId,'confirmed'],'từ chối kiểm duyệt');
+        refusedSaying([$service,'adminTransition'],[$old,$adminId,'confirmed'],'từ chối kiểm duyệt');
+        ensure(bookingState($old)['status']==='pending','A refused confirm changed the request.');
+        $service->hostTransition($old,$hostId,'rejected');
+        ensure(bookingState($old)['status']==='rejected','A request on a rejected listing could not be rejected.');
+
+        // A Host edit back to review and a hidden listing do not close the listing.
+        callRows('CALL sp_test_listing_approve(?)',[$listingId]);
+        $reviewed=$service->create($listingId,$guestId,$start,$end,1);
+        $hidden=$service->create($listingId,$guestId,$stay[0],$stay[1],1);
+        $model->update($listingId,$hostId,$data);
+        ensure($model->findOwned($listingId,$hostId)['moderation_status']==='pending','A Host edit did not send the listing back to review.');
+        $service->hostTransition($reviewed,$hostId,'confirmed');
+        ensure(bookingState($reviewed)['status']==='confirmed','A request on a listing under review could not be confirmed.');
+        callRows('CALL sp_test_listing_approve(?)',[$listingId]);
+        $moderation->setListingVisibility($listingId,$adminId,false);
+        $service->hostTransition($hidden,$hostId,'confirmed');
+        ensure(bookingState($hidden)['status']==='confirmed','A request on a hidden listing could not be confirmed.');
+    } finally { if ($db->inTransaction()) { $db->rollBack(); } }
+    echo "PASS rejecting a listing closes its requests with event and notice, keeps confirmed stays, and only a rejected listing refuses confirm\n";
 
     for ($i=0;$i<2;$i++) {
         $pipes=[];

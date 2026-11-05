@@ -165,6 +165,7 @@ CREATE OR REPLACE PROCEDURE sp_admin_listing_moderate(IN p_1 bigint unsigned, IN
 BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_lock BIGINT UNSIGNED;
+    DECLARE v_rejected INT DEFAULT 0;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -185,8 +186,12 @@ BEGIN
     END IF;
     UPDATE listings SET moderation_status=p_3,moderation_reason=p_4,reviewed_by=p_2,reviewed_at=NOW(6),updated_at=NOW(6) WHERE id=p_1;
     INSERT INTO listing_moderation_events(listing_id,admin_id,action,reason,created_at) VALUES(p_1,p_2,IF(p_3='approved','approve','reject'),p_4,NOW(6));
+    -- A rejected listing cannot honour its requests, same as a take-down. Confirmed stays are left for people to sort out.
+    IF p_3='rejected' THEN
+        CALL sp_listing_reject_pending(p_1,p_2,'Admin từ chối tin đăng nên yêu cầu bị từ chối tự động.','chỗ ở không được duyệt',v_rejected);
+    END IF;
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
-        VALUES(p_2,'moderate_listing','listing',p_1,JSON_OBJECT('details',CONCAT(p_3,': ',p_4)),NOW(6));
+        VALUES(p_2,'moderate_listing','listing',p_1,JSON_OBJECT('details',CONCAT(p_3,': ',p_4),'rejected_pending',v_rejected),NOW(6));
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_admin_listing_moderate; END IF;
 END$$
 
@@ -266,14 +271,8 @@ BEGIN
         SET v_message=CONCAT('Không thể gỡ chỗ ở: còn ',v_count,' booking đã xác nhận chưa kết thúc. Hãy liên hệ Host và khách để xử lý trước. Có thể ẩn tin để ngừng nhận yêu cầu mới.');
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=v_message;
     END IF;
-    -- Pending requests cannot be honoured any more: rejected here, with the same event and notification a manual rejection leaves.
-    SELECT COUNT(*) INTO v_count FROM bookings WHERE listing_id=p_1 AND status='pending' FOR UPDATE;
-    INSERT INTO booking_events(booking_id,actor_id,from_status,to_status,reason,created_at)
-        SELECT id,p_2,'pending','rejected','Admin gỡ chỗ ở nên yêu cầu bị từ chối tự động.',NOW(6) FROM bookings WHERE listing_id=p_1 AND status='pending';
-    INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
-        SELECT b.guest_id,b.id,'in_app','booking_rejected','Cập nhật booking',CONCAT('Yêu cầu đặt chỗ #',b.id,' cho “',l.title,'” đã bị từ chối vì chỗ ở đã được gỡ khỏi hệ thống.'),'sent',1,NOW(6)
-        FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.listing_id=p_1 AND b.status='pending';
-    UPDATE bookings SET status='rejected',updated_at=NOW(6) WHERE listing_id=p_1 AND status='pending';
+    -- Pending requests cannot be honoured any more.
+    CALL sp_listing_reject_pending(p_1,p_2,'Admin gỡ chỗ ở nên yêu cầu bị từ chối tự động.','chỗ ở đã được gỡ khỏi hệ thống',v_count);
     UPDATE listings SET is_visible=0,deleted_at=NOW(6),updated_at=NOW(6) WHERE id=p_1;
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at) VALUES(p_2,'delete_listing','listing',p_1,JSON_OBJECT('details','Soft delete','rejected_pending',v_count),NOW(6));
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_admin_listing_soft_delete; END IF;

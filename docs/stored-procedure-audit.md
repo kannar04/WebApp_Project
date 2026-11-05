@@ -400,6 +400,23 @@ Các routine dưới đây sửa lỗi tại chỗ; không đổi schema, không
 | `sp_payment_vnpay_result` | `095_online_payment.sql` | Trả thêm `duplicate_refunded`, `payment_status`, `return_reason`, `refund_owed`; ghi nhận thành công sau một lần không thành công; báo khách khi tiền về booking đã hủy hoặc tin đã gỡ | feature_payment_test |
 
 Test fixture routines mới (3, chỉ cài trong DB test riêng): `sp_test_booking_extras_refund_audit` (`testing_booking_extras.sql`), `sp_test_payment_finish_stay`, `sp_test_payment_old_refund` (`testing_payment.sql`). `sp_test_payment_inspect` trả thêm nội dung thông báo cho khách và số audit đóng khoản trùng.
+## Vòng đời tin đăng và tài khoản — 2026-11-05
+
+Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
+
+### Routine đã có bị thay đổi
+
+| Routine | File | Thay đổi | Test |
+|---|---|---|---|
+| `sp_admin_listing_moderate` | `030_atomic_writes.sql` | Khi từ chối tin: từ chối tự động các yêu cầu đang chờ (event + thông báo khách), booking đã xác nhận giữ nguyên | procedure_flow_test |
+| `sp_admin_listing_soft_delete` | `030_atomic_writes.sql` | Dùng chung `sp_listing_reject_pending`, hành vi không đổi | feature_booking_extras_test |
+| `sp_booking_transition` | `020_booking.sql` | Không cho xác nhận yêu cầu trên tin bị từ chối kiểm duyệt; tin đang duyệt lại hoặc đang ẩn vẫn xác nhận được | procedure_flow_test |
+
+### Routine mới
+
+| Routine | File | Mục đích | Transaction / khóa / quyền | Test |
+|---|---|---|---|---|
+| `sp_listing_reject_pending` | `050_quality_core.sql` | Từ chối mọi yêu cầu đang chờ của một tin, kèm event và thông báo khách; trả số yêu cầu qua tham số OUT | Nội bộ, chỉ gọi từ routine khác: bên gọi giữ transaction và khóa dòng listing, routine khóa các booking | procedure_flow_test, feature_booking_extras_test |
 
 ## Run / reproduce
 

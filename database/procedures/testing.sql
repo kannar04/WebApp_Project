@@ -21,6 +21,11 @@ CREATE OR REPLACE PROCEDURE sp_test_listing_approve(IN p_id BIGINT UNSIGNED)
 BEGIN
     UPDATE listings SET moderation_status='approved' WHERE id=p_id AND city='Audit' AND title LIKE 'Audit fixture %';
 END$$
+-- A request left pending on a rejected listing: moderation itself closes them, so only rows from before that rule look like this.
+CREATE OR REPLACE PROCEDURE sp_test_listing_mark_rejected(IN p_id BIGINT UNSIGNED)
+BEGIN
+    UPDATE listings SET moderation_status='rejected' WHERE id=p_id AND city='Audit' AND title LIKE 'Audit fixture %';
+END$$
 CREATE OR REPLACE PROCEDURE sp_test_moderation_actions(IN p_id BIGINT UNSIGNED)
 BEGIN SELECT action FROM listing_moderation_events WHERE listing_id=p_id ORDER BY id; END$$
 CREATE OR REPLACE PROCEDURE sp_test_local_photos()
