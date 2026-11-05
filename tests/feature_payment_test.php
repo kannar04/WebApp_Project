@@ -138,7 +138,7 @@ $host=$users->findByEmail('host@home2home.test'); $guest=$users->findByEmail('gu
 payExpect($host && $guest && $admin,'Local seed accounts required.');
 $hostId=(int)$host['id']; $guestId=(int)$guest['id']; $adminId=(int)$admin['id'];
 $listings=new Listing(); $payments=new Payment(); $service=new BookingService();
-$listingId=null; $completed=false; $policyListings=[];
+$listingId=null; $completed=false; $policyListings=[]; $lockedHost=null;
 $base=new DateTimeImmutable('today +4300 days');
 
 try {
@@ -469,6 +469,47 @@ try {
 
     // ---- Nothing collected, nothing refunded; money that lands after the cancellation goes back whole.
     $bookingModel=new \App\Models\Booking();
+    // ---- A suspended or deleted Host counts as a removed listing for online payment. A finished stay is paid normally; pay at check-in does not change.
+    $lockedHost=$users->adminCreate(['email'=>'audit-pay-'.bin2hex(random_bytes(6)).'-host@home2home.test','password'=>bin2hex(random_bytes(16)),'full_name'=>'Audit locked host','phone'=>''],['guest','host']);
+    $lockedListing=$listings->create($lockedHost,array_merge($data,['title'=>'Audit fixture PAY '.bin2hex(random_bytes(6))]));
+    $policyListings['lockedHost']=$lockedListing;
+    payCall('CALL sp_test_listing_approve(?)',[$lockedListing]);
+    $lockedVnpay=payConfirmedBooking($service,$lockedListing,$guestId,$lockedHost,$base,10);
+    $lockedQr=payConfirmedBooking($service,$lockedListing,$guestId,$lockedHost,$base,13);
+    $lockedUnstarted=payConfirmedBooking($service,$lockedListing,$guestId,$lockedHost,$base,16);
+    $lockedFinished=payConfirmedBooking($service,$lockedListing,$guestId,$lockedHost,$base,19);
+    $lockedMarkPaid=payConfirmedBooking($service,$lockedListing,$guestId,$lockedHost,$base,22);
+    $lockedVnpayAttempt=$payments->start($lockedVnpay,$guestId,'vnpay');
+    $lockedQrAttempt=$payments->start($lockedQr,$guestId,'vietqr');
+    payCall('CALL sp_test_payment_finish_stay(?,?)',[$lockedFinished,0]);
+    payCall('CALL sp_test_payment_finish_stay(?,?)',[$lockedMarkPaid,1]);
+    foreach (['suspended','deleted'] as $hostStatus) {
+        payCall('CALL sp_test_payment_host_state(?,?)',[$lockedHost,$hostStatus]);
+        $checkout=$payments->checkout($lockedUnstarted,$guestId);
+        payExpect((int)$checkout['can_pay_online']===0 && (int)$checkout['listing_removed']===1,'A '.$hostStatus.' Host still offers online payment.');
+        payExpect((int)$extras->bookingDetail($lockedUnstarted,$guestId)['can_pay_online']===0 && (int)$extras->paymentMap($guestId,'guest')[$lockedUnstarted]['can_pay_online']===0,'Booking pages still offer online payment with a '.$hostStatus.' Host.');
+        payRejects([$payments,'start'],[$lockedUnstarted,$guestId,'vietqr'],'đã bị gỡ','VietQR started with a '.$hostStatus.' Host');
+        payRejects([$payments,'start'],[$lockedUnstarted,$guestId,'vnpay'],'đã bị gỡ','VNPay started with a '.$hostStatus.' Host');
+        payExpect((int)payInspect($lockedUnstarted)['attempts']===0,'A refused payment left an attempt behind.');
+        payExpect((int)$payments->attempt((int)$lockedQrAttempt['transaction_id'],$guestId)['listing_removed']===1,'Transfer page does not know the Host is '.$hostStatus.'.');
+        payRejects([$payments,'submitTransfer'],[(int)$lockedQrAttempt['transaction_id'],$guestId],'đã bị gỡ','Transfer reported with a '.$hostStatus.' Host');
+        // The stay happened: the finished one is paid normally, and pay at check-in is still recorded.
+        $finished=$payments->checkout($lockedFinished,$guestId);
+        payExpect((int)$finished['can_pay_online']===1 && (int)$finished['listing_removed']===0 && (int)$extras->bookingDetail($lockedFinished,$guestId)['can_pay_online']===1,'A finished stay cannot be paid with a '.$hostStatus.' Host.');
+        payExpect((int)$extras->bookingDetail($lockedMarkPaid,$guestId)['can_mark_paid']===1,'Pay at check-in changed with a '.$hostStatus.' Host.');
+    }
+    payExpect($payments->start($lockedFinished,$guestId,'vietqr')['status']==='pending','A finished stay refused to start a payment with a deleted Host.');
+    // Money already on its way when the Host was locked is recorded and goes back, as on a taken-down listing.
+    $result=$payments->vnpayResult($lockedVnpayAttempt['reference'],'220000.00','00','00','14000093','NCB');
+    $state=payInspect($lockedVnpay);
+    payExpect($result['return_reason']==='removed' && str_contains((string)$state['guest_paid_body'],'Admin sẽ hoàn lại') && $state['payment_status']==='paid' && (int)$state['admin_refund_notices']>=1,'VNPay money with a locked Host was not flagged: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $payments->decideTransfer((int)$lockedQrAttempt['transaction_id'],$adminId,'confirm','');
+    $state=payInspect($lockedQr);
+    payExpect(str_contains((string)$state['guest_paid_body'],'Admin sẽ hoàn lại') && $state['payment_status']==='paid' && (int)$state['admin_refund_notices']>=1,'A confirmed transfer with a locked Host was not flagged: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    payCall('CALL sp_test_payment_host_state(?,?)',[$lockedHost,'active']);
+    payExpect((int)$payments->checkout($lockedUnstarted,$guestId)['can_pay_online']===1 && $payments->start($lockedUnstarted,$guestId,'vietqr')['status']==='pending','A Host who is back cannot be paid.');
+    echo "PASS locked Host: checkout, start and report refuse like a removed listing, money already sent goes back, a finished stay and pay at check-in are unchanged\n";
+
     $unpaidPending=$service->create($policyListings[100],$guestId,$base->modify('+77 days')->format('Y-m-d'),$base->modify('+79 days')->format('Y-m-d'),1);
     $unpaidConfirmed=payConfirmedBooking($service,$policyListings[100],$guestId,$hostId,$base,80);
     foreach ([$unpaidPending,$unpaidConfirmed] as $unpaid) {
@@ -815,6 +856,16 @@ try {
             $response=payHttp($client,$baseUrl,'/bookings/'.$oldSnapshotPage);
             payExpect($response['status']===200 && str_contains($response['body'],'Số tiền hoàn nếu hủy lúc này'),'A booking with an old snapshot does not open: HTTP '.$response['status']);
         }
+        // Online payment is off everywhere the Guest could reach it while the Host is locked.
+        $lockedHttp=payConfirmedBooking($service,$lockedListing,$guestId,$lockedHost,$base,25);
+        payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$lockedHttp)['body'],'/bookings/'.$lockedHttp.'/pay'),'An active Host does not offer online payment.');
+        $users->setStatus($lockedHost,'suspended');
+        payExpect(!str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$lockedHttp)['body'],'/bookings/'.$lockedHttp.'/pay') && !str_contains(payHttp($guestClient,$baseUrl,'/bookings')['body'],'/bookings/'.$lockedHttp.'/pay'),'Booking pages offer online payment with a suspended Host.');
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$lockedHttp.'/pay')['body'];
+        payExpect(str_contains($page,'đã bị gỡ') && !str_contains($page,'/bookings/'.$lockedHttp.'/pay/vnpay'),'The payment page offers online payment with a suspended Host.');
+        payHttp($guestClient,$baseUrl,'/bookings/'.$lockedHttp.'/pay/vnpay',['_token'=>$guestToken]);
+        payExpect((int)payInspect($lockedHttp)['attempts']===0,'A direct POST started VNPay with a suspended Host.');
+        $users->setStatus($lockedHost,'active');
         // A refunded booking offers no further refund, before or after cancelling, and keeps the figure that went back; a row refunded by older code too.
         $refundedOpen=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,104,'14000052');
         payHttp($adminClient,$baseUrl,'/admin/payments/'.$refundedOpen.'/refund',['_token'=>$adminToken,'note'=>'Hoàn trước khi hủy']);
@@ -853,6 +904,13 @@ try {
 } finally {
     foreach ($policyListings as $policyListing) {
         try { payCall('CALL sp_test_payment_cleanup(?)',[$policyListing]); }
+        catch (Throwable $exception) {
+            fwrite(STDERR,'Online payment cleanup failed: '.$exception->getMessage()."\n");
+            if ($completed) { throw new RuntimeException('Online payment fixture cleanup failed.'); }
+        }
+    }
+    if ($lockedHost!==null) {
+        try { payCall('CALL sp_test_cleanup_user(?)',[$lockedHost]); }
         catch (Throwable $exception) {
             fwrite(STDERR,'Online payment cleanup failed: '.$exception->getMessage()."\n");
             if ($completed) { throw new RuntimeException('Online payment fixture cleanup failed.'); }

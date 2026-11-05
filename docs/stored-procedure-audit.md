@@ -334,7 +334,7 @@ Thanh toán online (VietQR chuyển khoản do Admin xác nhận, VNPay sandbox)
 | `sp_admin_payment_duplicate_resolve` | `095` | Admin ghi nhận đã hoàn một khoản VNPay trùng: chỉ đóng giao dịch đó (`cancelled`, ghi chú bắt buộc), trạng thái thanh toán của booking không đổi và được trả về; thông báo khách, audit log | Transaction/savepoint; Admin (`sp_admin_assert_role`); khóa như trên; một lần | feature_payment_test |
 | `sp_admin_payment_transfers` | `095` | Hàng chờ Admin: chuyển khoản khách đã báo, rồi mã QR đang mở của booking chưa thu | Chỉ đọc; Admin | feature_payment_test |
 
-Test fixture routines mới (8, chỉ cài trong DB test riêng): `testing_payment.sql` (`sp_test_payment_inspect`, `sp_test_payment_attempt`, `sp_test_payment_set_amount`, `sp_test_payment_listing_removed`, `sp_test_payment_old_snapshot`, `sp_test_payment_finish_stay`, `sp_test_payment_old_refund`, `sp_test_payment_cleanup` — chỉ xóa listing `Audit fixture PAY %` ở thành phố `Audit`).
+Test fixture routines mới (9, chỉ cài trong DB test riêng): `testing_payment.sql` (`sp_test_payment_inspect`, `sp_test_payment_attempt`, `sp_test_payment_set_amount`, `sp_test_payment_listing_removed`, `sp_test_payment_old_snapshot`, `sp_test_payment_host_state`, `sp_test_payment_finish_stay`, `sp_test_payment_old_refund`, `sp_test_payment_cleanup` — chỉ xóa listing `Audit fixture PAY %` ở thành phố `Audit`).
 
 ## Đồng bộ giờ nhận phòng, huy hiệu xác minh và họ tên — 2026-10-17
 
@@ -425,7 +425,7 @@ Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
 
 ## Sửa lỗi giá, hoàn tiền và thanh toán online, vòng 3 — 2026-11-05
 
-Giá giữ nguyên cách tính; các routine dưới đây sửa lỗi tại chỗ, không đổi schema.
+Giá giữ nguyên cách tính; các routine dưới đây sửa lỗi tại chỗ, không đổi schema. Thanh toán khi nhận phòng không đổi.
 
 ### Routine đã có bị thay đổi
 
@@ -433,6 +433,8 @@ Giá giữ nguyên cách tính; các routine dưới đây sửa lỗi tại ch�
 |---|---|---|---|
 | `sp_booking_create` | `020_booking.sql` | Thêm `p_shown_total` (7 tham số): tổng khách thấy khác tổng tính dưới khóa listing thì không tạo gì và báo tổng mới; `NULL` (không có báo giá trên màn hình) giữ hành vi cũ | feature_booking_extras_test |
 | `sp_booking_extras_price`, `sp_admin_promotions` | `070_booking_extras.sql` | Yêu cầu `pending` đã qua ngày nhận phòng không còn tính vào lượt dùng mã, ở cả báo giá, lúc tạo booking và số lượt Admin thấy | feature_booking_extras_test |
+| `sp_payment_checkout`, `sp_payment_transaction_get`, `sp_booking_extras_detail`, `sp_booking_payment_list` | `095_online_payment.sql`, `070_booking_extras.sql` | Host bị khóa hoặc đã xóa được tính như chỗ ở đã gỡ khi báo có thể thanh toán online; chuyến đã kết thúc vẫn thanh toán bình thường | feature_payment_test |
+| `sp_payment_start`, `sp_payment_transfer_submit`, `sp_admin_payment_transfer_decide`, `sp_payment_vnpay_result` | `095_online_payment.sql` | Sau khóa listing, đọc trạng thái Host bằng `LOCK IN SHARE MODE`; Host bị khóa hoặc đã xóa dùng chung nhánh `v_removed` (từ chối, hoặc ghi nhận rồi báo Admin hoàn tiền) | feature_payment_test |
 | `sp_booking_cancel`, `sp_booking_refund_preview` | `020_booking.sql`, `050_quality_core.sql` | Cùng gọi `sp_booking_refund_terms`, nên bản xem trước có cùng fallback và cùng con số với lúc hủy thật; preview lấy giờ nhận phòng và múi giờ hiện tại của listing | feature_payment_test |
 
 ### Routine mới

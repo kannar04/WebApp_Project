@@ -71,6 +71,15 @@ BEGIN
     UPDATE bookings SET policy_snapshot=JSON_REMOVE(policy_snapshot,'$.time_zone','$.check_in_time') WHERE id=p_booking;
 END$$
 
+-- Puts a fixture Host in a state: 'active', 'suspended' or 'deleted' (which also marks deleted_at). The real delete refuses a Host with unfinished stays, so older data is the only way here.
+CREATE OR REPLACE PROCEDURE sp_test_payment_host_state(IN p_host BIGINT UNSIGNED, IN p_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM users WHERE id=p_host AND email LIKE 'audit-pay-%@home2home.test') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to change a non-fixture user.';
+    END IF;
+    UPDATE users SET status=p_status,deleted_at=IF(p_status='deleted',NOW(6),NULL) WHERE id=p_host;
+END$$
+
 -- Moves a fixture booking so its check-out was p_days_ago days ago (Vietnam date); nights move with it.
 CREATE OR REPLACE PROCEDURE sp_test_payment_finish_stay(IN p_booking BIGINT UNSIGNED, IN p_days_ago INT)
 BEGIN
