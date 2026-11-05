@@ -586,6 +586,21 @@ try {
         payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);
         payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings')['body'],'Mức hoàn dự kiến: 100'),'A paid cancel lost its refund flash.');
         payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ)['body'],'Số tiền hoàn đã ghi nhận'),'A paid cancelled booking lost its recorded refund.');
+        // The reject note cannot confirm: all three pages render a textarea, and only an explicit decision counts.
+        $bookingK=payConfirmedBooking($service,$policyListings[100],$guestId,$hostId,$base,95);
+        $noteTransfer=(int)$payments->start($bookingK,$guestId,'vietqr')['transaction_id'];
+        $payments->submitTransfer($noteTransfer,$guestId);
+        foreach (['/admin/payments','/bookings/'.$bookingK,'/payments/'.$noteTransfer] as $path) {
+            $page=payHttp($adminClient,$baseUrl,$path)['body'];
+            payExpect(preg_match('/<textarea[^>]+id="transfer-note-'.$noteTransfer.'"/',$page)===1 && preg_match('/<input[^>]+id="transfer-note-'.$noteTransfer.'"/',$page)===0,'Transfer note on '.$path.' can still submit on Enter.');
+        }
+        foreach ([['note'=>'Audit Enter in the note'],['decision'=>'','note'=>'Audit'],['decision'=>'maybe','note'=>'Audit'],['decision'=>'confirm ','note'=>'Audit'],['decision'=>['confirm'],'note'=>'Audit']] as $fields) {
+            $response=payHttp($adminClient,$baseUrl,'/admin/payments/transfers/'.$noteTransfer,['_token'=>$adminToken]+$fields);
+            payExpect($response['status']===302 && payAttempt($noteTransfer)['status']==='submitted' && payInspect($bookingK)['payment_status']==='unpaid','An unclear decision changed the transfer: '.json_encode($fields));
+            payExpect(str_contains(payHttp($adminClient,$baseUrl,'/admin/payments')['body'],'Quyết định chuyển khoản không hợp lệ.'),'An unclear decision was not refused with a message: '.json_encode($fields));
+        }
+        $response=payHttp($adminClient,$baseUrl,'/admin/payments/transfers/'.$noteTransfer,['_token'=>$adminToken,'decision'=>'reject','note'=>"Chưa thấy khoản này\nDòng thứ hai"]);
+        payExpect($response['status']===302 && payAttempt($noteTransfer)['status']==='failed' && payInspect($bookingK)['payment_status']==='unpaid','Rejecting with a two-line note failed.');
         foreach ([$anonymous,$guestClient,$hostClient,$adminClient] as $client) { curl_close($client); }
         echo "PASS online payment HTTP: Guest-only pages, CSRF, QR page with account and reference, report, Admin queue/403/confirm, VNPay redirect signature, forged return/IPN 97, valid return, IPN 02/01/04\n";
     }

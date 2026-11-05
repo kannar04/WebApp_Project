@@ -144,10 +144,11 @@ final class PaymentController extends Controller
     public function adminDecideTransfer(string $id): never
     {
         Csrf::ensure(); $admin = $this->requireRole('admin');
-        $decision = ($_POST['decision'] ?? '') === 'reject' ? 'reject' : 'confirm';
+        $decision = $_POST['decision'] ?? '';
         $note = is_string($_POST['note'] ?? null) ? mb_substr(trim($_POST['note']), 0, 501) : '';
         $returnTo = self::adminReturnPath();
         try {
+            if (!in_array($decision, ['confirm', 'reject'], true)) { throw new \DomainException('Quyết định chuyển khoản không hợp lệ.'); }
             if (mb_strlen($note) > 500) { throw new \DomainException('Ghi chú tối đa 500 ký tự.'); }
             (new Payment())->decideTransfer((int) $id, (int) $admin['id'], $decision, $note);
             Session::flash('success', $decision === 'confirm' ? 'Đã xác nhận nhận được tiền chuyển khoản.' : 'Đã báo khách chưa nhận được tiền chuyển khoản.');
