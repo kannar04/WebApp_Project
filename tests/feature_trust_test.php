@@ -329,6 +329,14 @@ try {
     trustExpect((int) $metrics['decided_requests'] === 5 && (int) $metrics['host_side_cancellations'] === 2, 'A refusal before the check-in day did not count.');
     echo "PASS trust rate: closing a request whose check-in passed counts nothing; rejecting on or before the check-in day still counts\n";
 
+    // The badge reads only reviews someone can see: a listing taken down takes its reviews out of the count and the average.
+    $metrics = trustBadge($trust, $rateHost, $rateHost);
+    trustExpect((int) $metrics['review_count'] === 3 && count($trust->reviewBadges($rateReviewed)) === 3, 'The rate fixture lost its reviews.');
+    (new \App\Models\AdminRepository())->softDeleteListing($rateReviewed, $adminId);
+    $metrics = trustBadge($trust, $rateHost, $rateHost);
+    trustExpect((int) $metrics['review_count'] === 0 && (float) $metrics['average_rating'] === 0.0 && (int) $metrics['rating_met'] === 0 && (int) $metrics['is_trusted_host'] === 0 && $trust->reviewBadges($rateReviewed) === [], 'Reviews on a taken-down listing still count toward the badge.');
+    echo "PASS trust reviews: a listing taken down takes its reviews out of the badge, as sp_trust_review_badges does\n";
+
 
     // G. Check-in guide: owner-only editing, entitlement by booking status and participant.
     $guide = ['arrival_instructions' => 'Lấy chìa khóa ở hộp khóa cạnh cổng xanh, đi thang bộ lên tầng 2.', 'door_code' => 'K-4821',

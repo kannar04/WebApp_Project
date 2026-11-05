@@ -158,9 +158,9 @@ BEGIN
                 AND REGEXP_REPLACE(u.phone,'[[:space:].()-]','') IN (v.phone,CONCAT('+84',SUBSTRING(v.phone,2)),CONCAT('84',SUBSTRING(v.phone,2)))) is_verified,
             EXISTS(SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.role='host') is_host,
             (SELECT COUNT(*) FROM reviews rv JOIN bookings b ON b.id=rv.booking_id JOIN listings l ON l.id=b.listing_id
-                WHERE l.host_id=u.id AND rv.moderation_status='visible') review_count,
+                WHERE l.host_id=u.id AND rv.moderation_status='visible' AND l.deleted_at IS NULL) review_count,
             COALESCE((SELECT AVG(rv.rating) FROM reviews rv JOIN bookings b ON b.id=rv.booking_id JOIN listings l ON l.id=b.listing_id
-                WHERE l.host_id=u.id AND rv.moderation_status='visible'),0) average_rating,
+                WHERE l.host_id=u.id AND rv.moderation_status='visible' AND l.deleted_at IS NULL),0) average_rating,
             -- booking_events says who rejected and when: a request closed automatically, by an Admin, or after its check-in day (when Accept is refused and Reject is the only way to tidy it up) is neither a Host refusal nor a Host decision.
             (SELECT COUNT(*) FROM bookings b JOIN listings l ON l.id=b.listing_id
                 WHERE l.host_id=u.id AND b.status<>'pending' AND b.created_at>=NOW(6)-INTERVAL v_window_months MONTH
