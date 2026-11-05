@@ -314,6 +314,18 @@ try {
     }
     echo "PASS a path parse_url cannot read is the normal 404 at the root and under a sub-folder, its language switch returns to it, and :digits in a query still works\n";
 
+    // An {id} is a row number as the site writes it, whatever a controller's (int) cast would make of anything else.
+    foreach ([[$rootServer['url'], ''], [$subfolderServer['url'], '/WebApp/public']] as [$serverUrl, $base]) {
+        foreach (['/listings/1abc', '/listings/1%3A80', '/listings/1:80?a=1', '/listings/01', '/listings/0', '/listings/-1', '/listings/+1', '/listings/1.5', '/listings/1e0', '/listings/1%20', '/listings/99999999999999999999', '/listings/1000000000000000000', '/listings/999999999999999999', '/bookings/1abc', '/api/listings/1abc/quote'] as $notAnId) {
+            $answer = auditRequest(auditBrowser(), $serverUrl.$base.$notAnId);
+            expect($answer['status'] === 404 && str_contains($answer['body'], 'Không tìm thấy'), "$base$notAnId must be the normal 404, got {$answer['status']}.");
+        }
+        foreach (['/listings/1', '/listings/1/', '/listings/1?a=1', '/listings/%31', '/articles/cam-nang-2-ngay-o-da-lat'] as $normal) {
+            expect(auditRequest(auditBrowser(), $serverUrl.$base.$normal)['status'] === 200, "$base$normal must still open.");
+        }
+    }
+    echo "PASS an {id} takes only a row number: anything else or too long is the normal 404, an ordinary link and a {slug} still open\n";
+
     $url = $rootServer['url'];
     foreach (["\0", "2027-02-01\0", "\x002027-02-01", '2027-02-30', '2027-2-1', '', 'x'] as $badDate) {
         expect(\Core\Calendar::date($badDate) === null, 'Bad date accepted.');
@@ -327,17 +339,34 @@ try {
     foreach ($routes as $method => $methodRoutes) {
         foreach ($methodRoutes as $route) {
             $path = (string) preg_replace('~^#\^|/\?\$#$~', '', $route['pattern']);
-            $withControl = str_contains($path, '(?P<') ? [preg_replace('/\(\?P<\w+>\[\^\/\]\+\)/', '%00', $path), preg_replace('/\(\?P<\w+>\[\^\/\]\+\)/', '1%0A', $path)] : [$path.'%00', $path.'%0A'];
+            $withControl = str_contains($path, '(?P<') ? [preg_replace('/\(\?P<\w+>[^)]+\)/', '%00', $path), preg_replace('/\(\?P<\w+>[^)]+\)/', '1%0A', $path)] : [$path.'%00', $path.'%0A'];
             foreach ($withControl as $badPath) {
                 $response = auditRequest($admin, $url.$badPath, $method === 'POST' ? ['_token' => $adminToken] : null);
                 expect($response['status'] === 404 && str_contains($response['body'], '<html'), "Control character in a path must give the normal 404: $method $badPath got ".$response['status']);
             }
             if ($method === 'GET') {
-                $response = auditRequest($admin, $url.preg_replace('/\(\?P<\w+>\[\^\/\]\+\)/', '1', $path).'?month=%00&check_in=%00&check_out=%00&guests=%00&q=%00&status=%00&page=%00&next=%00&promo_code=%00');
+                $response = auditRequest($admin, $url.preg_replace('/\(\?P<\w+>[^)]+\)/', '1', $path).'?month=%00&check_in=%00&check_out=%00&guests=%00&q=%00&status=%00&page=%00&next=%00&promo_code=%00');
                 expect($response['status'] < 500 && ($response['location'] !== '' || trim($response['body']) !== ''), "NUL in a query must not break: GET $path got ".$response['status']);
             }
         }
     }
+    // Every route with an {id}, for anyone allowed past the door: a number that is no row must stay an answer, never a crash.
+    preg_match_all('/\{(\w+)\}/', (string) file_get_contents(dirname(__DIR__).'/routes/web.php'), $routeParameters);
+    expect(array_values(array_unique($routeParameters[1])) === ['id', 'slug'], 'A new route parameter must say whether it is a row number.');
+    foreach ($routes as $method => $methodRoutes) {
+        foreach ($methodRoutes as $route) {
+            $path = (string) preg_replace('~^#\^|/\?\$#$~', '', $route['pattern']);
+            if (!str_contains($path, '(?P<id>')) { continue; }
+            $form = $method === 'POST' ? ['_token' => $adminToken] : null;
+            foreach (['1abc', '01', '99999999999999999999'] as $notAnId) {
+                $response = auditRequest($admin, $url.preg_replace('/\(\?P<id>[^)]+\)/', $notAnId, $path), $form);
+                expect($response['status'] === 404 && str_contains($response['body'], 'Không tìm thấy'), "$method $path with id $notAnId must be the normal 404, got {$response['status']}.");
+            }
+            $response = auditRequest($admin, $url.preg_replace('/\(\?P<id>[^)]+\)/', '99999999999999999', $path), $form);
+            expect($response['status'] < 500, "$method $path with the largest id must not break, got {$response['status']}.");
+        }
+    }
+    echo "PASS every route with an {id} gives the normal 404 to a non-number, a leading zero and a number too long, and a number with no row does not break it\n";
     $monthPage = auditRequest($anonymous, $url.'/listings/1?month=%00');
     expect($monthPage['status'] === 200 && str_contains($monthPage['body'], 'Tháng không hợp lệ.'), 'NUL month must read as an invalid month.');
     $quote = auditRequest($anonymous, $url.'/api/listings/1/quote?check_in=%00&check_out=2027-02-03&guests=1');
@@ -555,7 +584,7 @@ try {
     $scopedForms = [
         'admin user' => [$admin, $adminToken, '/admin/users/3', $userInput, '/admin/users/3/edit', ['/admin/users/2/edit', '/admin']],
         'host listing' => [$scopeHost, $scopeHostToken, '/host/listings/1', $listingInput, '/host/listings/1/edit', ['/host/listings/2/edit', '/host/listings/create']],
-        'new host listing' => [$scopeHost, $scopeHostToken, '/host/listings/create', $listingInput, '/host/listings/create', ['/host/listings/2/edit']],
+        'new host listing' => [$scopeHost, $scopeHostToken, '/host/listings', $listingInput, '/host/listings/create', ['/host/listings/2/edit']],
         'admin listing' => [$admin, $adminToken, '/admin/listings/1', $listingInput, '/admin/listings/1/edit', ['/admin/listings/2/edit']],
         'article' => [$admin, $adminToken, '/admin/articles/1', $articleInput, '/admin/articles/1/edit', ['/admin/articles/2/edit', '/admin/articles/create']],
         'new article' => [$admin, $adminToken, '/admin/articles', $articleInput, '/admin/articles/create', ['/admin/articles/2/edit']],

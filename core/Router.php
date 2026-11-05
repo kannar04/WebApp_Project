@@ -16,7 +16,9 @@ final class Router
 
     private function add(string $method, string $path, array $handler): void
     {
-        $pattern = preg_replace('#\{([a-zA-Z_][a-zA-Z0-9_]*)\}#', '(?P<$1>[^/]+)', $path);
+        // An {id} is a row number, written as the site writes it: a controller's (int) cast would read 1abc or 01 as row 1, and a number past 18 digits as some other row, so those never reach it.
+        $pattern = str_replace('{id}', '(?P<id>[1-9][0-9]{0,17})', $path);
+        $pattern = preg_replace('#\{([a-zA-Z_][a-zA-Z0-9_]*)\}#', '(?P<$1>[^/]+)', $pattern);
         $this->routes[$method][] = ['pattern' => '#^' . $pattern . '/?$#', 'handler' => $handler];
     }
 
