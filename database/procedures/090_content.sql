@@ -37,16 +37,18 @@ CREATE OR REPLACE PROCEDURE sp_admin_articles(IN p_actor BIGINT UNSIGNED, IN p_q
     IN p_category VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_status VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
     IN p_limit INT, IN p_offset INT)
 BEGIN
+    -- User input is matched literally: LIKE wildcards are escaped.
+    -- đ has its own weight in every collation here, unlike the other Vietnamese accents, so it is folded on both sides as in location search (sp_listing_search). REPLACE is case-sensitive, hence both cases.
+    DECLARE v_query VARCHAR(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(p_query),'\\','\\\\'),'%','\\%'),'_','\\_'),'đ','d'),'Đ','D');
     CALL sp_admin_assert_role(p_actor);
     IF p_query IS NULL OR p_category IS NULL OR p_status IS NULL OR p_category NOT IN ('','news','guide') OR p_status NOT IN ('','draft','published') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Bộ lọc bài viết không hợp lệ.';
     END IF;
     IF p_limit IS NULL OR p_offset IS NULL OR p_limit<1 OR p_limit>100 OR p_offset<0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Phân trang không hợp lệ.'; END IF;
-    -- LOCATE keeps user-entered % and _ literal instead of treating them as LIKE wildcards.
     SELECT SQL_CALC_FOUND_ROWS a.id,a.category,a.title,a.slug,a.status,a.published_at,a.created_at,a.updated_at,a.cover_image_url,u.full_name author_name
     FROM articles a JOIN users u ON u.id=a.author_id
     WHERE a.deleted_at IS NULL AND (p_category='' OR a.category=p_category) AND (p_status='' OR a.status=p_status)
-        AND (TRIM(p_query)='' OR LOCATE(TRIM(p_query),a.title)>0 OR LOCATE(TRIM(p_query),a.slug)>0)
+        AND (v_query='' OR REPLACE(REPLACE(a.title,'đ','d'),'Đ','D') LIKE CONCAT('%',v_query,'%') OR a.slug LIKE CONCAT('%',v_query,'%'))
     ORDER BY a.updated_at DESC,a.id DESC
     LIMIT p_limit OFFSET p_offset;
     SELECT FOUND_ROWS() __total;

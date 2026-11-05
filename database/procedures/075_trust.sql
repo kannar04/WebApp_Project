@@ -62,6 +62,8 @@ CREATE OR REPLACE PROCEDURE sp_admin_identity_verifications(IN p_admin BIGINT UN
     IN p_status VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
     IN p_query VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
+    -- đ has its own weight in every collation here, unlike the other Vietnamese accents, so it is folded on both sides as in location search (sp_listing_search). REPLACE is case-sensitive, hence both cases.
+    DECLARE v_query VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(p_query,'đ','d'),'Đ','D');
     CALL sp_admin_assert_role(p_admin);
     IF p_status IS NULL OR p_status NOT IN ('','pending','approved','rejected') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Bộ lọc trạng thái xác minh không hợp lệ.';
@@ -72,8 +74,8 @@ BEGIN
         v.status,v.decision_reason,v.created_at,v.reviewed_at,a.full_name reviewer_name
     FROM identity_verifications v JOIN users u ON u.id=v.user_id LEFT JOIN users a ON a.id=v.reviewed_by
     WHERE (p_status='' OR v.status=p_status)
-        AND (p_query IS NULL OR p_query='' OR u.email LIKE CONCAT('%',p_query,'%') OR u.full_name LIKE CONCAT('%',p_query,'%')
-            OR v.full_name_on_card LIKE CONCAT('%',p_query,'%'))
+        AND (p_query IS NULL OR p_query='' OR u.email LIKE CONCAT('%',v_query,'%') OR REPLACE(REPLACE(u.full_name,'đ','d'),'Đ','D') LIKE CONCAT('%',v_query,'%')
+            OR REPLACE(REPLACE(v.full_name_on_card,'đ','d'),'Đ','D') LIKE CONCAT('%',v_query,'%'))
     ORDER BY v.status='pending' DESC,IF(v.status='pending',v.created_at,NULL),v.created_at DESC,v.id DESC LIMIT 200;
 END$$
 

@@ -213,13 +213,15 @@ CREATE OR REPLACE PROCEDURE sp_admin_booking_search(IN p_actor BIGINT UNSIGNED, 
     IN p_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
     DECLARE v_number BIGINT UNSIGNED DEFAULT NULL;
+    -- đ has its own weight in every collation here, unlike the other Vietnamese accents, so it is folded on both sides as in location search (sp_listing_search). REPLACE is case-sensitive, hence both cases.
+    DECLARE v_query VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(p_query,'đ','d'),'Đ','D');
     CALL sp_admin_assert_role(p_actor);
     IF p_status NOT IN ('','pending','confirmed','rejected','cancelled','completed') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Trạng thái lọc không hợp lệ.'; END IF;
     -- The site prints a booking as #12, so searching #12 means exactly that booking; anything else stays a text search.
     IF p_query REGEXP '^#[0-9]{1,18}$' THEN SET v_number=SUBSTRING(p_query,2); END IF;
     SELECT b.*,l.title,u.full_name guest_name,h.full_name host_name
     FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id JOIN users h ON h.id=l.host_id
-    WHERE (p_status='' OR b.status=p_status) AND (b.id=v_number OR v_number IS NULL AND (p_query='' OR CAST(b.id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci=p_query OR l.title LIKE CONCAT('%',p_query,'%') OR u.full_name LIKE CONCAT('%',p_query,'%') OR h.full_name LIKE CONCAT('%',p_query,'%')))
+    WHERE (p_status='' OR b.status=p_status) AND (b.id=v_number OR v_number IS NULL AND (p_query='' OR CAST(b.id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci=p_query OR REPLACE(REPLACE(l.title,'đ','d'),'Đ','D') LIKE CONCAT('%',v_query,'%') OR REPLACE(REPLACE(u.full_name,'đ','d'),'Đ','D') LIKE CONCAT('%',v_query,'%') OR REPLACE(REPLACE(h.full_name,'đ','d'),'Đ','D') LIKE CONCAT('%',v_query,'%')))
     ORDER BY b.created_at DESC,b.id DESC LIMIT 200;
 END$$
 

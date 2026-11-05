@@ -3,9 +3,11 @@ DELIMITER $$
 
 CREATE OR REPLACE PROCEDURE sp_user_search(IN p_query VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
+    -- đ has its own weight in every collation here, unlike the other Vietnamese accents, so it is folded on both sides as in location search (sp_listing_search). REPLACE is case-sensitive, hence both cases.
+    DECLARE v_query VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(p_query,'đ','d'),'Đ','D');
     SELECT u.id,u.email,u.full_name,u.phone,u.status,u.created_at,GROUP_CONCAT(ur.role ORDER BY ur.role) roles
     FROM users u LEFT JOIN user_roles ur ON ur.user_id=u.id
-    WHERE p_query='' OR u.email LIKE CONCAT('%',p_query,'%') OR u.full_name LIKE CONCAT('%',p_query,'%')
+    WHERE p_query='' OR u.email LIKE CONCAT('%',v_query,'%') OR REPLACE(REPLACE(u.full_name,'đ','d'),'Đ','D') LIKE CONCAT('%',v_query,'%')
     GROUP BY u.id ORDER BY u.deleted_at IS NOT NULL,u.created_at DESC,u.id DESC;
 END$$
 

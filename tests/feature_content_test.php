@@ -180,6 +180,11 @@ try {
     foreach (['Chu-Hoa', 'a--b', '-dau', 'co dau cach', 'đà-lạt', $prefix.'-'] as $badSlug) {
         contentRejected([$model, 'save'], [$adminId, 0, contentArticle('Slug sai '.$marker, $badSlug)], 'Đường dẫn chỉ gồm', 'Slug sai định dạng '.$badSlug);
     }
+    // The Admin title search folds đ on both sides, as location search does; accents and the slug still match, and % stays literal.
+    foreach ([$marker.' Da Lat', $marker.' da lat', $marker.' Đà Lạt', $marker.' đà lạt', $marker.' Đa Lat', $prefix.'-da-lat'] as $typed) {
+        contentExpect($model->adminPage($adminId, $typed, '', '', 100, 0)['total'] === 3, 'Tìm bài theo tiêu đề bỏ sót: '.$typed);
+    }
+    contentExpect($model->adminPage($adminId, $marker.' Da Nang', '', '', 100, 0)['total'] === 0 && $model->adminPage($adminId, $marker.'%Lat', '', '', 100, 0)['total'] === 0, 'Tìm bài khớp nhầm tiêu đề khác.');
     echo "PASS slug generation: Vietnamese title to slug, -2/-3 de-duplication, explicit duplicates and malformed slugs refused in SQL\n";
 
     // Validation in SQL, independent of the controller.

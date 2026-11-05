@@ -45,6 +45,12 @@ function trustBadge(Trust $trust, int $userId, ?int $actorId): array
     return $rows[$userId];
 }
 
+/** Whether a search result holds the fixture row with this id. */
+function trustHasRow(array $rows, string $idColumn, int $id): bool
+{
+    return in_array((string) $id, array_map('strval', array_column($rows, $idColumn)), true);
+}
+
 function trustIsTrusted(Trust $trust, int $hostId): bool
 {
     return (int) trustBadge($trust, $hostId, $hostId)['is_trusted_host'] === 1;
@@ -456,6 +462,47 @@ try {
     trustExpect($storedComment === str_repeat('ệ', Review::MAX_COMMENT_LENGTH), 'Review comment at the limit was not stored whole.');
     $httpReviewStay = (int) trustCall('CALL sp_test_trust_completed_booking(?,?,?)', [$reviewListing, $guestId, 20])[0]['booking_id'];
     echo "PASS trust review comment: routine refuses over 5000 characters, exactly 5000 multibyte characters stored\n";
+
+    // Admin searches by name or title fold đ on both sides, as location search does. Each column holds its own marker, so each is proved separately; accented searches and emails keep working.
+    $bookingSearch = new \App\Models\Booking();
+    $paymentSearch = new \App\Models\BookingExtras();
+    $messageSearch = new \App\Models\BookingMessage();
+    $foldEmail = sprintf($emailFor, 'foldguest');
+    $foldGuest = $users->adminCreate(['email' => $foldEmail, 'password' => $password, 'full_name' => 'Trust '.$tag.'g Đạt', 'phone' => ''], ['guest']);
+    $foldHost = $users->adminCreate(['email' => sprintf($emailFor, 'foldhost'), 'password' => $password, 'full_name' => 'Trust '.$tag.'h Đạt', 'phone' => ''], ['guest', 'host']);
+    $foldListing = $listings->create($foldHost, ['title' => 'Audit fixture trust '.$tag.'t Đà Lạt'] + $listingData);
+    trustCall('CALL sp_test_listing_approve(?)', [$foldListing]);
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $foldBooking = $service->create($foldListing, $foldGuest, $checkIn, $checkOut, 1);
+    $service->hostTransition($foldBooking, $foldHost, 'confirmed');
+    $messageSearch->send($foldBooking, $foldGuest, 'Hỏi đường '.$tag.'m Đà Lạt');
+    $foldRequest = $trust->submitVerification($foldGuest, 'Đoàn Văn Đạt', '0912345681', '079012345681');
+    foreach (['Dat', 'dat', 'DAT', 'Đạt', 'đạt', 'Đat', 'dạt'] as $typed) {
+        $guestTyped = $tag.'g '.$typed;
+        $hostTyped = $tag.'h '.$typed;
+        trustExpect(trustHasRow($users->all($guestTyped), 'id', $foldGuest), 'Admin user search missed the name for: '.$typed);
+        trustExpect(trustHasRow($bookingSearch->adminSearch($adminId, $guestTyped, ''), 'id', $foldBooking), 'Admin booking search missed the Guest for: '.$typed);
+        trustExpect(trustHasRow($bookingSearch->adminSearch($adminId, $hostTyped, ''), 'id', $foldBooking), 'Admin booking search missed the Host for: '.$typed);
+        trustExpect(trustHasRow($paymentSearch->adminPayments($adminId, '', $guestTyped), 'booking_id', $foldBooking), 'Admin payment search missed the Guest for: '.$typed);
+        trustExpect(trustHasRow($trust->adminVerifications($adminId, '', $guestTyped), 'id', $foldRequest), 'Admin verification search missed the account name for: '.$typed);
+        trustExpect(trustHasRow($messageSearch->adminSearch($adminId, '', null, $guestTyped), 'booking_id', $foldBooking), 'Admin message search missed the sender for: '.$typed);
+        trustExpect(trustHasRow($messageSearch->adminSearch($adminId, '', null, $hostTyped), 'booking_id', $foldBooking), 'Admin message search missed the recipient for: '.$typed);
+    }
+    foreach (['Da Lat', 'da lat', 'DA LAT', 'Đà Lạt', 'đà lạt', 'Đa Lat', 'dà lạt'] as $typed) {
+        trustExpect(trustHasRow($bookingSearch->adminSearch($adminId, $tag.'t '.$typed, ''), 'id', $foldBooking), 'Admin booking search missed the title for: '.$typed);
+        trustExpect(trustHasRow($paymentSearch->adminPayments($adminId, '', '  '.$tag.'t '.$typed.' '), 'booking_id', $foldBooking), 'Admin payment search missed the title for: '.$typed);
+        trustExpect(trustHasRow($messageSearch->adminSearch($adminId, $tag.'m '.$typed, null, ''), 'booking_id', $foldBooking), 'Admin message search missed the text for: '.$typed);
+    }
+    foreach (['Doan Van Dat', 'doan van dat', 'Đoàn Văn Đạt', 'đoàn văn đạt', 'Đoan Van Đat'] as $typed) {
+        trustExpect(trustHasRow($trust->adminVerifications($adminId, '', $typed), 'id', $foldRequest), 'Admin verification search missed the card name for: '.$typed);
+    }
+    trustExpect(trustHasRow($users->all($foldEmail), 'id', $foldGuest) && trustHasRow($paymentSearch->adminPayments($adminId, '', $foldEmail), 'booking_id', $foldBooking)
+        && trustHasRow($trust->adminVerifications($adminId, '', $foldEmail), 'id', $foldRequest) && trustHasRow($messageSearch->adminSearch($adminId, '', null, $foldEmail), 'booking_id', $foldBooking), 'Searching by email stopped working.');
+    trustExpect($users->all($tag.'g Dan') === [] && $bookingSearch->adminSearch($adminId, $tag.'t Da Nang', '') === [] && $paymentSearch->adminPayments($adminId, '', $tag.'t Da Nang') === []
+        && !trustHasRow($trust->adminVerifications($adminId, '', 'Doan Van Dan'), 'id', $foldRequest) && $messageSearch->adminSearch($adminId, $tag.'m Da Nang', null, '') === [], 'Folding made a search match a different word.');
+    trustExpect($messageSearch->adminSearch($adminId, '', null, $tag.'g%Dat') === [] && $messageSearch->adminSearch($adminId, $tag.'m_Da Lat', null, '') === [], 'A message search stopped treating % and _ literally.');
+    trustExpect($users->all($tag.'g Dat')[0]['full_name'] === 'Trust '.$tag.'g Đạt' && $bookingSearch->adminSearch($adminId, $tag.'t Da Lat', '')[0]['title'] === 'Audit fixture trust '.$tag.'t Đà Lạt', 'Folding changed the text shown for a result.');
+    echo "PASS Admin searches by name, title, card name and message text fold đ on both sides; accents, emails and stored text unchanged\n";
 
     $baseUrl = rtrim((string) getenv('HOME2HOME_TEST_URL'), '/');
     if ($baseUrl !== '') {

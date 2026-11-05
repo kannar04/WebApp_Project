@@ -538,6 +538,8 @@ CREATE OR REPLACE PROCEDURE sp_admin_payments(IN p_actor BIGINT UNSIGNED, IN p_s
     IN p_query VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
     DECLARE v_number BIGINT UNSIGNED DEFAULT NULL;
+    -- đ has its own weight in every collation here, unlike the other Vietnamese accents, so it is folded on both sides as in location search (sp_listing_search). REPLACE is case-sensitive, hence both cases.
+    DECLARE v_query VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(TRIM(COALESCE(p_query,'')),'đ','d'),'Đ','D');
     CALL sp_admin_assert_role(p_actor);
     IF p_status IS NULL OR p_status NOT IN ('','unpaid','paid','refunded','not_required') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Trạng thái thanh toán lọc không hợp lệ.'; END IF;
     SET p_query=TRIM(COALESCE(p_query,''));
@@ -559,8 +561,8 @@ BEGIN
                 WHERE d.booking_id=b.id AND d.provider='vnpay' AND d.status='succeeded' AND d.note IS NOT NULL)
     ) x
     WHERE (p_status='' OR x.payment_state=p_status)
-        AND (x.booking_id=v_number OR v_number IS NULL AND (p_query='' OR CAST(x.booking_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci=p_query OR x.title LIKE CONCAT('%',p_query,'%')
-            OR x.guest_name LIKE CONCAT('%',p_query,'%') OR x.guest_email LIKE CONCAT('%',p_query,'%')))
+        AND (x.booking_id=v_number OR v_number IS NULL AND (p_query='' OR CAST(x.booking_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci=p_query OR REPLACE(REPLACE(x.title,'đ','d'),'Đ','D') LIKE CONCAT('%',v_query,'%')
+            OR REPLACE(REPLACE(x.guest_name,'đ','d'),'Đ','D') LIKE CONCAT('%',v_query,'%') OR x.guest_email LIKE CONCAT('%',v_query,'%')))
     ORDER BY x.created_at DESC,x.booking_id DESC LIMIT 200;
 END$$
 

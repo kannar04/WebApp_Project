@@ -167,16 +167,17 @@ BEGIN
     DECLARE v_user VARCHAR(600) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     CALL sp_admin_assert_role(p_actor);
     -- User input is matched literally: LIKE wildcards are escaped.
-    SET v_keyword=REPLACE(REPLACE(REPLACE(TRIM(COALESCE(p_keyword,'')),'\\','\\\\'),'%','\\%'),'_','\\_');
-    SET v_user=REPLACE(REPLACE(REPLACE(TRIM(COALESCE(p_user,'')),'\\','\\\\'),'%','\\%'),'_','\\_');
+    -- đ has its own weight in every collation here, unlike the other Vietnamese accents, so it is folded on both sides as in location search (sp_listing_search). REPLACE is case-sensitive, hence both cases.
+    SET v_keyword=REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(COALESCE(p_keyword,'')),'\\','\\\\'),'%','\\%'),'_','\\_'),'đ','d'),'Đ','D');
+    SET v_user=REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(COALESCE(p_user,'')),'\\','\\\\'),'%','\\%'),'_','\\_'),'đ','d'),'Đ','D');
     SELECT m.id,m.booking_id,l.title,b.status booking_status,m.sender_id,s.full_name sender_name,s.email sender_email,
         r.full_name recipient_name,r.email recipient_email,m.body,m.created_at,m.read_at,m.hidden_at,m.hidden_reason,a.full_name hidden_by_name
     FROM booking_messages m JOIN bookings b ON b.id=m.booking_id JOIN listings l ON l.id=b.listing_id
         JOIN users s ON s.id=m.sender_id JOIN users r ON r.id=m.recipient_id LEFT JOIN users a ON a.id=m.hidden_by
     WHERE (p_booking IS NULL OR m.booking_id=p_booking)
-        AND (v_keyword='' OR m.body LIKE CONCAT('%',v_keyword,'%'))
-        AND (v_user='' OR s.full_name LIKE CONCAT('%',v_user,'%') OR s.email LIKE CONCAT('%',v_user,'%')
-            OR r.full_name LIKE CONCAT('%',v_user,'%') OR r.email LIKE CONCAT('%',v_user,'%'))
+        AND (v_keyword='' OR REPLACE(REPLACE(m.body,'đ','d'),'Đ','D') LIKE CONCAT('%',v_keyword,'%'))
+        AND (v_user='' OR REPLACE(REPLACE(s.full_name,'đ','d'),'Đ','D') LIKE CONCAT('%',v_user,'%') OR s.email LIKE CONCAT('%',v_user,'%')
+            OR REPLACE(REPLACE(r.full_name,'đ','d'),'Đ','D') LIKE CONCAT('%',v_user,'%') OR r.email LIKE CONCAT('%',v_user,'%'))
     ORDER BY m.created_at DESC,m.id DESC LIMIT 200;
 END$$
 
