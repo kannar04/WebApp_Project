@@ -15,6 +15,8 @@ BEGIN
             WHERE n.booking_id=b.id AND n.event_type='payment_duplicate') admin_duplicate_notices,
         (SELECT COUNT(*) FROM notifications n JOIN user_roles r ON r.user_id=n.user_id AND r.role='admin'
             WHERE n.booking_id=b.id AND n.event_type='payment_refund_needed') admin_refund_notices,
+        (SELECT COUNT(*) FROM notifications n
+            WHERE n.booking_id=b.id AND n.event_type='payment_host_suspended') admin_host_suspended_notices,
         (SELECT COUNT(*) FROM notifications n JOIN user_roles r ON r.user_id=n.user_id AND r.role='admin'
             WHERE n.booking_id=b.id AND n.event_type='payment_cancelled_paid') admin_cancelled_paid_notices,
         (SELECT n.body FROM notifications n JOIN user_roles r ON r.user_id=n.user_id AND r.role='admin'

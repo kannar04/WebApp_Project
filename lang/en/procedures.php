@@ -259,6 +259,8 @@ return [
     'Vui lòng nhập lý do chưa nhận được tiền (ít nhất 5 ký tự).' => 'Please enter why the money was not received (at least 5 characters).',
     'Vui lòng ghi chú lý do đóng giao dịch trùng (ít nhất 5 ký tự).' => 'Please note why this duplicate is being closed (at least 5 characters).',
     'Chỗ ở này đã bị gỡ nên không thể thanh toán online.' => 'This listing was taken down, so it can no longer be paid online.',
+    'Tài khoản Host đang tạm khóa nên hiện chưa thể thanh toán online. Hãy liên hệ Admin nếu cần.' => 'The Host\'s account is temporarily locked, so online payment is unavailable for now. Contact an Admin if you need help.',
+    'Cần kiểm tra chuyến ở' => 'Stay needs checking',
     'Chuyến ở đã kết thúc nên không thể hủy booking.' => 'The stay has ended, so this booking can no longer be cancelled.',
     'Theo chính sách hủy, booking này không có khoản hoàn nên không thể ghi nhận hoàn tiền.' => 'Under the cancellation policy this booking has nothing to refund, so no refund can be recorded.',
     'Chỉ xác nhận giao dịch chuyển khoản VietQR.' => 'Only VietQR bank transfers can be confirmed here.',

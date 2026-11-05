@@ -373,8 +373,9 @@ BEGIN
         COALESCE(pay.method,'pay_at_checkin') payment_method,COALESCE(pay.amount_due,b.total_amount) amount_due,COALESCE(pay.status,'unpaid') payment_status,
         CASE WHEN COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('rejected','cancelled') THEN 'not_required' ELSE COALESCE(pay.status,'unpaid') END payment_state,
         (COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('confirmed','completed') AND b.check_in<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) can_mark_paid,
-        -- Online payment (095_online_payment.sql): only the Guest of a confirmed, unpaid VND booking may pay online; a taken-down listing or a suspended or deleted Host only for a finished stay.
+        -- Online payment (095_online_payment.sql): only the Guest of a confirmed, unpaid VND booking may pay online; a taken-down listing or a suspended or deleted Host only for a finished stay. host_locked gives the page the reason for a suspension.
         (b.guest_id=p_actor AND COALESCE(pay.status,'unpaid')='unpaid' AND b.status='confirmed' AND b.currency='VND' AND COALESCE(pay.amount_due,b.total_amount)>0 AND ((l.deleted_at IS NULL AND h.status='active' AND h.deleted_at IS NULL) OR b.check_out<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR))) can_pay_online,
+        (l.deleted_at IS NULL AND h.status='suspended' AND h.deleted_at IS NULL AND b.status IN ('pending','confirmed') AND b.check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) host_locked,
         t.id open_transfer_id,t.status open_transfer_status,t.reference open_transfer_reference,t.amount open_transfer_amount,
         pay.paid_at,pay.refunded_at,pay.note payment_note,payer.full_name paid_by_name,refunder.full_name refunded_by_name,
         COALESCE(c.refund_amount,pay.amount_due,b.total_amount) refund_amount,

@@ -480,6 +480,16 @@ Giá giữ nguyên cách tính; các routine dưới đây sửa lỗi tại ch�
 | `sp_payment_start`, `sp_payment_transfer_submit`, `sp_admin_payment_transfer_decide`, `sp_payment_vnpay_result` | `095_online_payment.sql` | Sau khóa listing, đọc trạng thái Host bằng `LOCK IN SHARE MODE`; Host bị khóa hoặc đã xóa dùng chung nhánh `v_removed` (từ chối, hoặc ghi nhận rồi báo Admin hoàn tiền) | feature_payment_test |
 | `sp_booking_cancel`, `sp_booking_refund_preview` | `020_booking.sql`, `050_quality_core.sql` | Cùng gọi `sp_booking_refund_terms`, nên bản xem trước có cùng fallback và cùng con số với lúc hủy thật; preview lấy giờ nhận phòng và múi giờ hiện tại của listing | feature_payment_test |
 
+Vòng 4, Host bị khóa và lời hứa hoàn tiền:
+
+| Routine | File | Thay đổi | Test |
+|---|---|---|---|
+| `sp_payment_checkout`, `sp_payment_transaction_get`, `sp_booking_extras_detail` | `095_online_payment.sql`, `070_booking_extras.sql` | Thêm `host_locked`: Host tạm khóa khác với chỗ ở đã gỡ. `listing_removed` chỉ còn chỗ ở đã gỡ hoặc Host đã xóa; `can_pay_online` không đổi | `feature_payment_test.php` |
+| `sp_payment_start` | `095_online_payment.sql` | Host tạm khóa: từ chối bằng thông báo riêng, không nói “đã bị gỡ” | `feature_payment_test.php` |
+| `sp_payment_transfer_submit` | `095_online_payment.sql` | Host tạm khóa không chặn việc báo chuyển khoản theo mã đã cấp trước đó, vì tiền có thể đã đi; chỗ ở đã gỡ hoặc Host đã xóa vẫn từ chối | `feature_payment_test.php` |
+| `sp_payment_vnpay_result`, `sp_admin_payment_transfer_decide` | `095_online_payment.sql` | Tiền về khi Host tạm khóa là thanh toán bình thường, không hứa hoàn tiền; mọi Admin nhận thông báo `payment_host_suspended` để kiểm tra chuyến ở. Chỗ ở đã gỡ, Host đã xóa và chuyến đã kết thúc không đổi | `feature_payment_test.php` |
+| `sp_booking_refund_terms`, `sp_booking_cancel`, `sp_booking_refund_preview` | `050_quality_core.sql`, `020_booking.sql` | Thêm `p_booking`. Booking đã có thông báo “Khoản thanh toán sẽ được hoàn lại” được hoàn đủ `amount_due` bất kể chính sách, kể cả sau khi chỗ ở hoặc Host được khôi phục, nên form hoàn tiền của Admin vẫn còn | `feature_payment_test.php` |
+
 ### Routine mới
 
 | Routine | File | Mục đích | Transaction / khóa / quyền | Test |

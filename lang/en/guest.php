@@ -290,6 +290,7 @@ return [
     'Giữ nguyên số tiền và nội dung chuyển khoản để Admin đối chiếu; mã QR đã điền sẵn cả hai.' => 'Keep the amount and reference unchanged so the Admin can match the transfer; the QR code fills in both.',
     'Bạn đã chuyển {amount}đ với nội dung {reference}?' => 'Have you transferred {amount}đ with reference {reference}?',
     'Tôi đã chuyển khoản' => 'I have made the transfer',
+    'Nếu bạn đã chuyển khoản theo mã này trước đó, hãy báo để Admin kiểm tra.' => 'If you already sent the transfer with this code, report it so an Admin can check it.',
     'Website chưa cấu hình tài khoản nhận chuyển khoản.' => 'No receiving bank account is set up on this site yet.',
     'Thanh toán lại' => 'Pay again',
     'Đã báo chuyển khoản, chờ Admin xác nhận' => 'Transfer reported, awaiting Admin confirmation',

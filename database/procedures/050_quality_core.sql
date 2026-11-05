@@ -153,11 +153,18 @@ END$$
 
 -- A paid, confirmed booking's refund terms right now, shared by the cancel and its preview so the two cannot disagree.
 -- The snapshot decides; one saved without a time zone or check-in time falls back on the listing's current values (p_default_*).
-CREATE OR REPLACE PROCEDURE sp_booking_refund_terms(IN p_policy LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_start DATE, IN p_total DECIMAL(12,2), IN p_fee DECIMAL(12,2),
+-- Money the Guest was told comes back stays owed in full, whatever the policy says, even after the listing or Host is restored.
+CREATE OR REPLACE PROCEDURE sp_booking_refund_terms(IN p_booking BIGINT UNSIGNED, IN p_policy LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_start DATE, IN p_total DECIMAL(12,2), IN p_fee DECIMAL(12,2),
     IN p_default_time TIME, IN p_default_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, OUT o_percent DECIMAL(5,2), OUT o_base DECIMAL(12,2))
-BEGIN
+terms: BEGIN
     DECLARE v_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_arrival DATETIME;
+    -- The promise is the Guest's own notification from sp_payment_vnpay_result or sp_admin_payment_transfer_decide; nothing deletes it.
+    IF EXISTS(SELECT 1 FROM notifications WHERE booking_id=p_booking AND event_type='payment_paid' AND title='Khoản thanh toán sẽ được hoàn lại') THEN
+        SET o_percent=100;
+        SELECT amount_due INTO o_base FROM booking_payments WHERE booking_id=p_booking;
+        LEAVE terms;
+    END IF;
     SET v_zone=COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p_policy,'$.time_zone')),'null'),p_default_zone);
     -- XAMPP may not load named timezone tables. Vietnam has a fixed UTC+07 offset.
     SET v_zone=CASE v_zone WHEN 'Asia/Ho_Chi_Minh' THEN '+07:00' WHEN 'UTC' THEN '+00:00' ELSE v_zone END;
@@ -189,7 +196,7 @@ BEGIN
     ELSE
         IF COALESCE(v_payment,'unpaid') IN ('unpaid','refunded') THEN SET v_percent=0; SET v_base=0; -- Nothing held (not collected, or already refunded), nothing to refund.
         ELSEIF v_status='pending' THEN SET v_percent=100; SET v_base=v_total;
-        ELSEIF v_status='confirmed' THEN CALL sp_booking_refund_terms(v_policy,v_start,v_total,v_fee,v_default_time,v_default_zone,v_percent,v_base);
+        ELSEIF v_status='confirmed' THEN CALL sp_booking_refund_terms(p_booking,v_policy,v_start,v_total,v_fee,v_default_time,v_default_zone,v_percent,v_base);
         END IF;
         SELECT v_percent refund_percent,ROUND(GREATEST(0,v_base)*v_percent/100,0) refund_amount;
     END IF;

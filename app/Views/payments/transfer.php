@@ -1,7 +1,9 @@
 <?php
 $amount = number_format((float)$attempt['amount'],0,',','.');
 $bookingPath = '/bookings/'.(int)$attempt['booking_id'];
-$payable = $attempt['status']==='pending' && $attempt['payment_status']==='unpaid' && $attempt['booking_status']==='confirmed' && !$attempt['listing_removed'];
+$payable = $attempt['status']==='pending' && $attempt['payment_status']==='unpaid' && $attempt['booking_status']==='confirmed' && !$attempt['listing_removed'] && !$attempt['host_locked'];
+// The Host was suspended after this code was issued: no QR any more, but a Guest who already sent the money can still report it.
+$reportOnly = !$payable && $attempt['status']==='pending' && $attempt['payment_status']==='unpaid' && $attempt['booking_status']==='confirmed' && $attempt['host_locked'];
 $isAdmin = \Core\Auth::hasRole('admin');
 ?>
 <section class="page-section"><div class="container narrow">
@@ -17,7 +19,7 @@ $isAdmin = \Core\Auth::hasRole('admin');
 <?php elseif($attempt['status']==='cancelled'): ?>
 <div class="alert alert-secondary" role="status"><?= e(__('Giao dịch này đã đóng.')) ?><?php if($attempt['note']): ?> <?= e(__((string)$attempt['note'])) ?><?php endif; ?></div>
 <?php elseif(!$payable): ?>
-<div class="alert alert-secondary" role="status"><?= e($attempt['listing_removed']?__('Chỗ ở này đã bị gỡ nên không thể thanh toán online.'):__('Booking này không còn chờ thanh toán.')) ?></div>
+<div class="alert alert-secondary" role="status"><?= e($attempt['listing_removed']?__('Chỗ ở này đã bị gỡ nên không thể thanh toán online.'):($reportOnly?__('Tài khoản Host đang tạm khóa nên hiện chưa thể thanh toán online. Hãy liên hệ Admin nếu cần.'):__('Booking này không còn chờ thanh toán.'))) ?></div>
 <?php endif; ?>
 <div class="payment-qr">
 <?php if($payable && $qrUrl!==''): ?><img src="<?= e($qrUrl) ?>" width="300" height="370" alt="<?= e(__('Mã VietQR chuyển {amount}đ, nội dung {reference}', ['amount'=>$amount, 'reference'=>$attempt['reference']])) ?>" referrerpolicy="no-referrer"><?php endif; ?>
@@ -29,7 +31,8 @@ $isAdmin = \Core\Auth::hasRole('admin');
 </dl>
 <?php if($payable && $qrUrl!==''): ?><p class="small text-muted mt-3"><?= e(__('Giữ nguyên số tiền và nội dung chuyển khoản để Admin đối chiếu; mã QR đã điền sẵn cả hai.')) ?></p>
 <?php if($isGuest): ?><form method="post" action="<?= e(url('/payments/'.(int)$attempt['transaction_id'].'/transferred')) ?>"><?= csrf_field() ?><button class="btn btn-primary" type="submit" data-confirm="<?= e(__('Bạn đã chuyển {amount}đ với nội dung {reference}?', ['amount'=>$amount, 'reference'=>$attempt['reference']])) ?>"><?= e(__('Tôi đã chuyển khoản')) ?></button></form><?php endif; ?>
-<?php elseif($payable): ?><p class="small text-muted mt-3"><?= e(__('Website chưa cấu hình tài khoản nhận chuyển khoản.')) ?></p><?php endif; ?>
+<?php elseif($payable): ?><p class="small text-muted mt-3"><?= e(__('Website chưa cấu hình tài khoản nhận chuyển khoản.')) ?></p>
+<?php elseif($reportOnly && $isGuest): ?><p class="small text-muted mt-3"><?= e(__('Nếu bạn đã chuyển khoản theo mã này trước đó, hãy báo để Admin kiểm tra.')) ?></p><form method="post" action="<?= e(url('/payments/'.(int)$attempt['transaction_id'].'/transferred')) ?>"><?= csrf_field() ?><button class="btn btn-primary" type="submit" data-confirm="<?= e(__('Bạn đã chuyển {amount}đ với nội dung {reference}?', ['amount'=>$amount, 'reference'=>$attempt['reference']])) ?>"><?= e(__('Tôi đã chuyển khoản')) ?></button></form><?php endif; ?>
 <?php if($isGuest && $attempt['status']==='failed' && $attempt['payment_status']==='unpaid' && $attempt['booking_status']==='confirmed'): ?><a class="btn btn-outline-primary mt-2" href="<?= e(url($bookingPath.'/pay')) ?>"><?= e(__('Thanh toán lại')) ?></a><?php endif; ?>
 <?php if($isAdmin && in_array($attempt['status'],['pending','submitted'],true)): ?><div class="mt-3"><?php $transfer=$attempt; $decideBookingId=null; require __DIR__.'/decide-form.php'; ?></div><?php endif; ?>
 </div></div>

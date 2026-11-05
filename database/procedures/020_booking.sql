@@ -269,7 +269,7 @@ BEGIN
     IF COALESCE(v_payment,'unpaid') IN ('unpaid','refunded') THEN SET v_percent=0; SET v_base=0;
     ELSEIF v_status='pending' THEN SET v_percent=100; SET v_base=v_total;
     ELSE
-        CALL sp_booking_refund_terms(v_policy,v_start,v_total,v_fee,v_default_time,v_default_zone,v_percent,v_base);
+        CALL sp_booking_refund_terms(p_booking,v_policy,v_start,v_total,v_fee,v_default_time,v_default_zone,v_percent,v_base);
     END IF;
     SET v_refund=ROUND(GREATEST(0,v_base)*v_percent/100,0);
     UPDATE bookings SET status='cancelled',updated_at=NOW(6) WHERE id=p_booking;

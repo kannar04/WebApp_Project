@@ -12,9 +12,10 @@ BEGIN
     END IF;
     SELECT b.id booking_id,b.status booking_status,b.check_in,b.check_out,b.currency,l.title,
         COALESCE(pay.amount_due,b.total_amount) amount_due,COALESCE(pay.status,'unpaid') payment_status,COALESCE(pay.method,'pay_at_checkin') payment_method,
-        -- A taken-down listing, or one whose Host is suspended or deleted, refuses payment only for a stay that will not happen; a finished stay (check-out day reached, as in the take-down rule) really happened and is paid normally.
+        -- A taken-down listing or a deleted Host refuses payment only for a stay that will not happen; a suspended Host only stops new payments for now (host_locked), the stay still exists. A finished stay (check-out day reached, as in the take-down rule) really happened and is paid normally.
         (COALESCE(pay.status,'unpaid')='unpaid' AND b.status='confirmed' AND b.currency='VND' AND COALESCE(pay.amount_due,b.total_amount)>0 AND ((l.deleted_at IS NULL AND h.status='active' AND h.deleted_at IS NULL) OR b.check_out<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR))) can_pay_online,
-        ((l.deleted_at IS NOT NULL OR h.status<>'active' OR h.deleted_at IS NOT NULL) AND b.check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) listing_removed,
+        ((l.deleted_at IS NOT NULL OR h.status='deleted' OR h.deleted_at IS NOT NULL) AND b.check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) listing_removed,
+        (l.deleted_at IS NULL AND h.status='suspended' AND h.deleted_at IS NULL AND b.status IN ('pending','confirmed') AND b.check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) host_locked,
         t.id transfer_id,t.reference transfer_reference,t.status transfer_status,t.amount transfer_amount,t.created_at transfer_created_at,t.submitted_at transfer_submitted_at
     FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users h ON h.id=l.host_id LEFT JOIN booking_payments pay ON pay.booking_id=b.id
         LEFT JOIN payment_transactions t ON t.id=(SELECT x.id FROM payment_transactions x
@@ -37,6 +38,7 @@ BEGIN
     DECLARE v_due DECIMAL(12,2);
     DECLARE v_host BIGINT UNSIGNED;
     DECLARE v_removed DATETIME(6);
+    DECLARE v_suspended BOOL DEFAULT FALSE;
     DECLARE v_end DATE;
     DECLARE v_attempt BIGINT UNSIGNED;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -51,8 +53,8 @@ BEGIN
     IF p_provider IS NULL OR p_provider NOT IN ('vietqr','vnpay') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Phương thức thanh toán không hợp lệ.'; END IF;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=p_booking;
     SELECT id,deleted_at,host_id INTO v_lock,v_removed,v_host FROM listings WHERE id=v_listing FOR UPDATE;
-    -- A suspended or deleted Host counts as a removed listing: the stay will not happen.
-    SELECT IF(status='active' AND deleted_at IS NULL,v_removed,COALESCE(v_removed,NOW(6))) INTO v_removed FROM users WHERE id=v_host LOCK IN SHARE MODE;
+    -- A deleted Host counts as a removed listing: the stay will not happen. A suspension is reversible: the stay still exists, but no new payment starts while it lasts.
+    SELECT IF(status='deleted' OR deleted_at IS NOT NULL,COALESCE(v_removed,NOW(6)),v_removed),status='suspended' INTO v_removed,v_suspended FROM users WHERE id=v_host LOCK IN SHARE MODE;
     SELECT guest_id,status,currency,total_amount,check_out INTO v_guest,v_status,v_currency,v_total,v_end FROM bookings WHERE id=p_booking FOR UPDATE;
     IF v_guest IS NULL OR v_guest<>p_guest OR NOT EXISTS(SELECT 1 FROM users WHERE id=p_guest AND status='active' AND deleted_at IS NULL) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không có quyền thanh toán booking này.';
@@ -63,6 +65,7 @@ BEGIN
     IF COALESCE(v_payment,'unpaid')<>'unpaid' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được ghi nhận thanh toán.'; END IF;
     IF v_status<>'confirmed' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ thanh toán online cho booking đã được xác nhận.'; END IF;
     IF v_removed IS NOT NULL AND v_end>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở này đã bị gỡ nên không thể thanh toán online.'; END IF;
+    IF v_suspended AND v_end>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Tài khoản Host đang tạm khóa nên hiện chưa thể thanh toán online. Hãy liên hệ Admin nếu cần.'; END IF;
     IF v_currency<>'VND' OR v_due<=0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này không hỗ trợ thanh toán online.'; END IF;
     IF EXISTS(SELECT 1 FROM payment_transactions WHERE booking_id=p_booking AND status='submitted') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Bạn đã báo chuyển khoản cho booking này; vui lòng chờ Admin xác nhận.';
@@ -91,7 +94,8 @@ BEGIN
     END IF;
     SELECT t.id transaction_id,t.booking_id,t.provider,t.reference,t.amount,t.status,t.submitted_at,t.decided_at,t.note,t.created_at,
         b.status booking_status,b.check_in,b.check_out,b.guest_id,l.title,COALESCE(pay.status,'unpaid') payment_status,COALESCE(pay.method,'pay_at_checkin') payment_method,
-        ((l.deleted_at IS NOT NULL OR h.status<>'active' OR h.deleted_at IS NOT NULL) AND b.check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) listing_removed
+        ((l.deleted_at IS NOT NULL OR h.status='deleted' OR h.deleted_at IS NOT NULL) AND b.check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) listing_removed,
+        (l.deleted_at IS NULL AND h.status='suspended' AND h.deleted_at IS NULL AND b.status IN ('pending','confirmed') AND b.check_out>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) host_locked
     FROM payment_transactions t JOIN bookings b ON b.id=t.booking_id JOIN listings l ON l.id=b.listing_id JOIN users h ON h.id=l.host_id LEFT JOIN booking_payments pay ON pay.booking_id=b.id
     WHERE t.id=p_transaction;
 END$$
@@ -125,8 +129,8 @@ BEGIN
     SELECT booking_id INTO v_booking FROM payment_transactions WHERE id=p_transaction;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
     SELECT id,deleted_at,host_id INTO v_lock,v_removed,v_host FROM listings WHERE id=v_listing FOR UPDATE;
-    -- A suspended or deleted Host counts as a removed listing: the stay will not happen.
-    SELECT IF(status='active' AND deleted_at IS NULL,v_removed,COALESCE(v_removed,NOW(6))) INTO v_removed FROM users WHERE id=v_host LOCK IN SHARE MODE;
+    -- A deleted Host counts as a removed listing: the stay will not happen. A suspended Host does not stop this report: the code was issued before the suspension, the money may already have left, and the Admins must still check it.
+    SELECT IF(status='deleted' OR deleted_at IS NOT NULL,COALESCE(v_removed,NOW(6)),v_removed) INTO v_removed FROM users WHERE id=v_host LOCK IN SHARE MODE;
     SELECT guest_id,status,check_out INTO v_guest,v_booking_status,v_end FROM bookings WHERE id=v_booking FOR UPDATE;
     IF v_guest IS NULL OR v_guest<>p_guest OR NOT EXISTS(SELECT 1 FROM users WHERE id=p_guest AND status='active' AND deleted_at IS NULL) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không tìm thấy giao dịch thanh toán.';
@@ -171,6 +175,7 @@ BEGIN
     DECLARE v_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_host BIGINT UNSIGNED;
     DECLARE v_removed DATETIME(6);
+    DECLARE v_suspended BOOL DEFAULT FALSE;
     DECLARE v_booking_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_end DATE;
     DECLARE v_duplicate BOOL DEFAULT FALSE;
@@ -189,12 +194,12 @@ BEGIN
     SELECT booking_id INTO v_booking FROM payment_transactions WHERE id=p_transaction;
     SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
     SELECT id,deleted_at,host_id INTO v_lock,v_removed,v_host FROM listings WHERE id=v_listing FOR UPDATE;
-    -- A suspended or deleted Host counts as a removed listing: the stay will not happen.
-    SELECT IF(status='active' AND deleted_at IS NULL,v_removed,COALESCE(v_removed,NOW(6))) INTO v_removed FROM users WHERE id=v_host LOCK IN SHARE MODE;
+    -- A deleted Host counts as a removed listing: the stay will not happen. A suspension is reversible and the stay still exists: the money is a normal payment and the Admins are asked to check the stay.
+    SELECT IF(status='deleted' OR deleted_at IS NOT NULL,COALESCE(v_removed,NOW(6)),v_removed),status='suspended' INTO v_removed,v_suspended FROM users WHERE id=v_host LOCK IN SHARE MODE;
     SELECT guest_id,total_amount,status,check_out INTO v_guest,v_total,v_booking_status,v_end FROM bookings WHERE id=v_booking FOR UPDATE;
     IF v_guest IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không tìm thấy giao dịch thanh toán.'; END IF;
     -- A finished stay really happened: money for it is a normal payment even if the listing was taken down afterwards.
-    IF v_end<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SET v_removed=NULL; END IF;
+    IF v_end<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SET v_removed=NULL; SET v_suspended=FALSE; END IF;
     SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
     SELECT provider,status,reference,ROUND(amount,0) INTO v_provider,v_status,v_reference,v_amount FROM payment_transactions WHERE id=p_transaction FOR UPDATE;
     IF v_provider<>'vietqr' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ xác nhận giao dịch chuyển khoản VietQR.'; END IF;
@@ -239,6 +244,12 @@ BEGIN
             INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
                 SELECT r.user_id,v_booking,'in_app','payment_refund_needed','Cần hoàn tiền',
                     CONCAT('Booking #',v_booking,' thuộc chỗ ở đã gỡ nhưng vẫn nhận ',REPLACE(FORMAT(v_amount,0),',','.'),'đ qua chuyển khoản (mã ',v_reference,'). Vui lòng hoàn tiền cho khách.'),
+                    'sent',1,NOW(6)
+                FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='admin' AND u.status='active' AND u.deleted_at IS NULL;
+        ELSEIF v_suspended THEN
+            INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+                SELECT r.user_id,v_booking,'in_app','payment_host_suspended','Cần kiểm tra chuyến ở',
+                    CONCAT('Booking #',v_booking,' vừa nhận ',REPLACE(FORMAT(v_amount,0),',','.'),'đ qua chuyển khoản (mã ',v_reference,') trong khi tài khoản Host đang tạm khóa. Vui lòng kiểm tra chuyến ở này.'),
                     'sent',1,NOW(6)
                 FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='admin' AND u.status='active' AND u.deleted_at IS NULL;
         END IF;
@@ -335,6 +346,7 @@ BEGIN
     DECLARE v_decided BIGINT UNSIGNED;
     DECLARE v_host BIGINT UNSIGNED;
     DECLARE v_removed DATETIME(6);
+    DECLARE v_suspended BOOL DEFAULT FALSE;
     DECLARE v_end DATE;
     DECLARE v_result VARCHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'ok';
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -352,11 +364,11 @@ BEGIN
     ELSE
         SELECT listing_id INTO v_listing FROM bookings WHERE id=v_booking;
         SELECT id,deleted_at,host_id INTO v_lock,v_removed,v_host FROM listings WHERE id=v_listing FOR UPDATE;
-        -- A suspended or deleted Host counts as a removed listing: the stay will not happen.
-        SELECT IF(status='active' AND deleted_at IS NULL,v_removed,COALESCE(v_removed,NOW(6))) INTO v_removed FROM users WHERE id=v_host LOCK IN SHARE MODE;
+        -- A deleted Host counts as a removed listing: the stay will not happen. A suspension is reversible and the stay still exists: the money is a normal payment and the Admins are asked to check the stay.
+        SELECT IF(status='deleted' OR deleted_at IS NOT NULL,COALESCE(v_removed,NOW(6)),v_removed),status='suspended' INTO v_removed,v_suspended FROM users WHERE id=v_host LOCK IN SHARE MODE;
         SELECT guest_id,status,check_out INTO v_guest,v_booking_status,v_end FROM bookings WHERE id=v_booking FOR UPDATE;
         -- A finished stay really happened: money for it is a normal payment even if the listing was taken down afterwards.
-        IF v_end<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SET v_removed=NULL; END IF;
+        IF v_end<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SET v_removed=NULL; SET v_suspended=FALSE; END IF;
         SELECT status INTO v_payment FROM booking_payments WHERE booking_id=v_booking FOR UPDATE;
         -- VNPay was asked for the whole-dong amount, even if this attempt was stored with a decimal before amounts were rounded.
         SELECT status,ROUND(amount,0),decided_by INTO v_status,v_amount,v_decided FROM payment_transactions WHERE id=v_attempt FOR UPDATE;
@@ -399,6 +411,12 @@ BEGIN
                     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
                         SELECT r.user_id,v_booking,'in_app','payment_refund_needed','Cần hoàn tiền',
                             CONCAT('Booking #',v_booking,' thuộc chỗ ở đã gỡ nhưng vẫn nhận ',REPLACE(FORMAT(v_amount,0),',','.'),'đ qua VNPay (mã ',p_reference,'). Vui lòng hoàn tiền cho khách.'),
+                            'sent',1,NOW(6)
+                        FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='admin' AND u.status='active' AND u.deleted_at IS NULL;
+                ELSEIF v_suspended THEN
+                    INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
+                        SELECT r.user_id,v_booking,'in_app','payment_host_suspended','Cần kiểm tra chuyến ở',
+                            CONCAT('Booking #',v_booking,' vừa nhận ',REPLACE(FORMAT(v_amount,0),',','.'),'đ qua VNPay (mã ',p_reference,') trong khi tài khoản Host đang tạm khóa. Vui lòng kiểm tra chuyến ở này.'),
                             'sent',1,NOW(6)
                         FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role='admin' AND u.status='active' AND u.deleted_at IS NULL;
                 END IF;
