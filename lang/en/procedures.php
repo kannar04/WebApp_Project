@@ -94,7 +94,6 @@ return [
     'Ảnh không thuộc chỗ ở này hoặc bị lặp.' => 'A photo does not belong to this listing or is duplicated.',
     'Khoảng lịch không hợp lệ (tối đa 62 ngày).' => 'Invalid calendar range (maximum 62 days).',
     'Không có quyền xem booking.' => 'You do not have permission to view this booking.',
-    'Chưa cấu hình múi giờ tính hoàn tiền.' => 'The time zone for refund calculation is not configured.',
     'Trạng thái lọc không hợp lệ.' => 'Invalid status filter.',
     'Không có quyền Host.' => 'You do not have Host permission.',
     'Không có quyền xem ảnh quản lý.' => 'You do not have permission to view these listing photos.',

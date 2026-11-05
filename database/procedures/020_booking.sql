@@ -233,10 +233,8 @@ BEGIN
     DECLARE v_base DECIMAL(12,2);
     DECLARE v_refund DECIMAL(12,2);
     DECLARE v_payment VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-    DECLARE v_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_default_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_default_time TIME;
-    DECLARE v_arrival DATETIME;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -260,14 +258,7 @@ BEGIN
     IF COALESCE(v_payment,'unpaid') IN ('unpaid','refunded') THEN SET v_percent=0; SET v_base=0;
     ELSEIF v_status='pending' THEN SET v_percent=100; SET v_base=v_total;
     ELSE
-        SET v_zone=COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.time_zone')),'null'),v_default_zone);
-        -- XAMPP may not load named timezone tables. Vietnam has a fixed UTC+07 offset.
-        SET v_zone=CASE v_zone WHEN 'Asia/Ho_Chi_Minh' THEN '+07:00' WHEN 'UTC' THEN '+00:00' ELSE v_zone END;
-        SET v_arrival=CONVERT_TZ(CONCAT(v_start,' ',COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.check_in_time')),'null'),CAST(v_default_time AS CHAR))),v_zone,'+00:00');
-        IF v_arrival IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chưa cấu hình múi giờ để tính hoàn tiền an toàn.'; END IF;
-        SET v_percent=IF(TIMESTAMPDIFF(SECOND,UTC_TIMESTAMP(),v_arrival)>=JSON_EXTRACT(v_policy,'$.cutoff_hours')*3600,
-            JSON_EXTRACT(v_policy,'$.early_refund_pct'),JSON_EXTRACT(v_policy,'$.late_refund_pct'));
-        SET v_base=v_total-IF(JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.refund_fees')) IN ('true','1'),0,v_fee);
+        CALL sp_booking_refund_terms(v_policy,v_start,v_total,v_fee,v_default_time,v_default_zone,v_percent,v_base);
     END IF;
     SET v_refund=ROUND(GREATEST(0,v_base)*v_percent/100,0);
     UPDATE bookings SET status='cancelled',updated_at=NOW(6) WHERE id=p_booking;

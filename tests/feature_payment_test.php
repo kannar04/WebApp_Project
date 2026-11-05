@@ -401,6 +401,16 @@ try {
     echo "PASS cancel after payment: Admin notice with the refund owed in the same transaction, refund and totals use the policy amount, zero refund shown clearly and refused\n";
 
     // ---- A taken-down listing: no new online payment; money that already left is recorded and flagged for a refund.
+    // A snapshot saved without time zone or check-in time: the preview falls back on the listing's values, exactly as the cancel does.
+    $oldSnapshot=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,143,'14000091');
+    $preview=payCall('CALL sp_booking_refund_preview(?,?)',[$oldSnapshot,$guestId])[0];
+    payCall('CALL sp_test_payment_old_snapshot(?)',[$oldSnapshot]);
+    $oldPreview=payCall('CALL sp_booking_refund_preview(?,?)',[$oldSnapshot,$guestId])[0];
+    payExpect((float)$preview['refund_amount']>0 && $oldPreview==$preview,'An old snapshot changes the refund preview: '.json_encode($oldPreview));
+    $cancelled=$service->cancelByGuest($oldSnapshot,$guestId,'Audit fixture');
+    payExpect($cancelled['refund_amount']===(float)$oldPreview['refund_amount'],'The preview and the cancel disagree on an old snapshot.');
+    echo "PASS old policy snapshot: refund preview and cancel use the same fallback and the same figure\n";
+
     $removedListing=$policyListings[100];
     $bookingR=payConfirmedBooking($service,$removedListing,$guestId,$hostId,$base,65);
     $bookingS=payConfirmedBooking($service,$removedListing,$guestId,$hostId,$base,68);
@@ -797,6 +807,13 @@ try {
         foreach ([$guestClient,$adminClient] as $client) {
             $page=payHttp($client,$baseUrl,'/bookings/'.$stayEnding)['body'];
             payExpect(!str_contains($page,'Số tiền hoàn nếu hủy lúc này') && !str_contains($page,'/bookings/'.$stayEnding.'/cancel'),'The page quotes a refund from check-out day, when the Guest cannot cancel.');
+        }
+        // An old snapshot must not turn the booking page into a 404 for the people on the booking.
+        $oldSnapshotPage=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,146,'14000092');
+        payCall('CALL sp_test_payment_old_snapshot(?)',[$oldSnapshotPage]);
+        foreach ([$guestClient,$hostClient,$adminClient] as $client) {
+            $response=payHttp($client,$baseUrl,'/bookings/'.$oldSnapshotPage);
+            payExpect($response['status']===200 && str_contains($response['body'],'Số tiền hoàn nếu hủy lúc này'),'A booking with an old snapshot does not open: HTTP '.$response['status']);
         }
         // A refunded booking offers no further refund, before or after cancelling, and keeps the figure that went back; a row refunded by older code too.
         $refundedOpen=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,104,'14000052');

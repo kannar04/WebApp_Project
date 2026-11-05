@@ -334,7 +334,7 @@ Thanh toán online (VietQR chuyển khoản do Admin xác nhận, VNPay sandbox)
 | `sp_admin_payment_duplicate_resolve` | `095` | Admin ghi nhận đã hoàn một khoản VNPay trùng: chỉ đóng giao dịch đó (`cancelled`, ghi chú bắt buộc), trạng thái thanh toán của booking không đổi và được trả về; thông báo khách, audit log | Transaction/savepoint; Admin (`sp_admin_assert_role`); khóa như trên; một lần | feature_payment_test |
 | `sp_admin_payment_transfers` | `095` | Hàng chờ Admin: chuyển khoản khách đã báo, rồi mã QR đang mở của booking chưa thu | Chỉ đọc; Admin | feature_payment_test |
 
-Test fixture routines mới (7, chỉ cài trong DB test riêng): `testing_payment.sql` (`sp_test_payment_inspect`, `sp_test_payment_attempt`, `sp_test_payment_set_amount`, `sp_test_payment_listing_removed`, `sp_test_payment_finish_stay`, `sp_test_payment_old_refund`, `sp_test_payment_cleanup` — chỉ xóa listing `Audit fixture PAY %` ở thành phố `Audit`).
+Test fixture routines mới (8, chỉ cài trong DB test riêng): `testing_payment.sql` (`sp_test_payment_inspect`, `sp_test_payment_attempt`, `sp_test_payment_set_amount`, `sp_test_payment_listing_removed`, `sp_test_payment_old_snapshot`, `sp_test_payment_finish_stay`, `sp_test_payment_old_refund`, `sp_test_payment_cleanup` — chỉ xóa listing `Audit fixture PAY %` ở thành phố `Audit`).
 
 ## Đồng bộ giờ nhận phòng, huy hiệu xác minh và họ tên — 2026-10-17
 
@@ -422,6 +422,22 @@ Các routine dưới đây sửa lỗi tại chỗ; không đổi schema.
 | Routine | File | Mục đích | Transaction / khóa / quyền | Test |
 |---|---|---|---|---|
 | `sp_listing_reject_pending` | `050_quality_core.sql` | Từ chối mọi yêu cầu đang chờ của một tin, kèm event và thông báo khách; trả số yêu cầu qua tham số OUT | Nội bộ, chỉ gọi từ routine khác: bên gọi giữ transaction và khóa dòng listing, routine khóa các booking | procedure_flow_test, feature_booking_extras_test |
+
+## Sửa lỗi giá, hoàn tiền và thanh toán online, vòng 3 — 2026-11-05
+
+Giá giữ nguyên cách tính; các routine dưới đây sửa lỗi tại chỗ, không đổi schema.
+
+### Routine đã có bị thay đổi
+
+| Routine | File | Thay đổi | Test |
+|---|---|---|---|
+| `sp_booking_cancel`, `sp_booking_refund_preview` | `020_booking.sql`, `050_quality_core.sql` | Cùng gọi `sp_booking_refund_terms`, nên bản xem trước có cùng fallback và cùng con số với lúc hủy thật; preview lấy giờ nhận phòng và múi giờ hiện tại của listing | feature_payment_test |
+
+### Routine mới
+
+| Routine | File | Mục đích | Transaction / khóa / quyền | Test |
+|---|---|---|---|---|
+| `sp_booking_refund_terms` | `050_quality_core.sql` | Tính phần trăm và cơ sở hoàn của booking đã xác nhận theo snapshot; thiếu múi giờ hoặc giờ nhận phòng thì lấy giá trị hiện tại của listing | Helper chỉ tính, không ghi; chạy trong khóa của `sp_booking_cancel`; quyền do routine gọi kiểm tra | feature_payment_test |
 
 ## Run / reproduce
 

@@ -62,6 +62,15 @@ BEGIN
     UPDATE listings SET deleted_at=IF(p_removed,NOW(6),NULL) WHERE id=p_listing;
 END$$
 
+-- Simulates a booking saved before its policy snapshot held the time zone and the check-in time.
+CREATE OR REPLACE PROCEDURE sp_test_payment_old_snapshot(IN p_booking BIGINT UNSIGNED)
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=p_booking AND l.city='Audit' AND l.title LIKE 'Audit fixture PAY %') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Refusing to change a non-fixture booking.';
+    END IF;
+    UPDATE bookings SET policy_snapshot=JSON_REMOVE(policy_snapshot,'$.time_zone','$.check_in_time') WHERE id=p_booking;
+END$$
+
 -- Moves a fixture booking so its check-out was p_days_ago days ago (Vietnam date); nights move with it.
 CREATE OR REPLACE PROCEDURE sp_test_payment_finish_stay(IN p_booking BIGINT UNSIGNED, IN p_days_ago INT)
 BEGIN

@@ -151,34 +151,45 @@ BEGIN
     SELECT from_status,to_status,reason,created_at FROM booking_events WHERE booking_id=p_booking ORDER BY created_at,id;
 END$$
 
+-- A paid, confirmed booking's refund terms right now, shared by the cancel and its preview so the two cannot disagree.
+-- The snapshot decides; one saved without a time zone or check-in time falls back on the listing's current values (p_default_*).
+CREATE OR REPLACE PROCEDURE sp_booking_refund_terms(IN p_policy LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_start DATE, IN p_total DECIMAL(12,2), IN p_fee DECIMAL(12,2),
+    IN p_default_time TIME, IN p_default_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, OUT o_percent DECIMAL(5,2), OUT o_base DECIMAL(12,2))
+BEGIN
+    DECLARE v_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_arrival DATETIME;
+    SET v_zone=COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p_policy,'$.time_zone')),'null'),p_default_zone);
+    -- XAMPP may not load named timezone tables. Vietnam has a fixed UTC+07 offset.
+    SET v_zone=CASE v_zone WHEN 'Asia/Ho_Chi_Minh' THEN '+07:00' WHEN 'UTC' THEN '+00:00' ELSE v_zone END;
+    SET v_arrival=CONVERT_TZ(CONCAT(p_start,' ',COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p_policy,'$.check_in_time')),'null'),CAST(p_default_time AS CHAR))),v_zone,'+00:00');
+    IF v_arrival IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chưa cấu hình múi giờ để tính hoàn tiền an toàn.'; END IF;
+    SET o_percent=IF(TIMESTAMPDIFF(SECOND,UTC_TIMESTAMP(),v_arrival)>=JSON_EXTRACT(p_policy,'$.cutoff_hours')*3600,
+        JSON_EXTRACT(p_policy,'$.early_refund_pct'),JSON_EXTRACT(p_policy,'$.late_refund_pct'));
+    SET o_base=p_total-IF(JSON_UNQUOTE(JSON_EXTRACT(p_policy,'$.refund_fees')) IN ('true','1'),0,p_fee);
+END$$
+
 CREATE OR REPLACE PROCEDURE sp_booking_refund_preview(IN p_booking BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED)
 BEGIN
     DECLARE v_status VARCHAR(12);
     DECLARE v_start DATE;
     DECLARE v_total DECIMAL(12,2);
     DECLARE v_fee DECIMAL(12,2);
-    DECLARE v_policy LONGTEXT;
+    DECLARE v_policy LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_percent DECIMAL(5,2) DEFAULT 0;
     DECLARE v_base DECIMAL(12,2) DEFAULT 0;
-    DECLARE v_zone TEXT;
-    DECLARE v_arrival DATETIME;
+    DECLARE v_default_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_default_time TIME;
     DECLARE v_payment VARCHAR(10);
     CALL sp_quality_assert_booking(p_booking,p_actor);
-    SELECT status,check_in,total_amount,fee_amount,policy_snapshot INTO v_status,v_start,v_total,v_fee,v_policy FROM bookings WHERE id=p_booking;
+    SELECT b.status,b.check_in,b.total_amount,b.fee_amount,b.policy_snapshot,l.check_in_time,l.time_zone INTO v_status,v_start,v_total,v_fee,v_policy,v_default_time,v_default_zone
+        FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=p_booking;
     SELECT status INTO v_payment FROM booking_payments WHERE booking_id=p_booking;
     IF v_status='cancelled' THEN
         SELECT refund_amount,calculation_details,reason,created_at FROM booking_cancellations WHERE booking_id=p_booking;
     ELSE
         IF COALESCE(v_payment,'unpaid') IN ('unpaid','refunded') THEN SET v_percent=0; SET v_base=0; -- Nothing held (not collected, or already refunded), nothing to refund.
         ELSEIF v_status='pending' THEN SET v_percent=100; SET v_base=v_total;
-        ELSEIF v_status='confirmed' THEN
-            SET v_zone=JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.time_zone'));
-            SET v_zone=CASE v_zone WHEN 'Asia/Ho_Chi_Minh' THEN '+07:00' WHEN 'UTC' THEN '+00:00' ELSE v_zone END;
-            SET v_arrival=CONVERT_TZ(CONCAT(v_start,' ',JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.check_in_time'))),v_zone,'+00:00');
-            IF v_arrival IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chưa cấu hình múi giờ tính hoàn tiền.'; END IF;
-            SET v_percent=IF(TIMESTAMPDIFF(SECOND,UTC_TIMESTAMP(),v_arrival)>=JSON_EXTRACT(v_policy,'$.cutoff_hours')*3600,
-                JSON_EXTRACT(v_policy,'$.early_refund_pct'),JSON_EXTRACT(v_policy,'$.late_refund_pct'));
-            SET v_base=v_total-IF(JSON_UNQUOTE(JSON_EXTRACT(v_policy,'$.refund_fees')) IN ('true','1'),0,v_fee);
+        ELSEIF v_status='confirmed' THEN CALL sp_booking_refund_terms(v_policy,v_start,v_total,v_fee,v_default_time,v_default_zone,v_percent,v_base);
         END IF;
         SELECT v_percent refund_percent,ROUND(GREATEST(0,v_base)*v_percent/100,0) refund_amount;
     END IF;
