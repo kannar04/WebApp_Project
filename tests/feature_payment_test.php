@@ -704,7 +704,7 @@ try {
     $totals=$extras->adminPaymentTotals($adminId);
     payExpect((float)$totals['collected_amount']-(float)$totalsBefore['collected_amount']===-220000.0 && (float)$totals['refunded_amount']-(float)$totalsBefore['refunded_amount']===220000.0,
         'Totals moved when a refunded booking was cancelled: '.json_encode([$totalsBefore,$totals]));
-    payRejects([$extras,'refund'],[$refundedFirst,$adminId,'Lần nữa'],'Chỉ hoàn tiền','A refunded booking was refunded again after cancelling');
+    payRejects([$extras,'refund'],[$refundedFirst,$adminId,'Lần nữa'],'Booking này đã được hoàn tiền.','A refunded booking was refunded again after cancelling');
 
     // A policy-share refund reports the share; a row refunded by older code (full amount_due, policy share in the cancellation) reports what really went back.
     $oldShape=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,101,'14000051');

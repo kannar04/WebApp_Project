@@ -523,6 +523,7 @@ BEGIN
     SET v_note=NULLIF(TRIM(COALESCE(p_note,'')),'');
     IF v_note IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Vui lòng ghi chú lý do hoàn tiền.'; END IF;
     SELECT status,amount_due INTO v_payment,v_due FROM booking_payments WHERE booking_id=p_booking FOR UPDATE;
+    IF v_payment='refunded' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được hoàn tiền.'; END IF;
     IF v_payment IS NULL OR v_payment<>'paid' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ hoàn tiền cho booking đã ghi nhận thanh toán.'; END IF;
     SELECT refund_amount INTO v_refund FROM booking_cancellations WHERE booking_id=p_booking;
     SET v_refund=COALESCE(v_refund,v_due);

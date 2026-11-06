@@ -363,6 +363,7 @@ try {
     bxRejects([$extras,'markPaid'],[$instantId,$guestId,false,''],'không có quyền','Guest marked a booking paid');
     bxRejects([$extras,'markPaid'],[$instantId,$adminId,false,''],'không có quyền','Non-owner marked a booking paid as Host');
     bxRejects([$extras,'markPaid'],[$instantId,$guestId,true,''],'không có quyền','Guest used the Admin payment path');
+    bxRejects([$extras,'refund'],[$instantId,$adminId,'Chưa thu'],'Chỉ hoàn tiền','An unpaid booking was refunded');
     $extras->markPaid($instantId,$hostId,false,'Tiền mặt khi nhận phòng');
     $state=bxInspect($instantId);
     bxExpect($state['payment_status']==='paid' && (int)$state['paid_by']===$hostId && (int)$state['payment_events']===1 && (int)$state['payment_notices']===1
@@ -380,7 +381,7 @@ try {
     $state=bxInspect($instantId);
     bxExpect($state['payment_status']==='refunded' && (int)$state['refunded_by']===$adminId && (int)$state['payment_events']===2 && (int)$state['payment_audits']===1
         && (int)$state['payment_notices']===2,'Admin refund record is wrong: '.json_encode($state,JSON_UNESCAPED_UNICODE));
-    bxRejects([$extras,'refund'],[$instantId,$adminId,'Again'],'Chỉ hoàn tiền','Refunded payment refunded twice');
+    bxRejects([$extras,'refund'],[$instantId,$adminId,'Again'],'Booking này đã được hoàn tiền.','Refunded payment refunded twice');
     $rows=$extras->adminPayments($adminId,'refunded',(string)$instantId);
     bxExpect(count($rows)===1 && (int)$rows[0]['booking_id']===$instantId && $rows[0]['payment_state']==='refunded','Admin payment filter/search failed.');
     bxRejects([$extras,'adminPayments'],[$adminId,'bogus',''],'không hợp lệ','Unknown payment filter accepted');
