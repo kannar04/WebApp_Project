@@ -7,6 +7,7 @@ return [
     'Đang tìm…' => 'Searching…',
     'Không thể cập nhật yêu thích.' => 'Could not update your wishlist.',
     'Không thể cập nhật yêu thích. Vui lòng thử lại.' => 'Could not update your wishlist. Please try again.',
+    'Trang này đã hết hạn, có thể vì phiên đăng nhập đã kết thúc. Vui lòng tải lại trang.' => 'This page has expired, possibly because your sign-in ended. Please reload the page.',
     'Chọn ngày để xem tổng tiền' => 'Select dates to see the total',
     'Đang kiểm tra lịch và tính giá…' => 'Checking availability and calculating the price…',
     'Không thể tính giá.' => 'Could not calculate the price.',

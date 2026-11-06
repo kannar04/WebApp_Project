@@ -325,7 +325,8 @@
                     });
                     const result = await response.json();
                     if (!response.ok || !result.success) {
-                        const failure = new Error(result.message || h2hT('Không thể cập nhật yêu thích.'));
+                        // A 419 means the token this page holds is dead, so the same click can never work: only a fresh page brings a new one.
+                        const failure = new Error(response.status === 419 ? h2hT('Trang này đã hết hạn, có thể vì phiên đăng nhập đã kết thúc. Vui lòng tải lại trang.') : (result.message || h2hT('Không thể cập nhật yêu thích.')));
                         failure.fromServer = true;
                         throw failure;
                     }

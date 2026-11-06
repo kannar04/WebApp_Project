@@ -362,6 +362,28 @@ function Check-HeartKeepsFocus {
     Write-Output 'PASS browser the heart keeps keyboard focus while saving and a double click sends one request'
 }
 
+function Check-HeartAfterSessionEnded {
+    # Signed out behind the page's back, the heart's token is dead: every click must say to reload, in the visitor's language, never to try again. Reloading then shows the sign-out.
+    foreach ($expected in 'tải lại trang','reload the page') {
+        Navigate '/'
+        Logout-Role
+        Evaluate "(function(){window.h2hAlerts=[];window.alert=function(message){window.h2hAlerts.push(message);};return true;})()" | Out-Null
+        foreach ($click in 1,2) {
+            Evaluate "document.querySelector('[data-favorite]').click();true" | Out-Null
+            Wait-FilterPage "window.h2hAlerts.length===$click&&!document.querySelector('[data-favorite]').hasAttribute('aria-busy')"
+        }
+        if (!(Evaluate "window.h2hAlerts.every(function(message){return message.includes('$expected');})")) { throw "The heart after a sign-out gave a dead end: $(Evaluate 'window.h2hAlerts.join(String.fromCharCode(124))')" }
+        Navigate '/'
+        if (Evaluate "document.querySelectorAll('[data-favorite]').length") { throw 'The reload did not show the sign-out' }
+        if ((Login-Role 'guest') -ne '/') { throw 'Guest login redirect failed' }
+        Navigate '/'
+        $current=Evaluate "document.documentElement.lang"
+        Evaluate "document.querySelector('.locale-toggle').click();true" | Out-Null
+        Wait-FilterPage "document.documentElement.lang!=='$current'&&document.readyState==='complete'"
+    }
+    Write-Output 'PASS browser the heart tells a signed-out page to reload, in both languages'
+}
+
 function Check-SiteIcon {
     # Both layouts name an icon that really loads, so a browser never falls back to the missing /favicon.ico.
     foreach ($path in @('/','/login')) {
@@ -831,6 +853,7 @@ try {
     Check-DetailHeart
     Write-Output 'PASS browser detail page heart keeps one state with cards and the wishlist, after Back too'
     Check-HeartKeepsFocus
+    Check-HeartAfterSessionEnded
     Navigate '/bookings'
     $bookingPath=Evaluate 'document.querySelector(''a[href*="/bookings/"]'')?.getAttribute(''href'')'
     if ($bookingPath) {
