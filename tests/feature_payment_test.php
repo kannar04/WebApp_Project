@@ -74,6 +74,13 @@ function payConfirmedBooking(BookingService $service, int $listingId, int $guest
     return $bookingId;
 }
 
+/** One booking's card on the Guest's trips list. */
+function payTripCard(string $page, int $bookingId): string
+{
+    foreach (explode('<article class="booking-card">',$page) as $card) { if (str_contains($card,'/bookings/'.$bookingId.'"')) { return $card; } }
+    return '';
+}
+
 /** payConfirmedBooking on $listingId, paid through VNPay. */
 function payPaidBooking(BookingService $service, Payment $payments, int $listingId, int $guestId, int $hostId, DateTimeImmutable $base, int $offset, string $transactionNo): int
 {
@@ -1250,6 +1257,24 @@ try {
         payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$noteBooking)['body'],$noteShown),'A rejection note lost its line break on the booking page.');
         payExpect(str_contains(payHttp($guestClient,$baseUrl,'/payments/'.$noteId)['body'],$noteShown),'A rejection note lost its line break on the transfer page.');
         payExpect(str_contains(payHttp($guestClient,$baseUrl,'/notifications')['body'],$noteShown),'A rejection note lost its line break in the notification.');
+        // While a transfer is being checked, the lists tell the same story as the booking page.
+        $storyBooking=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,203);
+        $storyTransfer=(int)$payments->start($storyBooking,$guestId,'vietqr')['transaction_id'];
+        payExpect(str_contains(payTripCard(payHttp($guestClient,$baseUrl,'/bookings')['body'],$storyBooking),'Thanh toán khi nhận phòng'),'A QR code alone changed how the booking is paid on the trips list.');
+        $payments->submitTransfer($storyTransfer,$guestId);
+        $storyCard=payTripCard(payHttp($guestClient,$baseUrl,'/bookings')['body'],$storyBooking);
+        payExpect(str_contains($storyCard,'status-submitted') && str_contains($storyCard,'Đang kiểm tra chuyển khoản') && str_contains($storyCard,'Chuyển khoản VietQR') && !str_contains($storyCard,'Thanh toán khi nhận phòng') && !str_contains($storyCard,'Chưa thanh toán'),'The trips list tells a different story from the booking page while a transfer is being checked.');
+        $storyDetail=payHttp($guestClient,$baseUrl,'/bookings/'.$storyBooking)['body'];
+        payExpect(str_contains($storyDetail,'status-submitted') && str_contains($storyDetail,'Chuyển khoản VietQR'),'The booking page changed its story while a transfer is being checked.');
+        $storyHost=payHttp($hostClient,$baseUrl,'/host')['body'];
+        payExpect(str_contains($storyHost,'Đang kiểm tra chuyển khoản') && !str_contains($storyHost,'Thanh toán khi nhận phòng'),'The Host list contradicts a transfer being checked.');
+        $storyAdmin=payHttp($adminClient,$baseUrl,'/admin/payments?q='.$storyBooking)['body'];
+        payExpect(str_contains($storyAdmin,'Đang kiểm tra chuyển khoản') && !str_contains($storyAdmin,'Thu từ ngày nhận phòng') && !str_contains($storyAdmin,'Thanh toán khi nhận phòng'),'The Admin list still says to collect at check-in while a transfer is being checked.');
+        $service->cancelByGuest($storyBooking,$guestId,'Audit fixture');
+        $storyCard=payTripCard(payHttp($guestClient,$baseUrl,'/bookings')['body'],$storyBooking);
+        payExpect(str_contains($storyCard,'Đang kiểm tra chuyển khoản') && str_contains($storyCard,'Chuyển khoản VietQR'),'The trips list drops a reported transfer of a cancelled booking that the booking page still shows.');
+        echo "PASS a transfer being checked reads the same on the Guest's list and booking page, and no list says to pay at check-in
+";
         foreach ([$anonymous,$guestClient,$hostClient,$adminClient] as $client) { curl_close($client); }
         echo "PASS online payment HTTP: Guest-only pages, CSRF, QR page with account and reference, report, Admin queue/403/confirm, VNPay redirect signature, forged return/IPN 97, valid return, IPN 02/01/04\n";
     }
