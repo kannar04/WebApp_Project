@@ -67,6 +67,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .holiday-list summary { color: var(--primary-dark); cursor: pointer; }
 .holiday-list ul { padding-left: 18px; margin: 6px 0 0; }
 .booking-box .promo-feedback { text-align: left; margin-top: 4px; min-height: 1em; }
+/* Set by app.js when the card does not fit the window below its sticky top. */
+.booking-box-tall { position: static; }
 /* Side by side the date inputs are too narrow for the year in these two width ranges. */
 @media (max-width: 399.98px), (min-width: 992px) and (max-width: 1199.98px) { .booking-box .form-row > .col-6 { flex: 0 0 100%; max-width: 100%; } }
 .promo-feedback.is-valid { color: var(--primary-dark); font-weight: 600; }

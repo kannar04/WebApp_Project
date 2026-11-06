@@ -227,6 +227,18 @@
         flash.focus({preventScroll: true});
     }
 
+    // A booking card taller than the window would hold its button below the fold through a long stretch of scrolling, so it only pins where it fits. Instant Book, the quote and the promo message all change its height, so this measures instead of a media query.
+    // When the card being filled in outgrows the window, the page moves instead of the card, so the field stays where it was being used.
+    function pinBookingBoxIfItFits() {
+        const box = document.querySelector('.booking-box');
+        const topBefore = box.getBoundingClientRect().top;
+        const tooTall = box.offsetHeight + parseFloat(getComputedStyle(box).top) > window.innerHeight;
+        box.classList.toggle('booking-box-tall', tooTall);
+        if (tooTall && box.contains(document.activeElement)) {
+            window.scrollBy({top: box.getBoundingClientRect().top - topBefore, behavior: 'instant'});
+        }
+    }
+
     function markHeart(heart, saved) {
         heart.classList.toggle('is-saved', saved);
         heart.setAttribute('aria-pressed', String(saved));
@@ -341,6 +353,12 @@
         });
 
         window.addEventListener('pageshow', refreshRestoredHearts);
+
+        const bookingBox = document.querySelector('.booking-box');
+        if (bookingBox) {
+            new ResizeObserver(pinBookingBoxIfItFits).observe(bookingBox);
+            window.addEventListener('resize', pinBookingBoxIfItFits);
+        }
 
         const bookingForm = document.querySelector('[data-booking-form]');
         if (bookingForm) {

@@ -534,6 +534,52 @@ function Check-BookingRestore {
     Write-Output 'PASS browser dates restored on Back are quoted once, a cached page once more, dates quoted on load not again'
 }
 
+function Check-BookingBoxPin {
+    # The card pins only where all of it fits under its sticky top, so its button is on screen whenever it is pinned; a taller one scrolls with the page.
+    $read="(function(){const box=document.querySelector('.booking-box');const button=box.querySelector('button[type=submit]');const rect=box.getBoundingClientRect();return {height:rect.height,top:rect.top,position:getComputedStyle(box).position,button:button.getBoundingClientRect().bottom,window:innerHeight,scrollY:scrollY};})()"
+    $sawPinned=$false
+    $sawTall=$false
+    foreach ($size in @(@(1366,650),@(1366,768),@(1536,730),@(1920,950))) {
+        Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$size[0];height=$size[1];deviceScaleFactor=1;mobile=$false} | Out-Null
+        foreach ($path in '/listings/1','/listings/2','/listings/3') {
+            foreach ($stay in '','?check_in=2035-10-10&check_out=2035-10-12') {
+                Navigate ($path+$stay)
+                if ($stay) { Wait-FilterPage "!!document.querySelector('[data-quote] .is-total')" }
+                Start-Sleep -Milliseconds 100
+                Evaluate "window.scrollTo({top:700,behavior:'instant'});true" | Out-Null
+                Start-Sleep -Milliseconds 100
+                $card=Evaluate $read
+                $fits=($card.height+100) -le $card.window
+                if ($fits) {
+                    $sawPinned=$true
+                    if ($card.position -ne 'sticky' -or [math]::Abs($card.top-100) -gt 1 -or $card.button -gt $card.window) { throw "A card that fits should pin with its button on screen: $path$stay at $($size[0])x$($size[1]) $($card | ConvertTo-Json -Compress)" }
+                } else {
+                    $sawTall=$true
+                    if ($card.position -ne 'static' -or $card.top -ge 100) { throw "A card taller than the window should scroll with the page: $path$stay at $($size[0])x$($size[1]) $($card | ConvertTo-Json -Compress)" }
+                }
+            }
+        }
+    }
+    if (!$sawPinned -or !$sawTall) { throw "The pin check saw only one case: pinned $sawPinned tall $sawTall" }
+    # The quote makes the card too tall while it is being filled in: it stops pinning, the field stays where it is, and it pins again when the card fits.
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1366;height=768;deviceScaleFactor=1;mobile=$false} | Out-Null
+    Navigate '/listings/1'
+    Evaluate "window.scrollTo({top:700,behavior:'instant'});document.querySelector('[data-booking-form]').elements.check_in.focus({preventScroll:true});true" | Out-Null
+    Start-Sleep -Milliseconds 150
+    $field="document.querySelector('[data-booking-form]').elements.check_in.getBoundingClientRect().top"
+    $before=Evaluate "({position:getComputedStyle(document.querySelector('.booking-box')).position,field:$field,scrollY:scrollY})"
+    if ($before.position -ne 'sticky') { throw "The empty card should pin at 1366x768: $($before | ConvertTo-Json -Compress)" }
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_in.value='2035-10-10';f.elements.check_out.value='2035-10-12';f.elements.check_out.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+    Wait-FilterPage "!!document.querySelector('[data-quote] .is-total')&&getComputedStyle(document.querySelector('.booking-box')).position==='static'"
+    Start-Sleep -Milliseconds 100
+    $after=Evaluate "({field:$field,scrollY:scrollY,focused:document.activeElement===document.querySelector('[data-booking-form]').elements.check_in})"
+    if ([math]::Abs($after.field-$before.field) -gt 2 -or !$after.focused) { throw "The card jumped away from the field in use: $($before | ConvertTo-Json -Compress) then $($after | ConvertTo-Json -Compress)" }
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_out.value='';f.elements.check_out.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+    Wait-FilterPage "getComputedStyle(document.querySelector('.booking-box')).position==='sticky'"
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    Write-Output 'PASS browser the booking card pins only where it fits, and a card outgrowing the window keeps the field in use on screen'
+}
+
 function Check-BookingDateWidth {
     # Below 145 px a date input clips the year, as it did at 375 (137 px) and 1024 (117 px).
     foreach ($width in @(375,768,1024,1440)) {
@@ -940,6 +986,7 @@ try {
     Check-LongReport
     Write-Output 'PASS browser long unbroken text wraps at 375 on Guest pages'
     Check-BookingDateWidth
+    Check-BookingBoxPin
     Check-FlashReveal
     Check-MessageFlash $bookingPath
     Check-FragmentLanding @('/#listing-results','/profile#personal','/profile#verification','/profile#discovery-history','/listings/1#availability-calendar')
