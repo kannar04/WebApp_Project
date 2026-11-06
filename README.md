@@ -102,9 +102,9 @@ Giao diện tiếng Anh: khi thêm chữ mới, view viết câu tiếng Việt 
 - Thanh toán online: VNPay mới chạy bằng merchant sandbox (tiền thử nghiệm); IPN cần địa chỉ public nên trên localhost kết quả được ghi nhận qua trang VNPay trả về (vẫn kiểm tra chữ ký và số tiền). MoMo/ZaloPay không có cổng riêng, khách dùng ví đó để quét mã VietQR. Chuyển khoản VietQR không có webhook ngân hàng: Admin đối chiếu sao kê thủ công. Hoàn tiền online vẫn là ghi nhận thủ công, không gọi API hoàn tiền. Booking tạo trước bản Nice-to-have chưa có dòng thanh toán cho đến khi được đánh dấu đã thu.
 - Tin nhắn chỉ trong ứng dụng, không real-time, không email/SMS; Admin chỉ xem/ẩn/hiện, không gửi tin. Nhắc lịch cần tác vụ định kỳ hoặc lượt tải trang.
 - Xác minh danh tính do Admin kiểm tra thủ công dữ liệu nhập (không upload ảnh, OCR hay OTP). Hướng dẫn nhận phòng lưu theo chỗ ở, mã cửa không tự đổi.
-- Chưa có nhãn Đặt ngay trên thẻ kết quả trang chủ/tìm kiếm; đặt chỗ lỗi không giữ ngày đã chọn. Ngày lễ seed là dữ liệu mẫu, Admin cần xác nhận.
+- Chưa có nhãn Đặt ngay trên thẻ kết quả trang chủ/tìm kiếm. Ngày lễ seed là dữ liệu mẫu, Admin cần xác nhận.
 - Đổi slug bài viết làm hỏng link cũ; ảnh bìa bị thay vẫn nằm trên đĩa. Chế độ tối lưu theo trình duyệt (không theo tài khoản) và cần JavaScript. Ngôn ngữ cũng lưu theo trình duyệt (cookie `h2h_locale`); chỉ dịch giao diện, không dịch dữ liệu người dùng nhập; giá (`1.250.000đ`) và ngày (`d/m/Y`) giữ định dạng Việt Nam ở cả hai ngôn ngữ, riêng số thập phân (điểm đánh giá, phần trăm) dùng dấu chấm khi xem tiếng Anh.
-- Dashboard Admin giới hạn tập kết quả; dữ liệu quy mô lớn vẫn cần phân trang theo module và load test.
+- Booking và thanh toán ở trang Admin, tin nhắn Admin, thông báo và hộp thư dừng ở 200 dòng mới nhất và báo khi chạm giới hạn (báo cáo, đánh giá và bài viết đã phân trang); dữ liệu quy mô lớn vẫn cần phân trang ở các danh sách này và load test.
 - HTTP/DB integration và Chrome responsive/AJAX cho Guest/Host/Admin đã chạy; chưa có screenshot-diff regression, full screen reader/keyboard hoặc load testing production.
 
 Đối chiếu đầy đủ 94 nhóm: [requirements matrix](docs/quality/requirements-matrix.md). Kết quả, dataflow, evidence và giới hạn: [final verification](docs/quality/final-verification.md).
