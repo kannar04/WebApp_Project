@@ -113,6 +113,10 @@ final class I18n
     /** Current request path relative to the app base, for the locale switch to return to. */
     public static function returnPath(): string
     {
+        // A page rendered by a POST is an error page, and going back to its address by GET could be a 404.
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            return '/';
+        }
         $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
         $path = parse_url($uri, PHP_URL_PATH);
         if ($path === false) {

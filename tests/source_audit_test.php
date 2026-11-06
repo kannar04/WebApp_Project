@@ -123,6 +123,16 @@ function auditReturnTargets(string $server, string $base): void
     expect(auditRequest($browser, $server.$base.'/locale', ['_token' => auditFormToken($page), 'locale' => 'vi', 'return_to' => $match[1]])['location'] === $base.'/listings/1', 'Language switch left the page: '.$base);
     expect(auditRequest(auditBrowser(), $server.$base.'/locale', ['_token' => 'stale', 'locale' => 'vi', 'return_to' => '/listings/1?guests=2'])['location'] === $base.'/listings/1?guests=2', 'A stale language switch without a Referer left the page: '.$base);
     expect(auditRequest(auditBrowser(), $server.$base.'/locale', ['_token' => 'stale', 'locale' => 'vi', 'return_to' => '//evil.example/x'])['location'] === $base.'/', 'A stale language switch followed a forged path: '.$base);
+    // A page rendered by a POST may have no GET: its language switch goes home, in the new language. One rendered by a GET returns to itself.
+    $browser = auditBrowser();
+    auditSignIn($browser, $server.$base, auditRequest($browser, $server.$base.'/login')['body'], 'guest@home2home.test');
+    $denied = auditRequest($browser, $server.$base.'/admin/users', ['_token' => auditFormToken(auditRequest($browser, $server.$base.'/')['body'])]);
+    expect($denied['status'] === 403 && preg_match('/name="return_to" value="([^"]*)"/', $denied['body'], $match) === 1 && $match[1] === '/', 'Language switch on a page rendered by a POST must go home: '.$base);
+    $landing = auditRequest($browser, $server.$base.'/locale', ['_token' => auditFormToken($denied['body']), 'locale' => 'en', 'return_to' => $match[1]])['location'];
+    $landed = auditRequest($browser, $server.$landing);
+    expect($landing === $base.'/' && $landed['status'] === 200 && str_contains($landed['body'], '<html lang="en"'), 'Language switch on a page rendered by a POST must land on a page that exists: '.$base);
+    $deniedGet = auditRequest($browser, $server.$base.'/admin');
+    expect($deniedGet['status'] === 403 && str_contains($deniedGet['body'], 'name="return_to" value="/admin"'), 'Language switch on a page rendered by a GET must return to it: '.$base);
     // Signing in from the home page goes to the role's home; only an explicit next=/ asks for the home page.
     foreach (['host@home2home.test' => $base.'/host', 'admin@home2home.test' => $base.'/admin', 'guest@home2home.test' => $base.'/'] as $email => $roleHome) {
         $browser = auditBrowser();
