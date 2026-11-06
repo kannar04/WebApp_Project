@@ -212,6 +212,7 @@ BEGIN
     END IF;
     IF p_decision='confirm' THEN
         IF COALESCE(v_payment,'unpaid')<>'unpaid' THEN
+            IF v_payment='refunded' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được hoàn tiền; hãy đóng giao dịch trùng và hoàn tiền cho khách.'; END IF;
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được ghi nhận thanh toán; hãy đóng giao dịch trùng và hoàn tiền cho khách.';
         END IF;
         UPDATE payment_transactions SET status='succeeded',decided_by=p_admin,decided_at=NOW(6),note=v_note,updated_at=NOW(6) WHERE id=p_transaction;

@@ -274,6 +274,7 @@ return [
     'Chỉ xác nhận giao dịch chuyển khoản VietQR.' => 'Only VietQR bank transfers can be confirmed here.',
     'Giao dịch chuyển khoản này đã được xử lý.' => 'This bank transfer has already been handled.',
     'Booking này đã được ghi nhận thanh toán; hãy đóng giao dịch trùng và hoàn tiền cho khách.' => 'A payment is already recorded for this booking; reject the duplicate transfer and refund the guest.',
+    'Booking này đã được hoàn tiền; hãy đóng giao dịch trùng và hoàn tiền cho khách.' => 'This booking has been refunded; reject the duplicate transfer and refund the guest.',
     'Booking đã được thanh toán bằng giao dịch khác.' => 'The booking was paid by another transaction.',
     'Khách đã chọn chuyển khoản nên giao dịch VNPay này đã đóng.' => 'The guest chose a bank transfer, so this VNPay transaction was closed.',
     'Giao dịch này không phải thanh toán trùng đang chờ xử lý.' => 'This transaction is not an open duplicate payment.',

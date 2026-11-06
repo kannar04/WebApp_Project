@@ -331,6 +331,15 @@ try {
     $state=payInspect($bookingRD);
     payExpect($resolved['payment_status']==='refunded' && $state['payment_status']==='refunded' && str_contains((string)$state['guest_duplicate_refunded_body'],'cũng đã được hoàn') && !str_contains((string)$state['guest_duplicate_refunded_body'],'đã thanh toán'),
         'Closing a duplicate on a refunded booking claims it is still paid: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    // A stale confirmation or mark-paid on a refunded booking says it was refunded, not paid.
+    $bookingRS=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,149);
+    $paidVnpay=$payments->start($bookingRS,$guestId,'vnpay');
+    $staleQrId=(int)$payments->start($bookingRS,$guestId,'vietqr')['transaction_id'];
+    $payments->submitTransfer($staleQrId,$guestId);
+    $payments->vnpayResult($paidVnpay['reference'],'220000.00','00','00','14000098','NCB');
+    (new BookingExtras())->refund($bookingRS,$adminId,'Hoàn khoản chính');
+    payRejects([$payments,'decideTransfer'],[$staleQrId,$adminId,'confirm',''],'đã được hoàn tiền; hãy đóng giao dịch trùng','A stale transfer confirmation called a refunded booking paid');
+    payRejects([new BookingExtras(),'markPaid'],[$bookingRS,$adminId,true,''],'đã được hoàn tiền','A stale mark-paid called a refunded booking paid');
     // VNPay lands first while the transfer waits: the Admin cannot confirm a second success, and closing the transfer leaves the booking paid.
     $bookingJ=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,42);
     $firstVnpay=$payments->start($bookingJ,$guestId,'vnpay');

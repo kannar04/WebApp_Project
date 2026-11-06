@@ -463,6 +463,7 @@ BEGIN
     END IF;
     SET v_note=NULLIF(TRIM(COALESCE(p_note,'')),'');
     SELECT status,amount_due INTO v_payment,v_due FROM booking_payments WHERE booking_id=p_booking FOR UPDATE;
+    IF v_payment='refunded' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được hoàn tiền.'; END IF;
     IF COALESCE(v_payment,'unpaid')<>'unpaid' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được ghi nhận thanh toán trước đó.'; END IF;
     IF v_status NOT IN ('confirmed','completed') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ ghi nhận thanh toán cho booking đã xác nhận hoặc đã hoàn thành.';
