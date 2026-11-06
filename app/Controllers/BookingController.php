@@ -45,7 +45,7 @@ final class BookingController extends Controller
             $old[$field]=preg_match('/^\d{4}-\d{2}-\d{2}$/D',$value)?$value:'';
         }
         $promo=input_text($_POST,'promo_code');
-        $old['promo_code']=mb_check_encoding($promo,'UTF-8')?mb_substr(trim($promo),0,20):'';
+        $old['promo_code']=mb_check_encoding($promo,'UTF-8')?mb_substr(BookingService::cleanPromoCode($promo),0,20):'';
         return $old;
     }
     /** Back to the review form with what the Guest typed, up to the limit, as the other forms keep their input. */

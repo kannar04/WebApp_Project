@@ -34,7 +34,7 @@ final class ListingController extends Controller
         $guests=filter_var($_GET['guests']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
         if ($guests!==false) { $values['guests']=$guests; }
         // Cut to the box's maxlength, as a paste would be.
-        $promo=mb_substr(trim(input_text($_GET,'promo_code')),0,20);
+        $promo=mb_substr(BookingService::cleanPromoCode(input_text($_GET,'promo_code')),0,20);
         if ($promo!=='') { $values['promo_code']=$promo; }
         return $values;
     }

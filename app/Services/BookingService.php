@@ -95,9 +95,20 @@ final class BookingService
         return $rows;
     }
 
+    /**
+     * A code as the box means it: JS .trim() strips Unicode whitespace from a pasted code (U+00A0, U+3000, U+FEFF and the like), so the server strips the same set,
+     * and the NUL PHP's trim() took. Both ends only: an inner space stays invalid. Far over any code, or bad UTF-8, is left for the length and format checks to refuse.
+     */
+    public static function cleanPromoCode(string $code): string
+    {
+        if (strlen($code) > 1000) { return $code; }
+        $space = '[\x00\x09-\x0D\x20\x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]+';
+        return preg_replace('/^'.$space.'|'.$space.'$/uD', '', $code) ?? trim($code);
+    }
+
     private function promoCode(string $promoCode): string
     {
-        $promoCode = trim($promoCode);
+        $promoCode = self::cleanPromoCode($promoCode);
         if (mb_strlen($promoCode) > 40) { throw new DomainException('Mã khuyến mãi không hợp lệ (4–20 chữ cái hoặc số).'); }
         return $promoCode;
     }

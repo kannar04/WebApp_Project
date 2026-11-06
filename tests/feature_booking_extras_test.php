@@ -280,6 +280,14 @@ try {
         'Capped percent promo after weekly discount is wrong: '.json_encode($withA,JSON_UNESCAPED_UNICODE));
     bxExpect(in_array('Mã '.$codeA,array_column($withA['breakdown'],'label'),true),'Promo row missing from breakdown.');
     bxExpect($service->quote($listingId,$d0,$d7,1,$codeT)['total']===951500.0,'Uncapped 10% promo must apply to the subtotal after the weekly discount.');
+    // A pasted code: the whitespace JS .trim() strips is stripped here too, at both ends only, so the box and the server agree.
+    foreach (["\u{00A0}","\u{3000}","\u{FEFF}","\u{2003}","\u{2028}","\t"," "] as $pasted) {
+        bxExpect($service->quote($listingId,$d0,$d7,1,$pasted.$codeT.$pasted)['promo']['code']===$codeT,'A code wrapped in '.bin2hex($pasted).' was not recognised.');
+    }
+    foreach ([substr($codeT,0,3)."\u{00A0}".substr($codeT,3),substr($codeT,0,3).' '.substr($codeT,3),$codeT."\u{200B}"] as $notCode) {
+        $quote=$service->quote($listingId,$d0,$d7,1,$notCode);
+        bxExpect($quote['promo']['code']===null && str_contains((string)$quote['promo']['message'],'không hợp lệ'),'An inner space or a character JS keeps was accepted: '.bin2hex($notCode));
+    }
     bxExpect($service->quote($listingId,$d0,bxDay($monday,6),1,$codeX)['total']===20000.0,'Fixed promo larger than the room subtotal must stop at zero (fee only).');
     $rejectedQuotes=[[$codeA,1,'từ 2 đêm'],[$codeE,7,'đã hết hạn'],[$codeF,7,'chưa đến ngày áp dụng'],[$codeI,7,'đã ngừng áp dụng'],
         [$codeS,7,'tiền phòng tối thiểu 2.000.000đ'],['TBX'.$suffix.'ZZ',7,'không tồn tại'],['ab',7,'không hợp lệ']];
@@ -319,6 +327,10 @@ try {
     $listed=bxFindPromotion($extras,$adminId,$codeA);
     bxExpect((int)$listed['used_count']===0 && (int)$listed['booking_count']===1,'Promotion usage counters are wrong.');
     bxExpect($extras->bookingDetail($promoBooking['booking_id'],$guestId)['payment_state']==='not_required','Cancelled booking still expects payment.');
+    $pastedBooking=$service->book($listingId,$guestId,bxDay($monday,14),bxDay($monday,16),1,"\u{3000}".$codeT."\u{00A0}")['booking_id'];
+    bxExpect(bxInspect($pastedBooking)['promotion_code']===$codeT,'A pasted code was not applied at booking.');
+    $service->cancelByGuest($pastedBooking,$guestId,'Audit fixture cancellation');
+    bxRejects([$service,'book'],[$listingId,$guestId,bxDay($monday,14),bxDay($monday,16),1,substr($codeT,0,3)."\u{00A0}".substr($codeT,3)],'không hợp lệ','A code with an inner space was booked');
     echo "PASS promo booking: server-side total/breakdown/night snapshot stored, usage limit atomic, used code immutable, cancellation frees the use\n";
 
     // ---- Instant Book.
@@ -830,6 +842,14 @@ try {
         $query=http_build_query(['check_in'=>bxDay($monday,14),'check_out'=>bxDay($monday,21),'guests'=>1,'promo_code'=>'TBX'.$suffix.'ZZ']);
         $quote=json_decode(bxHttp($anonymous,$baseUrl,'/api/listings/'.$listingId.'/quote?'.$query,null,'application/json')['body'],true);
         bxExpect(($quote['success']??false)===true && str_contains((string)$quote['data']['promo']['message'],'không tồn tại') && (float)$quote['data']['total']===740000.0,'Quote API did not report an unknown code.');
+
+        // A pasted code through the quote, the address and a refused booking: the box and the server read the same code.
+        $query=http_build_query(['check_in'=>bxDay($monday,14),'check_out'=>bxDay($monday,21),'guests'=>1,'promo_code'=>$codeT."\u{00A0}"]);
+        $quote=json_decode(bxHttp($anonymous,$baseUrl,'/api/listings/'.$listingId.'/quote?'.$query,null,'application/json')['body'],true);
+        bxExpect(($quote['data']['promo']['code']??null)===$codeT && $quote['data']['promo']['requested']===$codeT,'The quote API kept a no-break space on a pasted code.');
+        bxExpect(str_contains(bxHttp($anonymous,$baseUrl,'/listings/'.$listingId.'?promo_code='.rawurlencode("\u{3000}".$codeT."\u{00A0}"))['body'],'name="promo_code" value="'.$codeT.'"'),'A pasted code in the address kept its whitespace.');
+        bxHttp($guestClient,$baseUrl,'/listings/'.$listingId.'/book',['_token'=>$guestToken,'check_in'=>'not-a-date','check_out'=>'not-a-date','guests'=>1,'promo_code'=>$codeT."\u{00A0}"]);
+        bxExpect(str_contains(bxHttp($guestClient,$baseUrl,'/listings/'.$listingId)['body'],'name="promo_code" value="'.$codeT.'"'),'A refused booking gave a pasted code back with its whitespace.');
 
         $listingPage=bxHttp($guestClient,$baseUrl,'/listings/'.$listingId)['body'];
         bxExpect(str_contains($listingPage,'name="promo_code"') && str_contains($listingPage,'>Đặt ngay</button>') && str_contains($listingPage,'js/booking-extras.js')
