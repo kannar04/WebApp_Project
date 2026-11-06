@@ -270,6 +270,7 @@ return [
     'Quay lại booking' => 'Back to booking',
     'Số tiền cần thanh toán:' => 'Amount to pay:',
     'Booking này đã được ghi nhận thanh toán.' => 'A payment has already been recorded for this booking.',
+    'Booking này đã được hoàn tiền.' => 'This booking has been refunded.',
     'Bạn có thể thanh toán online sau khi Host xác nhận booking.' => 'You can pay online once the Host confirms the booking.',
     'Booking này không thể thanh toán online.' => 'This booking cannot be paid online.',
     'Bạn đã báo chuyển khoản với nội dung {reference}. Admin đang kiểm tra tài khoản và sẽ xác nhận thanh toán.' => 'You reported a bank transfer with reference {reference}. An Admin is checking the account and will confirm the payment.',

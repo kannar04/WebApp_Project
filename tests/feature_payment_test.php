@@ -326,6 +326,7 @@ try {
     $payments->vnpayResult($firstDup['reference'],'220000.00','00','00','14000060','NCB');
     $payments->vnpayResult($secondDup['reference'],'220000.00','00','00','14000061','NCB');
     (new BookingExtras())->refund($bookingRD,$adminId,'Hoàn khoản chính');
+    payRejects([$payments,'start'],[$bookingRD,$guestId,'vnpay'],'đã được hoàn tiền','A refunded booking started a payment or was called paid');
     $resolved=$payments->resolveDuplicate((int)$secondDup['transaction_id'],$adminId,'Hoàn cả khoản trùng');
     $state=payInspect($bookingRD);
     payExpect($resolved['payment_status']==='refunded' && $state['payment_status']==='refunded' && str_contains((string)$state['guest_duplicate_refunded_body'],'cũng đã được hoàn') && !str_contains((string)$state['guest_duplicate_refunded_body'],'đã thanh toán'),
@@ -842,6 +843,12 @@ try {
         payHttp($guestClient,$baseUrl,'/payments/vnpay/return?'.http_build_query($valid));
         $detail=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingE)['body'];
         payExpect(str_contains($detail,'đã được ghi nhận hoàn tiền') && !str_contains($detail,'Thanh toán VNPay thành công'),'Reloading the return URL of a refunded payment still says plain success.');
+        // The pay page and a stale pay form say a refunded booking was refunded, not paid and not still to pay.
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingE.'/pay')['body'];
+        payExpect(str_contains($page,'Booking này đã được hoàn tiền.') && !str_contains($page,'đã được ghi nhận thanh toán') && !str_contains($page,'Số tiền cần thanh toán') && !str_contains($page,'/pay/vnpay'),'The pay page of a refunded booking does not say it was refunded.');
+        $response=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingE.'/pay/vnpay',['_token'=>$guestToken]);
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingE.'/pay')['body'];
+        payExpect($response['location']==='/bookings/'.$bookingE.'/pay' && str_contains($page,'alert-danger') && substr_count($page,'Booking này đã được hoàn tiền.')===2,'A stale pay form on a refunded booking does not say it was refunded.');
         // Closing a duplicate on a refunded booking: the flash fits that state.
         $refundedDup=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,116);
         $refundedDupFirst=$payments->start($refundedDup,$guestId,'vnpay'); $refundedDupSecond=$payments->start($refundedDup,$guestId,'vnpay');

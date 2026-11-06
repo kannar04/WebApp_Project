@@ -62,6 +62,7 @@ BEGIN
     SELECT status,amount_due INTO v_payment,v_due FROM booking_payments WHERE booking_id=p_booking FOR UPDATE;
     -- VND has no fractions: a booking saved with a decimal amount is charged in whole dong, the same figure on VietQR and VNPay.
     SET v_due=ROUND(COALESCE(v_due,v_total),0);
+    IF v_payment='refunded' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được hoàn tiền.'; END IF;
     IF COALESCE(v_payment,'unpaid')<>'unpaid' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Booking này đã được ghi nhận thanh toán.'; END IF;
     IF v_status<>'confirmed' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỉ thanh toán online cho booking đã được xác nhận.'; END IF;
     IF v_removed IS NOT NULL AND v_end>DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Chỗ ở này đã bị gỡ nên không thể thanh toán online.'; END IF;
