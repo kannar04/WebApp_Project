@@ -621,6 +621,10 @@ try {
         trustExpect($decided['path'] === '/admin/verifications' && str_contains($decided['body'], 'alert-success') && $trust->verificationStatus($otherGuestId)['status'] === 'approved', 'HTTP Admin approval failed.');
         $historyPage = trustHttp($adminClient, $baseUrl, '/admin/verifications?'.http_build_query(['status' => '', 'q' => sprintf($emailFor, 'otherguest')]));
         trustExpect(str_contains($historyPage['body'], '********4321') && !str_contains($historyPage['body'], '123456784321'), 'Decided Admin history exposed the CCCD.');
+        // A pasted email with a space around it finds its row, as the other Admin searches do.
+        foreach ([sprintf($emailFor, 'otherguest').' ', ' '.sprintf($emailFor, 'otherguest')] as $pasted) {
+            trustExpect(str_contains(trustHttp($adminClient, $baseUrl, '/admin?'.http_build_query(['q' => $pasted]))['body'], '<small class="table-person">'.sprintf($emailFor, 'otherguest').'</small>'), 'The Admin user search did not trim: "'.$pasted.'"');
+        }
         $dashboard = trustHttp($adminClient, $baseUrl, '/admin?'.http_build_query(['q' => 'audit-trust-'.$tag]));
         trustExpect($dashboard['status'] === 200 && str_contains($dashboard['body'], '/admin/verifications') && str_contains($dashboard['body'], 'Host uy tín') && str_contains($dashboard['body'], 'Đã xác minh'), 'Admin user list lacks trust badges.');
         trustExpect(str_contains(trustHttp($adminClient, $baseUrl, '/admin/users/'.$hostId.'/edit')['body'], 'Host uy tín'), 'Admin user edit lacks the Host badge.');
