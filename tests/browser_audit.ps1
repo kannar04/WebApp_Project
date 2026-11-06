@@ -503,12 +503,14 @@ function Check-LoginCarriesBooking {
     $first=Evaluate $choose.Replace('CHECKOUT','2035-07-11')
     $link=Evaluate $choose.Replace('CHECKOUT','2035-07-12')
     if (!$link.sameSite -or $link.path -ne '/login' -or $first.next -ne '/listings/1?check_in=2035-07-10&check_out=2035-07-11&guests=2' -or $link.next -ne '/listings/1?check_in=2035-07-10&check_out=2035-07-12&guests=2' -or $link.search -notmatch '^\?next=%2Flistings%2F1%3Fcheck_in%3D') { throw "Sign-in link wrong: $($link | ConvertTo-Json -Compress)" }
+    $withPromo=Evaluate "(function(f){f.elements.promo_code.value='CHAOHE10';f.elements.promo_code.dispatchEvent(new Event('input',{bubbles:true}));return new URL(f.querySelector('[data-login-next]').href).searchParams.get('next');})(document.querySelector('[data-booking-form]'))"
+    if ($withPromo -ne '/listings/1?check_in=2035-07-10&check_out=2035-07-12&guests=2&promo_code=CHAOHE10') { throw "Sign-in link lost the promo code: $withPromo" }
     Evaluate "document.querySelector('[data-login-next]').click();true" | Out-Null
     Wait-FilterPage "location.pathname==='/login'&&!!document.querySelector('form [name=password]')"
     Evaluate "(function(){const f=document.querySelector('form [name=password]').form;f.elements.email.value='guest@home2home.test';f.elements.password.value='Password123!';f.requestSubmit();return true;})()" | Out-Null
     Wait-FilterPage "location.pathname==='/listings/1'&&!!document.querySelector('[data-quote] .is-total')"
-    $back=Evaluate "(function(){const f=document.querySelector('[data-booking-form]');return {checkIn:f.elements.check_in.value,checkOut:f.elements.check_out.value,guests:f.elements.guests.value,book:!!f.querySelector('button[type=submit]')};})()"
-    if ($back.checkIn -ne '2035-07-10' -or $back.checkOut -ne '2035-07-12' -or $back.guests -ne '2' -or !$back.book) { throw "Stay lost through sign-in: $($back | ConvertTo-Json -Compress)" }
+    $back=Evaluate "(function(){const f=document.querySelector('[data-booking-form]');return {checkIn:f.elements.check_in.value,checkOut:f.elements.check_out.value,guests:f.elements.guests.value,promo:f.elements.promo_code.value,book:!!f.querySelector('button[type=submit]')};})()"
+    if ($back.checkIn -ne '2035-07-10' -or $back.checkOut -ne '2035-07-12' -or $back.guests -ne '2' -or $back.promo -ne 'CHAOHE10' -or !$back.book) { throw "Stay lost through sign-in: $($back | ConvertTo-Json -Compress)" }
     Logout-Role
     Write-Output 'PASS browser sign-in link carries the chosen stay, encoded and same site, and the listing quotes it after sign-in'
 }

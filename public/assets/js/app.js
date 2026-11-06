@@ -101,13 +101,13 @@
         event.currentTarget.elements.namedItem('check_out').dispatchEvent(new Event('input', {bubbles: true}));
     }
 
-    // Signed out, the sign-in link takes the chosen dates and guests along. The page itself comes from the server, the form only adds an encoded query.
+    // Signed out, the sign-in link takes the chosen dates, guests and promo code along. The page itself comes from the server, the form only adds an encoded query.
     function carryBookingToLogin(form) {
         const link = form.querySelector('[data-login-next]');
         if (!link) { return; }
         const query = new URLSearchParams();
-        for (const name of ['check_in', 'check_out', 'guests']) {
-            const value = form.elements.namedItem(name).value;
+        for (const name of ['check_in', 'check_out', 'guests', 'promo_code']) {
+            const value = form.elements.namedItem(name).value.trim();
             if (value !== '') { query.set(name, value); }
         }
         const login = new URL(link.href);

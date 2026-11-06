@@ -819,6 +819,7 @@ echo "PASS QA each home form holds the last applied search once, without JavaScr
 $stayListing=$request('/listings/1?check_in=2035-06-10&check_out=2035-06-12&guests=2')['body'];
 qaExpect(str_contains($stayListing,'name="check_in"') && preg_match_all('~\?month=\d{4}-\d{2}&amp;check_in=2035-06-10&amp;check_out=2035-06-12&amp;guests=2#availability-calendar"~',$stayListing)===2,'Month arrows lost the stay.');
 qaExpect(str_contains($stayListing,'/login?next=%2Flistings%2F1%3Fcheck_in%3D2035-06-10%26check_out%3D2035-06-12%26guests%3D2"'),'Sign-in link lost the stay without JavaScript.');
+qaExpect(str_contains($request('/listings/1?check_in=2035-06-10&check_out=2035-06-12&promo_code=CHAOHE10')['body'],'/login?next=%2Flistings%2F1%3Fcheck_in%3D2035-06-10%26check_out%3D2035-06-12%26promo_code%3DCHAOHE10"'),'Sign-in link lost the promo code without JavaScript.');
 $plainListing=$request('/listings/1')['body'];
 qaExpect(preg_match_all('~\?month=\d{4}-\d{2}#availability-calendar"~',$plainListing)===2 && preg_match('~href="([^"]*)" data-login-next~',$plainListing,$signInLink)===1 && str_ends_with($signInLink[1],'/login'),'Plain listing links changed.');
 echo "PASS QA listing page keeps a stay from the URL through month arrows and the sign-in link\n";
