@@ -984,6 +984,9 @@ try {
         payHttp($adminClient,$baseUrl,'/admin/payments/'.$bookingZ.'/refund',['_token'=>$adminToken,'note'=>'Audit fixture']);
         $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ)['body'];
         payExpect(!str_contains($page,'Số tiền cần hoàn') && str_contains($page,'Đã hoàn ') && payInspect($bookingZ)['payment_status']==='refunded','A refunded booking still says its refund is due.');
+        // The tile counts every unpaid stay still to collect: confirmed and completed, and its label says so.
+        $page=payHttp($adminClient,$baseUrl,'/admin/payments')['body'];
+        payExpect(str_contains($page,'Chờ thu (đã xác nhận hoặc hoàn thành)') && !str_contains($page,'Chờ thu (đã xác nhận)'),'The to-collect tile does not say what it counts.');
         // The note box counts a line break as one character while the browser posts CRLF: a note at the limit is saved with its break.
         $breakTransfer=(int)$payments->start(payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,176),$guestId,'vietqr')['transaction_id'];
         payHttp($adminClient,$baseUrl,'/admin/payments/transfers/'.$breakTransfer,['_token'=>$adminToken,'decision'=>'reject','note'=>str_repeat('a',249)."\r\n".str_repeat('b',250)]);

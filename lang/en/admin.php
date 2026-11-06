@@ -200,7 +200,7 @@ return [
     'Khách thanh toán online (VNPay tự ghi nhận, chuyển khoản VietQR do Admin xác nhận) hoặc trả trực tiếp khi nhận phòng; Host hoặc Admin ghi nhận “Đã thu tiền” từ ngày nhận phòng. Hoàn tiền cần ghi chú và được lưu nhật ký.' => 'Guests pay online (VNPay is recorded automatically, VietQR transfers are confirmed by an Admin) or in person at check-in, where from the check-in date the Host or Admin presses “Mark as paid”. Refunds need a note and are logged.',
     'Đã thu' => 'Collected',
     '{count} booking' => '{count} booking(s)',
-    'Chờ thu (đã xác nhận)' => 'To collect (confirmed)',
+    'Chờ thu (đã xác nhận hoặc hoàn thành)' => 'To collect (confirmed or completed)',
     'Trạng thái thanh toán' => 'Payment status',
     'Mã booking, tên/email khách hoặc tên chỗ ở' => 'Booking ID, guest name/email or listing title',
     'Không có booking phù hợp' => 'No matching bookings',
