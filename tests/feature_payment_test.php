@@ -1180,6 +1180,17 @@ try {
         }
         $response=payHttp($adminClient,$baseUrl,'/admin/payments/transfers/'.$noteTransfer,['_token'=>$adminToken,'decision'=>'reject','note'=>"Chưa thấy khoản này\nDòng thứ hai"]);
         payExpect($response['status']===302 && payAttempt($noteTransfer)['status']==='failed' && payInspect($bookingK)['payment_status']==='unpaid','Rejecting with a two-line note failed.');
+        // A reported transfer tells the Host to wait before collecting, only on a stay that will still be collected.
+        $waitBooking=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,160);
+        $waitTransfer=(int)$payments->start($waitBooking,$guestId,'vietqr')['transaction_id'];
+        $payments->submitTransfer($waitTransfer,$guestId);
+        $waitHint='Hãy chờ kết quả trước khi thu tiền';
+        payExpect(str_contains(payHttp($hostClient,$baseUrl,'/bookings/'.$waitBooking)['body'],$waitHint),'The Host of a confirmed stay is not told to wait for the transfer check.');
+        $service->cancelByGuest($waitBooking,$guestId,'Audit fixture');
+        $page=payHttp($hostClient,$baseUrl,'/bookings/'.$waitBooking)['body'];
+        payExpect(!str_contains($page,$waitHint) && str_contains($page,'Đang kiểm tra chuyển khoản'),'The Host of a cancelled stay is told about collecting money.');
+        payExpect(str_contains(payHttp($adminClient,$baseUrl,'/bookings/'.$waitBooking)['body'],'/admin/payments/transfers/'.$waitTransfer),'The Admin lost the decision on a cancelled booking.');
+        echo "PASS a reported transfer tells the Host to wait only while the stay can still be collected\n";
         // An automatic gateway payment has no collector. A transfer confirmed by an Admin and cash marked by a Host keep their names.
         $collectorVnpay=payPaidBooking($service,$payments,$listingId,$guestId,$hostId,$base,180,'15000180');
         $collectorQr=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,183);
