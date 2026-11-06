@@ -10,6 +10,8 @@ declare(strict_types=1);
 return [
     // ---- 020_booking.sql: sp_booking_create refusal when the price moved after the quote
     'Giá đã thay đổi nên chưa có booking nào được tạo. Tổng tiền mới: {amount}đ. Hãy xem lại rồi đặt lại.' => 'The price has changed, so no booking was made. New total: {amount}đ. Please review it and book again.',
+    // ---- 070_booking_extras.sql: sp_booking_payment_refund refusal when the amount owed moved after the form was opened
+    'Số tiền hoàn của booking #{id} đã đổi nên chưa ghi nhận. Cần hoàn: {amount}đ. Hãy xem lại rồi ghi nhận lại.' => 'The refund for booking #{id} has changed, so nothing was recorded. Refund owed: {amount}đ. Please review it and record it again.',
     // ---- 020_booking.sql: sp_booking_create notifications
     'Đặt ngay thành công: booking #{id} đã được tự động xác nhận.' => 'Instant Book: booking #{id} has been confirmed automatically.',
     'Bạn có booking Đặt ngay mới cho “{listing}” (#{id}), đã được tự động xác nhận.' => 'You have a new Instant Book booking for “{listing}” (#{id}); it was confirmed automatically.',

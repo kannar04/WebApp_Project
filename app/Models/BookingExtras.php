@@ -110,10 +110,15 @@ final class BookingExtras
         $statement->execute([$bookingId, $actorId, $asAdmin ? 1 : 0, $note]);
     }
 
-    public function refund(int $bookingId, int $actorId, string $note): void
+    /**
+     * Returns the amount recorded as refunded.
+     * $shownAmount is the figure the Admin was shown, as a decimal string: if it no longer matches, nothing is recorded. Null means no figure came with the request.
+     */
+    public function refund(int $bookingId, int $actorId, string $note, ?string $shownAmount = null): float
     {
-        $statement = $this->db->prepare('CALL sp_booking_payment_refund(?,?,?)');
-        $statement->execute([$bookingId, $actorId, $note]);
+        $statement = $this->db->prepare('CALL sp_booking_payment_refund(?,?,?,?)');
+        $statement->execute([$bookingId, $actorId, $note, $shownAmount]);
+        return (float) $statement->fetch()['refund_amount'];
     }
 
     public function adminPayments(int $actorId, string $status, string $query): array

@@ -179,8 +179,9 @@ final class BookingExtrasController extends Controller
         $note = $this->text('note', 600);
         try {
             if ($note === '' || mb_strlen($note) > 500) { throw new \DomainException('Vui lòng ghi chú lý do hoàn tiền (tối đa 500 ký tự).'); }
-            (new BookingExtras())->refund((int) $id, (int) $user['id'], $note);
-            Session::flash('success', 'Đã ghi nhận hoàn tiền cho booking #'.(int) $id.'.');
+            $shown = input_text($_POST, 'shown_amount');
+            $amount = (new BookingExtras())->refund((int) $id, (int) $user['id'], $note, Validator::isDecimal($shown) ? $shown : null);
+            Session::flash('success', 'Đã ghi nhận hoàn '.number_format($amount, 0, ',', '.').'đ cho booking #'.(int) $id.'.');
         } catch (\Throwable $exception) {
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }

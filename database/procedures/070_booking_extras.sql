@@ -493,7 +493,7 @@ END$$
 -- reports refunded money reads that row, falling back to amount_due: sp_booking_extras_detail, sp_admin_payments, sp_admin_payment_totals,
 -- and the revenue figures sp_admin_total_revenue, sp_host_stats, sp_host_monthly_revenue.
 CREATE OR REPLACE PROCEDURE sp_booking_payment_refund(IN p_booking BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED,
-    IN p_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
+    IN p_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_shown_amount DECIMAL(12,2))
 BEGIN
     DECLARE v_own BOOL DEFAULT FALSE;
     DECLARE v_listing BIGINT UNSIGNED;
@@ -503,6 +503,7 @@ BEGIN
     DECLARE v_due DECIMAL(12,2);
     DECLARE v_refund DECIMAL(12,2);
     DECLARE v_note VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    DECLARE v_message VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         IF @@in_transaction THEN
@@ -524,6 +525,11 @@ BEGIN
     SELECT refund_amount INTO v_refund FROM booking_cancellations WHERE booking_id=p_booking;
     SET v_refund=COALESCE(v_refund,v_due);
     IF v_refund<=0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Theo chính sách hủy, booking này không có khoản hoàn nên không thể ghi nhận hoàn tiền.'; END IF;
+    -- The form carries the figure its dialog showed. NULL means the request came with no figure; the caller then reports the amount this returns.
+    IF p_shown_amount IS NOT NULL AND p_shown_amount<>v_refund THEN
+        SET v_message=CONCAT('Số tiền hoàn của booking #',p_booking,' đã đổi nên chưa ghi nhận. Cần hoàn: ',REPLACE(FORMAT(v_refund,0),',','.'),'đ. Hãy xem lại rồi ghi nhận lại.');
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=v_message;
+    END IF;
     UPDATE booking_payments SET status='refunded',refunded_at=NOW(6),refunded_by=p_actor,note=v_note,updated_at=NOW(6) WHERE booking_id=p_booking;
     INSERT INTO booking_payment_events(booking_id,actor_id,from_status,to_status,note,created_at) VALUES(p_booking,p_actor,'paid','refunded',v_note,NOW(6));
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
@@ -531,6 +537,7 @@ BEGIN
     INSERT INTO admin_audit_logs(admin_id,action,entity_type,entity_id,change_summary,created_at)
         VALUES(p_actor,'refund_payment','booking',p_booking,JSON_OBJECT('amount',v_refund,'note',v_note),NOW(6));
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_payment_refund; END IF;
+    SELECT v_refund refund_amount;
 END$$
 
 -- p_status: '' | unpaid | paid | refunded | not_required. p_query: exact booking ID, Guest name/email or listing title.

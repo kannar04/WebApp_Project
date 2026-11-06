@@ -633,6 +633,28 @@ try {
     payExpect(payInspect($bookingX)['payment_status']==='refunded','Admin could not refund a late transfer.');
     echo "PASS unpaid cancel: pending and confirmed record 0 and say nothing about a refund, late VNPay or transfer money is owed back whole\n";
 
+    // ---- The refund form carries the figure its dialog showed: if what is owed has moved, nothing is recorded and the Admin is told the current figure.
+    $staleRefund=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,152,'14000060');
+    $shownBefore=(string)payAdminRows($adminId,$staleRefund)[0]['refund_amount'];
+    payExpect((float)$shownBefore===220000.0,'The stale refund fixture is not priced as expected.');
+    $service->cancelByGuest($staleRefund,$guestId,'Audit fixture cancelled behind an open Admin page');
+    payRejects([$extras,'refund'],[$staleRefund,$adminId,'Form cũ',$shownBefore],'Cần hoàn: 100.000đ','A refund form with an old figure was recorded');
+    $state=payInspect($staleRefund);
+    payExpect($state['payment_status']==='paid' && $state['refund_audit_amount']===null && $state['guest_refund_body']===null,'A refused refund left something behind: '.json_encode($state,JSON_UNESCAPED_UNICODE));
+    $shownNow=(string)payAdminRows($adminId,$staleRefund)[0]['refund_amount'];
+    payExpect($extras->refund($staleRefund,$adminId,'Form mới',$shownNow)===100000.0 && (float)payInspect($staleRefund)['refund_audit_amount']===100000.0,'The figure the page shows now was refused or not returned.');
+    // A paid stay still on, the late VNPay money and a request with no figure all go through, and each returns what was recorded.
+    $plainRefund=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,155,'14000061');
+    payExpect($extras->refund($plainRefund,$adminId,'Hoàn toàn bộ','220000')===220000.0,'A normal refund of the figure shown was refused.');
+    $lateRefund=payConfirmedBooking($service,$policyListings[50],$guestId,$hostId,$base,158);
+    $lateRefundAttempt=$payments->start($lateRefund,$guestId,'vnpay');
+    $service->cancelByGuest($lateRefund,$guestId,'Audit fixture cancelled while paying');
+    $payments->vnpayResult($lateRefundAttempt['reference'],'220000.00','00','00','14000062','NCB');
+    payExpect($extras->refund($lateRefund,$adminId,'Trả lại khoản nhận sau khi hủy',(string)payAdminRows($adminId,$lateRefund)[0]['refund_amount'])===220000.0,'The late-payment refund of the figure shown was refused.');
+    $noFigure=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,161,'14000063');
+    payExpect($extras->refund($noFigure,$adminId,'Yêu cầu không kèm số')===220000.0,'A refund with no figure did not return what was recorded.');
+    echo "PASS stale refund: a figure that moved records nothing and names the current one; normal, late-payment and no-figure refunds return the amount recorded\n";
+
     // ---- Owed and refunded are two facts: cancelling after a refund owes nothing more and keeps the figure that was refunded.
     $refundedFirst=payPaidBooking($service,$payments,$policyListings[50],$guestId,$hostId,$base,98,'14000050');
     $totalsBefore=$extras->adminPaymentTotals($adminId);
@@ -882,7 +904,17 @@ try {
             $page=payHttp($client,$baseUrl,'/bookings/'.$bookingQ)['body'];
             payExpect(str_contains($page,'booking này không được hoàn tiền') && !str_contains($page,'/admin/payments/'.$bookingQ.'/refund'),'Booking page does not show the zero refund clearly.');
         }
-        payHttp($adminClient,$baseUrl,'/admin/payments/'.$bookingP.'/refund',['_token'=>$adminToken,'note'=>'Đã hoàn theo chính sách']);
+        // Over HTTP: both forms carry the figure in their dialog, a stale one is refused with the current figure, and the success message names the amount.
+        $page=payHttp($adminClient,$baseUrl,'/admin/payments?q='.$bookingP)['body'];
+        payExpect(str_contains($page,'name="shown_amount" value="100000.00"'),'The Admin list refund form does not carry its figure.');
+        payExpect(str_contains(payHttp($adminClient,$baseUrl,'/bookings/'.$bookingP)['body'],'name="shown_amount" value="100000.00"'),'The booking page refund form does not carry its figure.');
+        foreach ([['return_path'=>'/admin/payments?q='.$bookingP],['return_to'=>'detail']] as $from) {
+            payHttp($adminClient,$baseUrl,'/admin/payments/'.$bookingP.'/refund',['_token'=>$adminToken,'note'=>'Form cũ','shown_amount'=>'220000.00']+$from);
+            $page=payHttp($adminClient,$baseUrl,isset($from['return_to'])?'/bookings/'.$bookingP:'/admin/payments?q='.$bookingP)['body'];
+            payExpect(str_contains($page,'Số tiền hoàn của booking #'.$bookingP.' đã đổi nên chưa ghi nhận. Cần hoàn: 100.000đ.') && payInspect($bookingP)['payment_status']==='paid','A stale refund form was not refused with the current figure.');
+        }
+        payHttp($adminClient,$baseUrl,'/admin/payments/'.$bookingP.'/refund',['_token'=>$adminToken,'note'=>'Đã hoàn theo chính sách','shown_amount'=>'100000.00']);
+        payExpect(str_contains(payHttp($adminClient,$baseUrl,'/admin/payments?q='.$bookingP)['body'],'Đã ghi nhận hoàn 100.000đ cho booking #'.$bookingP.'.'),'The refund message does not state the amount recorded.');
         $page=payHttp($adminClient,$baseUrl,'/admin/payments?q='.$bookingP)['body'];
         payExpect(str_contains($page,'Đã hoàn 100.000đ') && str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$bookingP)['body'],'Đã hoàn 100.000 VND'),'Refunded booking does not show the policy amount.');
         // A taken-down listing over HTTP: clear message, no way to start, no QR.
