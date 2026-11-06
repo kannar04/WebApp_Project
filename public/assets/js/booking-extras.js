@@ -64,11 +64,20 @@
             }
         }
 
+        function waitForDates() {
+            showFeedback(window.h2hT('Chọn ngày nhận và trả phòng để kiểm tra mã.'), '');
+        }
+
+        // A cleared date takes the price away, so a code already checked goes back to waiting for dates.
+        function dateChanged() {
+            if (promo.value.trim() !== '' && (!checkIn.value || !checkOut.value)) { waitForDates(); }
+        }
+
         function promoChanged() {
             if (promo.value.trim() === '') {
                 showFeedback('', '');
             } else if (!checkIn.value || !checkOut.value) {
-                showFeedback(window.h2hT('Chọn ngày nhận và trả phòng để kiểm tra mã.'), '');
+                waitForDates();
             } else {
                 showFeedback(window.h2hT('Đang kiểm tra mã…'), '');
             }
@@ -91,9 +100,13 @@
         form.addEventListener('input', forgetShownTotal);
         form.addEventListener('h2h:quote', renderQuote);
         form.addEventListener('h2h:quote-failed', quoteFailed);
-        if (promo && checkIn && checkOut) { promo.addEventListener('input', promoChanged); }
+        if (promo && checkIn && checkOut) {
+            promo.addEventListener('input', promoChanged);
+            checkIn.addEventListener('input', dateChanged);
+            checkOut.addEventListener('input', dateChanged);
+        }
         // A code that arrived with the page and no dates waits for them, as a typed one does. With dates, the on-load quote answers for it.
-        if (promo && promo.value.trim() !== '' && checkIn && checkOut && (!checkIn.value || !checkOut.value)) { showFeedback(window.h2hT('Chọn ngày nhận và trả phòng để kiểm tra mã.'), ''); }
+        if (promo && checkIn && checkOut) { dateChanged(); }
     }
 
     if (document.readyState === 'loading') {

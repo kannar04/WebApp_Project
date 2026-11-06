@@ -494,6 +494,27 @@ function Check-MonthArrowsCarryPromo {
     Write-Output 'PASS browser month arrows keep the promo code and its total; a code from the address is treated like a typed one, valid, unknown, hostile or without dates'
 }
 
+function Check-PromoAfterDateCleared {
+    # A code checked against dates has no price to apply to once a date is cleared: it goes back to waiting for dates, and comes back with them.
+    $read="(function(){const feedback=document.querySelector('[data-promo-feedback]');return {valid:feedback.classList.contains('is-valid'),message:feedback.textContent,total:!!document.querySelector('[data-quote] .is-total')};})()"
+    Navigate '/listings/3?promo_code=CHAOHE10'
+    $waiting=(Evaluate $read).message
+    if (!$waiting) { throw 'A code without dates shows no prompt' }
+    Navigate '/listings/3'
+    foreach ($field in 'check_out','check_in') {
+        Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_in.value='2035-10-10';f.elements.check_out.value='2035-10-12';f.elements.promo_code.value='CHAOHE10';f.elements.promo_code.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+        Wait-FilterPage "document.querySelector('[data-promo-feedback]').classList.contains('is-valid')"
+        Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.$field.value='';f.elements.$field.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+        $cleared=Evaluate $read
+        if ($cleared.valid -or $cleared.total -or $cleared.message -ne $waiting) { throw "Clearing $field left the code applied: $($cleared | ConvertTo-Json -Compress)" }
+    }
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_in.value='2035-10-10';f.elements.check_in.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+    if ((Evaluate $read).message -ne $waiting) { throw 'A code with one date stopped waiting for the other' }
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_out.value='2035-10-12';f.elements.check_out.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+    Wait-FilterPage "document.querySelector('[data-promo-feedback]').classList.contains('is-valid')"
+    Write-Output 'PASS browser a promo code goes back to waiting for dates when one is cleared, and applies again when they return'
+}
+
 function Check-LoginCarriesBooking {
     # Signed out, the sign-in link takes the chosen stay along: same site, encoded, following the form. After signing in the listing has it back and quotes it.
     Navigate '/listings/1'
@@ -971,6 +992,7 @@ try {
     Check-LoginCarriesBooking
     Check-MonthArrowsCarryStay
     Check-MonthArrowsCarryPromo
+    Check-PromoAfterDateCleared
     Check-MenuWithoutScript
     Check-AuthToolsClearBrand
     Navigate '/login'
