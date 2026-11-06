@@ -364,7 +364,7 @@ function Check-HeartKeepsFocus {
 
 function Check-HeartAfterSessionEnded {
     # Signed out behind the page's back, the heart's token is dead: every click must say to reload, in the visitor's language, never to try again. Reloading then shows the sign-out.
-    foreach ($expected in 'tải lại trang','reload the page') {
+    foreach ($expected in 't\u1ea3i l\u1ea1i trang','reload the page') {
         Navigate '/'
         Logout-Role
         Evaluate "(function(){window.h2hAlerts=[];window.alert=function(message){window.h2hAlerts.push(message);};return true;})()" | Out-Null
