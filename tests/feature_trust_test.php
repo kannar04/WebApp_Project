@@ -845,7 +845,10 @@ try {
         $photoModel->addPhoto($listingId, '/uploads/audit-b.jpg', 'Audit B', $hostId);
         $photoIds = array_map('intval', array_column($photoModel->photos($listingId, $hostId), 'id'));
         trustExpect(count($photoIds) === 2 && $photoModel->findOwned($listingId, $hostId)['moderation_status'] === 'approved', 'The photo fixture is not a live listing with two photos.');
-        $photoToken = trustToken(trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/edit')['body']);
+        $photoForm = trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/edit')['body'];
+        $photoToken = trustToken($photoForm);
+        // The dialog opens before anyone knows whether anything changed, so it promises a re-review only for a change.
+        trustExpect(str_contains($photoForm, 'data-confirm="Lưu thứ tự/gỡ ảnh đã chọn? Nếu ảnh thay đổi, tin sẽ được gửi duyệt lại."') && !str_contains($photoForm, 'và gửi tin duyệt lại?'), 'The photo save dialog promises a re-review even with nothing changed.');
         foreach ([[1, 2], [3, 7]] as $samePositions) {
             $photoSave = trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/photos', ['_token' => $photoToken, 'positions' => array_combine($photoIds, $samePositions)]);
             trustExpect(str_contains($photoSave['body'], 'Ảnh không có thay đổi nên tin vẫn giữ nguyên.') && !str_contains($photoSave['body'], 'Đã cập nhật ảnh') && $photoModel->findOwned($listingId, $hostId)['moderation_status'] === 'approved', 'Saving unchanged photos took a live listing off the site.');

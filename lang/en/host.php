@@ -126,7 +126,7 @@ return [
     'Chưa có ảnh. Dùng mục “Thêm ảnh” ở trên.' => 'No photos yet. Use “Add a photo” above.',
     'Thứ tự ảnh {number}' => 'Position of photo {number}',
     'Gỡ ảnh này khỏi tin' => 'Remove this photo from the listing',
-    'Lưu thứ tự/gỡ ảnh đã chọn và gửi tin duyệt lại?' => 'Save the photo order, remove the selected photos and resubmit the listing for review?',
+    'Lưu thứ tự/gỡ ảnh đã chọn? Nếu ảnh thay đổi, tin sẽ được gửi duyệt lại.' => 'Save the photo order and remove the selected photos? If the photos change, the listing goes back for review.',
     'Lưu quản lý ảnh' => 'Save photo changes',
 
     // Availability calendar
