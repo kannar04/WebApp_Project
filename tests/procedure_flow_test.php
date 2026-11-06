@@ -227,11 +227,11 @@ try {
         ensure(count($notices)===$count['resolved']+1 && str_contains($notices[0]['body'],'đã được giải quyết. Kết luận: '.$conclusion) && $notices[0]['title']==='Cập nhật báo cáo','The reporter was not told the conclusion.');
         $reports->resolve($reportId,$adminId,'resolved','  '.$conclusion.' ');
         ensure(count(noticesFor($reporter,null,'report_resolved'))===$count['resolved']+1,'Saving the same conclusion again notified the reporter again.');
-        // A corrected accent is a new conclusion, although the column's collation calls the two equal.
-        $reports->resolve($reportId,$adminId,'resolved','Da kiem tra');
-        $reports->resolve($reportId,$adminId,'resolved','Đã kiểm tra');
+        // A corrected accent is a new conclusion, although the column's collation calls the two equal. No d-stroke here: that letter differs under the collation too.
+        $reports->resolve($reportId,$adminId,'resolved','Kiem tra xong');
+        $reports->resolve($reportId,$adminId,'resolved','Kiểm tra xong');
         $notices=noticesFor($reporter,null,'report_resolved');
-        ensure(count($notices)===$count['resolved']+3 && str_contains($notices[0]['body'],'Đã kiểm tra'),'A corrected conclusion did not reach the reporter.');
+        ensure(count($notices)===$count['resolved']+3 && str_contains($notices[0]['body'],'Kiểm tra xong'),'A corrected conclusion did not reach the reporter.');
         $reports->resolve($reportId,$adminId,'dismissed','Không đủ căn cứ');
         $notices=noticesFor($reporter,null,'report_dismissed');
         ensure(count($notices)===$count['dismissed']+1 && str_contains($notices[0]['body'],'không được chấp nhận. Kết luận: Không đủ căn cứ'),'Dismissing did not tell the reporter.');
