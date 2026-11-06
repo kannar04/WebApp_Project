@@ -54,6 +54,10 @@ cleanupExpect($documentedOrder === $installedOrder, 'docs/database-setup.md rout
 $schemaTableCount = preg_match_all('/CREATE TABLE IF NOT EXISTS `/', (string) file_get_contents(dirname(__DIR__).'/database/schema.sql'));
 cleanupExpect(str_contains($setupDoc, 'tổng **'.$schemaTableCount.' bảng**'), 'docs/database-setup.md does not give the schema table count '.$schemaTableCount.'.');
 cleanupExpect(str_contains((string) file_get_contents(dirname(__DIR__).'/README.md'), 'MariaDB hiện hữu ('.$schemaTableCount.' bảng'), 'README does not give the schema table count '.$schemaTableCount.'.');
+// The template's APP_URL fits only the quick run: anyone serving elsewhere must be told to blank it, in the install steps and beside the value.
+$readmeStep2 = preg_match('/^2\. .*$/mu', (string) file_get_contents(dirname(__DIR__).'/README.md'), $readmeStep) === 1 ? $readmeStep[0] : '';
+cleanupExpect(str_contains($readmeStep2, 'http://127.0.0.1:8090') && str_contains($readmeStep2, 'VirtualHost, `htdocs`, cổng khác') && str_contains($readmeStep2, 'để trống `APP_URL=`'), 'README step 2 does not tell every other setup to blank APP_URL.');
+cleanupExpect(preg_match('/^# [^\n]*127\.0\.0\.1:8090[^\n]*\n# [^\n]*[Ll]eave it empty[^\n]*\nAPP_URL=/m', str_replace("\r\n", "\n", (string) file_get_contents(dirname(__DIR__).'/.env.example'))) === 1, '.env.example does not say when to blank APP_URL.');
 echo 'PASS setup doc lists the '.count($installedOrder).' installer files in order and the '.$schemaTableCount." tables\n";
 
 $controller = new App\Controllers\AdminController();

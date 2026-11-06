@@ -34,8 +34,8 @@ docs/         kiến trúc, traceability, tiến độ và test report
 ## Cài đặt và chạy
 
 1. Bật Apache và MySQL trong XAMPP.
-2. Khuyến nghị cấu hình Apache VirtualHost trỏ DocumentRoot tới `public/`. Nếu chỉ chép thư mục dự án vào `htdocs`, mở `http://localhost/<thư-mục>/`: `.htaccess` ở thư mục gốc chỉ phục vụ `public/` (cần `mod_rewrite` và `AllowOverride All`, mặc định của XAMPP); khi đó để trống `APP_URL=` trong `.env`.
-3. Sao chép `.env.example` thành `.env`, chỉnh credential nếu cần.
+2. Khuyến nghị cấu hình Apache VirtualHost trỏ DocumentRoot tới `public/`. Nếu chỉ chép thư mục dự án vào `htdocs`, mở `http://localhost/<thư-mục>/`: `.htaccess` ở thư mục gốc chỉ phục vụ `public/` (cần `mod_rewrite` và `AllowOverride All`, mặc định của XAMPP). `APP_URL` trong `.env.example` chỉ đúng khi mở đúng `http://127.0.0.1:8090` (bước 5); với VirtualHost, `htdocs`, cổng khác hay máy khác, hãy để trống `APP_URL=` trong `.env`, nếu không CSS, liên kết và form đều trỏ về cổng 8090 nên trang mất giao diện và không đăng nhập được.
+3. Sao chép `.env.example` thành `.env`, chỉnh credential nếu cần và để trống `APP_URL=` nếu không chạy ở `http://127.0.0.1:8090` (xem bước 2).
 4. Import database:
 
 ```powershell
