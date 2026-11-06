@@ -102,7 +102,7 @@ final class TrustController extends Controller
     /** Missing fields become empty strings; arrays, other non-strings and invalid UTF-8 are rejected as null. */
     private function postedText(string $field): ?string
     {
-        $value = $_POST[$field] ?? '';
-        return is_string($value) && mb_check_encoding($value, 'UTF-8') ? trim($value) : null;
+        $value = input_text_or_null($_POST, $field);
+        return $value === null ? null : trim($value);
     }
 }

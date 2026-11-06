@@ -48,8 +48,17 @@ function configure_error_output(bool $debug, string $sapi = PHP_SAPI): void
 /** Request text from $_GET or $_POST: an absent, array-shaped (name[]=1) or invalid UTF-8 value gives $default, so bad bytes are never stored as '?'. */
 function input_text(array $source, string $key, string $default = ''): string
 {
-    $value = $source[$key] ?? $default;
-    return is_string($value) && mb_check_encoding($value, 'UTF-8') ? $value : $default;
+    return isset($source[$key]) ? input_text_or_null($source, $key) ?? $default : $default;
+}
+
+/**
+ * The same text for a caller that refuses a bad value instead of taking it as empty: an array-shaped or invalid UTF-8 value gives null, an absent one ''.
+ * A textarea posts a line break as CRLF although its maxlength counted it as one character, so line breaks reach every check and routine as \n.
+ */
+function input_text_or_null(array $source, string $key): ?string
+{
+    $value = $source[$key] ?? '';
+    return is_string($value) && mb_check_encoding($value, 'UTF-8') ? str_replace(["\r\n", "\r"], "\n", $value) : null;
 }
 
 /** A password is bytes, not text: it comes through untouched, or a password set by an older client would no longer open. */

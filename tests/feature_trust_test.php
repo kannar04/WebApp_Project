@@ -648,6 +648,16 @@ try {
         trustExpect($editor['status'] === 200 && str_contains($editor['body'], 'K-4821'), 'Host guide editor unavailable.');
         $saved = trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/checkin-guide', ['_token' => trustToken($editor['body'])] + ['door_code' => 'K-9999'] + $guide);
         trustExpect(str_contains($saved['body'], 'alert-success') && $trust->guideForHost($listingId, $hostId)['door_code'] === 'K-9999', 'HTTP guide save failed.');
+        // A line break counts once, as in the form's maxlength: the guide and a reply at their limits are saved and still show the break.
+        $breakGuide = ['_token' => trustToken($saved['body']), 'door_code' => 'K-9999', 'arrival_instructions' => str_repeat('a', 1499)."\r\n".str_repeat('b', 1500), 'note' => str_repeat('c', 999)."\r\n".str_repeat('d', 1000)] + $guide;
+        trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/checkin-guide', $breakGuide);
+        $storedGuide = $trust->guideForHost($listingId, $hostId);
+        trustExpect($storedGuide['arrival_instructions'] === str_repeat('a', 1499)."\n".str_repeat('b', 1500) && $storedGuide['note'] === str_repeat('c', 999)."\n".str_repeat('d', 1000), 'A guide at its limits with a line break was refused or kept its CR.');
+        trustExpect(str_contains(trustHttp($guestClient, $baseUrl, '/bookings/'.$stayId)['body'], "a<br />\nb"), 'The guide lost its line break on the Guest page.');
+        trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/checkin-guide', ['_token' => trustToken($saved['body']), 'door_code' => 'K-9999'] + $guide);
+        $breakReview = (int) $reviews->forHost($hostId)[0]['id'];
+        trustHttp($hostClient, $baseUrl, '/host/reviews/'.$breakReview.'/reply', ['_token' => trustToken($saved['body']), 'reply' => str_repeat('a', 2499)."\r\n".str_repeat('b', 2500)]);
+        foreach ($reviews->forHost($hostId) as $review) { if ((int) $review['id'] === $breakReview) { trustExpect($review['host_reply'] === str_repeat('a', 2499)."\n".str_repeat('b', 2500), 'A reply at the limit with a line break was refused or kept its CR.'); } }
         $tooShort = trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/checkin-guide', ['_token' => trustToken($saved['body']), 'arrival_instructions' => 'ngắn', 'door_code' => 'K-1111']);
         trustExpect(str_contains($tooShort['body'], 'alert-danger') && str_contains($tooShort['body'], 'K-1111') && $trust->guideForHost($listingId, $hostId)['door_code'] === 'K-9999', 'Invalid HTTP guide save changed data or lost input.');
         trustExpect(str_contains(trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/edit')['body'], '/checkin-guide'), 'Listing edit page lacks the guide link.');

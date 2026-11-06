@@ -36,8 +36,8 @@ final class ReportController extends Controller
         $listingId=filter_var($_POST['listing_id']??null,FILTER_VALIDATE_INT)?:null;
         $bookingId=filter_var($_POST['booking_id']??null,FILTER_VALIDATE_INT)?:null;
         try {
-            $category=$_POST['category']??''; $description=$_POST['description']??'';
-            if (!is_string($category) || !is_string($description) || !mb_check_encoding($description,'UTF-8') || mb_strlen($description)>5000) { throw new \DomainException('Thông tin báo cáo không hợp lệ.'); }
+            $category=$_POST['category']??''; $description=input_text_or_null($_POST,'description');
+            if (!is_string($category) || $description===null || mb_strlen($description)>5000) { throw new \DomainException('Thông tin báo cáo không hợp lệ.'); }
             $created=(new Report())->create((int)$user['id'],$listingId,$bookingId,$category,$description);
             Session::flash('success',$created?'Admin đã nhận báo cáo. Bạn có thể theo dõi kết quả ở đây.':'Bạn đã gửi báo cáo cho mục này và Admin chưa xử lý xong. Bạn có thể theo dõi kết quả ở đây.');
         } catch (\DomainException $exception) {
@@ -62,8 +62,8 @@ final class ReportController extends Controller
     {
         Csrf::ensure(); $user=$this->requireRole('admin');
         try {
-            $status=$_POST['status']??''; $resolution=$_POST['resolution']??'';
-            if (!is_string($status) || !is_string($resolution) || !mb_check_encoding($resolution,'UTF-8') || mb_strlen($resolution)>5000) { throw new \DomainException('Thông tin xử lý không hợp lệ.'); }
+            $status=$_POST['status']??''; $resolution=input_text_or_null($_POST,'resolution');
+            if (!is_string($status) || $resolution===null || mb_strlen($resolution)>5000) { throw new \DomainException('Thông tin xử lý không hợp lệ.'); }
             (new Report())->resolve((int)$id,(int)$user['id'],$status,$resolution); Session::flash('success','Đã cập nhật xử lý báo cáo.');
         } catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
         // Back to the page the Admin was working on.

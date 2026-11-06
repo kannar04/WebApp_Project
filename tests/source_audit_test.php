@@ -687,6 +687,18 @@ try {
         expect($passwordModel->findByEmail($utf8Email)['full_name'] === $legitimate, 'A Vietnamese, CJK and emoji name must be saved unchanged.');
         $reporter = auditRequest($utf8Browser, $url.'/reports', '_token='.$profileToken.'&category=other&listing_id=1&description=Abcdefghij%FFklmnop', $url.'/listings/1');
         expect(str_contains(auditRequest($utf8Browser, $url.$reporter['location'])['body'], 'Thông tin báo cáo không hợp lệ.'), 'A report with invalid UTF-8 must be refused.');
+        // A textarea's maxlength counts a line break as one character while the browser posts CRLF: text at the limit is saved with its line break, one over is refused.
+        expect(input_text(['x' => "a\r\nb\rc\nd"], 'x') === "a\nb\nc\nd" && input_text(['x' => ['y']], 'x', 'd') === 'd' && input_text([], 'x', 'd') === 'd' && input_text_or_null(['x' => ['y']], 'x') === null && input_text_or_null(['x' => "\xFF"], 'x') === null && input_text_or_null([], 'x') === '', 'The text input helpers changed what they accept.');
+        $reportsModel = new \App\Models\Report();
+        $posted = str_repeat('a', 2499)."\r\n".str_repeat('b', 2500); $stored = str_repeat('a', 2499)."\n".str_repeat('b', 2500);
+        auditRequest($utf8Browser, $url.'/reports', ['_token' => $profileToken, 'category' => 'other', 'listing_id' => 1, 'description' => 'a'.$posted], $url.'/listings/1');
+        expect($reportsModel->forUser($utf8Fixture) === [], 'A report one character over the limit must be refused.');
+        auditRequest($utf8Browser, $url.'/reports', ['_token' => $profileToken, 'category' => 'other', 'listing_id' => 1, 'description' => $posted], $url.'/listings/1');
+        $savedReport = $reportsModel->forUser($utf8Fixture)[0] ?? [];
+        expect(($savedReport['description'] ?? '') === $stored, 'A report at the limit with a line break must be saved with that line break.');
+        expect(str_contains(auditRequest($utf8Browser, $url.'/reports')['body'], "a<br />\nb"), 'A saved report must still show its line break.');
+        auditRequest($admin, $url.'/admin/reports/'.(int) $savedReport['id'].'/resolve', ['_token' => $adminToken, 'status' => 'resolved', 'resolution' => $posted]);
+        expect($reportsModel->forUser($utf8Fixture)[0]['resolution'] === $stored, 'A conclusion at the limit with a line break must be saved.');
         $utf8Register = auditBrowser();
         $form = auditRequest($utf8Register, $url.'/register')['body'];
         $refused = auditRequest($utf8Register, $url.'/register', '_token='.auditFormToken($form).'&full_name=Abc%FFdef&email='.urlencode("audit-utf8b-$tag@home2home.test").'&phone=&password=Abcdefgh1');

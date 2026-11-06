@@ -519,6 +519,7 @@ Các routine dưới đây sửa lỗi tại chỗ, không đổi schema.
 | `sp_booking_payment_refund` | `070_booking_extras.sql` | Thêm `p_shown_amount` (4 tham số): số Admin thấy khác số còn phải hoàn dưới khóa thì không ghi gì và báo số hiện tại; `NULL` (yêu cầu không kèm số) giữ hành vi cũ; trả về `refund_amount` đã ghi | feature_payment_test |
 | `sp_payment_start` | `095_online_payment.sql` | Booking đã hoàn tiền báo “đã được hoàn tiền” thay vì “đã được ghi nhận thanh toán” | feature_payment_test |
 | `sp_admin_payment_transfer_decide` / `sp_admin_payment_duplicate_resolve` | `095_online_payment.sql` | Đóng giao dịch trùng: ghi chú quá dài (quá 352 / 468 ký tự, phần còn lại của cột sau câu cố định) bị từ chối, trong giới hạn thì lưu trọn, không còn `LEFT(...,500)` | feature_payment_test |
+| `sp_test_cleanup_user` | `testing.sql` | Fixture: dọn thêm báo cáo của tài khoản kiểm thử và nhật ký xử lý báo cáo đó | source_audit_test |
 | `sp_admin_payments` / `sp_booking_extras_detail` | `070_booking_extras.sql` | Thêm cột `paid_after_cancel` để màn hình không gọi khoản nhận sau khi hủy là “theo chính sách”; số tiền không đổi | feature_payment_test |
 
 ## Run / reproduce
