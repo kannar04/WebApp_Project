@@ -32,8 +32,12 @@ td .action-row > a { white-space: nowrap; }
 /* The second selector outweighs Bootstrap's .btn:not(:disabled) pointer. Dimmed because a touch screen shows no cursor; the buttons stay enabled so they keep their name and value in the request. */
 form[aria-busy="true"] button, form[aria-busy="true"] .btn:not(:disabled) { cursor: progress; opacity: .65; }
 /* Filter layout uses Bootstrap 4 form-group/grid structure, not offset corrections. */
-/* Every in-app #fragment target lands below the sticky header, which is 77 px tall on one row and 100 px on two. */
-#main-content, #listing-results, #personal, #verification, #trusted-host, #discovery-history, #booking-messages, #availability-calendar, #bank-transfers { scroll-margin-top: 112px; }
+/* The sticky header is 77 px tall on one row and 100 px on two: keyboard focus and anything the browser scrolls to stop below it, focus ring included. */
+html { scroll-padding-top: 104px; }
+/* The header's own controls move with it and need no room: without this, focus entering the header pulls the page up. */
+.site-header * { scroll-margin-top: -104px; }
+/* Every in-app #fragment target lands a little lower: this adds to the padding above, 112 px in all. */
+#main-content, #listing-results, #personal, #verification, #trusted-host, #discovery-history, #booking-messages, #availability-calendar, #bank-transfers { scroll-margin-top: 8px; }
 .filter-panel { background: var(--surface); }
 .filter-fields label { display: block; margin-bottom: 8px; }
 .filter-fields .form-control { height: 44px; }

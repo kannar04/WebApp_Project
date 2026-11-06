@@ -703,6 +703,29 @@ function Check-FlashReveal {
     Write-Output 'PASS browser result message shown and focused after a fragment redirect, plain fragment scroll kept'
 }
 
+function Check-FocusClearsHeader([string]$Path, [int]$Width, [int]$Height, [int]$Steps) {
+    # Real Shift+Tab presses from the end of the page, the direction that scrolls up under the header: every control taking focus in the page sits below the header with room for its ring. Smooth scrolling is off here only so the position can be read at once.
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$Width;height=$Height;deviceScaleFactor=1;mobile=$false} | Out-Null
+    Navigate $Path
+    Evaluate "(function(){document.documentElement.style.scrollBehavior='auto';const controls=Array.from(document.querySelectorAll('main a[href],main button,main input:not([type=hidden]),main select,main textarea')).filter(function(item){return item.offsetParent&&!item.disabled;});controls.pop().focus();return true;})()" | Out-Null
+    $read="(function(){const item=document.activeElement;const box=item.getBoundingClientRect();return {inPage:!!item.closest('main'),top:box.top,line:document.querySelector('.site-header').getBoundingClientRect().bottom,name:item.name||item.textContent.trim().slice(0,30),scrollY:scrollY};})()"
+    $seen=0
+    for ($step=0; $step -lt $Steps; $step++) {
+        Send-Cdp 'Input.dispatchKeyEvent' @{type='rawKeyDown';key='Tab';code='Tab';windowsVirtualKeyCode=9;nativeVirtualKeyCode=9;modifiers=8} | Out-Null
+        Send-Cdp 'Input.dispatchKeyEvent' @{type='keyUp';key='Tab';code='Tab';windowsVirtualKeyCode=9;nativeVirtualKeyCode=9;modifiers=8} | Out-Null
+        Start-Sleep -Milliseconds 60
+        $focus=Evaluate $read
+        if (!$focus.inPage) { continue }
+        $seen++
+        if ($focus.top-3 -lt $focus.line) { throw "Keyboard focus under the header on $Path at $Width px: $($focus | ConvertTo-Json -Compress)" }
+    }
+    if ($seen -lt 5) { throw "The focus walk on $Path reached only $seen controls" }
+    # The header's own controls are on screen wherever the page is, so focus entering the header leaves the page there.
+    $header=Evaluate "(function(){window.scrollTo(0,400);const before=scrollY;const controls=Array.from(document.querySelectorAll('.site-header a[href],.site-header button')).filter(function(item){return item.offsetParent;});controls[controls.length-1].focus();return {before:before,after:scrollY};})()"
+    if ($header.before -le 0 -or $header.after -ne $header.before) { throw "Focus entering the header moved the page on $Path at $Width px: $($header | ConvertTo-Json -Compress)" }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+}
+
 function Check-FragmentLanding([string[]]$Paths) {
     # A #fragment target lands below the sticky header, as high as the page can scroll it, on phone, tablet and desktop.
     foreach ($size in @(@(375,667),@(768,900),@(1440,900))) {
@@ -993,6 +1016,8 @@ try {
     if ($bookingPath) { Check-FragmentLanding @($bookingPath+'#booking-messages') }
     Check-CalendarArrows '/listings/1'
     Write-Output 'PASS browser in-app #fragment targets land below the sticky header, month name and arrows stay on screen after a month change'
+    Check-FocusClearsHeader '/profile' 375 667 30
+    Write-Output 'PASS browser keyboard focus stays below the sticky header at phone width'
     Check-PostGuardEvents
     Check-CalendarNavigation '/listings/1'
     Logout-Role
@@ -1019,6 +1044,8 @@ try {
     Check-CalendarLabelsWhole @('/host/listings/1/availability','/listings/1')
     Check-FragmentLanding @('/host#trusted-host')
     Check-CalendarArrows '/host/listings/1/availability'
+    Check-FocusClearsHeader '/host/listings/2/pricing' 1100 800 20
+    Write-Output 'PASS browser keyboard focus stays below the two-row Host header'
     Logout-Role
     if ((Login-Role 'admin') -ne '/admin') { throw 'Admin login redirect failed' }
     foreach ($width in @(375,768,1024,1440)) {
