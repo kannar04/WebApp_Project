@@ -1180,6 +1180,24 @@ try {
         }
         $response=payHttp($adminClient,$baseUrl,'/admin/payments/transfers/'.$noteTransfer,['_token'=>$adminToken,'decision'=>'reject','note'=>"Chưa thấy khoản này\nDòng thứ hai"]);
         payExpect($response['status']===302 && payAttempt($noteTransfer)['status']==='failed' && payInspect($bookingK)['payment_status']==='unpaid','Rejecting with a two-line note failed.');
+        // An automatic gateway payment has no collector. A transfer confirmed by an Admin and cash marked by a Host keep their names.
+        $collectorVnpay=payPaidBooking($service,$payments,$listingId,$guestId,$hostId,$base,180,'15000180');
+        $collectorQr=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,183);
+        $collectorTransfer=(int)$payments->start($collectorQr,$guestId,'vietqr')['transaction_id'];
+        $payments->submitTransfer($collectorTransfer,$guestId);
+        $payments->decideTransfer($collectorTransfer,$adminId,'confirm','');
+        $collectorCash=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,186);
+        payCall('CALL sp_test_payment_finish_stay(?,?)',[$collectorCash,1]);
+        (new BookingExtras())->markPaid($collectorCash,$hostId,false,'');
+        foreach ([$guestClient,$hostClient,$adminClient] as $client) {
+            $page=payHttp($client,$baseUrl,'/bookings/'.$collectorVnpay)['body'];
+            payExpect(str_contains($page,'Đã thu lúc') && !str_contains($page,'· bởi '),'A VNPay payment names a collector.');
+            payExpect(str_contains(payHttp($client,$baseUrl,'/bookings/'.$collectorQr)['body'],'· bởi '.$admin['full_name']),'A confirmed transfer lost the Admin who confirmed it.');
+            payExpect(str_contains(payHttp($client,$baseUrl,'/bookings/'.$collectorCash)['body'],'· bởi '.$host['full_name']),'Cash lost the Host who marked it.');
+        }
+        payExpect((int)payInspect($collectorVnpay)['paid_by']===$guestId,'The stored payment record changed.');
+        echo "PASS a VNPay payment shows no collector; a confirmed transfer and marked cash keep their names, for Guest, Host and Admin
+";
         // No method configured: nothing offers or promises online payment. One method is enough to keep the offer. A transfer already reported stays visible either way.
         $offerBooking=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,190);
         $offerReported=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,193);
