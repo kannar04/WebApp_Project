@@ -62,8 +62,9 @@ CREATE OR REPLACE PROCEDURE sp_admin_identity_verifications(IN p_admin BIGINT UN
     IN p_status VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
     IN p_query VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
+    -- User input is matched literally: LIKE wildcards are escaped.
     -- đ has its own weight in every collation here, unlike the other Vietnamese accents, so it is folded on both sides as in location search (sp_listing_search). REPLACE is case-sensitive, hence both cases.
-    DECLARE v_query VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(p_query,'đ','d'),'Đ','D');
+    DECLARE v_query VARCHAR(600) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p_query,'\\','\\\\'),'%','\\%'),'_','\\_'),'đ','d'),'Đ','D');
     CALL sp_admin_assert_role(p_admin);
     IF p_status IS NULL OR p_status NOT IN ('','pending','approved','rejected') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Bộ lọc trạng thái xác minh không hợp lệ.';

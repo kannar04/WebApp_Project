@@ -504,6 +504,32 @@ try {
     trustExpect($users->all($tag.'g Dat')[0]['full_name'] === 'Trust '.$tag.'g Đạt' && $bookingSearch->adminSearch($adminId, $tag.'t Da Lat', '')[0]['title'] === 'Audit fixture trust '.$tag.'t Đà Lạt', 'Folding changed the text shown for a result.');
     echo "PASS Admin searches by name, title, card name and message text fold đ on both sides; accents, emails and stored text unchanged\n";
 
+    // The same four searches match typed %, _ and a backslash literally, as the article and message searches do, and keep the đ folding and accents.
+    $literalGuest = $users->adminCreate(['email' => sprintf($emailFor, 'literal_guest'), 'password' => $password, 'full_name' => 'Trust '.$tag.'x 5%_a\\b Đạt', 'phone' => ''], ['guest']);
+    [$checkIn, $checkOut] = trustDates($slot++);
+    $literalBooking = $service->create($foldListing, $literalGuest, $checkIn, $checkOut, 1);
+    $literalRequest = $trust->submitVerification($literalGuest, 'Trần Văn Lịch', '0912345682', '079012345682');
+    foreach ([$tag.'x 5%_a\\b', $tag.'x 5%_a\\b Dat', $tag.'x 5%_A\\B đạt', '%_a\\b', '_a\\', '5%', '\\b'] as $typed) {
+        trustExpect(trustHasRow($users->all($typed), 'id', $literalGuest), 'Admin user search lost the literal text: '.$typed);
+        trustExpect(trustHasRow($bookingSearch->adminSearch($adminId, $typed, ''), 'id', $literalBooking), 'Admin booking search lost the literal text: '.$typed);
+        trustExpect(trustHasRow($paymentSearch->adminPayments($adminId, '', $typed), 'booking_id', $literalBooking), 'Admin payment search lost the literal text: '.$typed);
+        trustExpect(trustHasRow($trust->adminVerifications($adminId, '', $typed), 'id', $literalRequest), 'Admin verification search lost the literal text: '.$typed);
+    }
+    foreach ([$tag.'g_Dat', $tag.'g%Dat', '%'.$tag.'g', $tag.'_g', $tag.'x 5_%a', $tag.'x 5%_ab', $tag.'x 5%_a\\\\b'] as $typed) {
+        trustExpect($users->all($typed) === [], 'Admin user search read a wildcard: '.$typed);
+        trustExpect($bookingSearch->adminSearch($adminId, $typed, '') === [], 'Admin booking search read a wildcard: '.$typed);
+        trustExpect($paymentSearch->adminPayments($adminId, '', $typed) === [], 'Admin payment search read a wildcard: '.$typed);
+        trustExpect($trust->adminVerifications($adminId, '', $typed) === [], 'Admin verification search read a wildcard: '.$typed);
+    }
+    foreach (['%', '_'] as $typed) {
+        trustExpect(!trustHasRow($users->all($typed), 'id', $foldHost) && !trustHasRow($bookingSearch->adminSearch($adminId, $typed, ''), 'id', $foldBooking)
+            && !trustHasRow($paymentSearch->adminPayments($adminId, '', $typed), 'booking_id', $foldBooking) && !trustHasRow($trust->adminVerifications($adminId, '', $typed), 'id', $foldRequest), 'A lone '.$typed.' listed rows that do not hold it.');
+    }
+    trustExpect(trustHasRow($users->all(sprintf($emailFor, 'literal_guest')), 'id', $literalGuest) && $users->all(sprintf($emailFor, 'literalxguest')) === []
+        && trustHasRow($paymentSearch->adminPayments($adminId, '', sprintf($emailFor, 'literal_guest')), 'booking_id', $literalBooking) && $paymentSearch->adminPayments($adminId, '', sprintf($emailFor, 'literalxguest')) === []
+        && trustHasRow($trust->adminVerifications($adminId, '', sprintf($emailFor, 'literal_guest')), 'id', $literalRequest) && $trust->adminVerifications($adminId, '', sprintf($emailFor, 'literalxguest')) === [], 'An underscore in an email search matched another character or missed its own.');
+    echo "PASS Admin searches for users, bookings, payments and verifications match %, _ and a backslash literally\n";
+
     $baseUrl = rtrim((string) getenv('HOME2HOME_TEST_URL'), '/');
     if ($baseUrl !== '') {
         $anonymous = trustHttpClient();

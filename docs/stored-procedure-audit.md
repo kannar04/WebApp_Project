@@ -507,6 +507,16 @@ Test fixture routine mới (1, chỉ cài trong DB test riêng): `sp_test_paymen
 |---|---|---|---|---|
 | `sp_booking_refund_terms` | `050_quality_core.sql` | Tính phần trăm và cơ sở hoàn của booking đã xác nhận theo snapshot; thiếu hoặc không dùng được múi giờ, giờ nhận phòng thì lấy giá trị hiện tại của listing | Helper chỉ tính, không ghi; chạy trong khóa của `sp_booking_cancel`; quyền do routine gọi kiểm tra | feature_payment_test |
 
+## Sửa lỗi nhỏ, vòng 4 — 2026-11-06
+
+Các routine dưới đây sửa lỗi tại chỗ, không đổi schema.
+
+### Routine đã có bị thay đổi
+
+| Routine | File | Thay đổi | Test |
+|---|---|---|---|
+| `sp_user_search` / `sp_admin_booking_search` / `sp_admin_payments` / `sp_admin_identity_verifications` | `011`, `050`, `070`, `075` | `%`, `_` và dấu `\` người dùng gõ được so theo đúng chữ, như `sp_admin_articles` và `sp_admin_messages_search`; vẫn gập `đ` và bỏ qua dấu như cũ | feature_trust_test |
+
 ## Run / reproduce
 
 Existing local database: install routines only, without importing/reseeding tables:

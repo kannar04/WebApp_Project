@@ -213,8 +213,9 @@ CREATE OR REPLACE PROCEDURE sp_admin_booking_search(IN p_actor BIGINT UNSIGNED, 
     IN p_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
     DECLARE v_number BIGINT UNSIGNED DEFAULT NULL;
+    -- User input is matched literally: LIKE wildcards are escaped.
     -- đ has its own weight in every collation here, unlike the other Vietnamese accents, so it is folded on both sides as in location search (sp_listing_search). REPLACE is case-sensitive, hence both cases.
-    DECLARE v_query VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(p_query,'đ','d'),'Đ','D');
+    DECLARE v_query VARCHAR(600) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p_query,'\\','\\\\'),'%','\\%'),'_','\\_'),'đ','d'),'Đ','D');
     CALL sp_admin_assert_role(p_actor);
     IF p_status NOT IN ('','pending','confirmed','rejected','cancelled','completed') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Trạng thái lọc không hợp lệ.'; END IF;
     -- The site prints a booking as #12, so searching #12 means exactly that booking; anything else stays a text search.
