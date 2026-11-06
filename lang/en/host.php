@@ -124,6 +124,7 @@ return [
     'Cho phép tiệc' => 'Parties allowed',
     'Thêm ảnh (JPG, PNG, WebP)' => 'Add a photo (JPG, PNG, WebP)',
     'Lưu và gửi duyệt' => 'Save and submit for review',
+    'Ảnh mới được tải lên khi bấm “Lưu và gửi duyệt” ngay bên dưới.' => 'A new photo is uploaded when you press “Save and submit for review” just below.',
     'Quản lý ảnh hiện có' => 'Manage current photos',
     'Đổi thứ tự (số nhỏ hiển thị trước) hoặc chọn ảnh cần gỡ. Tin được duyệt lại sau khi thay đổi ảnh.'
         => 'Change the order (lower numbers show first) or select photos to remove. The listing is reviewed again after photo changes.',
