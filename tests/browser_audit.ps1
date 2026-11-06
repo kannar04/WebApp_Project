@@ -241,6 +241,26 @@ function Check-MenuWithoutScript {
     Write-Output 'PASS browser menu is open and the toggler hidden without JS below 992 px, unchanged with JS'
 }
 
+function Check-AuthToolsClearBrand {
+    # On a phone the language and theme buttons sit above the brand in both languages, so the whole brand takes the click.
+    $read="(function(){const brand=document.querySelector('a.brand');const range=document.createRange();range.selectNodeContents(brand);const text=range.getBoundingClientRect();const tools=document.querySelector('.auth-tools').getBoundingClientRect();let covered=0;for(let x=text.left+1;x<text.right;x+=4){const hit=document.elementFromPoint(x,text.top+text.height/2);if(!hit||!brand.contains(hit)){covered++;}}return {covered:covered,left:tools.left,over:document.documentElement.scrollWidth-document.documentElement.clientWidth};})()"
+    foreach ($language in 1,2) {
+        foreach ($width in 280,320,360,375) {
+            Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=800;deviceScaleFactor=1;mobile=$false} | Out-Null
+            foreach ($path in '/login','/register','/forgot-password') {
+                Navigate $path
+                $seen=Evaluate $read
+                if ($seen.covered -gt 0 -or $seen.left -lt 0 -or $seen.over -gt 0) { throw "Auth tools cover the brand on $path at $width px: $($seen | ConvertTo-Json -Compress)" }
+            }
+        }
+        $current=Evaluate "document.documentElement.lang"
+        Evaluate "document.querySelector('.locale-toggle').click();true" | Out-Null
+        Wait-FilterPage "document.documentElement.lang!=='$current'&&document.readyState==='complete'"
+    }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    Write-Output 'PASS browser auth tools leave the brand clickable on phones in both languages'
+}
+
 function Check-SearchStayToListing {
     # A search's dates and guests reach the listing: the total shows by itself, and the month arrows and the sign-in link keep them. Without them every link stays plain.
     $stay='check_in=2035-08-10&check_out=2035-08-12&guests=2'
@@ -766,6 +786,7 @@ try {
     Check-LoginCarriesBooking
     Check-MonthArrowsCarryStay
     Check-MenuWithoutScript
+    Check-AuthToolsClearBrand
     Navigate '/login'
     Check-Page 'login'
     if ((Login-Role 'guest') -ne '/') { throw 'Guest login redirect failed' }
