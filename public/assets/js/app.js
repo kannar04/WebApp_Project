@@ -310,7 +310,9 @@
 
         document.querySelectorAll('[data-favorite]').forEach(button => {
             button.addEventListener('click', async function () {
-                this.disabled = true;
+                // Busy rather than disabled: a disabled button drops keyboard focus, and the next Space or Enter would go nowhere.
+                if (this.getAttribute('aria-busy') === 'true') { return; }
+                this.setAttribute('aria-busy', 'true');
                 try {
                     const response = await fetch(`${baseUrl}/api/wishlist/${this.dataset.favorite}`, {
                         method: 'POST',
@@ -332,7 +334,7 @@
                     // Network and JSON errors carry the browser's own (untranslated) text, so show the fallback instead.
                     alert(error.fromServer ? error.message : h2hT('Không thể cập nhật yêu thích. Vui lòng thử lại.'));
                 } finally {
-                    this.disabled = false;
+                    this.removeAttribute('aria-busy');
                 }
             });
         });

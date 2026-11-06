@@ -333,6 +333,35 @@ function Check-DetailHeart {
     Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
 }
 
+function Press-Space {
+    Send-Cdp 'Input.dispatchKeyEvent' @{type='rawKeyDown';key=' ';code='Space';windowsVirtualKeyCode=32;nativeVirtualKeyCode=32} | Out-Null
+    Send-Cdp 'Input.dispatchKeyEvent' @{type='char';key=' ';code='Space';text=' ';unmodifiedText=' ';windowsVirtualKeyCode=32;nativeVirtualKeyCode=32} | Out-Null
+    Send-Cdp 'Input.dispatchKeyEvent' @{type='keyUp';key=' ';code='Space';windowsVirtualKeyCode=32;nativeVirtualKeyCode=32} | Out-Null
+}
+
+function Check-HeartKeepsFocus {
+    # Space saves, focus stays on the heart, and the next Space undoes it. Two quick clicks are still one request.
+    foreach ($path in '/','/listings/3') {
+        Navigate $path
+        $heart="document.querySelector('[data-favorite=""3""]')"
+        $before=(Evaluate "$heart.getAttribute('aria-pressed')")
+        $flipped=if ($before -eq 'true') { 'false' } else { 'true' }
+        Evaluate "$heart.focus();true" | Out-Null
+        Press-Space
+        Wait-FilterPage "$heart.getAttribute('aria-pressed')==='$flipped'&&!$heart.hasAttribute('aria-busy')"
+        if (!(Evaluate "document.activeElement===$heart")) { throw "The heart on $path lost keyboard focus while saving" }
+        Press-Space
+        Wait-FilterPage "$heart.getAttribute('aria-pressed')==='$before'&&!$heart.hasAttribute('aria-busy')"
+        if (!(Evaluate "document.activeElement===$heart")) { throw "The heart on $path lost keyboard focus while undoing" }
+        Evaluate "(function(){window.h2hHeartPosts=0;const realFetch=window.fetch;window.fetch=function(url,options){if(String(url).includes('/api/wishlist/')){window.h2hHeartPosts++;}return realFetch(url,options);};$heart.click();$heart.click();return true;})()" | Out-Null
+        Wait-FilterPage "$heart.getAttribute('aria-pressed')==='$flipped'&&!$heart.hasAttribute('aria-busy')"
+        if ((Evaluate "window.h2hHeartPosts") -ne 1) { throw "A double click on the heart on $path sent $(Evaluate 'window.h2hHeartPosts') requests" }
+        Evaluate "$heart.click();true" | Out-Null
+        Wait-FilterPage "$heart.getAttribute('aria-pressed')==='$before'&&!$heart.hasAttribute('aria-busy')"
+    }
+    Write-Output 'PASS browser the heart keeps keyboard focus while saving and a double click sends one request'
+}
+
 function Check-SiteIcon {
     # Both layouts name an icon that really loads, so a browser never falls back to the missing /favicon.ico.
     foreach ($path in @('/','/login')) {
@@ -801,6 +830,7 @@ try {
     Write-Output 'PASS browser favorite toggle and restore'
     Check-DetailHeart
     Write-Output 'PASS browser detail page heart keeps one state with cards and the wishlist, after Back too'
+    Check-HeartKeepsFocus
     Navigate '/bookings'
     $bookingPath=Evaluate 'document.querySelector(''a[href*="/bookings/"]'')?.getAttribute(''href'')'
     if ($bookingPath) {
