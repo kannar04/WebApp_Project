@@ -36,6 +36,10 @@ form[aria-busy="true"] button, form[aria-busy="true"] .btn:not(:disabled) { curs
 html { scroll-padding-top: 104px; }
 /* The header's own controls move with it and need no room: without this, focus entering the header pulls the page up. */
 .site-header * { scroll-margin-top: -104px; }
+/* Below the navbar's breakpoint the open menu scrolls inside itself, so its last items stay reachable on a short window. dvh also leaves room for a phone's address bar. */
+@media (max-width: 991.98px) {
+    .site-header .navbar-collapse { max-height: calc(100vh - 77px); max-height: calc(100dvh - 77px); overflow-y: auto; }
+}
 /* Every in-app #fragment target lands a little lower: this adds to the padding above, 112 px in all. */
 #main-content, #listing-results, #personal, #verification, #trusted-host, #discovery-history, #booking-messages, #availability-calendar, #bank-transfers { scroll-margin-top: 8px; }
 .filter-panel { background: var(--surface); }

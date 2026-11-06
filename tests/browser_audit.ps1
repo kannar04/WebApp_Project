@@ -624,6 +624,24 @@ function Check-AdminFilterCarry {
     Write-Output 'PASS browser admin user search and booking filter keep each other'
 }
 
+function Check-PhoneMenuReach {
+    # Below the navbar's breakpoint the open menu scrolls inside itself, so Sign out stays reachable on a short window. A desktop header stays as it was.
+    $read='(async function(){function wait(ms){return new Promise(function(done){setTimeout(done,ms);});}window.scrollTo(0,120);const menu=document.querySelector("#mainNav");document.querySelector(".navbar-toggler").click();for(let i=0;i<60&&(!menu.classList.contains("show")||menu.classList.contains("collapsing"));i++){await wait(50);}const button=menu.querySelector("form[action*=logout] button");menu.scrollTop=menu.scrollHeight;await wait(50);const box=button.getBoundingClientRect();return {open:menu.classList.contains("show"),hit:document.elementFromPoint(box.left+box.width/2,box.top+box.height/2)===button,bottom:box.bottom,menuBottom:menu.getBoundingClientRect().bottom,height:innerHeight};})()'
+    foreach ($size in @(667,375),@(844,390),@(320,480)) {
+        Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$size[0];height=$size[1];deviceScaleFactor=1;mobile=$false} | Out-Null
+        Navigate '/listings/1'
+        $menu=Evaluate $read
+        if (!$menu.open -or !$menu.hit -or $menu.bottom -gt $menu.height -or $menu.menuBottom -gt $menu.height) { throw "Sign out is out of reach at $($size[0])x$($size[1]): $($menu | ConvertTo-Json -Compress)" }
+    }
+    foreach ($width in 992,1440) {
+        Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=400;deviceScaleFactor=1;mobile=$false} | Out-Null
+        Navigate '/listings/1'
+        $style=Evaluate '(function(){const menu=getComputedStyle(document.querySelector("#mainNav"));return menu.maxHeight+" "+menu.overflowY;})()'
+        if ($style -ne 'none visible') { throw "The desktop header changed at $width px: $style" }
+    }
+    Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+}
+
 function Check-HeaderRows {
     # From 1200 px one row in both languages. Below that a role may need two rows, but the actions stay together: no button alone on a row.
     $read="(function(){const middle=function(el){const box=el.getBoundingClientRect();return box.top+box.height/2;};const actions=[...document.querySelectorAll('.site-header .navbar-actions > *')].map(middle);return {spread:Math.max.apply(null,actions)-Math.min.apply(null,actions),linksGap:Math.abs(middle(document.querySelector('.site-header .navbar-nav'))-actions[0]),over:document.documentElement.scrollWidth-window.innerWidth};})()"
@@ -1044,6 +1062,8 @@ try {
     Write-Output 'PASS browser keyboard focus stays below the sticky header at phone width'
     Check-PostGuardEvents
     Check-CalendarNavigation '/listings/1'
+    Check-PhoneMenuReach
+    Write-Output 'PASS browser the open phone menu reaches Sign out on a short window for Guest; the desktop header is unchanged'
     Logout-Role
     if ((Login-Role 'host') -ne '/host') { throw 'Host login redirect failed' }
     foreach ($width in @(375,768,1024,1440)) {
@@ -1070,8 +1090,12 @@ try {
     Check-CalendarArrows '/host/listings/1/availability'
     Check-FocusClearsHeader '/host/listings/2/pricing' 1100 800 20
     Write-Output 'PASS browser keyboard focus stays below the two-row Host header'
+    Check-PhoneMenuReach
+    Write-Output 'PASS browser the open phone menu reaches Sign out on a short window for Host; the desktop header is unchanged'
     Logout-Role
     if ((Login-Role 'admin') -ne '/admin') { throw 'Admin login redirect failed' }
+    Check-PhoneMenuReach
+    Write-Output 'PASS browser the open phone menu reaches Sign out on a short window for Admin; the desktop header is unchanged'
     foreach ($width in @(375,768,1024,1440)) {
         Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
         foreach ($path in @('/admin','/admin/users/3/edit','/admin/listings/2/edit','/admin/listings/1/preview','/admin/catalog','/admin/reviews','/admin/reports','/admin/articles','/admin/articles/create','/admin/articles/1/edit','/admin/articles/1/preview','/articles','/articles/cam-nang-2-ngay-o-da-lat','/admin/holidays','/admin/promotions','/admin/payments','/admin/verifications','/admin/messages','/map')) {
