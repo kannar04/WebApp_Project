@@ -1222,6 +1222,11 @@ try {
         $payments->submitTransfer((int)$payments->start($offerReported,$guestId,'vietqr')['transaction_id'],$guestId);
         $offerPending=$service->create($listingId,$guestId,$base->modify('+196 days')->format('Y-m-d'),$base->modify('+198 days')->format('Y-m-d'),1);
         $offerPath='/bookings/'.$offerBooking.'/pay';
+        // A code issued before the settings were blanked can still be reported; a rejected transfer offers paying again only if a method exists.
+        $offerIssued=(int)$payments->start(payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,206),$guestId,'vietqr')['transaction_id'];
+        $offerRejected=(int)$payments->start(payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,209),$guestId,'vietqr')['transaction_id'];
+        $payments->submitTransfer($offerRejected,$guestId);
+        $payments->decideTransfer($offerRejected,$adminId,'reject','Chưa thấy tiền vào tài khoản');
         $noBank=['PAYMENT_BANK_ID'=>' ','PAYMENT_ACCOUNT_NO'=>' ']; $noVnpay=['VNPAY_TMN_CODE'=>' ','VNPAY_HASH_SECRET'=>' '];
         foreach ([[$noBank+$noVnpay,false],[$noBank,true],[$noVnpay,true],[[],true]] as [$settings,$offered]) {
             $server=payServerStart($settings);
@@ -1241,6 +1246,8 @@ try {
                 payExpect(str_contains($payPage,'Website chưa cấu hình thanh toán online')===!$offered,'The pay page disagrees '.$label);
                 $pendingPage=payHttp($guestClient,$server['url'],'/bookings/'.$offerPending.'/pay')['body'];
                 payExpect(str_contains($pendingPage,'Bạn có thể thanh toán online sau khi Host xác nhận')===$offered,'The pay page of a pending booking promises wrongly '.$label);
+                payExpect(str_contains(payHttp($guestClient,$server['url'],'/payments/'.$offerIssued)['body'],'Tôi đã chuyển khoản'),'An issued code lost its report button '.$label);
+                payExpect(str_contains(payHttp($guestClient,$server['url'],'/payments/'.$offerRejected)['body'],'Thanh toán lại')===$offered,'A rejected transfer offers paying again wrongly '.$label);
             } finally { payServerStop($server); }
         }
         echo "PASS online payment is offered only when a method is configured: listing page, booking page, trips list and pay page, with none, either or both
