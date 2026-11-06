@@ -15,7 +15,7 @@ $bookingPath = '/bookings/'.(int)$checkout['booking_id'];
 <div class="alert alert-info" role="status"><?= e(__('Tài khoản Host đang tạm khóa nên hiện chưa thể thanh toán online. Hãy liên hệ Admin nếu cần.')) ?></div>
 <?php if($checkout['transfer_id']): ?><a class="btn btn-outline-primary" href="<?= e(url('/payments/'.(int)$checkout['transfer_id'])) ?>"><?= e(__('Xem giao dịch chuyển khoản')) ?></a><?php endif; ?>
 <?php elseif(!$checkout['can_pay_online']): ?>
-<div class="alert alert-info" role="status"><?= e($checkout['booking_status']==='pending'?__('Bạn có thể thanh toán online sau khi Host xác nhận booking.'):($checkout['listing_removed']?__('Chỗ ở này đã bị gỡ nên không thể thanh toán online.'):__('Booking này không thể thanh toán online.'))) ?></div>
+<div class="alert alert-info" role="status"><?= e($checkout['booking_status']==='pending'&&($vietqrEnabled||$vnpayEnabled)?__('Bạn có thể thanh toán online sau khi Host xác nhận booking.'):($checkout['listing_removed']?__('Chỗ ở này đã bị gỡ nên không thể thanh toán online.'):__('Booking này không thể thanh toán online.'))) ?></div>
 <?php elseif($checkout['transfer_status']==='submitted'): ?>
 <div class="alert alert-info" role="status"><?= e(__('Bạn đã báo chuyển khoản với nội dung {reference}. Admin đang kiểm tra tài khoản và sẽ xác nhận thanh toán.', ['reference'=>$checkout['transfer_reference']])) ?></div>
 <a class="btn btn-outline-primary" href="<?= e(url('/payments/'.(int)$checkout['transfer_id'])) ?>"><?= e(__('Xem giao dịch chuyển khoản')) ?></a>

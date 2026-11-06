@@ -12,6 +12,13 @@ final class Payment
 
     public function __construct() { $this->db = Database::connection(); }
 
+    /** Whether any online method is set up, by the test the pay page applies to each one. With none, nothing offers online payment. */
+    public static function onlineConfigured(): bool
+    {
+        $config = require dirname(__DIR__, 2).'/config/payment.php';
+        return \App\Services\VietQr::enabled($config) || \App\Services\VnpayGateway::enabled($config);
+    }
+
     public function checkout(int $bookingId, int $guestId): ?array
     {
         $statement = $this->db->prepare('CALL sp_payment_checkout(?,?)');

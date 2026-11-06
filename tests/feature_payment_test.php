@@ -105,6 +105,31 @@ function payHttp(CurlHandle $curl, string $baseUrl, string $path, ?array $fields
         'location'=>(string)(parse_url($location,PHP_URL_PATH)??'')];
 }
 
+/** A throwaway php -S on the same database with its own online payment settings, to read the pages with none or one method configured. */
+function payServerStart(array $settings): array
+{
+    $listener=stream_socket_server('tcp://127.0.0.1:0');
+    payExpect($listener!==false,'Could not reserve a test server port.');
+    $address=stream_socket_get_name($listener,false); fclose($listener);
+    $root=dirname(__DIR__);
+    $output=tmpfile();
+    $process=proc_open([PHP_BINARY,'-d','error_log=','-S',$address,'-t',$root.'/public',$root.'/public/router.php'],[0=>['pipe','r'],1=>$output,2=>$output],$pipes,$root,
+        array_merge(getenv(),['APP_URL'=>''],$settings),['bypass_shell'=>true]);
+    payExpect(is_resource($process),'Could not start the test server.');
+    fclose($pipes[0]);
+    for ($attempt=0;$attempt<50;$attempt++) {
+        $connection=@stream_socket_client('tcp://'.$address,$errorCode,$errorText,1);
+        if ($connection!==false) { fclose($connection); return ['process'=>$process,'output'=>$output,'url'=>'http://'.$address]; }
+        usleep(100000);
+    }
+    throw new RuntimeException('The test server did not start.');
+}
+
+function payServerStop(array $server): void
+{
+    proc_terminate($server['process']); proc_close($server['process']); fclose($server['output']);
+}
+
 function payClient(): CurlHandle
 {
     $curl=curl_init();
@@ -1155,6 +1180,35 @@ try {
         }
         $response=payHttp($adminClient,$baseUrl,'/admin/payments/transfers/'.$noteTransfer,['_token'=>$adminToken,'decision'=>'reject','note'=>"Chưa thấy khoản này\nDòng thứ hai"]);
         payExpect($response['status']===302 && payAttempt($noteTransfer)['status']==='failed' && payInspect($bookingK)['payment_status']==='unpaid','Rejecting with a two-line note failed.');
+        // No method configured: nothing offers or promises online payment. One method is enough to keep the offer. A transfer already reported stays visible either way.
+        $offerBooking=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,190);
+        $offerReported=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,193);
+        $payments->submitTransfer((int)$payments->start($offerReported,$guestId,'vietqr')['transaction_id'],$guestId);
+        $offerPending=$service->create($listingId,$guestId,$base->modify('+196 days')->format('Y-m-d'),$base->modify('+198 days')->format('Y-m-d'),1);
+        $offerPath='/bookings/'.$offerBooking.'/pay';
+        $noBank=['PAYMENT_BANK_ID'=>' ','PAYMENT_ACCOUNT_NO'=>' ']; $noVnpay=['VNPAY_TMN_CODE'=>' ','VNPAY_HASH_SECRET'=>' '];
+        foreach ([[$noBank+$noVnpay,false],[$noBank,true],[$noVnpay,true],[[],true]] as [$settings,$offered]) {
+            $server=payServerStart($settings);
+            try {
+                $label=$offered?'with a method configured':'with no method configured';
+                $listingPage=payHttp($guestClient,$server['url'],'/listings/'.$listingId)['body'];
+                payExpect(str_contains($listingPage,'hoặc thanh toán online')===$offered && str_contains($listingPage,'khi nhận phòng'),'Listing page promise is wrong '.$label);
+                $detail=payHttp($guestClient,$server['url'],'/bookings/'.$offerBooking)['body'];
+                payExpect(str_contains($detail,$offerPath)===$offered && str_contains($detail,'Chuyển khoản VietQR hoặc VNPay')===$offered,'Booking page offer is wrong '.$label);
+                $trips=payHttp($guestClient,$server['url'],'/bookings')['body'];
+                payExpect(str_contains($trips,$offerPath)===$offered,'Trips list offer is wrong '.$label);
+                payExpect(str_contains($detail,'Tình trạng thanh toán') && str_contains($detail,'Thanh toán khi nhận phòng'),'The payment panel lost pay at check-in '.$label);
+                $reported=payHttp($guestClient,$server['url'],'/bookings/'.$offerReported)['body'];
+                payExpect(str_contains($reported,'Chờ Admin xác nhận') && !str_contains($reported,'/bookings/'.$offerReported.'/pay"'),'A reported transfer is not shown '.$label);
+                payExpect(str_contains($trips,'Đã báo chuyển khoản, chờ Admin xác nhận'),'The trips list hides a reported transfer '.$label);
+                $payPage=payHttp($guestClient,$server['url'],$offerPath)['body'];
+                payExpect(str_contains($payPage,'Website chưa cấu hình thanh toán online')===!$offered,'The pay page disagrees '.$label);
+                $pendingPage=payHttp($guestClient,$server['url'],'/bookings/'.$offerPending.'/pay')['body'];
+                payExpect(str_contains($pendingPage,'Bạn có thể thanh toán online sau khi Host xác nhận')===$offered,'The pay page of a pending booking promises wrongly '.$label);
+            } finally { payServerStop($server); }
+        }
+        echo "PASS online payment is offered only when a method is configured: listing page, booking page, trips list and pay page, with none, either or both
+";
         foreach ([$anonymous,$guestClient,$hostClient,$adminClient] as $client) { curl_close($client); }
         echo "PASS online payment HTTP: Guest-only pages, CSRF, QR page with account and reference, report, Admin queue/403/confirm, VNPay redirect signature, forged return/IPN 97, valid return, IPN 02/01/04\n";
     }

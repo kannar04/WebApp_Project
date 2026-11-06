@@ -148,6 +148,7 @@ return [
     'Quản lý chỗ ở này' => 'Manage this place',
     'Bạn chưa bị tính phí. Tổng tiền được xác nhận lại khi bạn đặt chỗ.' => 'You won\'t be charged yet. The total is confirmed again when you book.',
     'Thanh toán khi nhận phòng, hoặc thanh toán online sau khi booking được xác nhận.' => 'Pay at check-in, or online once your booking is confirmed.',
+    'Thanh toán trực tiếp cho Host khi nhận phòng.' => 'Pay the Host directly at check-in.',
     'Xem tất cả {count} ảnh' => 'View all {count} photos',
 
     // Availability calendar component

@@ -115,7 +115,7 @@ Hiện để `MAIL_ENABLED=false`. Chỉ sau khi cấu hình transport PHP/XAMPP
 
 ### Cấu hình thanh toán online
 
-Chỉ điền trong `.env` **local**; nhóm nào để trống thì phương thức đó ẩn khỏi trang thanh toán. Không đưa số tài khoản hay khóa VNPay vào Git hoặc chat.
+Chỉ điền trong `.env` **local**; nhóm nào để trống thì phương thức đó ẩn khỏi trang thanh toán; để trống cả hai thì website không mời thanh toán online nữa, khách trả cho Host khi nhận phòng. Không đưa số tài khoản hay khóa VNPay vào Git hoặc chat.
 
 - **VietQR:** `PAYMENT_BANK_ID` (mã BIN hoặc tên viết tắt ngân hàng theo danh sách https://api.vietqr.io/v2/banks, ví dụ `970436` hoặc `VCB`), `PAYMENT_BANK_NAME` (tên hiển thị), `PAYMENT_ACCOUNT_NO`, `PAYMENT_ACCOUNT_NAME` (tên chủ tài khoản, không dấu). Mã QR lấy từ dịch vụ ảnh miễn phí `img.vietqr.io` nên cần Internet; nội dung chuyển khoản là mã `H2H<booking>X<5 ký tự>` để Admin đối chiếu.
 - **VNPay sandbox:** đăng ký merchant thử nghiệm tại http://sandbox.vnpayment.vn/devreg/, điền `VNPAY_TMN_CODE` và `VNPAY_HASH_SECRET` nhận qua email. `VNPAY_PAY_URL` mặc định là cổng sandbox; `VNPAY_RETURN_URL` để trống thì dùng địa chỉ khách đang mở. Khi chạy trên tên miền public, khai báo IPN URL `https://<tên miền>/payments/vnpay/ipn` trong trang quản trị merchant.
