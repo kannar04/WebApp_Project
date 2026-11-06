@@ -145,6 +145,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 /* A pasted URL or other long unbroken text wraps instead of widening the page. */
 body { overflow-wrap: break-word; }
 .section-title > div, .section-title > h1, .detail-heading > div, .booking-info, .trip-row strong, .card-body h3 { overflow-wrap: anywhere; }
+/* Photo, stay and status side by side need about 400 px: narrower, they stack instead of pushing the status off the card. */
+@media (max-width: 399.98px) { .trip-row { grid-template-columns: minmax(0, 1fr); } .trip-row .status { justify-self: start; } }
 /* Holds the absolutely positioned .sr-only labels inside a wide table, so they cannot widen the page. */
 .table-responsive { position: relative; }
 .message-hidden, .thread-empty { margin: 0 0 14px; color: var(--muted); font-style: italic; }

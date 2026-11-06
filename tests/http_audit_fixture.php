@@ -45,6 +45,18 @@ if ($command === 'pending-verification') {
     exit;
 }
 
+if ($command === 'guest-trip') {
+    // A confirmed stay of the seed Guest on Instant Book listing 3, far enough ahead for sp_test_cleanup_booking; trip-cleanup removes it.
+    $guest = (new \App\Models\User())->findByEmail('guest@home2home.test');
+    echo (new \App\Services\BookingService())->create(3, (int) $guest['id'], '2036-03-10', '2036-03-12', 1);
+    exit;
+}
+
+if ($command === 'trip-cleanup') {
+    $database->prepare('CALL sp_test_cleanup_booking(?)')->execute([(int) ($argv[3] ?? 0)]);
+    exit;
+}
+
 if ($command === 'inspect') {
     $statement = $database->prepare('CALL sp_test_listing_inspect(?)');
     $statement->execute([$title]);

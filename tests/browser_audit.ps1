@@ -384,6 +384,36 @@ function Check-HeartAfterSessionEnded {
     Write-Output 'PASS browser the heart tells a signed-out page to reload, in both languages'
 }
 
+function Check-TripRowFits {
+    # An upcoming trip stays inside its card from the narrowest phone up, in both languages. Nothing else in the run leaves the Guest a stay, so this one sets up its own and removes it.
+    $php='C:\xampp\php\php.exe'
+    $marker=[guid]::NewGuid().ToString('N').Substring(0,16)
+    $bookingId=& $php tests/http_audit_fixture.php guest-trip $marker
+    if ($LASTEXITCODE -ne 0 -or [int]$bookingId -lt 1) { throw 'Guest trip fixture was not created' }
+    try {
+        $read="(function(){const row=document.querySelector('.trip-row');if(!row){return null;}const card=row.parentElement;const style=getComputedStyle(card);const edge=card.getBoundingClientRect().right-parseFloat(style.paddingRight);return {right:Math.max.apply(null,Array.from(row.children).map(function(item){return item.getBoundingClientRect().right;})),edge:edge,over:document.documentElement.scrollWidth-document.documentElement.clientWidth,status:row.querySelector('.status-confirmed')?row.querySelector('.status-confirmed').textContent:''};})()"
+        foreach ($language in 1,2) {
+            foreach ($width in 280,320,360,375,399,400,414,1440) {
+                Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=$width;height=800;deviceScaleFactor=1;mobile=$false} | Out-Null
+                Navigate '/profile'
+                $row=Evaluate $read
+                if (!$row -or !$row.status) { throw 'The profile shows no upcoming trip' }
+                if ($row.right -gt $row.edge+0.5 -or $row.over -gt 0) { throw "Upcoming trip leaves its card at $width px: $($row | ConvertTo-Json -Compress)" }
+            }
+            $current=Evaluate "document.documentElement.lang"
+            Evaluate "document.querySelector('.locale-toggle').click();true" | Out-Null
+            Wait-FilterPage "document.documentElement.lang!=='$current'&&document.readyState==='complete'"
+        }
+    } finally {
+        & $php tests/http_audit_fixture.php trip-cleanup $marker $bookingId | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'Guest trip fixture was not removed' }
+        Send-Cdp 'Emulation.setDeviceMetricsOverride' @{width=1440;height=900;deviceScaleFactor=1;mobile=$false} | Out-Null
+    }
+    Navigate '/profile'
+    if (Evaluate "!!document.querySelector('.trip-row')") { throw 'Guest trip fixture is still listed' }
+    Write-Output 'PASS browser an upcoming trip fits its card from 280 px in both languages, fixture removed'
+}
+
 function Check-SiteIcon {
     # Both layouts name an icon that really loads, so a browser never falls back to the missing /favicon.ico.
     foreach ($path in @('/','/login')) {
@@ -872,6 +902,7 @@ try {
     Check-LongText '/listings/1' '.detail-heading h1, .detail-heading p, .detail-page .col-lg-8 p'
     Check-LongText '/bookings' '.booking-info h2, .booking-info p' -IfPresent
     Check-LongText '/profile' '.trip-row strong' -IfPresent
+    Check-TripRowFits
     Check-LongReport
     Write-Output 'PASS browser long unbroken text wraps at 375 on Guest pages'
     Check-BookingDateWidth
