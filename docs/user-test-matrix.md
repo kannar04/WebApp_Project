@@ -153,3 +153,22 @@ Gate sau khi gộp 5 nhánh: `php tests/fresh_setup_test.php --quality-regressio
 | NTH-26 | Tất cả | Bấm nút mặt trăng trên header (mobile: trong menu); tải lại trang; xóa `h2h-theme` trong localStorage | Chuyển tối ngay, giữ sau khi tải lại; xóa lựa chọn thì theo cài đặt hệ điều hành | feature_content_audit.ps1 (theme trước lần vẽ đầu, nút trên desktop/mobile/đăng nhập, tương phản 88 lượt xem trang) | PASS |
 | NTH-27 | Guest / Admin | Guest đặt chỗ, Host xác nhận; Guest mở booking → “Thanh toán online” (`/bookings/{id}/pay`) → “Chuyển khoản VietQR”; quét mã bằng app ngân hàng, chuyển đúng số tiền và nội dung; bấm “Tôi đã chuyển khoản”. Admin mở `/admin/payments` → “Chuyển khoản chờ xác nhận”: thử từ chối khi lý do dưới 5 ký tự, rồi xác nhận. Lặp lại với booking khác, chọn “Thanh toán qua VNPay” và trả bằng thẻ thử NCB trong README | Trang mã QR hiện ngân hàng, số tài khoản, số tiền, nội dung `H2H…`; sau khi báo, Admin có thông báo và booking hiện “Đã báo chuyển khoản”; lý do quá ngắn bị chặn; xác nhận xong booking hiện “Đã thanh toán” (VietQR) và Guest có thông báo. VNPay: chuyển sang trang VNPay sandbox, trả xong quay về booking với “Đã thanh toán” (VNPay) | feature_payment_test (quyền, VietQR, kết quả VNPay, chữ ký, HTTP) | PASS (thủ công 2026-10-17: VietQR báo chuyển khoản + Admin xác nhận; VNPay sandbox thật với thẻ test NCB); không chuyển tiền thật qua mã QR |
 | NTH-28 | Tất cả | Bấm nút “EN” trên header (trang đăng nhập: góc trên); đi qua trang chủ, chi tiết chỗ ở, đặt chỗ, trang Host/Admin; nhập sai mật khẩu; bấm “VI” | Quay lại đúng trang, giao diện và thông báo bằng tiếng Anh; dữ liệu người dùng nhập giữ nguyên; bấm “VI” trở về tiếng Việt | feature_i18n_test (đổi ngôn ngữ, 80 lượt xem trang tiếng Anh, flash/JSON) | PASS |
+
+## Bug-fix regression — 2026-11-06
+
+Gate: `php tests/fresh_setup_test.php --quality-regression --no-screenshots` → exit 0, 430 dòng PASS, 0 FAIL, 0 SKIP (DB/server tạm riêng).
+
+| ID | Phạm vi | Cách kiểm thử | Kết quả |
+|---|---|---|---|
+| BF-01 | 94 dòng `Functions.txt` | Chrome và HTTP theo từng vai trò | PASS 90, PARTIAL 4 (thông báo chưa gửi email; chia sẻ chưa có nút Facebook/Zalo) |
+| BF-02 | Phân quyền | 107 route × 9 vai trò/trạng thái | PASS |
+| BF-03 | Route lạ và form | 1.176 request id lạ trả 404; 174 action của form khớp route | PASS |
+| BF-04 | XSS | 970 lần tải trang bằng Chrome, 4.355 request có tham số | PASS |
+| BF-05 | Stored procedure | 469 lệnh `CALL` khớp số tham số | PASS |
+| BF-06 | Cài đặt | Cài mới và nâng cấp từ CSDL cũ | PASS |
+| BF-07 | Hoàn tiền và VNPay trả về muộn | Cả hai thứ tự và chạy song song bằng CLI, kết quả có chữ ký | PASS |
+| BF-08 | Hai Admin gỡ quyền nhau | 54 cách xen kẽ, 112 lần chạy song song: luôn còn Admin | PASS |
+| BF-09 | Thanh toán VNPay thật | Không chạy; chỉ kiểm tra kết quả trả về có chữ ký | NOT_VERIFIED |
+| BF-10 | Gửi email thật | Chỉ kiểm tra bằng SMTP cục bộ | NOT_VERIFIED |
+| BF-11 | Firefox, Safari, điện thoại thật, bộ gõ tiếng Việt thật | Không chạy | NOT_VERIFIED |
+| BF-12 | Tranh chấp HTTP thật, deadlock khi tải cao | Không chạy | NOT_VERIFIED |

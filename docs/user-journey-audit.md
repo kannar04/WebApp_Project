@@ -117,3 +117,22 @@ Phạm vi: 5 nhánh Nice-to-have đã gộp (booking extras, trust, conversation
 - P3: Thẻ kết quả trang chủ/tìm kiếm chưa hiện nhãn Instant Book; trang xem trước listing của Admin chưa hiện quy tắc giá; POST đặt chỗ thất bại không giữ ngày đã chọn; cột “Quản lý” ở dashboard Host cao trên điện thoại.
 - P3: Không có mục “Bản đồ” trên menu chính (điểm vào: nút “Xem trên bản đồ” và URL `/map`); header xuống dòng ở 992–1199px; phân trang ở chế độ sáng còn màu xanh mặc định của Bootstrap.
 - Ngoài phạm vi: VNPay/MoMo; tin nhắn real-time/email/SMS; ảnh/OCR/OTP cho xác minh; geocoding và gom cụm marker; dịch nội dung do người dùng nhập (tên/mô tả chỗ ở, tin nhắn, bài viết).
+
+## Bug-fix follow-up — 2026-11-06
+
+Phạm vi: Public, Guest, Host, Admin; toàn bộ 94 dòng trong `File_Ideas/Functions.txt`, bằng Chrome thật, request HTTP và đối chiếu dữ liệu.
+
+- Không tái hiện được P0, P1 hoặc P2 nào trong hai lần quét toàn site cuối và lần kiểm tra các sửa lỗi sau cùng. Lần kiểm tra sau cùng chỉ bao phủ các sửa lỗi đó, không quét lại toàn site.
+- `Functions.txt`: 90 dòng hoạt động, 4 dòng một phần, 0 dòng hỏng. Một phần: thông báo cho Host, Guest, Admin (có trong ứng dụng, chưa gửi email); chia sẻ (sao chép liên kết được, chưa có nút Facebook/Zalo).
+
+### Tồn đọng P3 giữ nguyên có lý do
+
+- Đổi ngôn ngữ làm mất nội dung đang nhập; nút Back lấy lại được.
+- Ghim bản đồ chồng nhau ở mức zoom mặc định; danh sách bên cạnh, zoom và Tab vẫn tới được.
+- Trên màn hình hẹp khi menu vẫn mở, tiêu điểm bàn phím và liên kết trong trang có thể nằm dưới menu.
+- Form sửa tin chính gửi duyệt lại kể cả khi không đổi gì; nút ghi rõ “Lưu và gửi duyệt”.
+- Guest hủy chỗ chưa thanh toán khi đang ở để tránh trả tiền lúc nhận phòng: chờ nhóm quyết định.
+
+### Chưa xác minh (NOT_VERIFIED)
+
+Cổng VNPay thật (chỉ kiểm tra kết quả trả về có chữ ký); nhà cung cấp email thật; Firefox, Safari và điện thoại thật; bộ gõ tiếng Việt thật; tranh chấp HTTP thật và deadlock khi tải cao; múi giờ quanh nửa đêm của `CURDATE`; Apache trong các lần quét cuối (các lần trước đã chạy).
