@@ -48,4 +48,11 @@ BEGIN
     IF v_own THEN COMMIT; ELSE RELEASE SAVEPOINT h2h_reset_consume; END IF;
 END$$
 
+-- Opening a link only asks whether it still works, by the same test as sp_password_reset_consume: nothing is spent, and the answer says nothing about whose it is.
+CREATE OR REPLACE PROCEDURE sp_password_reset_usable(IN p_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin)
+BEGIN
+    SELECT EXISTS(SELECT 1 FROM password_reset_tokens t JOIN users u ON u.id=t.user_id
+        WHERE t.token_hash=p_hash AND t.used_at IS NULL AND t.expires_at>NOW(6) AND u.status='active' AND u.deleted_at IS NULL) usable;
+END$$
+
 DELIMITER ;

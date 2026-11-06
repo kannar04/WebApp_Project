@@ -9,6 +9,12 @@ final class PasswordReset
     {
         ProcedureConnection::connection()->prepare('CALL sp_password_reset_issue(?,?)')->execute([$userId,hash('sha256',$rawToken)]);
     }
+    public function usable(string $rawToken): bool
+    {
+        $statement=ProcedureConnection::connection()->prepare('CALL sp_password_reset_usable(?)');
+        $statement->execute([hash('sha256',$rawToken)]);
+        return (bool)$statement->fetch()['usable'];
+    }
     public function consume(string $rawToken,string $password): void
     {
         if (!preg_match('/^[a-f0-9]{64}$/D',$rawToken)) { throw new \DomainException('Liên kết không hợp lệ, đã hết hạn hoặc đã sử dụng.'); }

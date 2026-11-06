@@ -758,6 +758,8 @@ $expiredId=$passwordUser->create('quality-expiry-'.bin2hex(random_bytes(6)).'@ho
 $expiredToken=bin2hex(random_bytes(32)); $recovery->issue($expiredId,$expiredToken);
 qaCall('CALL sp_test_expire_reset_token(?)',[hash('sha256',$expiredToken)]);
 qaReject(fn()=>$recovery->consume($expiredToken,$newPassword),'Expired reset token accepted.');
+$expiredPage=$request('/reset-password?token='.$expiredToken);
+qaExpect($expiredPage['status']===422 && str_contains($expiredPage['body'],'đã hết hạn') && !str_contains($expiredPage['body'],'name="password"'),'An expired reset link still opened the form.');
 $unconfigured=$request('/forgot-password');
 qaExpect($unconfigured['status']===200 && str_contains($unconfigured['body'],'disabled') && !str_contains($unconfigured['body'],$rawToken),'Unconfigured mail flow exposed a token or falsely enabled delivery.');
 echo "PASS QA recovery hashed token/one-use/expiry/issuance throttle/HTTP consume; mail delivery explicitly BLOCKED, not simulated\n";

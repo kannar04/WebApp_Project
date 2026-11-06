@@ -522,6 +522,12 @@ Các routine dưới đây sửa lỗi tại chỗ, không đổi schema.
 | `sp_test_cleanup_user` | `testing.sql` | Fixture: dọn thêm báo cáo của tài khoản kiểm thử và nhật ký xử lý báo cáo đó | source_audit_test |
 | `sp_admin_payments` / `sp_booking_extras_detail` | `070_booking_extras.sql` | Thêm cột `paid_after_cancel` để màn hình không gọi khoản nhận sau khi hủy là “theo chính sách”; số tiền không đổi | feature_payment_test |
 
+### Routine mới
+
+| Routine | File | Mục đích | Transaction / khóa / quyền | Test |
+|---|---|---|---|---|
+| `sp_password_reset_usable` | `065_password_recovery.sql` | Khi mở liên kết khôi phục: chỉ trả về liên kết còn dùng được hay không, theo đúng điều kiện của `sp_password_reset_consume`; không tiêu token, không cho biết token của ai | Chỉ đọc, không khóa; người có token, không cần đăng nhập | source_audit_test, quality_core_test |
+
 ## Run / reproduce
 
 Existing local database: install routines only, without importing/reseeding tables:

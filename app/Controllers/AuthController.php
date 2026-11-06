@@ -97,7 +97,8 @@ final class AuthController extends Controller
     {
         header('Referrer-Policy: no-referrer'); header('Cache-Control: no-store');
         $token=$_GET['token']??'';
-        if (!is_string($token) || !preg_match('/^[a-f0-9]{64}$/D',$token)) { http_response_code(422); $token=''; }
+        // A used, expired or unknown link says so on opening, before the password is typed twice. Asking spends nothing.
+        if (!is_string($token) || !preg_match('/^[a-f0-9]{64}$/D',$token) || !(new \App\Models\PasswordReset())->usable($token)) { http_response_code(422); $token=''; }
         $this->render('auth/reset',['title'=>'Đặt mật khẩu mới','resetToken'=>$token],'layouts/auth');
     }
     public function reset(): never

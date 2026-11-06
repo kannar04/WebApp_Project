@@ -482,6 +482,13 @@ try {
         expect($passwordModel->findByEmail($fixtureEmail)['password_hash'] === $fixtureHash, 'A blank password on admin edit must keep the current one.');
         expect(auditRequest($reader, $url.'/reset-password', ['_token' => auditFormToken($resetForm), 'token' => $rawToken, 'password' => $exact, 'password_confirmation' => $exact])['location'] === '/login', 'A 72-byte password must be accepted.');
         expect(password_verify($exact, $passwordModel->findByEmail($fixtureEmail)['password_hash']), 'Reset did not save the new password.');
+        // A spent link says so on opening and offers a new one, the same words as a link that never existed, with no form and nothing about its owner. The old form is still refused.
+        foreach ([$resetReturn, '/reset-password?token='.str_repeat('a', 64)] as $deadPath) {
+            $deadLink = auditRequest(auditBrowser(), $url.$deadPath);
+            expect($deadLink['status'] === 422 && str_contains($deadLink['body'], 'Liên kết không hợp lệ, đã hết hạn hoặc đã sử dụng.') && str_contains($deadLink['body'], 'Yêu cầu liên kết mới') && !str_contains($deadLink['body'], 'name="password"') && !str_contains($deadLink['body'], 'name="token"') && !str_contains($deadLink['body'], $fixtureEmail), "$deadPath must say the link no longer works, with no form.");
+        }
+        $savedHash = $passwordModel->findByEmail($fixtureEmail)['password_hash'];
+        expect(auditRequest($reader, $url.'/reset-password', ['_token' => auditFormToken($resetForm), 'token' => $rawToken, 'password' => 'Abcdefgh1', 'password_confirmation' => 'Abcdefgh1'])['location'] === '/forgot-password' && $passwordModel->findByEmail($fixtureEmail)['password_hash'] === $savedHash, 'An old form on a spent link must still be refused.');
     } finally {
         $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$fixtureId]);
     }
@@ -498,12 +505,19 @@ try {
     echo "PASS a refused recovery request keeps the typed address once\n";
 
     // Hints state the rule in words a person can act on, not in bytes. minlength and maxlength count characters, so they would block a valid short accented password and pass an over-long one.
-    foreach ([[auditBrowser(), '/register'], [auditBrowser(), '/reset-password?token='.str_repeat('a', 64)], [$hostBrowser, '/profile'], [$admin, '/admin'], [$admin, '/admin/users/3/edit']] as [$hintBrowser, $hintPath]) {
+    $hintFixture = $passwordModel->create("audit-hint-$tag@home2home.test", 'Abcdefgh1', 'Audit hint fixture', null);
+    $hintToken = bin2hex(random_bytes(32));
+    (new \App\Models\PasswordReset())->issue($hintFixture, $hintToken);
+    try {
+    foreach ([[auditBrowser(), '/register'], [auditBrowser(), '/reset-password?token='.$hintToken], [$hostBrowser, '/profile'], [$admin, '/admin'], [$admin, '/admin/users/3/edit']] as [$hintBrowser, $hintPath]) {
         $hintPage = auditRequest($hintBrowser, $url.$hintPath)['body'];
         expect(str_contains(mb_strtolower($hintPage), 'ít nhất 8 ký tự') && !preg_match('/\bbytes?\b|\bNUL\b|8–72/i', $hintPage), "$hintPath must state the rule in plain words.");
         expect($hintPath === '/admin' || str_contains($hintPage, 'quá dài có thể bị từ chối, và chữ có dấu được tính nhiều hơn một ký tự.'), "$hintPath must warn about long passwords and accented letters.");
         expect(preg_match_all('/<input\b[^>]*type="password"[^>]*>/', $hintPage, $passwordInputs) > 0, "$hintPath has no password input.");
         foreach ($passwordInputs[0] as $passwordInput) { expect(!preg_match('/\b(?:min|max)length=/', $passwordInput), "$hintPath counts password characters in the browser: $passwordInput"); }
+    }
+    } finally {
+        $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$hintFixture]);
     }
     $englishHints = array_merge(require dirname(__DIR__).'/lang/en/common.php', require dirname(__DIR__).'/lang/en/admin.php', require dirname(__DIR__).'/lang/en/messages.php');
     foreach (['Ít nhất 8 ký tự. Mật khẩu quá dài có thể bị từ chối, và chữ có dấu được tính nhiều hơn một ký tự.', 'Mật khẩu mới cần có ít nhất 8 ký tự. Mật khẩu quá dài có thể bị từ chối, và chữ có dấu được tính nhiều hơn một ký tự. Sau khi đặt lại, các phiên cũ hết hiệu lực.', 'Ít nhất 8 ký tự', \Core\Validator::PASSWORD_RULE] as $hint) {

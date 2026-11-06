@@ -51,7 +51,6 @@ return [
     'Yêu cầu liên kết khôi phục' => 'Request a recovery link',
     'Quay lại đăng nhập' => 'Back to log in',
     'Đặt mật khẩu mới' => 'Set a new password',
-    'Liên kết không hợp lệ.' => 'This link is invalid.',
     'Yêu cầu liên kết mới' => 'Request a new link',
     'Mật khẩu mới cần có ít nhất 8 ký tự. Mật khẩu quá dài có thể bị từ chối, và chữ có dấu được tính nhiều hơn một ký tự. Sau khi đặt lại, các phiên cũ hết hiệu lực.' => 'The new password needs at least 8 characters. A very long password may be refused, and accented letters count as more than one character. After the reset, older sessions are signed out.',
     'Mật khẩu mới' => 'New password',
