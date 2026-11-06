@@ -327,6 +327,15 @@ try {
     echo "PASS an {id} takes only a row number: anything else or too long is the normal 404, an ordinary link and a {slug} still open\n";
 
     $url = $rootServer['url'];
+    // A promo code in the address fills the box as text and stays on the month arrows without JavaScript; the quote judges it, like a typed one.
+    $promoPage = auditRequest(auditBrowser(), $url.'/listings/3?check_in=2035-09-10&check_out=2035-09-12&promo_code='.rawurlencode(' "><b>x '))['body'];
+    expect(str_contains($promoPage, 'name="promo_code" value="&quot;&gt;&lt;b&gt;x"') && !str_contains($promoPage, '"><b>x'), 'A promo code from the address must fill the box escaped.');
+    expect(preg_match_all('~\?month=\d{4}-\d{2}&amp;check_in=2035-09-10&amp;check_out=2035-09-12&amp;promo_code=%22%3E%3Cb%3Ex#availability-calendar"~', $promoPage) === 2, 'Month arrows must keep a promo code from the address.');
+    expect(str_contains(auditRequest(auditBrowser(), $url.'/listings/3?promo_code='.str_repeat('X', 60))['body'], 'name="promo_code" value="'.str_repeat('X', 20).'"'), 'A promo code from the address must stop at the box length, as a paste does.');
+    $arrayPromo = auditRequest(auditBrowser(), $url.'/listings/3?promo_code[]=x');
+    expect($arrayPromo['status'] === 200 && str_contains($arrayPromo['body'], 'name="promo_code" value=""') && !str_contains($arrayPromo['body'], 'promo_code%5B'), 'A promo code that is not text must read as none.');
+    echo "PASS a promo code in the address fills the box escaped, cut to its length, and stays on the month arrows\n";
+
     foreach (["\0", "2027-02-01\0", "\x002027-02-01", '2027-02-30', '2027-2-1', '', 'x'] as $badDate) {
         expect(\Core\Calendar::date($badDate) === null, 'Bad date accepted.');
     }

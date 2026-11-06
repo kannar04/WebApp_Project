@@ -115,12 +115,12 @@
         link.href = login.href;
     }
 
-    // A calendar month arrow is a full page load, so it takes the dates and guests as they stand, in the query the page reads them back from. One guest is the default and stays out of it, as on the listing cards, so a plain page keeps plain arrows.
+    // A calendar month arrow is a full page load, so it takes the dates, guests and promo code as they stand, in the query the page reads them back from. One guest is the default and stays out of it, as on the listing cards, so a plain page keeps plain arrows.
     function carryBookingToMonthArrows(form) {
         for (const arrow of document.querySelectorAll('#availability-calendar a')) {
             const target = new URL(arrow.href);
-            for (const name of ['check_in', 'check_out', 'guests']) {
-                const value = form.elements.namedItem(name).value;
+            for (const name of ['check_in', 'check_out', 'guests', 'promo_code']) {
+                const value = form.elements.namedItem(name).value.trim();
                 target.searchParams.delete(name);
                 if (value !== '' && !(name === 'guests' && value === '1')) { target.searchParams.set(name, value); }
             }

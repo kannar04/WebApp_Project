@@ -461,6 +461,39 @@ function Check-MonthArrowsCarryStay {
     Write-Output 'PASS browser month arrows take the dates and guests typed on the listing, as they stand and after Back; plain pages and pages without JS keep the arrows the server wrote'
 }
 
+function Check-MonthArrowsCarryPromo {
+    # The arrow keeps a typed promo code and the discounted total. A code from the address is treated like a typed one: escaped, quoted, and a bad one refused in words at the full price.
+    $arrows="(function(){return Array.from(document.querySelectorAll('#availability-calendar > div:first-child a')).map(function(link){return new URL(link.href).searchParams.get('promo_code');});})()"
+    $read="(function(){const f=document.querySelector('[data-booking-form]');const total=document.querySelector('[data-quote] .is-total');return {promo:f.elements.promo_code.value,valid:document.querySelector('[data-promo-feedback]').classList.contains('is-valid'),invalid:f.elements.promo_code.classList.contains('is-invalid'),message:document.querySelector('[data-promo-feedback]').textContent,total:total?total.textContent:''};})()"
+    $quoted="!!document.querySelector('[data-quote] .is-total')&&document.querySelector('[data-promo-feedback]').textContent!==''"
+    Navigate '/listings/3'
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.check_in.value='2035-09-10';f.elements.check_out.value='2035-09-12';f.elements.promo_code.value='CHAOHE10';f.elements.promo_code.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+    Wait-FilterPage "$quoted&&document.querySelector('[data-promo-feedback]').classList.contains('is-valid')"
+    $typed=Evaluate $read
+    if (@(Evaluate $arrows | Where-Object { $_ -ne 'CHAOHE10' }).Count) { throw "Month arrows lost the typed code: $(Evaluate $arrows)" }
+    $next=Evaluate "new URL(document.querySelectorAll('#availability-calendar > div:first-child a')[1].href).searchParams.get('month')"
+    Evaluate "window.__beforeArrow=true;document.querySelectorAll('#availability-calendar > div:first-child a')[1].click();true" | Out-Null
+    Wait-FilterPage "!window.__beforeArrow&&new URLSearchParams(location.search).get('month')==='$next'&&$quoted"
+    $carried=Evaluate $read
+    if ($carried.promo -ne 'CHAOHE10' -or !$carried.valid -or $carried.invalid -or $carried.total -ne $typed.total) { throw "The arrow lost the code: $($carried | ConvertTo-Json -Compress) was $($typed | ConvertTo-Json -Compress)" }
+    Navigate '/listings/3?check_in=2035-09-10&check_out=2035-09-12&promo_code=NOSUCHCODE'
+    Wait-FilterPage $quoted
+    $unknown=Evaluate $read
+    if ($unknown.promo -ne 'NOSUCHCODE' -or !$unknown.invalid -or $unknown.valid -or !$unknown.total -or $unknown.total -eq $typed.total) { throw "An unknown code from the address was not refused like a typed one: $($unknown | ConvertTo-Json -Compress)" }
+    if (@(Evaluate $arrows | Where-Object { $_ -ne 'NOSUCHCODE' }).Count) { throw "Month arrows lost the code from the address: $(Evaluate $arrows)" }
+    Navigate '/listings/3?check_in=2035-09-10&check_out=2035-09-12&promo_code=%22%3E%3Cimg%20src%3Dx%3E'
+    Wait-FilterPage $quoted
+    $hostile=Evaluate $read
+    if ($hostile.promo -ne '"><img src=x>' -or !$hostile.invalid -or (Evaluate "!!document.querySelector('.booking-box img')")) { throw "A hostile code from the address was not kept as text: $($hostile | ConvertTo-Json -Compress)" }
+    # An emptied box leaves the arrows, and a code without dates waits for them, as a typed one does.
+    Evaluate "(function(){const f=document.querySelector('[data-booking-form]');f.elements.promo_code.value='';f.elements.promo_code.dispatchEvent(new Event('input',{bubbles:true}));return true;})()" | Out-Null
+    if (@(Evaluate $arrows | Where-Object { $_ }).Count) { throw "Month arrows kept an emptied code: $(Evaluate $arrows)" }
+    Navigate '/listings/3?promo_code=CHAOHE10'
+    $waiting=Evaluate $read
+    if ($waiting.promo -ne 'CHAOHE10' -or !$waiting.message -or $waiting.valid -or $waiting.invalid -or $waiting.total) { throw "A code without dates should wait for them: $($waiting | ConvertTo-Json -Compress)" }
+    Write-Output 'PASS browser month arrows keep the promo code and its total; a code from the address is treated like a typed one, valid, unknown, hostile or without dates'
+}
+
 function Check-LoginCarriesBooking {
     # Signed out, the sign-in link takes the chosen stay along: same site, encoded, following the form. After signing in the listing has it back and quotes it.
     Navigate '/listings/1'
@@ -866,6 +899,7 @@ try {
     Write-Output 'PASS browser search dates and guests reach the listing from cards and the map, quote by themselves and survive month arrows and sign-in; plain links stay plain'
     Check-LoginCarriesBooking
     Check-MonthArrowsCarryStay
+    Check-MonthArrowsCarryPromo
     Check-MenuWithoutScript
     Check-AuthToolsClearBrand
     Navigate '/login'

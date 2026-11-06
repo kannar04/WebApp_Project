@@ -92,6 +92,8 @@
         form.addEventListener('h2h:quote', renderQuote);
         form.addEventListener('h2h:quote-failed', quoteFailed);
         if (promo && checkIn && checkOut) { promo.addEventListener('input', promoChanged); }
+        // A code that arrived with the page and no dates waits for them, as a typed one does. With dates, the on-load quote answers for it.
+        if (promo && promo.value.trim() !== '' && checkIn && checkOut && (!checkIn.value || !checkOut.value)) { showFeedback(window.h2hT('Chọn ngày nhận và trả phòng để kiểm tra mã.'), ''); }
     }
 
     if (document.readyState === 'loading') {

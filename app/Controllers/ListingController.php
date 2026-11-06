@@ -23,7 +23,7 @@ final class ListingController extends Controller
             'trustBadges'=>(new \App\Models\Trust())->badges([(int)$listing['host_id']],\Core\Auth::id()),'reviewBadges'=>(new \App\Models\Trust())->reviewBadges((int)$id),
             'bookingRules'=>(new BookingExtras())->listingRules((int)$id),'upcomingHolidays'=>(new BookingExtras())->upcomingHolidays(6)]);
     }
-    /** Dates and guests in the URL, as the sign-in link brings them back. Only the shape is checked here: the quote and the booking judge the values. */
+    /** Dates, guests and promo code in the URL, as the sign-in link and the month arrows bring them back. Only the shape is checked here: the quote and the booking judge the values. */
     private function bookingFromQuery(): array
     {
         $values=[];
@@ -33,6 +33,9 @@ final class ListingController extends Controller
         }
         $guests=filter_var($_GET['guests']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
         if ($guests!==false) { $values['guests']=$guests; }
+        // Cut to the box's maxlength, as a paste would be.
+        $promo=mb_substr(trim(input_text($_GET,'promo_code')),0,20);
+        if ($promo!=='') { $values['promo_code']=$promo; }
         return $values;
     }
     public function quote(string $id): never {try{$quote=(new BookingService())->quote((int)$id,(is_string($_GET['check_in']??null)?$_GET['check_in']:''),(is_string($_GET['check_out']??null)?$_GET['check_out']:''),(int)filter_var($_GET['guests']??null,FILTER_VALIDATE_INT),(is_string($_GET['promo_code']??null)?$_GET['promo_code']:''));$this->json(true,'Giá đã được tính lại.',$quote);}catch(\DomainException $e){$this->json(false,$e->getMessage(),null,[],422);}}
