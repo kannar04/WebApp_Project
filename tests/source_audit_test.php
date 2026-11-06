@@ -91,6 +91,15 @@ function auditRequest(CurlHandle $browser, string $url, array|string|null $field
     return ['status' => curl_getinfo($browser, CURLINFO_RESPONSE_CODE), 'location' => (string) parse_url($location, PHP_URL_PATH).($query !== '' ? '?'.$query : ''), 'body' => (string) $body];
 }
 
+/** One row's form on the Admin catalog page. */
+function auditCatalogRow(string $page, string $kind, int $id): string
+{
+    foreach (explode('<form class="border-top py-3"', $page) as $row) {
+        if (str_contains($row, 'name="kind" value="'.$kind.'"') && str_contains($row, 'name="id" value="'.$id.'"')) { return $row; }
+    }
+    return '';
+}
+
 function auditFormToken(string $html): string
 {
     expect((bool) preg_match('/name="_token" value="([^"]+)"/', $html, $match), 'Form token missing.');
@@ -757,6 +766,25 @@ try {
         expect(password_verify("caf\xe9\xe9\xe9\xe9\xe9\xe9\xe9", $passwordModel->findByEmail($utf8Email)['password_hash']), 'Admin edit must not read a password with other bytes as blank.');
         auditRequest($admin, $url.'/admin/catalog', '_token='.$adminToken.'&kind=amenity&id=0&name=Abc%FFdef&detail=x&active=1', $url.'/admin/catalog');
         expect(str_contains(auditRequest($admin, $url.'/admin/catalog')['body'], 'Thông tin danh mục không hợp lệ.'), 'Catalog must refuse a name with invalid UTF-8.');
+        // A retired catalog item reads as retired, offers no retire button and says how to reactivate through the same form.
+        $catalogModel = new \App\Models\Catalog(); $catalogAdmin = (int) $passwordModel->findByEmail('admin@home2home.test')['id'];
+        $catalogItem = $catalogModel->all($catalogAdmin, 'amenity')[0]; $catalogId = (int) $catalogItem['id'];
+        $catalogFields = ['_token' => $adminToken, 'kind' => 'amenity', 'id' => $catalogId, 'name' => $catalogItem['name'], 'detail' => (string) $catalogItem['detail']];
+        try {
+            $catalogRow = auditCatalogRow(auditRequest($admin, $url.'/admin/catalog')['body'], 'amenity', $catalogId);
+            expect(str_contains($catalogRow, 'name="active" value="0"') && !str_contains($catalogRow, 'Đã ngừng sử dụng'), 'An active catalog item must offer to retire and must not read as retired.');
+            auditRequest($admin, $url.'/admin/catalog', $catalogFields + ['active' => '0'], $url.'/admin/catalog');
+            $catalogRow = auditCatalogRow(auditRequest($admin, $url.'/admin/catalog')['body'], 'amenity', $catalogId);
+            expect(str_contains($catalogRow, 'Đã ngừng sử dụng') && str_contains($catalogRow, 'Để kích hoạt lại') && !str_contains($catalogRow, 'name="active" value="0"'), 'A retired catalog item must read as retired, say how to reactivate and offer no retire button.');
+            auditRequest($admin, $url.'/admin/catalog', ['name' => ''] + $catalogFields + ['active' => '1'], $url.'/admin/catalog');
+            $catalogRow = auditCatalogRow(auditRequest($admin, $url.'/admin/catalog')['body'], 'amenity', $catalogId);
+            expect(str_contains($catalogRow, 'Đã ngừng sử dụng') && !str_contains($catalogRow, 'name="active" value="0"'), 'A refused reactivation must still read as retired.');
+            auditRequest($admin, $url.'/admin/catalog', $catalogFields + ['active' => '1'], $url.'/admin/catalog');
+            $catalogRow = auditCatalogRow(auditRequest($admin, $url.'/admin/catalog')['body'], 'amenity', $catalogId);
+            expect(str_contains($catalogRow, 'name="active" value="0"') && !str_contains($catalogRow, 'Đã ngừng sử dụng'), 'Ticking the box and saving must reactivate a retired catalog item.');
+        } finally {
+            $catalogModel->save($catalogAdmin, 'amenity', $catalogId, $catalogItem['name'], (string) $catalogItem['detail'], true);
+        }
     } finally {
         $database->prepare('CALL sp_test_cleanup_user(?)')->execute([$utf8Fixture]);
     }

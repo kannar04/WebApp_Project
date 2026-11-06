@@ -133,6 +133,8 @@ return [
     'Thêm danh mục' => 'Add item',
     'Ngừng sử dụng danh mục này? Các tin hiện có vẫn được giữ.' => 'Deactivate this item? Existing listings keep it.',
     'Ngừng sử dụng' => 'Deactivate',
+    'Đã ngừng sử dụng' => 'Deactivated',
+    'Mục này đang ẩn khỏi các lựa chọn mới. Để kích hoạt lại, đánh dấu “Đang sử dụng” rồi bấm “Lưu thay đổi”.' => 'This item is hidden from new choices. To reactivate it, tick “Active” and press “Save changes”.',
 
     // Holidays
     'Đêm trùng ngày lễ dùng giá ngày lễ của Host (nếu Host đã đặt). Thay đổi chỉ ảnh hưởng báo giá mới; booking đã đặt giữ giá đã lưu.' => 'Nights that fall on a holiday use the Host\'s holiday rate (if the Host has set one). Changes only affect new quotes; existing bookings keep their saved price.',
