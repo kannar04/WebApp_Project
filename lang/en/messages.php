@@ -157,6 +157,7 @@ return [
     'Danh sách ảnh đã thay đổi. Hãy tải lại trang.' => 'The photo list has changed. Please reload the page.',
     'Các ảnh giữ lại phải có thứ tự khác nhau.' => 'Kept photos must each have a different position.',
     'Đã cập nhật ảnh và gửi tin duyệt lại.' => 'Photos updated and the listing was sent back for review.',
+    'Ảnh không có thay đổi nên tin vẫn giữ nguyên.' => 'The photos did not change, so the listing stays as it is.',
     'Đã cập nhật hiển thị.' => 'Visibility updated.',
     'Không thể cập nhật hiển thị. Vui lòng thử lại.' => 'Could not update visibility. Please try again.',
     'Ngày không hợp lệ.' => 'Invalid date.',

@@ -56,8 +56,13 @@ final class HostController extends Controller
                 || array_diff($remove,$current)) { throw new \DomainException('Danh sách ảnh đã thay đổi. Hãy tải lại trang.'); }
             if (count(array_unique($ordered))!==count($ordered)) { throw new \DomainException('Các ảnh giữ lại phải có thứ tự khác nhau.'); }
             asort($ordered,SORT_NUMERIC);
-            $model->managePhotos((int)$id,(int)$user['id'],array_keys($ordered),$current);
-            Session::flash('success','Đã cập nhật ảnh và gửi tin duyệt lại.');
+            // The same photos in the same order: nothing to review, so a live listing stays live.
+            if (array_keys($ordered)===$current) {
+                Session::flash('success','Ảnh không có thay đổi nên tin vẫn giữ nguyên.');
+            } else {
+                $model->managePhotos((int)$id,(int)$user['id'],array_keys($ordered),$current);
+                Session::flash('success','Đã cập nhật ảnh và gửi tin duyệt lại.');
+            }
         } catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
         $this->redirect('/host/listings/'.$id.'/edit');
     }

@@ -839,6 +839,23 @@ try {
         foreach ([$guestOfLeaving, $quietClient] as $client) { curl_close($client); }
         echo "PASS contact note: pending for the two parties, missing phone when confirmed, nothing when cancelled or rejected or for the Admin\n";
 
+        // Saving the photo form with nothing changed touches nothing and says so; a real change still goes back to review.
+        $photoModel = new Listing();
+        $photoModel->addPhoto($listingId, '/uploads/audit-a.jpg', 'Audit A', $hostId);
+        $photoModel->addPhoto($listingId, '/uploads/audit-b.jpg', 'Audit B', $hostId);
+        $photoIds = array_map('intval', array_column($photoModel->photos($listingId, $hostId), 'id'));
+        trustExpect(count($photoIds) === 2 && $photoModel->findOwned($listingId, $hostId)['moderation_status'] === 'approved', 'The photo fixture is not a live listing with two photos.');
+        $photoToken = trustToken(trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/edit')['body']);
+        foreach ([[1, 2], [3, 7]] as $samePositions) {
+            $photoSave = trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/photos', ['_token' => $photoToken, 'positions' => array_combine($photoIds, $samePositions)]);
+            trustExpect(str_contains($photoSave['body'], 'Ảnh không có thay đổi nên tin vẫn giữ nguyên.') && !str_contains($photoSave['body'], 'Đã cập nhật ảnh') && $photoModel->findOwned($listingId, $hostId)['moderation_status'] === 'approved', 'Saving unchanged photos took a live listing off the site.');
+        }
+        $photoSave = trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/photos', ['_token' => $photoToken, 'positions' => array_combine($photoIds, [2, 1])]);
+        trustExpect(str_contains($photoSave['body'], 'Đã cập nhật ảnh và gửi tin duyệt lại.') && $photoModel->findOwned($listingId, $hostId)['moderation_status'] === 'pending' && array_map('intval', array_column($photoModel->photos($listingId, $hostId), 'id')) === array_reverse($photoIds), 'A new photo order did not go back to review.');
+        (new \App\Models\AdminRepository())->moderate($listingId, $adminId, 'approved', 'Trust photo fixture');
+        $photoSave = trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/photos', ['_token' => $photoToken, 'positions' => array_combine($photoIds, [1, 2]), 'remove' => [$photoIds[0]]]);
+        trustExpect(str_contains($photoSave['body'], 'Đã cập nhật ảnh và gửi tin duyệt lại.') && $photoModel->findOwned($listingId, $hostId)['moderation_status'] === 'pending' && count($photoModel->photos($listingId, $hostId)) === 1, 'Removing a photo did not go back to review.');
+
         foreach ([$anonymous, $guestClient, $otherClient, $adminClient, $hostClient, $otherHostClient] as $client) { curl_close($client); }
         echo "PASS trust HTTP: login/403/404 guards, CSRF 419 on verification and decision, profile submit/duplicate, Admin queue+approval+masked history+badges, Host progress/guide save/validation, public pages without secrets\n";
     }
