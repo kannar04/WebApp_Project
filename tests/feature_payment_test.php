@@ -1228,14 +1228,14 @@ try {
         $payments->submitTransfer($offerRejected,$guestId);
         $payments->decideTransfer($offerRejected,$adminId,'reject','Chưa thấy tiền vào tài khoản');
         $noBank=['PAYMENT_BANK_ID'=>' ','PAYMENT_ACCOUNT_NO'=>' ']; $noVnpay=['VNPAY_TMN_CODE'=>' ','VNPAY_HASH_SECRET'=>' '];
-        foreach ([[$noBank+$noVnpay,false],[$noBank,true],[$noVnpay,true],[[],true]] as [$settings,$offered]) {
+        foreach ([[$noBank+$noVnpay,false,''],[$noBank,true,'VNPay'],[$noVnpay,true,'Chuyển khoản VietQR'],[[],true,'Chuyển khoản VietQR hoặc VNPay']] as [$settings,$offered,$methods]) {
             $server=payServerStart($settings);
             try {
                 $label=$offered?'with a method configured':'with no method configured';
                 $listingPage=payHttp($guestClient,$server['url'],'/listings/'.$listingId)['body'];
                 payExpect(str_contains($listingPage,'hoặc thanh toán online')===$offered && str_contains($listingPage,'khi nhận phòng'),'Listing page promise is wrong '.$label);
                 $detail=payHttp($guestClient,$server['url'],'/bookings/'.$offerBooking)['body'];
-                payExpect(str_contains($detail,$offerPath)===$offered && str_contains($detail,'Chuyển khoản VietQR hoặc VNPay')===$offered,'Booking page offer is wrong '.$label);
+                payExpect(str_contains($detail,$offerPath)===$offered && ($methods==='' || str_contains($detail,'<span class="small text-muted">'.$methods.'</span>')),'Booking page offer is wrong '.$label);
                 $trips=payHttp($guestClient,$server['url'],'/bookings')['body'];
                 payExpect(str_contains($trips,$offerPath)===$offered,'Trips list offer is wrong '.$label);
                 payExpect(str_contains($detail,'Tình trạng thanh toán') && str_contains($detail,'Thanh toán khi nhận phòng'),'The payment panel lost pay at check-in '.$label);

@@ -19,6 +19,16 @@ final class Payment
         return \App\Services\VietQr::enabled($config) || \App\Services\VnpayGateway::enabled($config);
     }
 
+    /** The methods the pay page will really offer, for the line beside its button. */
+    public static function onlineMethodsLabel(): string
+    {
+        $config = require dirname(__DIR__, 2).'/config/payment.php';
+        $vietQr = \App\Services\VietQr::enabled($config);
+        $vnpay = \App\Services\VnpayGateway::enabled($config);
+        if ($vietQr && $vnpay) { return 'Chuyển khoản VietQR hoặc VNPay'; }
+        return $vietQr ? 'Chuyển khoản VietQR' : 'VNPay';
+    }
+
     public function checkout(int $bookingId, int $guestId): ?array
     {
         $statement = $this->db->prepare('CALL sp_payment_checkout(?,?)');
