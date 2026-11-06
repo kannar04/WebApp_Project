@@ -215,6 +215,7 @@ return [
     'Đã hoàn {amount}đ: {time}' => 'Refunded {amount}đ: {time}',
     'Không hoàn tiền theo chính sách (0đ)' => 'No refund under the policy (0đ)',
     'Cần hoàn {amount}đ theo chính sách hủy' => 'Refund {amount}đ owed under the cancellation policy',
+    'Cần hoàn {amount}đ vì thanh toán đến sau khi hủy' => 'Refund {amount}đ owed because the payment arrived after the cancellation',
     'Xác nhận đã thu {amount}đ của booking #{id}?' => 'Confirm that you received {amount}đ for booking #{id}?',
     'Đã thu tiền' => 'Mark as paid',
     'Lý do hoàn tiền booking #{id}' => 'Refund reason for booking #{id}',

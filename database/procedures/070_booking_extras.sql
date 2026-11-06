@@ -399,6 +399,7 @@ BEGIN
         t.id open_transfer_id,t.status open_transfer_status,t.reference open_transfer_reference,t.amount open_transfer_amount,
         pay.paid_at,pay.refunded_at,pay.note payment_note,payer.full_name paid_by_name,refunder.full_name refunded_by_name,
         COALESCE(c.refund_amount,pay.amount_due,b.total_amount) refund_amount,
+        COALESCE(pay.paid_at>c.created_at,0) paid_after_cancel, -- Money that arrived after the cancel goes back whole, not under the policy.
         CASE WHEN pay.status='refunded' THEN COALESCE((SELECT CAST(JSON_VALUE(a.change_summary,'$.amount') AS DECIMAL(12,2)) FROM admin_audit_logs a WHERE a.action='refund_payment' AND a.entity_type='booking' AND a.entity_id=b.id ORDER BY a.id DESC LIMIT 1),pay.amount_due) END refunded_amount
     FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users h ON h.id=l.host_id LEFT JOIN booking_price_breakdowns bp ON bp.booking_id=b.id LEFT JOIN booking_payments pay ON pay.booking_id=b.id
         LEFT JOIN booking_cancellations c ON c.booking_id=b.id
@@ -560,7 +561,7 @@ BEGIN
             (COALESCE(pay.status,'unpaid')='unpaid' AND b.status IN ('confirmed','completed') AND b.check_in<=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)) can_mark_paid,
             EXISTS(SELECT 1 FROM payment_transactions x WHERE x.booking_id=b.id AND x.status='submitted') transfer_submitted,
             pay.paid_at,pay.refunded_at,pay.note payment_note,COALESCE(bp.promotion_code,'') promotion_code,
-            dup.id duplicate_id,dup.reference duplicate_reference,dup.amount duplicate_amount,COALESCE(c.refund_amount,pay.amount_due,b.total_amount) refund_amount,
+            dup.id duplicate_id,dup.reference duplicate_reference,dup.amount duplicate_amount,COALESCE(c.refund_amount,pay.amount_due,b.total_amount) refund_amount,COALESCE(pay.paid_at>c.created_at,0) paid_after_cancel,
             CASE WHEN pay.status='refunded' THEN COALESCE((SELECT CAST(JSON_VALUE(a.change_summary,'$.amount') AS DECIMAL(12,2)) FROM admin_audit_logs a WHERE a.action='refund_payment' AND a.entity_type='booking' AND a.entity_id=b.id ORDER BY a.id DESC LIMIT 1),pay.amount_due) END refunded_amount
         FROM bookings b JOIN listings l ON l.id=b.listing_id JOIN users u ON u.id=b.guest_id JOIN users h ON h.id=l.host_id
             LEFT JOIN booking_payments pay ON pay.booking_id=b.id LEFT JOIN booking_price_breakdowns bp ON bp.booking_id=b.id

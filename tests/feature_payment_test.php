@@ -902,7 +902,7 @@ try {
         }
         payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings')['body'],'không được hoàn'),'Cancelling with no refund does not say so.');
         $page=payHttp($adminClient,$baseUrl,'/admin/payments?q='.$bookingP)['body'];
-        payExpect(str_contains($page,'Cần hoàn 100.000đ') && str_contains($page,'Ghi nhận đã hoàn 100.000đ') && str_contains($page,'/admin/payments/'.$bookingP.'/refund'),'Admin list does not show the policy refund.');
+        payExpect(str_contains($page,'Cần hoàn 100.000đ theo chính sách hủy') && str_contains($page,'Ghi nhận đã hoàn 100.000đ') && str_contains($page,'/admin/payments/'.$bookingP.'/refund'),'Admin list does not show the policy refund.');
         $page=payHttp($adminClient,$baseUrl,'/bookings/'.$bookingP)['body'];
         payExpect(str_contains($page,'Số tiền hoàn theo chính sách: 100.000 VND') && str_contains($page,'/admin/payments/'.$bookingP.'/refund'),'Booking page does not show the policy refund.');
         $page=payHttp($adminClient,$baseUrl,'/admin/payments?q='.$bookingQ)['body'];
@@ -961,6 +961,17 @@ try {
         payHttp($adminClient,$baseUrl,'/admin/payments/'.$bookingZ.'/refund',['_token'=>$adminToken,'note'=>'Audit fixture']);
         $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingZ)['body'];
         payExpect(!str_contains($page,'Số tiền cần hoàn') && str_contains($page,'Đã hoàn ') && payInspect($bookingZ)['payment_status']==='refunded','A refunded booking still says its refund is due.');
+        // Money that arrived after the cancel goes back whole: the figure stays and no screen credits the 50% policy for it.
+        $bookingLate=payConfirmedBooking($service,$policyListings[50],$guestId,$hostId,$base,164);
+        $lateAttempt=$payments->start($bookingLate,$guestId,'vnpay');
+        $service->cancelByGuest($bookingLate,$guestId,'Audit fixture cancelled while paying');
+        $payments->vnpayResult($lateAttempt['reference'],'220000.00','00','00','14000064','NCB');
+        $page=payHttp($guestClient,$baseUrl,'/bookings/'.$bookingLate)['body'];
+        payExpect(str_contains($page,'Số tiền cần hoàn toàn bộ vì thanh toán đến sau khi hủy (Admin chưa ghi nhận đã hoàn): 220.000 VND') && !str_contains($page,'Số tiền cần hoàn (Admin'),'The Guest page does not say late money goes back whole.');
+        $page=payHttp($adminClient,$baseUrl,'/bookings/'.$bookingLate)['body'];
+        payExpect(str_contains($page,'Số tiền hoàn vì thanh toán đến sau khi hủy: 220.000 VND') && !str_contains($page,'Số tiền hoàn theo chính sách'),'The Admin booking page credits the policy for late money.');
+        $page=payHttp($adminClient,$baseUrl,'/admin/payments?q='.$bookingLate)['body'];
+        payExpect(str_contains($page,'Cần hoàn 220.000đ vì thanh toán đến sau khi hủy') && !str_contains($page,'theo chính sách hủy'),'The Admin list credits the policy for late money.');
         // Nothing is due under a 0% policy, so the page does not show a 0đ refund as owed.
         $bookingNoRefund=payPaidBooking($service,$payments,$policyListings[0],$guestId,$hostId,$base,131,'14000081');
         payHttp($guestClient,$baseUrl,'/bookings/'.$bookingNoRefund.'/cancel',['_token'=>$guestToken,'reason'=>'Audit fixture']);

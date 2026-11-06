@@ -518,6 +518,7 @@ Các routine dưới đây sửa lỗi tại chỗ, không đổi schema.
 | `sp_user_search` / `sp_admin_booking_search` / `sp_admin_payments` / `sp_admin_identity_verifications` | `011`, `050`, `070`, `075` | `%`, `_` và dấu `\` người dùng gõ được so theo đúng chữ, như `sp_admin_articles` và `sp_admin_messages_search`; vẫn gập `đ` và bỏ qua dấu như cũ | feature_trust_test |
 | `sp_booking_payment_refund` | `070_booking_extras.sql` | Thêm `p_shown_amount` (4 tham số): số Admin thấy khác số còn phải hoàn dưới khóa thì không ghi gì và báo số hiện tại; `NULL` (yêu cầu không kèm số) giữ hành vi cũ; trả về `refund_amount` đã ghi | feature_payment_test |
 | `sp_payment_start` | `095_online_payment.sql` | Booking đã hoàn tiền báo “đã được hoàn tiền” thay vì “đã được ghi nhận thanh toán” | feature_payment_test |
+| `sp_admin_payments` / `sp_booking_extras_detail` | `070_booking_extras.sql` | Thêm cột `paid_after_cancel` để màn hình không gọi khoản nhận sau khi hủy là “theo chính sách”; số tiền không đổi | feature_payment_test |
 
 ## Run / reproduce
 
