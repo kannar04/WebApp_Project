@@ -76,6 +76,13 @@ function trustHttpClient(): CurlHandle
     return $client;
 }
 
+/** The Host dashboard's table row for one listing. */
+function trustHostListingRow(string $page, int $listingId): string
+{
+    preg_match('~<tr><td class="table-title">(?:(?!</tr>).)*?/host/listings/'.$listingId.'/edit(?:(?!</tr>).)*</tr>~su', $page, $row);
+    return $row[0] ?? '';
+}
+
 /** The Admin dashboard's table row for one listing. */
 function trustAdminListingRow(string $page, int $listingId): string
 {
@@ -771,6 +778,8 @@ try {
         (new \App\Models\AdminRepository())->setListingVisibility($quietListing, $adminId, false);
         $hiddenDashboard = trustHttp($quietClient, $baseUrl, '/host')['body'];
         trustExpect(str_contains($hiddenDashboard, 'data-admin-hidden') && !str_contains($hiddenDashboard, '/host/listings/'.$quietListing.'/visibility'), 'The dashboard still offers Show on a listing an Admin hid.');
+        $hiddenRow = trustHostListingRow($hiddenDashboard, $quietListing);
+        trustExpect(str_contains($hiddenRow, 'Admin đã ẩn') && !str_contains($hiddenRow, 'Khách đang thấy'), 'An Admin-hidden listing does not read as hidden.');
         $undoHide = trustHttp($quietClient, $baseUrl, '/host/listings/'.$quietListing.'/visibility', ['_token' => trustToken($hiddenDashboard), 'visible' => '1']);
         trustExpect(str_contains($undoHide['body'], 'alert-danger') && str_contains($undoHide['body'], 'chỉ Admin mới hiện lại được'), 'The Host was not told why Show was refused.');
         trustExpect(trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$quietListing)['status'] === 404, 'A refused Show made the listing public.');
@@ -779,6 +788,22 @@ try {
         $shownDashboard = trustHttp($quietClient, $baseUrl, '/host')['body'];
         trustExpect(!str_contains($shownDashboard, 'data-admin-hidden') && str_contains($shownDashboard, '/host/listings/'.$quietListing.'/visibility'), 'An Admin show did not give the Host the button back.');
         trustExpect(str_contains(trustHttp($quietClient, $baseUrl, '/notifications')['body'], 'Admin đã hiện lại tin'), 'The Host got no notice of the Admin show.');
+        // The Host's visibility column states whether guests can see the listing, with the action button beside it.
+        $visibilityToken = trustToken($shownDashboard);
+        $visibleRow = trustHostListingRow($shownDashboard, $quietListing);
+        trustExpect(str_contains($visibleRow, 'Khách đang thấy tin này.') && str_contains($visibleRow, 'name="visible" value="0"'), 'A visible listing does not say guests can see it.');
+        trustHttp($quietClient, $baseUrl, '/host/listings/'.$quietListing.'/visibility', ['_token' => $visibilityToken, 'visible' => '0']);
+        $hostHiddenRow = trustHostListingRow(trustHttp($quietClient, $baseUrl, '/host')['body'], $quietListing);
+        trustExpect(str_contains($hostHiddenRow, 'Khách không thấy: bạn đang ẩn tin này.') && str_contains($hostHiddenRow, 'name="visible" value="1"') && !str_contains($hostHiddenRow, 'Khách đang thấy'), 'A listing the Host hid does not say guests cannot see it.');
+        trustHttp($quietClient, $baseUrl, '/host/listings/'.$quietListing.'/visibility', ['_token' => $visibilityToken, 'visible' => '1']);
+        $unapprovedListing = $listings->create($quietHost, ['title' => 'Audit fixture trust '.$tag.' unapproved'] + $listingData);
+        $unapprovedRow = trustHostListingRow(trustHttp($quietClient, $baseUrl, '/host')['body'], $unapprovedListing);
+        trustExpect(str_contains($unapprovedRow, 'Khách chưa thấy: tin chưa được duyệt. Tin sẽ hiện khi được duyệt.') && str_contains($unapprovedRow, 'name="visible" value="0"') && !str_contains($unapprovedRow, 'Khách đang thấy'), 'A listing not yet approved reads as seen by guests.');
+        trustHttp($quietClient, $baseUrl, '/host/listings/'.$unapprovedListing.'/visibility', ['_token' => $visibilityToken, 'visible' => '0']);
+        $unapprovedRow = trustHostListingRow(trustHttp($quietClient, $baseUrl, '/host')['body'], $unapprovedListing);
+        trustExpect(str_contains($unapprovedRow, 'Khách chưa thấy: tin chưa được duyệt. Tin vẫn ẩn sau khi được duyệt.') && str_contains($unapprovedRow, 'name="visible" value="1"'), 'A hidden listing not yet approved promises to show.');
+        trustCall('CALL sp_test_listing_approve(?)', [$unapprovedListing]);
+        trustExpect(str_contains(trustHostListingRow(trustHttp($quietClient, $baseUrl, '/host')['body'], $unapprovedListing), 'Khách không thấy: bạn đang ẩn tin này.') && trustHttp($anonymous, $baseUrl, '/listings/'.$unapprovedListing)['status'] === 404, 'A hidden listing came out of approval visible, against what its row said.');
         // A Host's own hide: the Admin's row says so and offers no Show, and a direct POST is refused with the reason.
         $quietVisibility = trustHttp($quietClient, $baseUrl, '/host/listings/'.$quietListing.'/visibility', ['_token' => trustToken($shownDashboard), 'visible' => '0']);
         trustExpect($quietVisibility['status'] === 200 && trustHttp($guestOfLeaving, $baseUrl, '/listings/'.$quietListing)['status'] === 404, 'The Host could not hide their listing.');
