@@ -5,7 +5,8 @@ Implemented on 2026-11-05 from the [FE–BE plan](../../focused-experience-plan.
 ## Delivered
 
 - Compact first-entry search with optional dates and real inventory-backed destination chips. Accessible suggestions support keyboard selection and Vietnamese input without accents. Recent destination suggestions are stored per browser tab/session.
-- Initial PHP cards and automatically appended 12-home batches use one escaped template. Loading, retry, end states, unique-ID handling, saved states, trip-aware links, and no-JS pagination are supported.
+- Initial PHP cards and automatically appended six-home batches use one escaped `stay-card.php` template. Cards show a square photo, top-left favorite, name, and base price/night. The same card powers the related-stay rail. Loading, retry, end states, unique-ID handling, saved states, trip-aware links, and no-JS pagination are supported.
+- Property details end with public host name/avatar/join year/available trust badges and up to ten unique related homes. Existing public search routines rank matches by city and type; valid dates and guest count are retained. Desktop rails show six cards with arrows; smaller screens support native scrolling. No new tables or procedures are required for this refinement.
 - Returning from a property restores loaded batches and scroll position. A successful search keeps advanced filters collapsed; active conditions can be removed without resetting the whole trip.
 - Mobile Explore / Saved / Trips navigation. Property pages use one bottom booking bar instead, with a total and Review booking action after a successful quote.
 - Dates and guest count pass through property navigation, header sign-in, review, login failures, registration links, and expired anonymous submission. Review tokens bind the signed-in user, listing, selected trip, and accepted price/policy for 30 minutes.

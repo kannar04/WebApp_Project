@@ -49,7 +49,7 @@ with sync_playwright() as p:
 
     visit(page, '/', 'interaction-home', 390)
     image_box = page.locator('.listing-card .card-image').first.bounding_box()
-    record('Listing photographs retain landscape proportions', abs(image_box['width'] / image_box['height'] - 1.38) < .02)
+    record('Listing photographs retain square proportions', abs(image_box['width'] / image_box['height'] - 1) < .02)
     record('Local display and interface fonts loaded', page.evaluate("document.fonts.check('16px Inter') && document.fonts.check('16px Lora')"))
     page.keyboard.press('Tab')
     record('Keyboard skip link', page.locator('.skip-link').evaluate('(el) => el === document.activeElement'))

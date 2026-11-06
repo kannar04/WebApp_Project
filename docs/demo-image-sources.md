@@ -1,5 +1,34 @@
 # Demo accommodation images
 
+## Expanded room catalog — 2026-11-06
+
+The optional [demo catalog](../database/seeds/demo_catalog.php) adds 24 fictional
+rooms with 24 distinct illustrative photographs. Their titles, prices, locations,
+capacities, amenities, and booking settings are development fixtures, not verified
+accommodation offers. Photo alt text and room descriptions identify them as demo
+content; the existing detail-page photo notice also applies.
+
+Each photo ID in that catalog maps to a bundled JPEG in `public/assets/images/demo/`.
+Source URL: `https://images.unsplash.com/photo-<photo-id>?auto=format&fit=crop&w=960&q=80&fm=jpg`.
+These JPEGs were downloaded on November 6, 2026 under the [Unsplash License](https://unsplash.com/license).
+
+To preview or add this inventory to the local demo database:
+
+```powershell
+php database/seeds/seed_demo_catalog.php
+php database/seeds/seed_demo_catalog.php --apply
+```
+
+The first command only validates/counts; the second inserts new rooms in one
+transaction. Guards restrict execution to CLI, `APP_ENV=local`, a loopback database
+host, and `db_home2home`. The existing demo host must be active. Catalog markers
+make repeat runs skip existing rooms, preserving any edits. Existing rooms and
+booking counts are checked before committing. This seed does not create users,
+bookings, reviews, or verification claims. Coordinates and addresses are approximate
+demo locations. Standard setup retains its original small seed; this catalog is opt-in.
+
+## Original three-room inventory
+
 These photographs illustrate fictitious seed listings. They are not verified
 photographs of properties in Đà Lạt or Hội An and are not AI-generated.
 

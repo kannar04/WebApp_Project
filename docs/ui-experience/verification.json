@@ -358,7 +358,7 @@
       "detail": null
     },
     {
-      "check": "Listing photographs retain landscape proportions",
+      "check": "Listing photographs retain square proportions",
       "passed": true,
       "detail": null
     },

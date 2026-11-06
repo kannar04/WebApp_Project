@@ -10,10 +10,11 @@ use Core\Controller;
 
 final class HomeController extends Controller
 {
+    private const PER_PAGE = 6;
     public function index(): void
     {
         [$filters,$searchError,$filterErrors]=$this->validatedFilters($_GET);
-        $model=new Listing(); $perPage=12;
+        $model=new Listing(); $perPage=self::PER_PAGE;
         // Invalid input is retained for correction, but never executed as a search.
         $page=$searchError===null?(int)($filters['page']??1):1;
         $result=$searchError===null?$model->searchPage($filters,$perPage,($page-1)*$perPage):['listings'=>[],'total'=>0];
@@ -44,13 +45,13 @@ final class HomeController extends Controller
         [$filters,$searchError,$filterErrors]=$this->validatedFilters($_GET);
         if ($searchError!==null) { $this->json(false,$searchError,null,$filterErrors,422); }
         $page=(int)($filters['page']??1);
-        $result=(new Listing())->searchPage($filters,12,($page-1)*12);
+        $result=(new Listing())->searchPage($filters,self::PER_PAGE,($page-1)*self::PER_PAGE);
         $trustBadges=(new \App\Models\Trust())->badges(array_column($result['listings'],'host_id'),Auth::id());
         foreach ($result['listings'] as $index=>$listing) { $result['listings'][$index]['trusted_host']=!empty($trustBadges[(int)$listing['host_id']]['is_trusted_host']); }
         $listings=$result['listings'];
         $favorites=Auth::check()?(new Wishlist())->ids((int)Auth::id()):[];
         ob_start(); require dirname(__DIR__).'/Views/components/listing-cards.php'; $html=ob_get_clean();
-        $this->json(true,'Đã tải kết quả.',$result+['html'=>$html,'page'=>$page,'per_page'=>12,'pages'=>(int)ceil($result['total']/12)]);
+        $this->json(true,'Đã tải kết quả.',$result+['html'=>$html,'page'=>$page,'per_page'=>self::PER_PAGE,'pages'=>(int)ceil($result['total']/self::PER_PAGE)]);
     }
 
     private function upcoming(): ?array

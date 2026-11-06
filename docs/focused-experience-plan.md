@@ -4,7 +4,9 @@ Status: agreed UX direction with an implementation delivered on 2026-11-05. The 
 
 ## Implementation status — 2026-11-05
 
-The focused guest journey is now connected: compact discovery; inventory-backed city suggestions with keyboard/accent handling; automatic 12-home batches using shared PHP card markup; failure/retry/end states; Back restoration; collapsed advanced filters; trip-aware property links; saved controls; mobile Explore/Saved/Trips; state-aware quote bar; read-only booking review; safe login/registration returns; duplicate-confirmation recovery; price-change acceptance; explicit map-area search with filter parity; and an upcoming-trip card.
+The focused guest journey is now connected: compact discovery; inventory-backed city suggestions with keyboard/accent handling; automatic six-home batches using shared PHP card markup; failure/retry/end states; Back restoration; collapsed advanced filters; trip-aware property links; saved controls; mobile Explore/Saved/Trips; state-aware quote bar; read-only booking review; safe login/registration returns; duplicate-confirmation recovery; price-change acceptance; explicit map-area search with filter parity; and an upcoming-trip card.
+
+The November 6 refinement centers the heading, removes redundant discovery copy, and uses outlined filter pills. A reusable square-photo card shows only name, base price/night, and favorite. Details include public host information and up to ten related public stays selected through the existing search procedures, with six desktop cards per horizontal view and native scrolling/arrows. Inventory is never duplicated to fill empty slots.
 
 Actual integration choices:
 

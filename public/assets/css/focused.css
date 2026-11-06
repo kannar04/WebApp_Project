@@ -1,6 +1,6 @@
 /* Focused guest journey: photographs belong to homes; controls stay familiar. */
 .focused-home { padding-top: 36px; }
-.discovery-intro { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:26px; }
+.discovery-intro { display:flex; align-items:center; justify-content:center; text-align:center; gap:24px; margin:12px 0 32px; }
 .discovery-intro h1 { font-size:clamp(30px,3.1vw,45px); font-weight:400; line-height:1.2; margin-bottom:10px; }
 .discovery-intro p { color:var(--muted); margin:0; }
 .discovery-saved { display:flex; align-items:center; gap:8px; white-space:nowrap; min-height:44px; }
@@ -47,7 +47,10 @@ html[data-theme='dark'] .focused-home .search-bar { background:transparent; }
 .discovery-results-heading h2 { font-size:30px; font-weight:400; margin:0 0 6px; }
 .discovery-results-heading p { color:var(--muted); font-size:13px; margin:0; }
 .discovery-results-heading .discovery-map-link { margin:0; flex-shrink:0; }
-.stay-type-links { display:flex; gap:6px; flex-wrap:wrap; padding-right:190px; min-height:48px; }
+.discovery-results-heading:has(h2.sr-only) { justify-content:flex-end; }
+.stay-type-links { display:flex; justify-content:safe center; align-items:center; gap:6px; flex-wrap:wrap; padding-right:190px; min-height:48px; }
+.stay-type-links a { display:inline-flex; align-items:center; justify-content:center; text-align:center; flex-shrink:0; }
+@media(min-width:992px) { .stay-type-links { padding-left:190px; } }
 .focused-home .home-filter { margin:0 0 18px; position:relative; }
 .focused-home .home-filter>summary { position:absolute; right:0; top:-48px; min-height:44px; }
 .focused-home .home-filter .filter-panel { margin-top:14px; }
@@ -70,6 +73,62 @@ html[data-theme='dark'] .listing-card-glow { --glow-brightness:1; --glow-saturat
 }
 .listing-card .favorite-button { display:inline-flex; align-items:center; justify-content:center; }
 .listing-card .card-meta .ui-icon { width:13px; height:13px; }
+/* One card anatomy, shared by the six-column feed and the related-stay rail. */
+.stay-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:28px 20px; }
+.stay-card-item { min-width:0; }
+.stay-card .card-image-wrap { display:block; border-radius:16px; aspect-ratio:1; }
+.stay-card .card-image { display:block; width:100%; height:100%; aspect-ratio:1; object-fit:cover; border-radius:16px; }
+.stay-card .listing-image-glow { aspect-ratio:1; }
+.stay-card .favorite-button { top:10px; left:10px; right:auto; width:36px; height:36px; }
+.stay-card .favorite-button .ui-icon { width:18px; height:18px; }
+.stay-card .card-body { padding:12px 0 0; }
+.stay-card .card-body h3 { font-size:14px; font-weight:500; line-height:1.45; margin:0; }
+.stay-card .price { font-size:13px; line-height:1.5; margin:5px 0 0; }
+.stay-card .price span { font-size:12px; font-weight:400; color:var(--muted); }
+.focused-home .destination-links a,.focused-home .stay-type-links a,
+.focused-home .home-filter>summary { background:#fff; border:2px solid #818b80; border-radius:999px; color:var(--text); }
+.focused-home .destination-links a[aria-current],.focused-home .stay-type-links a[aria-current],
+.focused-home .home-filter[open]>summary { background:#fff; border-color:var(--primary); box-shadow:inset 0 0 0 1px var(--primary); color:var(--primary-dark); }
+html[data-theme='dark'] .focused-home .destination-links a,
+html[data-theme='dark'] .focused-home .stay-type-links a,
+html[data-theme='dark'] .focused-home .home-filter>summary { background:var(--card); border-color:var(--control-border); }
+html[data-theme='dark'] .focused-home .destination-links a[aria-current],
+html[data-theme='dark'] .focused-home .stay-type-links a[aria-current],
+html[data-theme='dark'] .focused-home .home-filter[open]>summary { border-color:var(--primary); }
+.stay-detail-extras { padding-top:48px; padding-bottom:64px; }
+.stay-detail-extras h2 { font-size:30px; font-weight:400; margin:0 0 24px; }
+.stay-host { padding:32px 0 40px; border-top:1px solid var(--border); }
+.stay-host-profile { display:flex; align-items:center; gap:20px; }
+.stay-host-profile img,.stay-host-initial { width:80px; height:80px; border-radius:50%; object-fit:cover; flex-shrink:0; }
+.stay-host-initial { display:flex; align-items:center; justify-content:center; background:var(--soft-green); color:var(--primary-dark); font:32px 'Lora',Georgia,serif; }
+.stay-host-profile h3 { font-family:'Inter',sans-serif; font-size:20px; font-weight:500; margin:0 0 6px; }
+.stay-host-profile p { color:var(--muted); font-size:14px; margin:0; }
+.related-stays { padding-top:32px; border-top:1px solid var(--border); }
+.stay-rail-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px; }
+.stay-rail-heading h2 { margin:0; }
+.stay-rail-controls { display:flex; gap:8px; }
+.stay-rail-button { width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--control-border,var(--primary)); border-radius:50%; color:var(--text); background:var(--card); }
+.stay-rail-button:hover { border-color:var(--primary); background:var(--soft-green); }
+.stay-rail-button:disabled { opacity:.35; cursor:default; }
+.stay-rail-button[data-rail-prev] .ui-icon { transform:rotate(90deg); }
+.stay-rail-button[data-rail-next] .ui-icon { transform:rotate(-90deg); }
+.stay-rail { display:grid; grid-auto-flow:column; grid-auto-columns:calc((100% - 100px)/6); gap:20px; overflow-x:auto; scroll-snap-type:x mandatory; scroll-padding:0; padding:20px 0 32px; margin-top:-20px; overscroll-behavior-x:contain; }
+.stay-rail>.stay-card-item { scroll-snap-align:start; }
+@media(max-width:1199.98px) {
+ .stay-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+ .stay-rail { grid-auto-columns:calc((100% - 40px)/3); }
+}
+@media(max-width:767.98px) {
+ .stay-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px 16px; }
+ .stay-rail { grid-auto-columns:calc((100% - 16px)/2); gap:16px; }
+ .stay-detail-extras { padding-top:24px; padding-bottom:32px; }
+ .stay-detail-extras h2 { font-size:25px; }
+ .stay-card .favorite-button { top:8px; left:8px; width:34px; height:34px; }
+ .stay-card .card-body h3 { font-size:13px; }
+ .stay-card .price { font-size:12px; }
+ .stay-rail-heading { gap:8px; }
+ .stay-rail-controls { gap:6px; }
+}
 .feed-loading { text-align:center; padding:10px 0 28px; min-height:65px; color:var(--muted); font-size:13px; }
 .discovery-guide { padding-top:12px; padding-bottom:36px; color:var(--muted); font-size:14px; }
 .upcoming-trip { display:flex; gap:16px; align-items:center; padding:20px 24px; background:var(--soft-green); border-radius:12px; color:var(--text); margin-top:20px; }

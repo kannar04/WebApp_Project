@@ -1,5 +1,5 @@
 {
-  "passed": 53,
+  "passed": 61,
   "failed": 0,
   "errors": [],
   "checks": [
@@ -68,7 +68,7 @@
       "passed": true
     },
     {
-      "check": "Actual first batch has 12 homes",
+      "check": "Actual first batch has six homes",
       "passed": true
     },
     {
@@ -97,6 +97,30 @@
     },
     {
       "check": "Back restores scroll position",
+      "passed": true
+    },
+    {
+      "check": "Ten unique related homes exclude the current room",
+      "passed": true
+    },
+    {
+      "check": "Public host name appears in the host section",
+      "passed": true
+    },
+    {
+      "check": "Related links retain the selected trip",
+      "passed": true
+    },
+    {
+      "check": "Desktop rail shows six columns",
+      "passed": true
+    },
+    {
+      "check": "Desktop next arrow scrolls related homes",
+      "passed": true
+    },
+    {
+      "check": "Previous arrow returns to the first related home",
       "passed": true
     },
     {
@@ -213,6 +237,14 @@
     },
     {
       "check": "No-JS homes are server rendered",
+      "passed": true
+    },
+    {
+      "check": "Minimal stay cards contain a name and price",
+      "passed": true
+    },
+    {
+      "check": "Reusable stay photo is square",
       "passed": true
     }
   ]

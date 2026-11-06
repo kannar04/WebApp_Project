@@ -28,4 +28,8 @@ Run `python -X utf8 tests/ui_experience.browser.py` against a local instance wit
 
 ## Focused journey implementation
 
-Discovery uses real inventory-backed city suggestions, optional dates, room-type choices, automatic 12-home batches, and browser Back restoration. Mobile navigation keeps Explore, Saved, and Trips available except where a property booking bar owns the bottom action area. Quotes update that bar; a read-only review precedes explicit confirmation. Login and registration preserve validated return context. See [implementation and verification](docs/ui-experience/focused/README.md) and [FE?BE handoff](docs/focused-experience-plan.md).
+Discovery uses real inventory-backed city suggestions, optional dates, room-type choices, automatic six-home batches, and browser Back restoration. The main heading is centered; redundant introductory/result copy is removed. Filter pills use white surfaces with outlined selected states, with charcoal surfaces in dark mode.
+
+The shared `stay-card.php` component shows a rounded square photo, a top-left favorite control, title, and base nightly price. The grid uses six desktop columns, three tablet columns and two mobile columns. Property details end with public host information and up to ten related stays, using the same card in a native horizontal rail with previous/next controls. Related stays prioritize city and property type, honor valid trip filters, and exclude the current property.
+
+Mobile navigation keeps Explore, Saved, and Trips available except where a property booking bar owns the bottom action area. Quotes update that bar; a read-only review precedes explicit confirmation. Login and registration preserve validated return context. See [implementation and verification](docs/ui-experience/focused/README.md) and [FE–BE handoff](docs/focused-experience-plan.md).

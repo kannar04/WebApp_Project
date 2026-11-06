@@ -10,8 +10,7 @@ $resetUrl=url('/'.($resetFilters?'?'.http_build_query($resetFilters):'').'#listi
 <div class="home-page focused-home">
 <section class="container" aria-labelledby="home-title">
     <div class="discovery-intro">
-        <div><h1 id="home-title"><?= e(__('Bạn muốn ở đâu trong chuyến đi tới?')) ?></h1><p><?= e(__('Tìm một nơi phù hợp. Cảm thấy như ở nhà.')) ?></p></div>
-        <a class="discovery-saved" href="<?= e(url('/wishlist')) ?>"><?= ui_icon('heart') ?> <?= e(__('Chỗ ở đã lưu')) ?></a>
+        <h1 id="home-title"><?= e(__('Bạn muốn ở đâu trong chuyến đi tới?')) ?></h1>
     </div>
     <div class="home-search" id="stay-search">
         <form class="search-bar" data-search-form method="get" action="<?= e(url('/#listing-results')) ?>">
@@ -35,7 +34,7 @@ $resetUrl=url('/'.($resetFilters?'?'.http_build_query($resetFilters):'').'#listi
 <?php if(!empty($upcoming) && !$hasFilters): ?><div class="container"><a class="upcoming-trip" href="<?= e(url('/bookings/'.$upcoming['id'])) ?>"><?= ui_icon('calendar') ?><span><strong><?= e(__('Chuyến đi của bạn')) ?> · <?= e($upcoming['title']) ?></strong><small><?= e($upcoming['check_in']) ?> — <?= e($upcoming['check_out']) ?> · <?= e(status_label($upcoming['status'])) ?></small></span><?= ui_icon('arrow') ?></a></div><?php endif; ?>
 <section class="listing-section" id="listing-results" aria-labelledby="listing-results-title">
     <div class="container">
-        <div class="discovery-results-heading"><div><h2 id="listing-results-title"><?= e(!empty($filters['north'])?__('Chỗ ở trong khu vực đã chọn'):(!empty($filters['location'])?__('Chỗ ở tại {place}',['place'=>$filters['location']]):__('Khám phá chỗ ở khắp Việt Nam'))) ?></h2><p><?= e(__('Thêm ngày để kiểm tra lịch trống và tổng tiền.')) ?></p></div><?php require __DIR__.'/components/discovery-map-link.php'; ?></div>
+        <div class="discovery-results-heading"><h2 id="listing-results-title" class="<?= $hasFilters?'':'sr-only' ?>"><?= e(!empty($filters['north'])?__('Chỗ ở trong khu vực đã chọn'):(!empty($filters['location'])?__('Chỗ ở tại {place}',['place'=>$filters['location']]):__('Khám phá chỗ ở khắp Việt Nam'))) ?></h2><?php require __DIR__.'/components/discovery-map-link.php'; ?></div>
         <div class="stay-type-links" aria-label="<?= e(__('Loại chỗ ở')) ?>">
             <?php foreach(array_merge([['id'=>'','name'=>'Tất cả loại']],$types) as $type): $typeQuery=array_replace($filters,['type'=>$type['id'],'page'=>1]); ?>
             <a href="<?= e(url('/?'.http_build_query($typeQuery).'#listing-results')) ?>" <?= (string)($filters['type']??'')===(string)$type['id']?'aria-current="page"':'' ?>><?= e(__($type['name'])) ?></a><?php endforeach; ?>
@@ -103,11 +102,11 @@ $resetUrl=url('/'.($resetFilters?'?'.http_build_query($resetFilters):'').'#listi
         <?php if($searchError!==null): ?>
             <div class="empty-state" data-search-invalid><h3><?= e(__('Hãy sửa điều kiện tìm kiếm')) ?></h3><p><?= e(__('Chưa hiển thị kết quả vì bộ lọc không hợp lệ.')) ?></p><a class="btn btn-outline-primary" href="<?= e(url('/#listing-results')) ?>"><?= e(__('Xóa tất cả điều kiện')) ?></a></div>
         <?php else: ?>
-            <p class="results-summary" role="status" data-results-summary><strong><?= e(__('{count} kết quả',['count'=>(int)$total])) ?></strong> · <?= e($hasFilters?__('Đã áp dụng điều kiện tìm kiếm.'):__('Đang hiển thị tất cả chỗ ở.')) ?></p>
+            <p class="results-summary sr-only" role="status" data-results-summary><?= e(__('{count} kết quả',['count'=>(int)$total])) ?></p>
             <?php if(!$listings): ?>
                 <div class="empty-state"><h3><?= e(__('Chưa tìm thấy chỗ ở phù hợp')) ?></h3><p><?= e(__('Hãy thử bỏ bớt tiện nghi hoặc đổi địa điểm, ngày và số khách.')) ?></p><a class="btn btn-primary" href="<?= e(url('/#listing-results')) ?>"><?= e(__('Xóa tất cả điều kiện')) ?></a></div>
             <?php else: ?>
-                <div class="row" data-home-feed data-page="<?= (int)$page ?>" data-pages="<?= (int)$pages ?>" data-endpoint="<?= e(url('/api/listings')) ?>" data-user="<?= (int)(\Core\Auth::id()??0) ?>"><?php require __DIR__.'/components/listing-cards.php'; ?></div>
+                <div class="stay-grid" data-home-feed data-page="<?= (int)$page ?>" data-pages="<?= (int)$pages ?>" data-endpoint="<?= e(url('/api/listings')) ?>" data-user="<?= (int)(\Core\Auth::id()??0) ?>"><?php require __DIR__.'/components/listing-cards.php'; ?></div>
                 <div class="feed-loading" data-feed-sentinel><p role="status" aria-live="polite" data-feed-status></p><button class="btn btn-outline-primary" data-feed-more type="button" hidden><?= e(__('Xem thêm chỗ ở')) ?></button></div>
             <?php endif; ?>
             <?php if($pages>1): ?><nav data-feed-pagination aria-label="<?= e(__('Phân trang kết quả')) ?>" class="mt-3"><ul class="pagination flex-wrap"><?php foreach(array_unique(array_filter([1,$page-1,$page,$page+1,$pages],fn($p)=>$p>=1&&$p<=$pages)) as $p): ?><li class="page-item <?= $p===$page?'active':'' ?>"><a class="page-link" <?= $p===$page?'aria-current="page"':'' ?> href="<?= e(url('/?'.http_build_query(array_replace($filters,['page'=>$p])).'#listing-results')) ?>"><?= (int)$p ?></a></li><?php endforeach; ?></ul></nav><?php endif; ?>
@@ -115,5 +114,4 @@ $resetUrl=url('/'.($resetFilters?'?'.http_build_query($resetFilters):'').'#listi
     </div>
 </section>
 
-<div class="container discovery-guide"><p><?= e(__('Cần chút cảm hứng cho chuyến đi?')) ?> <a href="<?= e(url('/articles')) ?>"><?= e(__('Khám phá cẩm nang địa phương')) ?> <?= ui_icon('arrow') ?></a></p></div>
 </div>

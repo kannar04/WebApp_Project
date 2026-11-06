@@ -74,6 +74,14 @@ Không cài tác vụ thì nhắc lịch vẫn được tạo khi người dùng
 
 ## Tài khoản local/test
 
+Để thêm 24 chỗ ở minh họa phục vụ kiểm tra lưới sáu thẻ và danh sách chỗ ở tương tự:
+
+```powershell
+php database/seeds/seed_demo_catalog.php --apply
+```
+
+Chỉ dùng cho `APP_ENV=local` và DB `db_home2home` trên máy local. Chạy lại không nhân đôi dữ liệu; giữ nguyên phòng và booking đã có. Chi tiết: [dữ liệu và nguồn ảnh demo](docs/demo-image-sources.md).
+
 Mật khẩu chung: `Password123!`.
 
 - Admin: `admin@home2home.test`

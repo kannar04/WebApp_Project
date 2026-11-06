@@ -30,6 +30,22 @@ final class Listing
 
     public function destinations(): array { return $this->db->query('CALL sp_focused_destinations()')->fetchAll(); }
 
+    /** Public alternatives: same city/type first, then same city, then same type. */
+    public function related(array $listing, array $trip = [], int $limit = 10): array
+    {
+        $limit=max(1,min(10,$limit));
+        $trip=array_intersect_key($trip,array_flip(['check_in','check_out','guests']));
+        $matches=[];
+        foreach ([['city'=>$listing['city'],'type'=>$listing['property_type_id']],['city'=>$listing['city']],['type'=>$listing['property_type_id']]] as $scope) {
+            foreach ($this->search($trip+$scope,$limit+1) as $candidate) {
+                if ((int)$candidate['id']===(int)$listing['id']) { continue; }
+                $matches[(int)$candidate['id']]=$candidate;
+                if (count($matches)>=$limit) { break 2; }
+            }
+        }
+        return array_values($matches);
+    }
+
     public function findPublic(int $id, bool $withDetails = true): ?array
     {
         $statement = $this->db->prepare('CALL `sp_listing_get_public`(?)');

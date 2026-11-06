@@ -1,5 +1,8 @@
 <?php
 return [
+    'Gặp gỡ Host'=>'Meet your host', 'Tham gia từ {year}'=>'Joined in {year}',
+    'Chỗ ở tương tự'=>'More stays like this', 'Chỗ ở trước'=>'Previous stays', 'Chỗ ở tiếp theo'=>'Next stays',
+    'Giá cơ bản, chưa bao gồm phụ phí'=>'Base nightly price, excluding additional fees',
     'Điều kiện đã chọn'=>'Applied filters', 'Bỏ điều kiện {name}'=>'Remove {name} filter',
     'Bạn muốn ở đâu trong chuyến đi tới?'=>'Where will your next stay take you?',
     'Tìm một nơi phù hợp. Cảm thấy như ở nhà.'=>'Find your kind of place. Feel at home.',
