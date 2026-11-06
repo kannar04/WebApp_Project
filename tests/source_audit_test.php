@@ -742,6 +742,13 @@ try {
         expect(str_contains(auditRequest($utf8Browser, $url.'/reports')['body'], "a<br />\nb"), 'A saved report must still show its line break.');
         auditRequest($admin, $url.'/admin/reports/'.(int) $savedReport['id'].'/resolve', ['_token' => $adminToken, 'status' => 'resolved', 'resolution' => $posted]);
         expect($reportsModel->forUser($utf8Fixture)[0]['resolution'] === $stored, 'A conclusion at the limit with a line break must be saved.');
+        // A conclusion keeps its line breaks on the report and in the reporter's notification, escaped first.
+        auditRequest($admin, $url.'/admin/reports/'.(int) $savedReport['id'].'/resolve', ['_token' => $adminToken, 'status' => 'resolved', 'resolution' => "Dòng một
+<b>Dòng hai</b>"]);
+        $conclusionShown = "Dòng một<br />
+&lt;b&gt;Dòng hai&lt;/b&gt;";
+        expect(str_contains(auditRequest($utf8Browser, $url.'/reports')['body'], $conclusionShown), 'A report conclusion lost its line break on the reports page.');
+        expect(str_contains(auditRequest($utf8Browser, $url.'/notifications')['body'], $conclusionShown), 'A report conclusion lost its line break in the notification.');
         $utf8Register = auditBrowser();
         $form = auditRequest($utf8Register, $url.'/register')['body'];
         $refused = auditRequest($utf8Register, $url.'/register', '_token='.auditFormToken($form).'&full_name=Abc%FFdef&email='.urlencode("audit-utf8b-$tag@home2home.test").'&phone=&password=Abcdefgh1');

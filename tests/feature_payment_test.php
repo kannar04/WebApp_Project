@@ -1238,6 +1238,18 @@ try {
         }
         echo "PASS online payment is offered only when a method is configured: listing page, booking page, trips list and pay page, with none, either or both
 ";
+        // A note typed in the Admin's box keeps its line breaks where the Guest and the Admin read it, escaped first.
+        $noteBooking=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,200);
+        $noteAttempt=$payments->start($noteBooking,$guestId,'vietqr'); $noteId=(int)$noteAttempt['transaction_id'];
+        $payments->submitTransfer($noteId,$guestId);
+        $noteToken=payToken($adminClient,$baseUrl,'/admin/payments');
+        payHttp($adminClient,$baseUrl,'/admin/payments/transfers/'.$noteId,['_token'=>$noteToken,'decision'=>'reject','note'=>"Dòng một
+<b>Dòng hai</b>"]);
+        $noteShown="Dòng một<br />
+&lt;b&gt;Dòng hai&lt;/b&gt;";
+        payExpect(str_contains(payHttp($guestClient,$baseUrl,'/bookings/'.$noteBooking)['body'],$noteShown),'A rejection note lost its line break on the booking page.');
+        payExpect(str_contains(payHttp($guestClient,$baseUrl,'/payments/'.$noteId)['body'],$noteShown),'A rejection note lost its line break on the transfer page.');
+        payExpect(str_contains(payHttp($guestClient,$baseUrl,'/notifications')['body'],$noteShown),'A rejection note lost its line break in the notification.');
         foreach ([$anonymous,$guestClient,$hostClient,$adminClient] as $client) { curl_close($client); }
         echo "PASS online payment HTTP: Guest-only pages, CSRF, QR page with account and reference, report, Admin queue/403/confirm, VNPay redirect signature, forged return/IPN 97, valid return, IPN 02/01/04\n";
     }

@@ -15,9 +15,9 @@ $isAdmin = \Core\Auth::hasRole('admin');
 <?php elseif($attempt['status']==='succeeded'): ?>
 <div class="alert alert-success" role="status"><?= e(__('Đã xác nhận nhận tiền lúc {time}.', ['time'=>display_date($attempt['decided_at'],true)])) ?></div>
 <?php elseif($attempt['status']==='failed'): ?>
-<div class="alert alert-warning" role="status"><?= e(__('Admin chưa xác nhận được khoản chuyển này.')) ?><?php if($attempt['note']): ?> <?= e(__('Lý do:')) ?> <?= e($attempt['note']) ?><?php endif; ?></div>
+<div class="alert alert-warning" role="status"><?= e(__('Admin chưa xác nhận được khoản chuyển này.')) ?><?php if($attempt['note']): ?> <?= e(__('Lý do:')) ?> <?= nl2br(e($attempt['note'])) ?><?php endif; ?></div>
 <?php elseif($attempt['status']==='cancelled'): ?>
-<div class="alert alert-secondary" role="status"><?= e(__('Giao dịch này đã đóng.')) ?><?php if($attempt['note']): ?> <?= e(__((string)$attempt['note'])) ?><?php endif; ?></div>
+<div class="alert alert-secondary" role="status"><?= e(__('Giao dịch này đã đóng.')) ?><?php if($attempt['note']): ?> <?= nl2br(e(__((string)$attempt['note']))) ?><?php endif; ?></div>
 <?php elseif(!$payable): ?>
 <div class="alert alert-secondary" role="status"><?= e($attempt['listing_removed']?__('Chỗ ở này đã bị gỡ nên không thể thanh toán online.'):($reportOnly?__('Tài khoản Host đang tạm khóa nên hiện chưa thể thanh toán online. Hãy liên hệ Admin nếu cần.'):__('Booking này không còn chờ thanh toán.'))) ?></div>
 <?php endif; ?>

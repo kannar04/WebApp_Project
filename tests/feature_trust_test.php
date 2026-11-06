@@ -658,6 +658,13 @@ try {
         $breakReview = (int) $reviews->forHost($hostId)[0]['id'];
         trustHttp($hostClient, $baseUrl, '/host/reviews/'.$breakReview.'/reply', ['_token' => trustToken($saved['body']), 'reply' => str_repeat('a', 2499)."\r\n".str_repeat('b', 2500)]);
         foreach ($reviews->forHost($hostId) as $review) { if ((int) $review['id'] === $breakReview) { trustExpect($review['host_reply'] === str_repeat('a', 2499)."\n".str_repeat('b', 2500), 'A reply at the limit with a line break was refused or kept its CR.'); } }
+        // A reply keeps its line breaks wherever it is shown, escaped first.
+        trustHttp($hostClient, $baseUrl, '/host/reviews/'.$breakReview.'/reply', ['_token' => trustToken($saved['body']), 'reply' => "Dòng một
+<b>Dòng hai</b>"]);
+        $replyShown = "Dòng một<br />
+&lt;b&gt;Dòng hai&lt;/b&gt;";
+        trustExpect(str_contains(trustHttp($anonymous, $baseUrl, '/listings/'.$listingId)['body'], $replyShown), 'A Host reply lost its line break on the listing page.');
+        trustExpect(str_contains(trustHttp($adminClient, $baseUrl, '/admin/reviews')['body'], $replyShown), 'A Host reply lost its line break on the Admin review page.');
         $tooShort = trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/checkin-guide', ['_token' => trustToken($saved['body']), 'arrival_instructions' => 'ngắn', 'door_code' => 'K-1111']);
         trustExpect(str_contains($tooShort['body'], 'alert-danger') && str_contains($tooShort['body'], 'K-1111') && $trust->guideForHost($listingId, $hostId)['door_code'] === 'K-9999', 'Invalid HTTP guide save changed data or lost input.');
         trustExpect(str_contains(trustHttp($hostClient, $baseUrl, '/host/listings/'.$listingId.'/edit')['body'], '/checkin-guide'), 'Listing edit page lacks the guide link.');
