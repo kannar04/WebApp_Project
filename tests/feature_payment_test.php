@@ -354,6 +354,29 @@ try {
     payExpect((int)$state['rejected_notices']===0 && (int)$state['transfer_close_audits']===1 && str_contains((string)$state['guest_transfer_closed_body'],'Admin sẽ hoàn lại cho bạn') && !str_contains((string)$state['guest_transfer_closed_body'],'Chưa xác nhận'),
         'Closing a duplicate transfer told the Guest the money never came: '.json_encode($state,JSON_UNESCAPED_UNICODE));
     payExpect(!$payments->decideTransfer((int)$payments->start(payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,110),$guestId,'vietqr')['transaction_id'],$adminId,'reject','Chưa thấy tiền vào')['duplicate_closed'],'A plain rejection was reported as closing a duplicate.');
+    // A note closing a duplicate shares the column with a fixed sentence: it is saved whole or refused, never cut. A plain rejection keeps the full 500.
+    $longTransferBooking=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,167);
+    $longTransferPaid=$payments->start($longTransferBooking,$guestId,'vnpay');
+    $longTransferId=(int)$payments->start($longTransferBooking,$guestId,'vietqr')['transaction_id'];
+    $payments->submitTransfer($longTransferId,$guestId);
+    $payments->vnpayResult($longTransferPaid['reference'],'220000.00','00','00','14000065','NCB');
+    payRejects([$payments,'decideTransfer'],[$longTransferId,$adminId,'reject',str_repeat('a',343).'CUOIGHICHU'],'tối đa 352 ký tự','A note too long for a closed duplicate transfer was accepted');
+    payExpect(payAttempt($longTransferId)['status']==='submitted','A refused note still closed the duplicate transfer.');
+    $wholeNote=str_repeat('a',342).'CUOIGHICHU';
+    payExpect((int)$payments->decideTransfer($longTransferId,$adminId,'reject',$wholeNote)['duplicate_closed']===1 && str_ends_with((string)payAttempt($longTransferId)['note'],$wholeNote),'The longest allowed note on a duplicate transfer was cut.');
+    $longVnpayBooking=payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,170);
+    $longVnpayFirst=$payments->start($longVnpayBooking,$guestId,'vnpay'); $longVnpaySecond=$payments->start($longVnpayBooking,$guestId,'vnpay');
+    $payments->vnpayResult($longVnpayFirst['reference'],'220000.00','00','00','14000066','NCB');
+    $payments->vnpayResult($longVnpaySecond['reference'],'220000.00','00','00','14000067','NCB');
+    payRejects([$payments,'resolveDuplicate'],[(int)$longVnpaySecond['transaction_id'],$adminId,str_repeat('a',459).'CUOIGHICHU'],'tối đa 468 ký tự','A note too long for a closed duplicate VNPay payment was accepted');
+    payExpect(payAttempt((int)$longVnpaySecond['transaction_id'])['status']==='succeeded','A refused note still closed the duplicate VNPay payment.');
+    $wholeNote=str_repeat('a',458).'CUOIGHICHU';
+    $payments->resolveDuplicate((int)$longVnpaySecond['transaction_id'],$adminId,$wholeNote);
+    payExpect(str_ends_with((string)payAttempt((int)$longVnpaySecond['transaction_id'])['note'],$wholeNote),'The longest allowed note on a duplicate VNPay payment was cut.');
+    $wholeNote=str_repeat('a',490).'CUOIGHICHU';
+    $plainReject=(int)$payments->start(payConfirmedBooking($service,$listingId,$guestId,$hostId,$base,173),$guestId,'vietqr')['transaction_id'];
+    $payments->decideTransfer($plainReject,$adminId,'reject',$wholeNote);
+    payExpect(payAttempt($plainReject)['note']===$wholeNote,'A plain rejection lost its 500-character allowance.');
     echo "PASS duplicate payments: transfer report closes VNPay, late payment flagged to Guest and Admin, Admin confirm refused, Admin closes only that transaction, replay cannot reopen\n";
 
     // ---- Cancelling a paid booking: Admins learn the refund owed in the same transaction; the refund records the policy amount.

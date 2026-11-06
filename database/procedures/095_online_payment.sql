@@ -256,8 +256,10 @@ BEGIN
         END IF;
     ELSEIF v_duplicate THEN
         -- The booking was paid another way while this transfer was open. Closing it says nothing about the money not arriving: if it did arrive, it goes back to the Guest.
+        -- The fixed text below takes 148 of the column's 500 characters: a longer note is refused, never cut.
+        IF CHAR_LENGTH(v_note)>352 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Ghi chú đóng giao dịch trùng tối đa 352 ký tự.'; END IF;
         UPDATE payment_transactions SET status='cancelled',decided_by=p_admin,decided_at=NOW(6),
-            note=LEFT(CONCAT('Đã đóng chuyển khoản trùng vì booking đã được thanh toán bằng giao dịch khác; nếu khoản này đã vào tài khoản, Admin sẽ hoàn lại cho khách. Ghi chú: ',v_note),500),updated_at=NOW(6) WHERE id=p_transaction;
+            note=CONCAT('Đã đóng chuyển khoản trùng vì booking đã được thanh toán bằng giao dịch khác; nếu khoản này đã vào tài khoản, Admin sẽ hoàn lại cho khách. Ghi chú: ',v_note),updated_at=NOW(6) WHERE id=p_transaction;
         INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
             VALUES(v_guest,v_booking,'in_app','payment_duplicate_transfer_closed','Đã đóng chuyển khoản trùng',
             CONCAT('Booking #',v_booking,' đã được thanh toán bằng giao dịch khác nên chuyển khoản ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,') đã được đóng. Nếu khoản này đã vào tài khoản, Admin sẽ hoàn lại cho bạn. Ghi chú: ',v_note),'sent',1,NOW(6));
@@ -313,8 +315,10 @@ BEGIN
     IF v_guest IS NULL OR v_provider<>'vnpay' OR v_status<>'succeeded' OR v_stored_note IS NULL THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Giao dịch này không phải thanh toán trùng đang chờ xử lý.';
     END IF;
+    -- The fixed text below takes 32 of the column's 500 characters: a longer note is refused, never cut.
+    IF CHAR_LENGTH(v_note)>468 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Ghi chú hoàn khoản trùng tối đa 468 ký tự.'; END IF;
     UPDATE payment_transactions SET status='cancelled',decided_by=p_admin,decided_at=NOW(6),
-        note=LEFT(CONCAT('Đã hoàn khoản thanh toán trùng: ',v_note),500),updated_at=NOW(6) WHERE id=p_transaction;
+        note=CONCAT('Đã hoàn khoản thanh toán trùng: ',v_note),updated_at=NOW(6) WHERE id=p_transaction;
     INSERT INTO notifications(user_id,booking_id,channel,event_type,title,body,delivery_status,attempt_count,created_at)
         VALUES(v_guest,v_booking,'in_app','payment_duplicate_refunded','Đã hoàn khoản thanh toán trùng',
         CONCAT('Khoản VNPay ',REPLACE(FORMAT(v_amount,0),',','.'),'đ (mã ',v_reference,') của booking #',v_booking,' đã được hoàn lại.',

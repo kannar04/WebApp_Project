@@ -195,6 +195,8 @@ return [
     'Mã cửa / hộp khóa tối đa 60 ký tự.' => 'The door / lockbox code can be up to 60 characters.',
     'Tên và mật khẩu Wi-Fi tối đa 100 ký tự.' => 'The Wi-Fi name and password can be up to 100 characters each.',
     'Ghi chú tối đa 2000 ký tự.' => 'Notes can be up to 2000 characters.',
+    'Ghi chú đóng giao dịch trùng tối đa 352 ký tự.' => 'A note closing a duplicate transfer can be up to 352 characters.',
+    'Ghi chú hoàn khoản trùng tối đa 468 ký tự.' => 'A note on a refunded duplicate payment can be up to 468 characters.',
     // Notification title and approval body
     'Xác minh danh tính' => 'Identity verification',
     'Danh tính của bạn đã được xác minh. Huy hiệu “Đã xác minh” hiển thị cạnh tên của bạn.' => 'Your identity has been verified. The “Verified” badge now appears next to your name.',
