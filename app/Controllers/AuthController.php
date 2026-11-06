@@ -81,7 +81,7 @@ final class AuthController extends Controller
     }
     public function forgotForm(): void
     {
-        $this->render('auth/forgot',['title'=>'Khôi phục mật khẩu','mailReady'=>(new \App\Services\PasswordRecoveryService())->configured(),'returnTarget'=>$this->returnTarget(input_text($_GET,'next'))],'layouts/auth');
+        $this->render('auth/forgot',['title'=>'Khôi phục mật khẩu','mailReady'=>(new \App\Services\PasswordRecoveryService())->configured(),'old'=>Session::pullOld('forgot'),'returnTarget'=>$this->returnTarget(input_text($_GET,'next'))],'layouts/auth');
     }
     public function forgot(): never
     {
@@ -90,7 +90,7 @@ final class AuthController extends Controller
             if (!is_string($email) || strlen($email)>254 || !filter_var($email,FILTER_VALIDATE_EMAIL)) { throw new \DomainException('Email không hợp lệ.'); }
             (new \App\Services\PasswordRecoveryService())->request($email);
             Session::flash('success','Nếu tài khoản đang hoạt động và dịch vụ gửi mail được cấu hình, bạn sẽ nhận hướng dẫn khôi phục. Kiểm tra thư rác hoặc liên hệ quản trị viên nếu chưa nhận được.');
-        } catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
+        } catch (\DomainException $exception) { Session::old(['email'=>mb_substr(input_text($_POST,'email'),0,254)],'forgot'); Session::flash('error',$exception->getMessage()); }
         $this->backToForm('/forgot-password');
     }
     public function resetForm(): void

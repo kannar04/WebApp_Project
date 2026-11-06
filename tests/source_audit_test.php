@@ -487,6 +487,16 @@ try {
     }
     echo "PASS password rule 8-72 bytes without NUL on register, admin create and edit, change and reset, each saying which problem it found; login stays lenient; a reset form error keeps the form and token\n";
 
+    // A refused address comes back in the box, as on /login; a later plain visit starts empty.
+    $forgotBrowser = auditBrowser();
+    $forgotForm = auditRequest($forgotBrowser, $url.'/forgot-password')['body'];
+    expect(!str_contains($forgotForm, 'name="email" value="dave'), 'The recovery form starts with an address in it.');
+    $refused = auditRequest($forgotBrowser, $url.'/forgot-password', ['_token' => auditFormToken($forgotForm), 'email' => 'dave@gmail'], $url.'/forgot-password');
+    $forgotPage = auditRequest($forgotBrowser, $url.$refused['location'])['body'];
+    expect($refused['location'] === '/forgot-password' && str_contains($forgotPage, 'Email không hợp lệ.') && str_contains($forgotPage, 'name="email" value="dave@gmail"'), 'A refused recovery request lost the typed address.');
+    expect(!str_contains(auditRequest($forgotBrowser, $url.'/forgot-password')['body'], 'value="dave@gmail"'), 'The refused address outlived its one return to the form.');
+    echo "PASS a refused recovery request keeps the typed address once\n";
+
     // Hints state the rule in words a person can act on, not in bytes. minlength and maxlength count characters, so they would block a valid short accented password and pass an over-long one.
     foreach ([[auditBrowser(), '/register'], [auditBrowser(), '/reset-password?token='.str_repeat('a', 64)], [$hostBrowser, '/profile'], [$admin, '/admin'], [$admin, '/admin/users/3/edit']] as [$hintBrowser, $hintPath]) {
         $hintPage = auditRequest($hintBrowser, $url.$hintPath)['body'];
