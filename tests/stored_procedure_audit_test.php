@@ -5,7 +5,7 @@ require dirname(__DIR__).'/core/bootstrap.php';
 
 $root=dirname(__DIR__);
 $files=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root,FilesystemIterator::SKIP_DOTS));
-$metadataFiles=['database/tools/routine_catalog.php','database/import.php','tests/fresh_setup_test.php','tests/schema_test.php','tests/stored_procedure_audit_test.php'];
+$metadataFiles=['database/tools/routine_catalog.php','database/tools/reassign_routine_owners.php','database/import.php','tests/fresh_setup_test.php','tests/schema_test.php','tests/stored_procedure_audit_test.php'];
 $violations=[]; $calls=[];
 foreach ($files as $file) {
     if ($file->getExtension()!=='php') { continue; }
