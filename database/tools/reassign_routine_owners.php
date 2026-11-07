@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+    exit("Run this tool from the command line.
+");
+}
+
 const DATABASE_NAME = 'db_home2home';
 const OWNER_TARGETS = [
     'NMT' => 44,
@@ -23,8 +28,8 @@ if (!is_dir($outputDir) && !mkdir($outputDir, 0777, true) && !is_dir($outputDir)
 
 $pdo = new PDO(
     'mysql:host=127.0.0.1;port=3306;dbname=' . DATABASE_NAME . ';charset=utf8mb4',
-    'root',
-    '',
+    getenv('DB_USERNAME') ?: 'root',
+    getenv('DB_PASSWORD') ?: '',
     [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
