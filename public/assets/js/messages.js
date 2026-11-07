@@ -2,6 +2,9 @@
 (function bookingMessages() {
     'use strict';
 
+    var RELEASE_AFTER_MS = 20000;
+    var releaseTimer = null;
+
     function scrollToLatest(list) {
         list.scrollTop = list.scrollHeight;
     }
@@ -10,20 +13,40 @@
         if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) { return; }
         event.preventDefault();
         var form = event.target.form;
-        if (!form || !form.reportValidity()) { return; }
-        if (typeof form.requestSubmit === 'function') { form.requestSubmit(); } else { form.submit(); }
+        if (!form || form.dataset.sending === 'true' || !form.reportValidity()) { return; }
+        if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+        } else {
+            markSending(form);
+            form.submit();
+        }
     }
 
-    function lockSubmit(event) {
-        var button = event.target.querySelector('button[type="submit"]');
+    function markSending(form) {
+        form.dataset.sending = 'true';
+        var button = form.querySelector('button[type="submit"]');
         if (button) {
             button.disabled = true;
             button.textContent = window.h2hT('Đang gửi…');
         }
+        // Stopping the page load fires no event, so give the form back in case the message never left. The text stays in the box.
+        window.clearTimeout(releaseTimer);
+        releaseTimer = window.setTimeout(unlockSubmit, RELEASE_AFTER_MS);
+    }
+
+    function lockSubmit(event) {
+        if (event.target.dataset.sending === 'true') {
+            event.preventDefault();
+            return;
+        }
+        markSending(event.target);
     }
 
     function unlockSubmit() {
-        var button = document.querySelector('[data-message-form] button[type="submit"]');
+        window.clearTimeout(releaseTimer);
+        var form = document.querySelector('[data-message-form]');
+        delete form.dataset.sending;
+        var button = form.querySelector('button[type="submit"]');
         if (button) {
             button.disabled = false;
             button.textContent = window.h2hT('Gửi tin nhắn');

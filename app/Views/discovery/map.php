@@ -1,7 +1,7 @@
 <?php
 $pageScripts[]='js/map.js';
 $filterErrors=$filterErrors??[];
-$mapFilters=array_intersect_key($filters,array_flip(['location','check_in','check_out','guests','type','min_price','max_price']));
+$mapFilters=array_intersect_key($filters,array_flip(['location','check_in','check_out','guests','type','min_price','max_price','bedrooms','amenities','sort','city','north','south','east','west']));
 $countLabel=$total>count($listings)
     ? __('Hiển thị {shown}/{total} chỗ ở trong khu vực này — phóng to để xem thêm',['shown'=>count($listings),'total'=>(int)$total])
     : __('{total} chỗ ở trong khu vực này',['total'=>(int)$total]);
@@ -11,10 +11,12 @@ foreach($types as $type){ $mapTypeLabels[(string)$type['name']]=__((string)$type
 ?>
 <section class="page-section discovery-map-page" aria-labelledby="map-title">
     <div class="container">
-        <div class="section-title"><div><p class="eyebrow"><?= e(__('BẢN ĐỒ')) ?></p><h1 id="map-title"><?= e(__('Tìm chỗ ở trên bản đồ')) ?></h1><p><?= e(__('Kéo hoặc phóng to bản đồ để xem chỗ ở trong khu vực; danh sách tự cập nhật theo vùng đang xem.')) ?></p></div></div>
+        <div class="section-title"><div><h1 id="map-title"><?= e(__('Tìm chỗ ở trên bản đồ')) ?></h1><p><?= e(__('Di chuyển bản đồ, rồi chọn Tìm trong khu vực này để cập nhật kết quả.')) ?></p></div></div>
         <form class="surface-card discovery-map-filters mb-4" method="get" action="<?= e(url('/map')) ?>" data-map-filter-form aria-labelledby="map-filter-title">
             <h2 class="h6" id="map-filter-title"><?= e(__('Điều kiện tìm kiếm')) ?></h2>
             <?php if($searchError!==null): ?><div class="alert alert-danger" role="alert"><strong><?= e(__('Chưa áp dụng được điều kiện.')) ?></strong> <?= e($filterErrors?implode(' ',array_map('__',array_unique(array_values($filterErrors)))):__($searchError)) ?></div><?php endif; ?>
+            <?php foreach(['bedrooms','sort'] as $extra): ?><input type="hidden" name="<?= e($extra) ?>" value="<?= e($filters[$extra]??'') ?>"><?php endforeach; ?>
+            <?php foreach($filters['amenities']??[] as $amenity): ?><input type="hidden" name="amenities[]" value="<?= (int)$amenity ?>"><?php endforeach; ?>
             <div class="form-row">
                 <div class="form-group col-12 col-md-4 col-xl-3"><label for="map-location"><?= e(__('Địa điểm')) ?></label><input class="form-control" id="map-location" name="location" value="<?= e($filters['location']??'') ?>" maxlength="254" placeholder="<?= e(__('Ví dụ: Hội An')) ?>"></div>
                 <div class="form-group col-6 col-md-4 col-xl-2"><label for="map-check-in"><?= e(__('Nhận phòng')) ?></label><input class="form-control<?= isset($filterErrors['dates'])?' is-invalid':'' ?>" id="map-check-in" type="date" name="check_in" value="<?= e($filters['check_in']??'') ?>" min="<?= date('Y-m-d') ?>"></div>
@@ -24,11 +26,11 @@ foreach($types as $type){ $mapTypeLabels[(string)$type['name']]=__((string)$type
                 <div class="form-group col-6 col-md-3 col-xl-1"><label for="map-min-price"><?= e(__('Giá từ')) ?></label><input class="form-control<?= isset($filterErrors['min_price'])?' is-invalid':'' ?>" id="map-min-price" type="number" min="0" step="any" inputmode="decimal" name="min_price" value="<?= e($filters['min_price']??'') ?>"></div>
                 <div class="form-group col-6 col-md-3 col-xl-1"><label for="map-max-price"><?= e(__('Giá đến')) ?></label><input class="form-control<?= isset($filterErrors['max_price'])?' is-invalid':'' ?>" id="map-max-price" type="number" min="0" step="any" inputmode="decimal" name="max_price" value="<?= e($filters['max_price']??'') ?>"></div>
             </div>
-            <div class="filter-actions"><button class="btn btn-primary" type="submit"><?= e(__('Tìm trên bản đồ')) ?></button><a class="btn btn-outline-primary" href="<?= e(url('/map')) ?>"><?= e(__('Đặt lại')) ?></a><a class="btn btn-ghost" href="<?= e(url('/'.($mapFilters?'?'.http_build_query($mapFilters):'').'#listing-results')) ?>"><?= e(__('Xem dạng danh sách')) ?></a></div>
+            <div class="filter-actions"><button class="btn btn-primary" type="submit"><?= e(__('Tìm trên bản đồ')) ?></button><a class="btn btn-outline-primary" href="<?= e(url('/map')) ?>"><?= e(__('Đặt lại')) ?></a><a class="btn btn-ghost" data-map-list-link href="<?= e(url('/'.($mapFilters?'?'.http_build_query($mapFilters):'').'#listing-results')) ?>"><?= e(__('Xem dạng danh sách')) ?></a></div>
             <p class="text-muted small mb-0 mt-2"><?= e(__('Giá tính bằng VND cho một đêm. Chỉ chỗ ở đã có vị trí trên bản đồ mới được hiển thị.')) ?></p>
         </form>
         <div class="discovery-map-layout">
-            <div class="discovery-map-panel">
+            <div class="discovery-map-panel"><button class="btn btn-primary mb-3" type="button" data-search-area hidden><?= e(__('Tìm trong khu vực này')) ?></button>
                 <div class="discovery-map discovery-map-search" data-discovery-map="search" data-label="<?= e(__('Bản đồ chỗ ở')) ?>"
                     data-api="<?= e(url('/api/listings/map')) ?>" data-location="<?= e($filters['location']??'') ?>"
                     data-filters="<?= e(json_encode($searchError===null?array_diff_key($mapFilters,['location'=>true]):new stdClass(),JSON_UNESCAPED_UNICODE)) ?>"

@@ -4,6 +4,8 @@ namespace App\Models;
 use Core\ProcedureConnection as Database;
 final class Review
 {
+    /** Same limit as sp_review_create. */
+    public const MAX_COMMENT_LENGTH = 5000;
     public function forHost(int $actorId): array
     {
         $s=\Core\ProcedureConnection::connection()->prepare('CALL DST_sp_host_reviews(?)'); $s->execute([$actorId]); return $s->fetchAll();
@@ -12,9 +14,11 @@ final class Review
     {
         \Core\ProcedureConnection::connection()->prepare('CALL LTP_sp_host_review_reply(?,?,?)')->execute([$id,$actorId,$reply]);
     }
-    public function forAdmin(int $actorId): array
+    public function adminPage(int $actorId,int $limit,int $offset): array
     {
-        $s=\Core\ProcedureConnection::connection()->prepare('CALL LTP_sp_admin_reviews(?)'); $s->execute([$actorId]); return $s->fetchAll();
+        $s=\Core\ProcedureConnection::connection()->prepare('CALL LTP_sp_admin_reviews(?,?,?)'); $s->execute([$actorId,$limit,$offset]); $rows=$s->fetchAll();
+        $total=(int)array_pop($rows)['__total'];
+        return ['reviews'=>$rows,'total'=>$total];
     }
     public function moderate(int $id,int $actorId,string $status): void
     {

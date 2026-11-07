@@ -10,11 +10,16 @@ declare(strict_types=1);
 return [
     // ---- 010_models.sql
     'Tài khoản không khả dụng.' => 'This account is not available.',
+    'Tài khoản của bạn không có vai trò Guest nên không thể đặt chỗ. Hãy liên hệ Admin nếu cần.' => 'Your account does not have the Guest role, so it cannot book. Contact an Admin if you need to.',
+    'Admin đã gỡ vai trò Host của bạn. Hãy liên hệ Admin nếu bạn muốn làm Host trở lại.' => 'An Admin removed your Host role. Contact an Admin if you want to be a Host again.',
     'Trạng thái tài khoản không hợp lệ.' => 'Invalid account status.',
+    'Không tìm thấy tài khoản đã xóa để khôi phục.' => 'No deleted account was found to restore.',
     'Thông tin hoặc quyền tạo chỗ ở không hợp lệ.' => 'Invalid listing details or no permission to create a listing.',
     'Tọa độ cần có cả vĩ độ (-90 đến 90) và kinh độ (-180 đến 180), hoặc để trống cả hai.' => 'Coordinates need both a latitude (-90 to 90) and a longitude (-180 to 180), or leave both empty.',
     'Thông tin hoặc quyền sửa chỗ ở không hợp lệ.' => 'Invalid listing details or no permission to edit this listing.',
     'Không có quyền thay đổi hiển thị chỗ ở.' => 'You do not have permission to change this listing’s visibility.',
+    'Host đã tự ẩn chỗ ở này nên chỉ Host mới hiện lại được.' => 'The Host hid this listing themselves, so only the Host can show it again.',
+    'Admin đã ẩn chỗ ở này nên chỉ Admin mới hiện lại được. Hãy liên hệ Admin nếu bạn cần.' => 'An Admin hid this listing, so only an Admin can show it again. Contact an Admin if you need to.',
     'Đánh giá không hợp lệ.' => 'Invalid review.',
 
     // ---- 011_queries.sql
@@ -23,6 +28,8 @@ return [
     'Phân trang không hợp lệ.' => 'Invalid pagination.',
 
     // ---- 020_booking.sql: errors
+    'Kỳ ở tối đa 365 đêm. Vui lòng chọn khoảng ngày ngắn hơn.' => 'A stay can be at most 365 nights. Please choose a shorter date range.',
+    'Tổng tiền của kỳ ở vượt quá giới hạn của hệ thống. Vui lòng chọn ít đêm hơn.' => 'The stay total is over the system limit. Please choose fewer nights.',
     'Ngày nhận hoặc trả phòng không hợp lệ.' => 'Invalid check-in or check-out date.',
     'Chỗ ở không khả dụng.' => 'This place is not available.',
     'Số khách vượt quá sức chứa.' => 'The number of guests exceeds the capacity.',
@@ -35,15 +42,19 @@ return [
     'Chuyển trạng thái booking không hợp lệ.' => 'Invalid booking status change.',
     'Chỉ có thể hoàn thành booking sau ngày trả phòng.' => 'A booking can only be completed after the check-out date.',
     'Ngày này vừa được booking khác xác nhận.' => 'These dates were just confirmed for another booking.',
-    'Khoảng ngày có ngày đang bị chặn.' => 'The selected dates include blocked days.',
+    'Khoảng ngày có ngày đang bị chặn. Hãy mở lại ngày đó trong Lịch khả dụng rồi xác nhận, hoặc từ chối yêu cầu này.' => 'The selected dates include a blocked day. Reopen it in the availability calendar and confirm, or reject this request.',
+    'Khoảng ngày có ngày Host đang chặn. Hãy nhờ Host mở lại ngày đó trong Lịch khả dụng, hoặc từ chối yêu cầu này.' => 'The selected dates include a day the Host has blocked. Ask the Host to reopen it in their availability calendar, or reject this request.',
     'Booking không tồn tại hoặc không thuộc về bạn.' => 'The booking does not exist or does not belong to you.',
     'Booking ở trạng thái này không thể hủy.' => 'A booking in this status cannot be cancelled.',
-    'Chưa cấu hình múi giờ để tính hoàn tiền an toàn.' => 'The time zone is not configured, so the refund cannot be calculated safely.',
 
     // ---- 020_booking.sql: booking history reasons (booking_events.reason)
     'Khách gửi yêu cầu đặt chỗ.' => 'Guest sent a booking request.',
     'Đặt ngay (Instant Book): hệ thống tự xác nhận.' => 'Instant Book: confirmed automatically by the system.',
     'Admin cập nhật trạng thái.' => 'Admin updated the status.',
+    'Admin gỡ chỗ ở nên yêu cầu bị từ chối tự động.' => 'Admin took the listing down, so the request was rejected automatically.',
+    'Admin từ chối tin đăng nên yêu cầu bị từ chối tự động.' => 'Admin rejected the listing, so the request was rejected automatically.',
+    'Tài khoản Host đã bị xóa nên yêu cầu bị từ chối tự động.' => 'The Host account was deleted, so the request was rejected automatically.',
+    'Tài khoản khách đã bị xóa nên yêu cầu bị từ chối tự động.' => 'The guest account was deleted, so the request was rejected automatically.',
     'Host cập nhật trạng thái.' => 'Host updated the status.',
     'Khách hủy booking.' => 'Guest cancelled the booking.',
 
@@ -70,9 +81,21 @@ return [
     'Bạn không có quyền quản trị.' => 'You do not have Admin permission.',
     'Thông tin chỗ ở không hợp lệ.' => 'Invalid listing details.',
     'Hiển thị không hợp lệ.' => 'Invalid visibility.',
+    'Tin đăng bị từ chối' => 'Listing rejected',
+    'Tin đăng được duyệt' => 'Listing approved',
+    'Cập nhật báo cáo' => 'Report update',
+    'Tin đăng bị ẩn' => 'Listing hidden',
+    'Tin đăng được hiện lại' => 'Listing shown again',
+    'Admin đã bỏ ẩn tin đăng' => 'Admin lifted the hide on your listing',
+    'Chỗ ở đã bị gỡ' => 'Listing taken down',
 
     // ---- 050_quality_core.sql
     'Không có quyền quản lý chỗ ở.' => 'You do not have permission to manage this listing.',
+    'Đã qua ngày nhận phòng nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.' => 'The check-in date has passed, so this request can no longer be confirmed. You can still reject it.',
+    'Chỗ ở đã bị gỡ nên không thể xác nhận booking này.' => 'This listing has been taken down, so the booking cannot be confirmed.',
+    'Chỗ ở đã bị từ chối kiểm duyệt nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.' => 'This listing was rejected in moderation, so this request cannot be confirmed. You can still reject it.',
+    'Tài khoản khách đang bị khóa hoặc đã xóa nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.' => 'The guest account is suspended or deleted, so this request cannot be confirmed. You can still reject it.',
+    'Tài khoản Host đang bị khóa hoặc đã xóa nên không thể xác nhận yêu cầu này. Bạn vẫn có thể từ chối.' => 'The Host account is suspended or deleted, so this request cannot be confirmed. You can still reject it.',
     'Hãy xử lý booking đang chờ hoặc đã xác nhận trước khi xóa. Có thể ẩn tin để ngừng nhận yêu cầu mới.' => 'Handle pending or confirmed bookings before deleting. You can hide the listing to stop receiving new requests.',
     'Ảnh đã thay đổi đồng thời. Hãy tải lại trang trước khi lưu.' => 'The photos were changed at the same time elsewhere. Reload the page before saving.',
     'Danh sách ảnh không hợp lệ.' => 'Invalid photo list.',
@@ -80,7 +103,6 @@ return [
     'Ảnh không thuộc chỗ ở này hoặc bị lặp.' => 'A photo does not belong to this listing or is duplicated.',
     'Khoảng lịch không hợp lệ (tối đa 62 ngày).' => 'Invalid calendar range (maximum 62 days).',
     'Không có quyền xem booking.' => 'You do not have permission to view this booking.',
-    'Chưa cấu hình múi giờ tính hoàn tiền.' => 'The time zone for refund calculation is not configured.',
     'Trạng thái lọc không hợp lệ.' => 'Invalid status filter.',
     'Không có quyền Host.' => 'You do not have Host permission.',
     'Không có quyền xem ảnh quản lý.' => 'You do not have permission to view these listing photos.',
@@ -93,6 +115,7 @@ return [
 
     // ---- 060_quality_community.sql
     'Phản hồi cần từ 1 đến 5000 ký tự.' => 'Reply must be 1 to 5000 characters.',
+    'Nhận xét tối đa 5000 ký tự.' => 'A review comment can be up to 5000 characters.',
     'Không có quyền phản hồi đánh giá này.' => 'You do not have permission to reply to this review.',
     'Trạng thái đánh giá không hợp lệ.' => 'Invalid review status.',
     'Đánh giá không tồn tại.' => 'The review does not exist.',
@@ -121,7 +144,8 @@ return [
 
     // ---- 070_booking_extras.sql: Host pricing, holidays, promotions, payments
     'Số ngày lễ cần hiển thị không hợp lệ.' => 'Invalid number of holidays to show.',
-    'Giá cuối tuần/ngày lễ phải lớn hơn 0.' => 'Weekend/holiday prices must be greater than 0.',
+    'Giá cuối tuần/ngày lễ phải từ 1đ trở lên.' => 'Weekend/holiday prices must be at least 1đ.',
+    'Giá cuối tuần/ngày lễ tối đa là 9.999.999.999đ.' => 'Weekend/holiday prices can be at most 9,999,999,999đ.',
     'Phần trăm giảm giá phải từ 0 đến 90.' => 'Discount percentage must be between 0 and 90.',
     'Tùy chọn Đặt ngay không hợp lệ.' => 'Invalid Instant Book option.',
     'Vui lòng nhập ngày và tên ngày lễ.' => 'Please enter the holiday date and name.',
@@ -130,6 +154,8 @@ return [
     'Vui lòng nhập mô tả khuyến mãi.' => 'Please enter a promotion description.',
     'Loại giảm giá không hợp lệ.' => 'Invalid discount type.',
     'Giá trị giảm không hợp lệ (phần trăm từ 1 đến 100).' => 'Invalid discount value (percentage from 1 to 100).',
+    'Giá trị giảm không hợp lệ (số tiền từ 1đ trở lên).' => 'Invalid discount value (an amount of at least 1đ).',
+    'Không đủ điều kiện: mã này không giảm được gì cho kỳ ở này.' => 'Not eligible: this code gives no discount on this stay.',
     'Điều kiện áp dụng khuyến mãi không hợp lệ.' => 'Invalid promotion conditions.',
     'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.' => 'The end date must be on or after the start date.',
     'Trạng thái khuyến mãi không hợp lệ.' => 'Invalid promotion status.',
@@ -169,12 +195,15 @@ return [
     'Mã cửa / hộp khóa tối đa 60 ký tự.' => 'The door / lockbox code can be up to 60 characters.',
     'Tên và mật khẩu Wi-Fi tối đa 100 ký tự.' => 'The Wi-Fi name and password can be up to 100 characters each.',
     'Ghi chú tối đa 2000 ký tự.' => 'Notes can be up to 2000 characters.',
+    'Ghi chú đóng giao dịch trùng tối đa 352 ký tự.' => 'A note closing a duplicate transfer can be up to 352 characters.',
+    'Ghi chú hoàn khoản trùng tối đa 468 ký tự.' => 'A note on a refunded duplicate payment can be up to 468 characters.',
     // Notification title and approval body
     'Xác minh danh tính' => 'Identity verification',
     'Danh tính của bạn đã được xác minh. Huy hiệu “Đã xác minh” hiển thị cạnh tên của bạn.' => 'Your identity has been verified. The “Verified” badge now appears next to your name.',
 
     // ---- 080_conversation.sql
     'Bạn không tham gia cuộc trò chuyện của booking này.' => 'You are not part of the conversation for this booking.',
+    'Tài khoản của người nhận không còn tồn tại nên cuộc trò chuyện chỉ còn để xem.' => 'The recipient’s account no longer exists, so the conversation is read-only.',
     'Booking đã bị từ chối hoặc hủy nên cuộc trò chuyện chỉ còn để xem.' => 'This booking was rejected or cancelled, so the conversation is read-only.',
     'Cuộc trò chuyện đã đóng sau 14 ngày kể từ ngày trả phòng.' => 'The conversation closed 14 days after the check-out date.',
     'Booking ở trạng thái này không nhận tin nhắn.' => 'A booking in this status cannot receive messages.',
@@ -214,15 +243,15 @@ return [
     'Số bài viết liên quan không hợp lệ.' => 'Invalid number of related articles.',
     'Bộ lọc bài viết không hợp lệ.' => 'Invalid article filter.',
     'Tiêu đề cần từ 5 đến 200 ký tự.' => 'Title must be 5 to 200 characters.',
-    'Đường dẫn chỉ gồm chữ thường không dấu, số và dấu gạch ngang.' => 'The URL slug may only contain unaccented lowercase letters, digits and hyphens.',
+    'Đường dẫn chỉ gồm chữ thường không dấu, số và dấu gạch ngang.' => 'The URL may only contain unaccented lowercase letters, digits and hyphens.',
     'Tóm tắt cần từ 1 đến 500 ký tự.' => 'Summary must be 1 to 500 characters.',
     'Nội dung cần từ 20 đến 50000 ký tự.' => 'Content must be 20 to 50000 characters.',
     'Ảnh bìa không hợp lệ.' => 'Invalid cover image.',
     'Mô tả ảnh bìa tối đa 255 ký tự.' => 'The cover image description can be up to 255 characters.',
     'Trạng thái bài viết không hợp lệ.' => 'Invalid article status.',
     'Bài viết không tồn tại hoặc đã bị xóa.' => 'The article does not exist or has been deleted.',
-    'Không thể tạo đường dẫn duy nhất. Hãy nhập đường dẫn khác.' => 'Could not create a unique URL slug. Please enter a different one.',
-    'Đường dẫn đã được dùng cho bài viết khác.' => 'This URL slug is already used by another article.',
+    'Không thể tạo đường dẫn duy nhất. Hãy nhập đường dẫn khác.' => 'Could not create a unique URL. Please enter a different one.',
+    'Đường dẫn đã được dùng cho bài viết khác.' => 'This URL is already used by another article.',
 
     // ---- 095_online_payment.sql
     'Không có quyền thanh toán booking này.' => 'You are not allowed to pay for this booking.',
@@ -236,14 +265,27 @@ return [
     'Giao dịch này đã đóng; vui lòng tải lại trang thanh toán.' => 'This transaction is closed; please reload the payment page.',
     'Quyết định chuyển khoản không hợp lệ.' => 'Invalid transfer decision.',
     'Vui lòng nhập lý do chưa nhận được tiền (ít nhất 5 ký tự).' => 'Please enter why the money was not received (at least 5 characters).',
+    'Vui lòng ghi chú lý do đóng giao dịch trùng (ít nhất 5 ký tự).' => 'Please note why this duplicate is being closed (at least 5 characters).',
+    'Chỗ ở này đã bị gỡ nên không thể thanh toán online.' => 'This listing was taken down, so it can no longer be paid online.',
+    'Tài khoản Host đang tạm khóa nên hiện chưa thể thanh toán online. Hãy liên hệ Admin nếu cần.' => 'The Host\'s account is temporarily locked, so online payment is unavailable for now. Contact an Admin if you need help.',
+    'Cần kiểm tra chuyến ở' => 'Stay needs checking',
+    'Chuyến ở đã kết thúc nên không thể hủy booking.' => 'The stay has ended, so this booking can no longer be cancelled.',
+    'Theo chính sách hủy, booking này không có khoản hoàn nên không thể ghi nhận hoàn tiền.' => 'Under the cancellation policy this booking has nothing to refund, so no refund can be recorded.',
     'Chỉ xác nhận giao dịch chuyển khoản VietQR.' => 'Only VietQR bank transfers can be confirmed here.',
     'Giao dịch chuyển khoản này đã được xử lý.' => 'This bank transfer has already been handled.',
-    'Booking này đã được ghi nhận thanh toán; hãy từ chối giao dịch trùng và hoàn tiền cho khách.' => 'A payment is already recorded for this booking; reject the duplicate transfer and refund the guest.',
+    'Booking này đã được ghi nhận thanh toán; hãy đóng giao dịch trùng và hoàn tiền cho khách.' => 'A payment is already recorded for this booking; reject the duplicate transfer and refund the guest.',
+    'Booking này đã được hoàn tiền; hãy đóng giao dịch trùng và hoàn tiền cho khách.' => 'This booking has been refunded; reject the duplicate transfer and refund the guest.',
     'Booking đã được thanh toán bằng giao dịch khác.' => 'The booking was paid by another transaction.',
+    'Khách đã chọn chuyển khoản nên giao dịch VNPay này đã đóng.' => 'The guest chose a bank transfer, so this VNPay transaction was closed.',
+    'Giao dịch này không phải thanh toán trùng đang chờ xử lý.' => 'This transaction is not an open duplicate payment.',
     'Thanh toán trùng: booking đã được thanh toán trước đó, cần hoàn tiền cho khách.' => 'Duplicate payment: the booking was already paid, so the guest needs a refund.',
     // Notification titles
     'Khách báo đã chuyển khoản' => 'Guest reported a bank transfer',
     'Chưa xác nhận được chuyển khoản' => 'Bank transfer not confirmed',
+    'Đã đóng chuyển khoản trùng' => 'Duplicate bank transfer closed',
+    'Khoản thanh toán sẽ được hoàn lại' => 'This payment will be returned',
     'Cần hoàn tiền' => 'Refund needed',
+    'Booking đã thanh toán bị hủy' => 'Paid booking cancelled',
     'Thanh toán trùng' => 'Duplicate payment',
+    'Đã hoàn khoản thanh toán trùng' => 'Duplicate payment refunded',
 ];

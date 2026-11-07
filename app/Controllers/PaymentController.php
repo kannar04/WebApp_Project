@@ -84,6 +84,18 @@ final class PaymentController extends Controller
         }
         if ($result['result'] === 'invalid_amount') {
             Session::flash('error', 'Số tiền VNPay trả về không khớp với giao dịch.');
+        } elseif ((int) ($result['duplicate_payment'] ?? 0) === 1) {
+            Session::flash('error', 'Booking #'.$bookingId.' đã được thanh toán trước đó nên khoản VNPay vừa rồi là thanh toán trùng. Admin sẽ hoàn lại khoản này cho bạn.');
+        } elseif ((int) ($result['duplicate_refunded'] ?? 0) === 1) {
+            Session::flash('success', 'Khoản VNPay trùng của booking #'.$bookingId.' đã được hoàn lại cho bạn.');
+        } elseif ($result['transaction_status'] === 'succeeded' && $result['payment_status'] === 'refunded') {
+            Session::flash('success', 'Khoản thanh toán VNPay của booking #'.$bookingId.' đã được ghi nhận hoàn tiền.');
+        } elseif ($result['transaction_status'] === 'succeeded' && $result['return_reason'] === 'cancelled') {
+            Session::flash('error', (float) $result['refund_owed'] > 0
+                ? 'VNPay đã ghi nhận khoản thanh toán nhưng booking #'.$bookingId.' đã hủy. Admin sẽ hoàn lại '.number_format((float) $result['refund_owed'], 0, ',', '.').'đ cho bạn.'
+                : 'Booking #'.$bookingId.' đã hủy. Theo chính sách hủy, khoản đã thanh toán không được hoàn.');
+        } elseif ($result['transaction_status'] === 'succeeded' && $result['return_reason'] === 'removed') {
+            Session::flash('error', 'VNPay đã ghi nhận khoản thanh toán nhưng chỗ ở của booking #'.$bookingId.' đã bị gỡ. Admin sẽ hoàn lại khoản này cho bạn.');
         } elseif ($result['transaction_status'] === 'succeeded') {
             Session::flash('success', 'Thanh toán VNPay thành công cho booking #'.$bookingId.'.');
         } else {
@@ -142,17 +154,40 @@ final class PaymentController extends Controller
     public function adminDecideTransfer(string $id): never
     {
         Csrf::ensure(); $admin = $this->requireRole('admin');
-        $decision = ($_POST['decision'] ?? '') === 'reject' ? 'reject' : 'confirm';
-        $note = is_string($_POST['note'] ?? null) ? mb_substr(trim($_POST['note']), 0, 501) : '';
-        $returnTo = ($_POST['return_to'] ?? '') === 'detail' && ctype_digit((string) ($_POST['booking_id'] ?? '')) ? '/bookings/'.(int) $_POST['booking_id'] : '/admin/payments';
+        $decision = $_POST['decision'] ?? '';
+        $note = mb_substr(trim(input_text($_POST, 'note')), 0, 501);
+        $returnTo = self::adminReturnPath();
         try {
+            if (!in_array($decision, ['confirm', 'reject'], true)) { throw new \DomainException('Quyết định chuyển khoản không hợp lệ.'); }
             if (mb_strlen($note) > 500) { throw new \DomainException('Ghi chú tối đa 500 ký tự.'); }
-            (new Payment())->decideTransfer((int) $id, (int) $admin['id'], $decision, $note);
-            Session::flash('success', $decision === 'confirm' ? 'Đã xác nhận nhận được tiền chuyển khoản.' : 'Đã báo khách chưa nhận được tiền chuyển khoản.');
+            $decided = (new Payment())->decideTransfer((int) $id, (int) $admin['id'], $decision, $note);
+            Session::flash('success', $decision === 'confirm' ? 'Đã xác nhận nhận được tiền chuyển khoản.'
+                : ((int) ($decided['duplicate_closed'] ?? 0) === 1 ? 'Đã đóng giao dịch chuyển khoản trùng. Nếu khoản này đã vào tài khoản, hãy hoàn lại cho khách.' : 'Đã báo khách chưa nhận được tiền chuyển khoản.'));
         } catch (\Throwable $exception) {
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }
         $this->redirect($returnTo);
+    }
+
+    public function adminResolveDuplicate(string $id): never
+    {
+        Csrf::ensure(); $admin = $this->requireRole('admin');
+        $note = mb_substr(trim(input_text($_POST, 'note')), 0, 501);
+        $returnTo = self::adminReturnPath();
+        try {
+            if ($note === '' || mb_strlen($note) > 500) { throw new \DomainException('Vui lòng ghi chú lý do hoàn tiền (tối đa 500 ký tự).'); }
+            $resolved = (new Payment())->resolveDuplicate((int) $id, (int) $admin['id'], $note);
+            Session::flash('success', ($resolved['payment_status'] ?? '') === 'refunded' ? 'Đã ghi nhận hoàn khoản thanh toán trùng. Khoản thanh toán chính của booking này cũng đã được hoàn trước đó.'
+                : 'Đã ghi nhận hoàn khoản thanh toán trùng. Booking vẫn ở trạng thái đã thanh toán.');
+        } catch (\Throwable $exception) {
+            Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
+        }
+        $this->redirect($returnTo);
+    }
+
+    private static function adminReturnPath(): string
+    {
+        return ($_POST['return_to'] ?? '') === 'detail' && ctype_digit(input_text($_POST, 'booking_id')) ? '/bookings/'.(int) input_text($_POST, 'booking_id') : self::listReturnPath('/admin/payments');
     }
 
     /** Shared by the return URL and the IPN: plain strings only, amount converted back from VNPay's ×100. */
