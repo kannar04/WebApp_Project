@@ -29,6 +29,7 @@
         const feedback = form.querySelector('[data-promo-feedback]');
         const checkIn = form.elements.namedItem('check_in');
         const checkOut = form.elements.namedItem('check_out');
+        const shownTotal = form.querySelector('[data-shown-total]');
 
         function showFeedback(message, state) {
             if (!feedback) { return; }
@@ -63,11 +64,20 @@
             }
         }
 
+        function waitForDates() {
+            showFeedback(window.h2hT('Chọn ngày nhận và trả phòng để kiểm tra mã.'), '');
+        }
+
+        // A cleared date takes the price away, so a code already checked goes back to waiting for dates.
+        function dateChanged() {
+            if (promo.value.trim() !== '' && (!checkIn.value || !checkOut.value)) { waitForDates(); }
+        }
+
         function promoChanged() {
             if (promo.value.trim() === '') {
                 showFeedback('', '');
             } else if (!checkIn.value || !checkOut.value) {
-                showFeedback(window.h2hT('Chọn ngày nhận và trả phòng để kiểm tra mã.'), '');
+                waitForDates();
             } else {
                 showFeedback(window.h2hT('Đang kiểm tra mã…'), '');
             }
@@ -75,9 +85,28 @@
             checkOut.dispatchEvent(new Event('input', {bubbles: true}));
         }
 
+        // The form sends the total on screen, so the server can refuse a price the Guest never saw. Blank while no quote is showing.
+        function rememberShownTotal(event) {
+            const total = (event.detail || {}).total;
+            if (shownTotal) { shownTotal.value = total === undefined || total === null ? '' : String(total); }
+        }
+
+        function forgetShownTotal() {
+            if (shownTotal) { shownTotal.value = ''; }
+        }
+
+        form.addEventListener('h2h:quote', rememberShownTotal);
+        form.addEventListener('h2h:quote-failed', forgetShownTotal);
+        form.addEventListener('input', forgetShownTotal);
         form.addEventListener('h2h:quote', renderQuote);
         form.addEventListener('h2h:quote-failed', quoteFailed);
-        if (promo && checkIn && checkOut) { promo.addEventListener('input', promoChanged); }
+        if (promo && checkIn && checkOut) {
+            promo.addEventListener('input', promoChanged);
+            checkIn.addEventListener('input', dateChanged);
+            checkOut.addEventListener('input', dateChanged);
+        }
+        // A code that arrived with the page and no dates waits for them, as a typed one does. With dates, the on-load quote answers for it.
+        if (promo && checkIn && checkOut) { dateChanged(); }
     }
 
     if (document.readyState === 'loading') {
