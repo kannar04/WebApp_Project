@@ -83,10 +83,18 @@ final class HomeController extends Controller
     private function upcoming(): ?array
     {
         if (!Auth::check()) { return null; }
-        $bookings=(new \App\Models\Booking())->forGuest((int)Auth::id());
-        $bookings=array_values(array_filter($bookings,fn($b)=>($b['status']==='confirmed'||($b['status']==='pending'&&$b['check_in']>=date('Y-m-d')))&&$b['check_out']>=date('Y-m-d')));
-        usort($bookings,fn($a,$b)=>strcmp($a['check_in'],$b['check_in']));
-        return $bookings[0]??null;
+        $today=date('Y-m-d'); $upcoming=[];
+        foreach ((new \App\Models\Booking())->forGuest((int)Auth::id()) as $booking) {
+            $open=$booking['status']==='confirmed'||($booking['status']==='pending'&&$booking['check_in']>=$today);
+            if ($open&&$booking['check_out']>=$today) { $upcoming[]=$booking; }
+        }
+        usort($upcoming,[self::class,'byCheckIn']);
+        return $upcoming[0]??null;
+    }
+
+    private static function byCheckIn(array $left,array $right): int
+    {
+        return strcmp($left['check_in'],$right['check_in']);
     }
 
     /** Public API row: what a home page card shows. Moderation, audit and Host account columns stay on the server. */

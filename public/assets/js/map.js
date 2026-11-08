@@ -499,7 +499,7 @@
             this.abort = null;
             this.runQuery = this.query.bind(this);
             this.areaButton=document.querySelector('[data-search-area]');
-            const self=this;this.areaButton?.addEventListener('click',function(){self.useLocation=false;delete self.filters.city;self.query();});
+            this.areaButton?.addEventListener('click', this.searchArea.bind(this));
             this.typeLabels = parseJson(container.dataset.typeLabels, {});
             const items = this.localize(parseJson(container.dataset.initial, []));
             this.map = new SlippyMap(container, {center: VIETNAM, zoom: VIETNAM.zoom, label: container.dataset.label,
@@ -535,6 +535,12 @@
             if(this.areaButton)this.areaButton.hidden=false;
         }
 
+        searchArea() {
+            this.useLocation = false;
+            delete this.filters.city;
+            this.query();
+        }
+
         onMarkerSelect(listingId) {
             for (const item of this.list.querySelectorAll('[data-listing-id]')) {
                 item.classList.toggle('is-active', Number(item.dataset.listingId) === listingId);
@@ -547,7 +553,7 @@
             const bounds = this.map.getBounds();
             const params = new URLSearchParams();
             for (const name of Object.keys(this.filters)) {
-                if(Array.isArray(this.filters[name])){this.filters[name].forEach(function(value){params.append(name+'[]',value);});}
+                if (Array.isArray(this.filters[name])) { for (const value of this.filters[name]) { params.append(name + '[]', value); } }
                 else if (this.filters[name] !== '' && this.filters[name] !== null) { params.set(name, this.filters[name]); }
             }
             if (this.useLocation) { params.set('location', this.location); }

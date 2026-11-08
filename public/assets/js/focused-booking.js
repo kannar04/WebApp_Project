@@ -1,7 +1,10 @@
 (function () {
     'use strict';
-    const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn,{once:true}):fn();
-    ready(()=> {
+    function onReady(callback) {
+        if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',callback,{once:true});
+        else callback();
+    }
+    function setupFocusedBooking() {
         const form=document.querySelector('[data-focused-booking]'); if(!form)return;
         const h2hT=window.h2hT, price=document.querySelector('[data-mobile-price]'), label=document.querySelector('[data-mobile-price-label]'), action=document.querySelector('[data-mobile-action]'), link=document.querySelector('[data-mobile-book]');
         const initialPrice=price?.textContent; let valid=false;
@@ -22,15 +25,20 @@
             if(label)label.textContent=h2hT('/ đêm');
             if(action)action.textContent=h2hT('Chọn ngày ở');
         }
-        form.addEventListener('input',pending);
-        form.addEventListener('h2h:quote',event=> {
+        function showQuote(event) {
             valid=true;
             if(price)price.textContent=new Intl.NumberFormat('vi-VN').format(event.detail.total)+'\u0111';
             if(label)label.textContent=h2hT('tổng cho {count} đêm',{count:event.detail.nights});
             if(action)action.textContent=h2hT('Xem lại đặt chỗ');
-        });
+        }
+        function bookFromBar(event) {
+            if(valid){event.preventDefault();form.requestSubmit();}
+        }
+        form.addEventListener('input',pending);
+        form.addEventListener('h2h:quote',showQuote);
         form.addEventListener('h2h:quote-failed',pending);
-        link?.addEventListener('click',event=>{if(valid){event.preventDefault();form.requestSubmit();}});
+        link?.addEventListener('click',bookFromBar);
         if(form.elements.check_in.value&&form.elements.check_out.value)form.elements.check_out.dispatchEvent(new Event('input',{bubbles:true}));
-    });
+    }
+    onReady(setupFocusedBooking);
 })();

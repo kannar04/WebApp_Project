@@ -40,7 +40,9 @@ final class BookingController extends Controller
             if (\Core\Auth::check()) {
                 if ((int)$listing['host_id']===(int)\Core\Auth::id()) { throw new \DomainException('Bạn không thể đặt chỗ ở của chính mình.'); }
                 if (!\Core\Auth::hasRole('guest')) { throw new \DomainException('Tài khoản của bạn không có vai trò Guest nên không thể đặt chỗ. Hãy liên hệ Admin nếu cần.'); }
-                $_SESSION['stay_reviews']=array_filter($_SESSION['stay_reviews']??[],fn($r)=>$r['expires']>time());
+                $liveReviews=[];
+                foreach ($_SESSION['stay_reviews']??[] as $storedToken=>$storedReview) { if ($storedReview['expires']>time()) { $liveReviews[$storedToken]=$storedReview; } }
+                $_SESSION['stay_reviews']=$liveReviews;
                 $_SESSION['stay_reviews']=array_slice($_SESSION['stay_reviews'],-19,null,true);
                 $reviewToken=bin2hex(random_bytes(24));
                 $_SESSION['stay_reviews'][$reviewToken]=['listing'=>(int)$id,'user'=>(int)\Core\Auth::id(),'trip'=>$reviewedTrip,

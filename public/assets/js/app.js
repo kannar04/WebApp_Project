@@ -248,12 +248,12 @@
         const navigation = window.performance.getEntriesByType('navigation')[0];
         if (!target || !document.fonts || !navigation || navigation.type !== 'navigate' || document.querySelector('[data-flash]')) { return; }
         let moved = false;
+        function markMoved() { moved = true; }
+        function scrollUnlessMoved() { if (!moved) { target.scrollIntoView(); } }
+        function land() { document.fonts.ready.then(scrollUnlessMoved); }
         for (const name of ['wheel', 'touchstart', 'pointerdown', 'keydown']) {
-            window.addEventListener(name, function () { moved = true; }, {once: true, passive: true});
+            window.addEventListener(name, markMoved, {once: true, passive: true});
         }
-        const land = function () {
-            document.fonts.ready.then(function () { if (!moved) { target.scrollIntoView(); } });
-        };
         if (document.readyState === 'complete') {
             land();
         } else {
@@ -345,11 +345,11 @@
         // The first pageshow of a page is its own load, which can land while a click on it is still being sent.
         window.addEventListener('pageshow', event => {
             if (event.persisted === false) { return; }
-            document.querySelectorAll('button[data-idle-aria]').forEach(button => {
+            for (const button of document.querySelectorAll('button[data-idle-aria]')) {
                 button.disabled = false;
                 button.setAttribute('aria-label', button.dataset.idleAria);
                 delete button.dataset.idleAria;
-            });
+            }
             document.querySelectorAll('button[data-idle-label]').forEach(button => {
                 button.disabled = false;
                 button.textContent = button.dataset.idleLabel;
@@ -360,39 +360,38 @@
             });
         });
 
-        document.addEventListener('click', async function (event) {
-                const button=event.target.closest('[data-favorite]');
-                if (!button || button.disabled) return;
-                await (async function () {
-                // Busy rather than disabled: a disabled button drops keyboard focus, and the next Space or Enter would go nowhere.
-                if (this.getAttribute('aria-busy') === 'true') { return; }
-                this.setAttribute('aria-busy', 'true');
-                try {
-                    const response = await fetch(`${baseUrl}/api/wishlist/${this.dataset.favorite}`, {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRF-Token': csrfToken,
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: new URLSearchParams({_token: csrfToken})
-                    });
-                    const result = await response.json();
-                    if (!response.ok || !result.success) {
-                        // A 419 means the token this page holds is dead, so the same click can never work: only a fresh page brings a new one.
-                        const failure = new Error(response.status === 419 ? h2hT('Trang này đã hết hạn, có thể vì phiên đăng nhập đã kết thúc. Vui lòng tải lại trang.') : (result.message || h2hT('Không thể cập nhật yêu thích.')));
-                        failure.fromServer = true;
-                        throw failure;
-                    }
-                    markHeart(this, result.data.saved);
-                } catch (error) {
-                    // Network and JSON errors carry the browser's own (untranslated) text, so show the fallback instead.
-                    alert(error.fromServer ? error.message : h2hT('Không thể cập nhật yêu thích. Vui lòng thử lại.'));
-                } finally {
-                    this.removeAttribute('aria-busy');
+        async function toggleFavorite(event) {
+            const button = event.target.closest('[data-favorite]');
+            if (!button || button.disabled) { return; }
+            // Busy rather than disabled: a disabled button drops keyboard focus, and the next Space or Enter would go nowhere.
+            if (button.getAttribute('aria-busy') === 'true') { return; }
+            button.setAttribute('aria-busy', 'true');
+            try {
+                const response = await fetch(`${baseUrl}/api/wishlist/${button.dataset.favorite}`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-Token': csrfToken,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({_token: csrfToken})
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    // A 419 means the token this page holds is dead, so the same click can never work: only a fresh page brings a new one.
+                    const failure = new Error(response.status === 419 ? h2hT('Trang này đã hết hạn, có thể vì phiên đăng nhập đã kết thúc. Vui lòng tải lại trang.') : (result.message || h2hT('Không thể cập nhật yêu thích.')));
+                    failure.fromServer = true;
+                    throw failure;
                 }
-                }).call(button);
-        });
+                markHeart(button, result.data.saved);
+            } catch (error) {
+                // Network and JSON errors carry the browser's own (untranslated) text, so show the fallback instead.
+                alert(error.fromServer ? error.message : h2hT('Không thể cập nhật yêu thích. Vui lòng thử lại.'));
+            } finally {
+                button.removeAttribute('aria-busy');
+            }
+        }
+        document.addEventListener('click', toggleFavorite);
 
         window.addEventListener('pageshow', refreshRestoredHearts);
 
