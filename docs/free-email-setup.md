@@ -14,7 +14,7 @@ The flow is:
 Guest makes instant booking / host approves request
   -> booking confirmation event commits
   -> database contains one email queue row per recipient
-  -> scheduled PHP worker reads the queue
+  -> confirmation request sends this booking's emails immediately after commit
   -> SMTP provider accepts each message
   -> guest and host receive confirmation emails
 ```
@@ -110,19 +110,16 @@ If TLS fails on Windows, use `php --ini` to identify the CLI configuration, then
 
 1. Use a guest account and a separate host account with inboxes you control.
 2. Create a new future instant booking, or create a request and have the host approve it.
-3. Run:
-
-```powershell
-php database/send_booking_emails.php --limit=50
-```
-
+3. Wait for the confirmation request to finish; it sends the emails immediately. To retry a failed delivery manually, run `php database/send_booking_emails.php --limit=50`.
 4. Expect one guest email and one host email. Check the dates, listing, price and booking link.
 5. Run the command again. Already-sent rows should not send again.
 6. Create a pending request without approving it. It should not queue a confirmation email.
 
 Earlier bookings are not automatically emailed. Confirmations created after installing the trigger queue even while mail delivery is disabled. Inspect existing queued rows before first enabling delivery if the site already has users.
 
-## 6. Schedule automatic delivery on Windows
+## 6. Optional scheduled retries on Windows
+
+The demo sends emails during confirmation and does not need a scheduled task. Use this section only if you want automatic retries after delivery failures.
 
 Find the PHP executable:
 
@@ -144,7 +141,7 @@ Open **Task Scheduler > Create Task**:
 
 Enable “Run whether user is logged on or not” if delivery should continue after logout, and supply Windows credentials if Task Scheduler requests them. On a laptop, review the task's AC-power conditions if you want delivery on battery.
 
-Select **Run** once and check the task's Last Run Result (`0x0` for success). Then confirm a new booking and wait for the scheduled run. The computer, database and internet connection must stay running; sleep/shutdown prevents delivery.
+Select **Run** once and check the task's Last Run Result (`0x0` for success). New bookings send immediately; scheduled runs retry unsent messages. The computer, database and internet connection must stay running; sleep/shutdown prevents delivery.
 
 ## 7. Run on a hosted Linux server instead
 

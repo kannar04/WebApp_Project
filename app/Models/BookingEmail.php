@@ -16,6 +16,10 @@ final class BookingEmail
     {
         $query=$this->db->prepare('CALL DST_sp_booking_email_pending(?)');$query->execute([$limit]);return $query->fetchAll();
     }
+    public function pendingForBooking(int $bookingId,int $limit): array
+    {
+        $query=$this->db->prepare('CALL DST_sp_booking_email_for_booking(?,?)');$query->execute([$limit,$bookingId]);return $query->fetchAll();
+    }
     public function attempt(int $id): bool
     {
         $query=$this->db->prepare('CALL LTP_sp_booking_email_attempt(?)');$query->execute([$id]);return (int)$query->fetchColumn()===1;

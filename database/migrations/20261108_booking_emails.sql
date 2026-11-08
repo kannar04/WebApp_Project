@@ -16,7 +16,7 @@ BEGIN
     IF p_acquire THEN SELECT GET_LOCK(CONCAT('h2h-booking-mail:',MD5(DATABASE())),0) acquired;
     ELSE SELECT RELEASE_LOCK(CONCAT('h2h-booking-mail:',MD5(DATABASE()))) released; END IF;
 END$$
-CREATE OR REPLACE PROCEDURE DST_sp_booking_email_pending(IN p_limit INT)
+CREATE OR REPLACE PROCEDURE DST_sp_booking_email_for_booking(IN p_limit INT,IN p_booking_id BIGINT UNSIGNED)
 BEGIN
     IF p_limit<1 OR p_limit>100 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid email batch size.'; END IF;
     SELECT n.id,n.booking_id,n.user_id,n.attempt_count,u.email,u.full_name recipient_name,u.status recipient_status,u.deleted_at recipient_deleted_at,
@@ -26,7 +26,12 @@ BEGIN
         JOIN listings l ON l.id=b.listing_id JOIN users guest ON guest.id=b.guest_id JOIN users host ON host.id=l.host_id
     WHERE n.channel='email' AND n.event_type='booking_confirmed' AND n.delivery_status IN ('pending','failed') AND n.attempt_count<5
         AND n.user_id IN (b.guest_id,l.host_id)
+        AND (p_booking_id IS NULL OR n.booking_id=p_booking_id)
     ORDER BY n.id LIMIT p_limit;
+END$$
+CREATE OR REPLACE PROCEDURE DST_sp_booking_email_pending(IN p_limit INT)
+BEGIN
+    CALL DST_sp_booking_email_for_booking(p_limit,NULL);
 END$$
 CREATE OR REPLACE PROCEDURE LTP_sp_booking_email_attempt(IN p_id BIGINT UNSIGNED)
 BEGIN

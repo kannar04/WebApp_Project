@@ -6,7 +6,7 @@ use Core\ProcedureConnection;
 
 final class BookingEmailService
 {
-    public function run(int $limit=50): array
+    public function run(int $limit=50,?int $bookingId=null): array
     {
         if($limit<1||$limit>100){throw new \InvalidArgumentException('Batch size must be between 1 and 100.');}
         if(ProcedureConnection::connection()->inTransaction()){throw new \RuntimeException('Email delivery must run outside booking transactions.');}
@@ -18,7 +18,7 @@ final class BookingEmailService
         $queue=new BookingEmail();$result=['sent'=>0,'failed'=>0,'skipped'=>0,'busy'=>false];
         if(!$queue->lock(true)){$result['busy']=true;return $result;}
         try {
-            foreach($queue->pending($limit) as $row){
+            foreach(($bookingId===null?$queue->pending($limit):$queue->pendingForBooking($bookingId,$limit)) as $row){
                 $reason=null;
                 if($row['booking_status']!=='confirmed'||$row['check_out']<=date('Y-m-d')){$reason='booking_not_current';}
                 elseif($row['recipient_status']!=='active'||$row['recipient_deleted_at']!==null){$reason='recipient_inactive';}

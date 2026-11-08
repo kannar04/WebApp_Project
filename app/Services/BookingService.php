@@ -47,7 +47,9 @@ final class BookingService
         $statement = $this->db->prepare('CALL DST_sp_booking_create(?,?,?,?,?,?,?)');
         $statement->execute([$listingId, $guestId, $checkIn, $checkOut, $guests, $this->promoCode($promoCode), $shownTotal]);
         $row = $statement->fetch();
-        return ['booking_id'=>(int) $row['booking_id'], 'status'=>(string) $row['booking_status']];
+        $booking=['booking_id'=>(int) $row['booking_id'], 'status'=>(string) $row['booking_status']];
+        if (!$this->db->inTransaction()) { $this->sendConfirmation($booking); }
+        return $booking;
     }
 
     /** Keep review acceptance and create in one caller-owned transaction. */
@@ -65,7 +67,9 @@ final class BookingService
             if (abs((float)$actual['total_amount']-(float)$quote['total'])>.005 || ($booking['status']==='confirmed')!==$quote['instant_book']) {
                 throw new DomainException('Giá hoặc chính sách đã thay đổi. Vui lòng xem lại trước khi xác nhận.');
             }
-            $this->db->commit(); return $booking;
+            $this->db->commit();
+            $this->sendConfirmation($booking);
+            return $booking;
         } catch (\Throwable $exception) {
             if ($this->db->inTransaction()) { $this->db->rollBack(); }
             throw $exception;
@@ -152,6 +156,18 @@ final class BookingService
         }
         $statement = $this->db->prepare('CALL NMT_sp_booking_transition(?,?,?,?)');
         $statement->execute([$bookingId, $actorId, $target, $admin]);
+        $this->sendConfirmation(['booking_id'=>$bookingId,'status'=>$target]);
+    }
+
+    /** Send only after commit; transport failure must never turn a saved booking into an error. */
+    private function sendConfirmation(array $booking): void
+    {
+        if ($booking['status']!=='confirmed'||$this->db->inTransaction()) { return; }
+        try {
+            (new BookingEmailService())->run(100,(int)$booking['booking_id']);
+        } catch (\Throwable $exception) {
+            error_log('Booking confirmation email delivery unavailable; queued for manual retry.');
+        }
     }
 
     public function cancelByGuest(int $bookingId, int $guestId, string $reason=''): array

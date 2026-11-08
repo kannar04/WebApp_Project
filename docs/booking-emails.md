@@ -4,7 +4,7 @@ For a complete provider walkthrough, see [Free email setup with Brevo or Gmail](
 
 Home2Home queues separate confirmation emails for the guest and host when an instant booking succeeds or a host approves a booking. Pending requests do not send confirmation emails. Messages include the stay, dates, guests, price and a link to the booking details. They confirm the reservation, not payment.
 
-Email delivery runs in a separate CLI worker. SMTP failures do not undo a successful booking. The queue is written in the same database transaction as the confirmation event; a rolled-back confirmation queues nothing. Historical bookings are not backfilled.
+Email delivery runs immediately in the confirmation request, after the booking transaction commits. This covers instant bookings and host/admin approvals. SMTP failures do not undo a successful booking; failed messages remain available for a manual CLI retry. The request may take a few extra seconds while SMTP sends the messages. The queue is written in the same database transaction as the confirmation event; a rolled-back confirmation queues nothing. Historical bookings are not backfilled.
 
 ## Install
 
@@ -74,9 +74,9 @@ Use `tls` for STARTTLS (usually port 587), or `ssl` for implicit TLS (usually po
 
 `MAIL_BASE_URL` must be your public HTTPS application URL, including any application subdirectory. HTTP is accepted only for localhost development. Booking links require the recipient to sign in. To enable existing password recovery through the same mail transport, also set `PASSWORD_RESET_BASE_URL` to your application base URL.
 
-## Schedule the worker
+## Optional retry worker
 
-The website queues messages; it does not launch the worker. Schedule it every minute. On Windows, create a Task Scheduler task with:
+The website sends confirmation emails immediately. No scheduled task is required for the demo. Run `php database/send_booking_emails.php --limit=50` to retry failed deliveries manually. If automatic retries are desired, schedule the worker every minute. On Windows, create a Task Scheduler task with:
 
 - Trigger: daily, repeating every 1 minute indefinitely.
 - Program: the absolute path to your `php.exe`.
