@@ -13,6 +13,14 @@ final class Trust
     public function __construct() { $this->db = Database::connection(); }
 
     /** Keeps digits only and rewrites +84/84 to the domestic 0 prefix; the routine validates the result. */
+    public const PHONE_RULE = 'Số điện thoại di động Việt Nam không hợp lệ (10 chữ số, bắt đầu bằng 03, 05, 07, 08 hoặc 09).';
+
+    /** Identity verification's phone rule, for the forms where a phone is optional: blank passes. Spaces and +84 are accepted, as there. */
+    public static function phoneAllowed(string $raw): bool
+    {
+        return trim($raw) === '' || preg_match('/^0[35789][0-9]{8}$/D', self::normalizePhone($raw)) === 1;
+    }
+
     public static function normalizePhone(string $raw): string
     {
         $phone = preg_replace('/[\s.\-()]+/u', '', trim($raw)) ?? '';
@@ -28,28 +36,28 @@ final class Trust
 
     public function submitVerification(int $actorId, string $fullName, string $phone, string $idNumber): int
     {
-        $statement = $this->db->prepare('CALL sp_identity_verification_submit(?,?,?,?)');
+        $statement = $this->db->prepare('CALL DST_sp_identity_verification_submit(?,?,?,?)');
         $statement->execute([$actorId, trim($fullName), self::normalizePhone($phone), self::normalizeIdNumber($idNumber)]);
         return (int) $this->db->lastInsertId();
     }
 
     public function verificationStatus(int $actorId): ?array
     {
-        $statement = $this->db->prepare('CALL sp_identity_verification_status(?)');
+        $statement = $this->db->prepare('CALL NTK_sp_identity_verification_status(?)');
         $statement->execute([$actorId]);
         return $statement->fetch() ?: null;
     }
 
     public function adminVerifications(int $adminId, string $status, string $query): array
     {
-        $statement = $this->db->prepare('CALL sp_admin_identity_verifications(?,?,?)');
+        $statement = $this->db->prepare('CALL DST_sp_admin_identity_verifications(?,?,?)');
         $statement->execute([$adminId, $status, $query]);
         return $statement->fetchAll();
     }
 
     public function decideVerification(int $id, int $adminId, string $decision, string $reason): void
     {
-        $statement = $this->db->prepare('CALL sp_admin_identity_verification_decide(?,?,?,?)');
+        $statement = $this->db->prepare('CALL LTP_sp_admin_identity_verification_decide(?,?,?,?)');
         $statement->execute([$id, $adminId, $decision, $reason]);
     }
 
@@ -65,7 +73,7 @@ final class Trust
             if ($id > 0) { $ids[$id] = $id; }
         }
         $badges = [];
-        $statement = $this->db->prepare('CALL sp_trust_badges(?,?)');
+        $statement = $this->db->prepare('CALL NTK_sp_trust_badges(?,?)');
         foreach (array_chunk(array_values($ids), 200) as $chunk) {
             $statement->execute([implode(',', $chunk), $actorId]);
             foreach ($statement->fetchAll() as $row) { $badges[(int) $row['user_id']] = $row; }
@@ -76,7 +84,7 @@ final class Trust
     /** @return array<int,bool> visible review id => reviewer is verified */
     public function reviewBadges(int $listingId): array
     {
-        $statement = $this->db->prepare('CALL sp_trust_review_badges(?)');
+        $statement = $this->db->prepare('CALL DST_sp_trust_review_badges(?)');
         $statement->execute([$listingId]);
         $badges = [];
         foreach ($statement->fetchAll() as $row) { $badges[(int) $row['review_id']] = (int) $row['reviewer_verified'] === 1; }
@@ -85,22 +93,22 @@ final class Trust
 
     public function guideForHost(int $listingId, int $hostId): ?array
     {
-        $statement = $this->db->prepare('CALL sp_checkin_guide_for_host(?,?)');
+        $statement = $this->db->prepare('CALL LTP_sp_checkin_guide_for_host(?,?)');
         $statement->execute([$listingId, $hostId]);
         return $statement->fetch() ?: null;
     }
 
     public function saveGuide(int $listingId, int $hostId, array $data): void
     {
-        $statement = $this->db->prepare('CALL sp_checkin_guide_save(?,?,?,?,?,?,?)');
+        $statement = $this->db->prepare('CALL NMT_sp_checkin_guide_save(?,?,?,?,?,?,?)');
         $statement->execute([$listingId, $hostId, (string) ($data['arrival_instructions'] ?? ''), (string) ($data['door_code'] ?? ''),
             (string) ($data['wifi_name'] ?? ''), (string) ($data['wifi_password'] ?? ''), (string) ($data['note'] ?? '')]);
     }
 
-    /** Null unless the actor is entitled: the booking's Guest, the listing Host or an Admin, and the booking is confirmed/completed. */
+    /** Null unless the actor is entitled: the booking's Guest, the listing Host or an Admin, and the booking is confirmed/completed. Door code and Wi-Fi are null outside their window; codes_state and codes_from say why. */
     public function guideForBooking(int $bookingId, int $actorId): ?array
     {
-        $statement = $this->db->prepare('CALL sp_checkin_guide_for_booking(?,?)');
+        $statement = $this->db->prepare('CALL DST_sp_checkin_guide_for_booking(?,?)');
         $statement->execute([$bookingId, $actorId]);
         return $statement->fetch() ?: null;
     }
