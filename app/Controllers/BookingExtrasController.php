@@ -6,6 +6,7 @@ use App\Models\BookingExtras;
 use Core\Controller;
 use Core\Csrf;
 use Core\Session;
+use Core\Validator;
 
 /** Host pricing rules, Admin holidays/promotions/payments, and recording pay-at-check-in payments. */
 final class BookingExtrasController extends Controller
@@ -19,7 +20,7 @@ final class BookingExtrasController extends Controller
         catch (\DomainException $exception) {
             http_response_code(404); $this->render('errors/404', ['title'=>'Không tìm thấy chỗ ở']); return;
         }
-        $this->render('host/pricing', ['title'=>'Giá & đặt chỗ', 'settings'=>$settings, 'old'=>Session::pullOld(),
+        $this->render('host/pricing', ['title'=>'Giá & đặt chỗ', 'settings'=>$settings, 'old'=>Session::pullOld('pricing:'.(int)$id),
             'holidays'=>(new BookingExtras())->upcomingHolidays(8)]);
     }
 
@@ -30,14 +31,15 @@ final class BookingExtrasController extends Controller
             'weekly_discount_pct'=>$this->text('weekly_discount_pct', 10), 'monthly_discount_pct'=>$this->text('monthly_discount_pct', 10),
             'instant_book'=>($_POST['instant_book'] ?? '') === '1'];
         try {
-            $weekend = $this->optionalNumber($input['weekend_nightly_rate'], 0.01, 9999999999.99, 'Giá cuối tuần phải là số lớn hơn 0.');
-            $holiday = $this->optionalNumber($input['holiday_nightly_rate'], 0.01, 9999999999.99, 'Giá ngày lễ phải là số lớn hơn 0.');
-            $weekly = $this->optionalNumber($input['weekly_discount_pct'], 0, 90, 'Giảm giá theo tuần phải từ 0 đến 90%.');
-            $monthly = $this->optionalNumber($input['monthly_discount_pct'], 0, 90, 'Giảm giá theo tháng phải từ 0 đến 90%.');
+            // Rates are charged in whole dong, so anything under 0.5 would round to free nights.
+            $weekend = Validator::decimal($input['weekend_nightly_rate'], 0.5, Validator::MONEY_MAX, 'Giá cuối tuần phải là số từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.', 'Giá cuối tuần tối đa là 9.999.999.999đ.');
+            $holiday = Validator::decimal($input['holiday_nightly_rate'], 0.5, Validator::MONEY_MAX, 'Giá ngày lễ phải là số từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.', 'Giá ngày lễ tối đa là 9.999.999.999đ.');
+            $weekly = Validator::decimal($input['weekly_discount_pct'], 0, 90, 'Giảm giá theo tuần phải từ 0 đến 90%.');
+            $monthly = Validator::decimal($input['monthly_discount_pct'], 0, 90, 'Giảm giá theo tháng phải từ 0 đến 90%.');
             (new BookingExtras())->saveHostSettings((int) $id, (int) $user['id'], $weekend, $holiday, $weekly, $monthly, $input['instant_book']);
             Session::flash('success', 'Đã lưu giá & tùy chọn đặt chỗ. Thay đổi áp dụng cho báo giá mới, không cần Admin duyệt lại tin.');
         } catch (\Throwable $exception) {
-            Session::old($input);
+            Session::old($input, 'pricing:'.(int) $id);
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }
         $this->redirect('/host/listings/'.(int) $id.'/pricing');
@@ -53,7 +55,7 @@ final class BookingExtrasController extends Controller
     public function adminHolidays(): void
     {
         $user = $this->requireRole('admin');
-        $this->render('admin/holidays', ['title'=>'Ngày lễ', 'holidays'=>(new BookingExtras())->holidays((int) $user['id']), 'old'=>Session::pullOld()]);
+        $this->render('admin/holidays', ['title'=>'Ngày lễ', 'holidays'=>(new BookingExtras())->holidays((int) $user['id']), 'old'=>Session::pullOld('new-holiday')]);
     }
 
     public function adminHolidaySave(): never
@@ -66,7 +68,7 @@ final class BookingExtrasController extends Controller
             (new BookingExtras())->saveHoliday((int) $user['id'], $date, $input['name']);
             Session::flash('success', 'Đã lưu ngày lễ '.date('d/m/Y', (int) strtotime($date)).'. Giá ngày lễ áp dụng cho báo giá mới.');
         } catch (\Throwable $exception) {
-            Session::old($input);
+            Session::old($input, 'new-holiday');
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }
         $this->redirect('/admin/holidays');
@@ -91,7 +93,7 @@ final class BookingExtrasController extends Controller
         $editId = (int) filter_var($_GET['edit'] ?? 0, FILTER_VALIDATE_INT, ['options'=>['default'=>0, 'min_range'=>1]]);
         $editing = null;
         foreach ($promotions as $promotion) { if ((int) $promotion['id'] === $editId) { $editing = $promotion; } }
-        $this->render('admin/promotions', ['title'=>'Mã khuyến mãi', 'promotions'=>$promotions, 'editing'=>$editing, 'old'=>Session::pullOld()]);
+        $this->render('admin/promotions', ['title'=>'Mã khuyến mãi', 'promotions'=>$promotions, 'editing'=>$editing, 'old'=>Session::pullOld($editId > 0 ? 'promotion:'.$editId : 'new-promotion')]);
     }
 
     public function adminPromotionSave(): never
@@ -109,18 +111,20 @@ final class BookingExtrasController extends Controller
             if ($input['description'] === '' || mb_strlen($input['description']) > 255) { throw new \DomainException('Mô tả khuyến mãi cần từ 1 đến 255 ký tự.'); }
             if (!in_array($input['discount_type'], ['percent', 'fixed'], true)) { throw new \DomainException('Loại giảm giá không hợp lệ.'); }
             $data = ['code'=>$input['code'], 'description'=>$input['description'], 'type'=>$input['discount_type'],
-                'value'=>$this->optionalNumber($input['discount_value'], 0.01, 9999999999.99, 'Giá trị giảm phải lớn hơn 0.'),
-                'max'=>$this->optionalNumber($input['max_discount_amount'], 1, 9999999999.99, 'Mức giảm tối đa phải lớn hơn 0.'),
+                'value'=>Validator::decimal($input['discount_value'], 0.01, Validator::MONEY_MAX, 'Giá trị giảm phải lớn hơn 0. Viết liền không dấu chấm, ví dụ 50000.', 'Giá trị giảm quá lớn: số tiền tối đa là 9.999.999.999đ, phần trăm tối đa là 100.'),
+                'max'=>Validator::decimal($input['max_discount_amount'], 0.5, Validator::MONEY_MAX, 'Mức giảm tối đa phải từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 50000.', 'Mức giảm tối đa không được quá 9.999.999.999đ.'),
                 'min_nights'=>$this->optionalInteger($input['min_nights'], 1, 365, 'Số đêm tối thiểu phải từ 1 đến 365.'),
-                'min_subtotal'=>$this->optionalNumber($input['min_subtotal'], 0, 9999999999.99, 'Tiền phòng tối thiểu không hợp lệ.'),
+                'min_subtotal'=>Validator::decimal($input['min_subtotal'], 0, Validator::MONEY_MAX, 'Tiền phòng tối thiểu không hợp lệ. Viết liền không dấu chấm, ví dụ 500000.', 'Tiền phòng tối thiểu không được quá 9.999.999.999đ.'),
                 'from'=>$this->date($input['valid_from'], 'Ngày bắt đầu không hợp lệ.'), 'to'=>$this->date($input['valid_to'], 'Ngày kết thúc không hợp lệ.'),
-                'limit'=>$this->optionalInteger($input['usage_limit'], 1, 1000000, 'Giới hạn lượt dùng phải từ 1 trở lên.'), 'active'=>$input['is_active']];
+                'limit'=>$this->optionalInteger($input['usage_limit'], 1, 1000000, 'Giới hạn lượt dùng phải từ 1 đến 1.000.000.'), 'active'=>$input['is_active']];
             if ($data['value'] === null) { throw new \DomainException('Vui lòng nhập giá trị giảm.'); }
+            if ($data['type'] === 'percent' && ((float) $data['value'] < 1 || (float) $data['value'] > 100)) { throw new \DomainException('Giá trị giảm không hợp lệ (phần trăm từ 1 đến 100).'); }
+            if ($data['type'] === 'fixed' && round((float) $data['value']) < 1) { throw new \DomainException('Giá trị giảm không hợp lệ (số tiền từ 1đ trở lên).'); }
             (new BookingExtras())->savePromotion((int) $user['id'], $promotionId, $data);
             Session::flash('success', 'Đã lưu mã khuyến mãi '.$data['code'].'.');
             $returnPath = '/admin/promotions';
         } catch (\Throwable $exception) {
-            Session::old($input);
+            Session::old($input, $promotionId > 0 ? 'promotion:'.$promotionId : 'new-promotion');
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }
         $this->redirect($returnPath);
@@ -175,8 +179,9 @@ final class BookingExtrasController extends Controller
         $note = $this->text('note', 600);
         try {
             if ($note === '' || mb_strlen($note) > 500) { throw new \DomainException('Vui lòng ghi chú lý do hoàn tiền (tối đa 500 ký tự).'); }
-            (new BookingExtras())->refund((int) $id, (int) $user['id'], $note);
-            Session::flash('success', 'Đã ghi nhận hoàn tiền cho booking #'.(int) $id.'.');
+            $shown = input_text($_POST, 'shown_amount');
+            $amount = (new BookingExtras())->refund((int) $id, (int) $user['id'], $note, Validator::isDecimal($shown) ? $shown : null);
+            Session::flash('success', 'Đã ghi nhận hoàn '.number_format($amount, 0, ',', '.').'đ cho booking #'.(int) $id.'.');
         } catch (\Throwable $exception) {
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : self::GENERIC_ERROR);
         }
@@ -197,21 +202,13 @@ final class BookingExtrasController extends Controller
 
     private function adminReturnPath(int $bookingId): string
     {
-        return ($_POST['return_to'] ?? '') === 'detail' ? '/bookings/'.$bookingId : '/admin/payments';
+        return ($_POST['return_to'] ?? '') === 'detail' ? '/bookings/'.$bookingId : self::listReturnPath('/admin/payments');
     }
 
     /** Trimmed POST string; over-long values are cut at $limit + 1 so the length check still fails. */
     private function text(string $field, int $limit): string
     {
-        $value = $_POST[$field] ?? '';
-        return is_string($value) ? mb_substr(trim($value), 0, $limit + 1) : '';
-    }
-
-    private function optionalNumber(string $value, float $minimum, float $maximum, string $message): ?string
-    {
-        if ($value === '') { return null; }
-        if (!preg_match('/^\d{1,10}(\.\d{1,2})?$/D', $value) || (float) $value < $minimum || (float) $value > $maximum) { throw new \DomainException($message); }
-        return $value;
+        return mb_substr(trim(input_text($_POST, $field)), 0, $limit + 1);
     }
 
     private function optionalInteger(string $value, int $minimum, int $maximum, string $message): ?int
@@ -224,8 +221,7 @@ final class BookingExtrasController extends Controller
 
     private function date(string $value, string $message): string
     {
-        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-        if (!$date || $date->format('Y-m-d') !== $value) { throw new \DomainException($message); }
+        if (\Core\Calendar::date($value) === null) { throw new \DomainException($message); }
         return $value;
     }
 }
