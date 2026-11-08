@@ -2,6 +2,14 @@
 // English interface for the Guest pages: trips, booking detail and check-in guide, messages,
 // notifications, profile and identity verification, reports, articles. Keys are the Vietnamese source text.
 return [
+    'Host của {title}' => 'Host of {title}',
+    'Về Host' => 'About the host',
+    'Xem đánh giá về chỗ ở này' => 'Read reviews of this stay',
+    'Thành viên từ' => 'Member since',
+    'Đánh giá về Host' => 'Host reviews',
+    '{count} đánh giá trên các chỗ ở của Host' => '{count} reviews across this host’s stays',
+    'Địa điểm chỗ ở' => 'Property location',
+    'Chưa có xác minh danh tính' => 'Identity not yet verified',
     // Shared status/common words (glossary)
     'Chờ duyệt' => 'Pending',
     'Đã xác nhận' => 'Confirmed',

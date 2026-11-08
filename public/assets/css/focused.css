@@ -103,6 +103,41 @@ html[data-theme='dark'] .focused-home .home-filter[open]>summary { border-color:
 .stay-host-initial { display:flex; align-items:center; justify-content:center; background:var(--soft-green); color:var(--primary-dark); font:32px 'Lora',Georgia,serif; }
 .stay-host-profile h3 { font-family:'Inter',sans-serif; font-size:20px; font-weight:500; margin:0 0 6px; }
 .stay-host-profile p { color:var(--muted); font-size:14px; margin:0; }
+.google-auth-button { display:flex; align-items:center; justify-content:center; gap:12px; width:100%; min-height:44px; padding:10px 16px; border:1px solid #747775; border-radius:8px; background:#fff; color:#1f1f1f; font-family:Arial,sans-serif; font-size:14px; font-weight:500; cursor:pointer; }
+.google-auth-button .google-mark { flex:0 0 20px; }
+.google-auth-button:hover:not(:disabled) { background:#f8fafd; border-color:#1f1f1f; }
+.google-auth-button:focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
+.google-auth-button:disabled { cursor:not-allowed; opacity:.55; }
+.facebook-sign-in { margin-top:12px; }
+.facebook-mark { flex:0 0 20px; }
+.facebook-connection { margin-top:24px; padding-top:24px; border-top:1px solid var(--border); }
+.auth-google-note { margin:10px 0 0; font-size:12px; color:var(--muted); line-height:1.6; }
+.auth-divider { display:flex; align-items:center; gap:12px; margin:22px 0; font-size:12px; color:var(--muted); }
+.auth-divider::before,.auth-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+.google-connection-heading { display:flex; align-items:center; gap:12px; margin:18px 0 12px; }
+.google-connected { margin-left:auto; font-size:12px; color:var(--primary); }
+#connections { scroll-margin-top:104px; }
+#stay-host, #stay-reviews { scroll-margin-top:104px; }
+.stay-host-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:64px; align-items:start; }
+.stay-host-profile > div { min-width:0; }
+.stay-host-profile h3,.stay-host-profile p { overflow-wrap:anywhere; }
+.stay-host-profile .trust-badge-row { margin-top:10px; }
+.stay-host-review-link { display:inline-flex; align-items:center; gap:8px; margin-top:24px; color:var(--primary); font-size:13px; font-weight:600; text-underline-offset:4px; }
+.stay-host-review-link:hover { color:var(--primary-dark); text-decoration:underline; }
+.stay-host-review-link .ui-icon { width:16px; height:16px; }
+.stay-host-facts { margin:0; }
+.stay-host-facts > div { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); gap:20px; padding:16px 0; border-bottom:1px solid var(--border); }
+.stay-host-facts > div:first-child { padding-top:0; }
+.stay-host-facts > div:last-child { border-bottom:0; padding-bottom:0; }
+.stay-host-facts dt { display:flex; align-items:baseline; gap:10px; font-size:13px; font-weight:400; color:var(--muted); }
+.stay-host-facts dt .ui-icon { width:17px; height:17px; flex:0 0 17px; align-self:flex-start; margin-top:2px; }
+.stay-host-facts dd { margin:0; font-size:14px; color:var(--text); overflow-wrap:anywhere; }
+.stay-host-facts dd strong { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
+.stay-host-facts dd strong > span { font-size:12px; font-weight:400; color:var(--muted); }
+.stay-host-review-count { display:block; margin-top:4px; color:var(--muted); font-size:12px; }
+.stay-host-facts dd.stay-host-verified { color:var(--primary); font-weight:500; }
+@media(max-width:991.98px) { .stay-host-layout { grid-template-columns:1fr; gap:28px; } .stay-host-profile { gap:16px; } }
+@media(max-width:575.98px) { .stay-host-facts > div { gap:12px; } .stay-host-profile img,.stay-host-initial { width:64px; height:64px; } .stay-host-profile h3 { font-size:18px; } }
 .related-stays { padding-top:32px; border-top:1px solid var(--border); }
 .stay-rail-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px; }
 .stay-rail-heading h2 { margin:0; }
@@ -210,3 +245,24 @@ html[data-theme='dark'] .focused-home .home-filter[open]>summary { border-color:
  .mobile-booking-bar .btn { font-size:12px; padding-inline:16px; }
 }
 @media(max-width:359px) { .discovery-results-heading h2 { font-size:22px; } }
+
+.captcha-field { margin-top:22px; }
+.captcha-field>label { display:block; margin-bottom:9px; color:var(--text); }
+.captcha-challenge { display:flex; align-items:stretch; overflow:hidden; border:1px solid var(--border); border-radius:12px; margin-bottom:10px; }
+.captcha-image-frame { display:flex; flex:1; align-items:center; justify-content:center; min-width:0; min-height:88px; padding:8px; background:#f2f6eb; }
+.captcha-image-frame img { display:block; width:220px; max-width:100%; height:auto; }
+.captcha-refresh { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; flex:0 0 76px; padding:10px 8px; border:0; border-left:1px solid var(--border); background:var(--card); color:var(--accent); font:inherit; font-size:12px; font-weight:600; cursor:pointer; transition:background-color 160ms ease,color 160ms ease; }
+.captcha-refresh svg { width:21px; height:21px; transition:transform 180ms ease-out; }
+.captcha-refresh:hover:not(:disabled) { background:var(--surface); color:var(--text); }
+.captcha-refresh:hover:not(:disabled) svg { transform:rotate(30deg); }
+.captcha-refresh:focus-visible { outline:2px solid var(--accent); outline-offset:-5px; }
+.captcha-refresh:disabled { cursor:wait; opacity:.65; }
+.captcha-field .captcha-answer { width:100%; max-width:none; min-height:48px; padding:10px 14px; text-align:center; font-size:18px; font-weight:600; letter-spacing:.35em; text-transform:uppercase; caret-color:var(--accent); }
+.captcha-field .captcha-answer::placeholder { color:var(--muted); opacity:1; font-size:13px; font-weight:400; letter-spacing:0; text-transform:none; }
+.captcha-field small { display:block; margin-top:8px; color:var(--muted); font-size:12px; line-height:1.5; }
+.captcha-field [data-captcha-status] { margin:8px 0 0; color:var(--muted); font-size:12px; }
+.captcha-field [data-captcha-status][data-error] { color:var(--danger); }
+.captcha-field[aria-busy="true"] .captcha-refresh svg { animation:captcha-refresh-spin 900ms linear infinite; }
+@keyframes captcha-refresh-spin { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .captcha-refresh,.captcha-refresh svg { transition:none; } .captcha-field[aria-busy="true"] .captcha-refresh svg { animation:none; } }
+.captcha-field [data-captcha-status]:empty { display:none; }

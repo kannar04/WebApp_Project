@@ -17,12 +17,21 @@ final class Auth
         if (!$user || $user['status'] !== 'active' || !password_verify($password, $user['password_hash'])) {
             return false;
         }
+        return self::signIn((int)$user['id']);
+    }
+
+    /** Called only after password verification or a server-verified OAuth identity. */
+    public static function signIn(int $userId): bool
+    {
+        $user=(new User())->findWithRoles($userId);
+        if($user===null){return false;}
         session_regenerate_id(true);
         Session::forgetFormData();
+        unset($_SESSION['_google_oauth'],$_SESSION['_facebook_oauth']);
         $_SESSION['user_id'] = (int) $user['id'];
-        $_SESSION['auth_version'] = hash('sha256',$user['password_hash']);
-        self::$resolvedUser = null;
-        self::$resolved = false;
+        $_SESSION['auth_version'] = $user['auth_version'];
+        self::$resolvedUser = $user;
+        self::$resolved = true;
         return true;
     }
 

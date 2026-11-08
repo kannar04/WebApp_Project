@@ -20,7 +20,9 @@ final class ProfileController extends Controller
             'verification' => (new \App\Models\Trust())->verificationStatus((int)$user['id']), 'verificationOld' => Session::pull('_verification_old', []),
             'trustBadges' => (new \App\Models\Trust())->badges([(int)$user['id']], (int)$user['id']),
             'hostRoleRemoved' => !in_array('host', $user['roles'], true) && (new User())->hostRoleRemoved((int)$user['id']),
-            'discoveryHistory' => DiscoveryService::summary((int)$user['id'])]);
+            'discoveryHistory' => DiscoveryService::summary((int)$user['id']),
+            'googleLinked' => (new \App\Models\GoogleIdentity())->linked((int)$user['id']),
+            'facebookLinked' => (new \App\Models\FacebookIdentity())->linked((int)$user['id'])]);
     }
 
     public function update(): never

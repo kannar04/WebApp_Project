@@ -11,8 +11,116 @@ use Core\Session;
 use Core\Validator;
 final class AuthController extends Controller
 {
+    public function googleStart(): never
+    {
+        Csrf::ensure('/login');
+        if(Auth::check()){$this->redirectSignedIn();}
+        $next=$this->returnTarget(input_text($_POST,'next'));
+        try{$destination=(new \App\Services\GoogleAuth())->begin($next);}
+        catch(\DomainException $exception){Session::flash('error',$exception->getMessage());$this->backToForm('/login');}
+        header('Cache-Control: no-store');
+        header('Location: '.$destination);
+        exit;
+    }
+
+    public function googleLink(): never
+    {
+        Csrf::ensure('/profile#connections');
+        $user=$this->requireAuth();
+        $account=(new User())->findByEmail($user['email']);
+        if(!$account||(int)$account['id']!==(int)$user['id']||$account['status']!=='active'||!password_verify(input_password($_POST,'current_password'),$account['password_hash'])){
+            Session::flash('error','Mật khẩu hiện tại không đúng.');$this->redirect('/profile#connections');
+        }
+        try{$destination=(new \App\Services\GoogleAuth())->begin('',(int)$user['id'],$user['auth_version']);}
+        catch(\DomainException $exception){Session::flash('error',$exception->getMessage());$this->redirect('/profile#connections');}
+        header('Cache-Control: no-store');
+        header('Location: '.$destination);
+        exit;
+    }
+
+    public function googleCallback(): never
+    {
+        header('Cache-Control: no-store');
+        header('Referrer-Policy: no-referrer');
+        $attempt=null;
+        try {
+            $google=new \App\Services\GoogleAuth();
+            $user=Auth::user();
+            $attempt=$google->consume(input_text($_GET,'state'),$user===null?null:(int)$user['id'],$user['auth_version']??null);
+            if(input_text($_GET,'error')!==''){throw new \DomainException('Bạn đã hủy đăng nhập Google.');}
+            $identity=$google->profile(input_text($_GET,'code'),$attempt['verifier']);
+            $identities=new \App\Models\GoogleIdentity();
+            if($attempt['user_id']!==null){
+                $identities->link($attempt['user_id'],$identity['subject']);
+                Session::flash('success','Đã liên kết tài khoản Google.');$this->redirect('/profile#connections');
+            }
+            $userId=$identities->resolve($identity);
+            if(!Auth::signIn($userId)){throw new \DomainException('Tài khoản đã bị khóa hoặc không còn hoạt động.');}
+        } catch(\Throwable $exception) {
+            Session::flash('error',$exception instanceof \DomainException ? $exception->getMessage() : 'Chưa thể đăng nhập Google. Vui lòng thử lại sau.');
+            if(($attempt['user_id']??null)!==null){$this->redirect('/profile#connections');}
+            $next=$this->returnTarget((string)($attempt['next']??''));
+            $this->redirect('/login'.($next!==''?'?next='.rawurlencode($next):''));
+        }
+        Session::flash('success','Chào mừng bạn trở lại Home2Home.');
+        $this->redirectAfterAuth((string)$attempt['next']);
+    }
+    public function facebookStart(): never
+    {
+        Csrf::ensure('/login');
+        if(Auth::check()){$this->redirectSignedIn();}
+        $next=$this->returnTarget(input_text($_POST,'next'));
+        try{$destination=(new \App\Services\FacebookAuth())->begin($next);}
+        catch(\DomainException $exception){Session::flash('error',$exception->getMessage());$this->backToForm('/login');}
+        header('Cache-Control: no-store');
+        header('Location: '.$destination);
+        exit;
+    }
+
+    public function facebookLink(): never
+    {
+        Csrf::ensure('/profile#connections');
+        $user=$this->requireAuth();
+        $account=(new User())->findByEmail($user['email']);
+        if(!$account||(int)$account['id']!==(int)$user['id']||$account['status']!=='active'||!password_verify(input_password($_POST,'current_password'),$account['password_hash'])){
+            Session::flash('error','Mật khẩu hiện tại không đúng.');$this->redirect('/profile#connections');
+        }
+        try{$destination=(new \App\Services\FacebookAuth())->begin('',(int)$user['id'],$user['auth_version']);}
+        catch(\DomainException $exception){Session::flash('error',$exception->getMessage());$this->redirect('/profile#connections');}
+        header('Cache-Control: no-store');
+        header('Location: '.$destination);
+        exit;
+    }
+
+    public function facebookCallback(): never
+    {
+        header('Cache-Control: no-store');
+        header('Referrer-Policy: no-referrer');
+        $attempt=null;
+        try {
+            $facebook=new \App\Services\FacebookAuth();
+            $user=Auth::user();
+            $attempt=$facebook->consume(input_text($_GET,'state'),$user===null?null:(int)$user['id'],$user['auth_version']??null);
+            if(input_text($_GET,'error')!==''){throw new \DomainException('Bạn đã hủy đăng nhập Facebook.');}
+            $identity=$facebook->profile(input_text($_GET,'code'));
+            $identities=new \App\Models\FacebookIdentity();
+            if($attempt['user_id']!==null){
+                $identities->link($attempt['user_id'],$identity['subject']);
+                Session::flash('success','Đã liên kết tài khoản Facebook.');$this->redirect('/profile#connections');
+            }
+            $userId=$identities->resolve($identity);
+            if(!Auth::signIn($userId)){throw new \DomainException('Tài khoản đã bị khóa hoặc không còn hoạt động.');}
+        } catch(\Throwable $exception) {
+            Session::flash('error',$exception instanceof \DomainException ? $exception->getMessage() : 'Chưa thể đăng nhập Facebook. Vui lòng thử lại sau.');
+            if(($attempt['user_id']??null)!==null){$this->redirect('/profile#connections');}
+            $next=$this->returnTarget((string)($attempt['next']??''));
+            $this->redirect('/login'.($next!==''?'?next='.rawurlencode($next):''));
+        }
+        Session::flash('success','Chào mừng bạn trở lại Home2Home.');
+        $this->redirectAfterAuth((string)$attempt['next']);
+    }
     public function loginForm(): void {if(Auth::check()){$this->redirectSignedIn();}$returnTarget=$this->rememberReturnTarget();$this->render('auth/login',['title'=>'Đăng nhập','old'=>Session::pullOld('login'),'returnTarget'=>$returnTarget,'next'=>$returnTarget],'layouts/auth');}
-    public function login(): never {Csrf::ensure();$email=trim(input_text($_POST,'email'));$password=input_password($_POST,'password');if(!filter_var($email,FILTER_VALIDATE_EMAIL)||$password===''){Session::old(['email'=>$email],'login');Session::flash('error','Email hoặc mật khẩu không hợp lệ.');$this->backToForm('/login');}if(!Auth::attempt($email,$password)){Session::old(['email'=>$email],'login');Session::flash('error','Thông tin đăng nhập không đúng hoặc tài khoản đã bị khóa.');$this->backToForm('/login');}Session::flash('success','Chào mừng bạn trở lại Home2Home.');$this->redirectAfterAuth();}
+    public function login(): never {Csrf::ensure();$email=trim(input_text($_POST,'email'));$password=input_password($_POST,'password');try{\App\Services\Captcha::ensure('login');}catch(\DomainException $exception){Session::old(['email'=>$email],'login');Session::flash('error',$exception->getMessage());$this->backToForm('/login');}if(!filter_var($email,FILTER_VALIDATE_EMAIL)||$password===''){Session::old(['email'=>$email],'login');Session::flash('error','Email hoặc mật khẩu không hợp lệ.');$this->backToForm('/login');}if(!Auth::attempt($email,$password)){Session::old(['email'=>$email],'login');Session::flash('error','Thông tin đăng nhập không đúng hoặc tài khoản đã bị khóa.');$this->backToForm('/login');}Session::flash('success','Chào mừng bạn trở lại Home2Home.');$this->redirectAfterAuth();}
     public function registerForm(): void {if(Auth::check()){$this->redirectSignedIn();}$returnTarget=$this->rememberReturnTarget();$this->render('auth/register',['title'=>'Tạo tài khoản','old'=>Session::pullOld('register'),'returnTarget'=>$returnTarget,'next'=>$returnTarget],'layouts/auth');}
     // Several validation sentences are joined into one flash, so each is translated before joining (Vietnamese is unchanged).
     public function register(): never {Csrf::ensure();$data=['full_name'=>trim(input_text($_POST,'full_name')),'email'=>trim(input_text($_POST,'email')),'phone'=>trim(input_text($_POST,'phone')),'password'=>input_password($_POST,'password')];$errors=Validator::required($data,['full_name'=>'Họ tên','email'=>'Email']);if(!filter_var($data['email'],FILTER_VALIDATE_EMAIL)){$errors['email']='Email không hợp lệ.';}$passwordProblem=Validator::passwordProblem($data['password']);if($passwordProblem!==null){$errors['password']=$passwordProblem;}if(!Trust::phoneAllowed($data['phone'])){$errors['phone']=Trust::PHONE_RULE;}if(mb_strlen($data['full_name'])>150||strlen($data['phone'])>20||strlen($data['email'])>254){$errors['length']='Thông tin tài khoản vượt giới hạn độ dài.';}if($errors){Session::old(array_diff_key($data,['password'=>1]),'register');Session::flash('error',implode(' ',array_map('__',array_values($errors))));$this->backToForm('/register');}try{(new User())->create($data['email'],$data['password'],$data['full_name'],$data['phone']);Auth::attempt($data['email'],$data['password']);Session::flash('success','Tài khoản đã được tạo.');$this->redirectAfterAuth();}catch(\PDOException $e){Session::old(array_diff_key($data,['password'=>1]),'register');Session::flash('error',$e->getCode()==='23000'?$this->duplicateEmailMessage($data['email']):'Không thể tạo tài khoản.');$this->backToForm('/register');}}
@@ -55,11 +163,11 @@ final class AuthController extends Controller
         $this->redirect($this->mayFollow($target) ? $target : '/');
     }
     /** Sends a signed-in user to the page their form was returning to, otherwise the remembered one, otherwise to the home of their role. */
-    private function redirectAfterAuth(): never
+    private function redirectAfterAuth(?string $oauthTarget=null): never
     {
         $fromReferer = $this->returnTarget((string) Session::pull('referer_url', ''));
         $target = $this->returnTarget((string) Session::pull('intended_url', ''));
-        $fromForm = $this->returnTarget(input_text($_POST, 'next'));
+        $fromForm = $this->returnTarget($oauthTarget??input_text($_POST, 'next'));
         $target = $fromForm !== '' ? $fromForm : ($target !== '' ? $target : $fromReferer);
         if ($this->mayFollow($target)) { $this->redirect($target); }
         if (Auth::hasRole('admin')) { $this->redirect('/admin'); }
@@ -77,7 +185,7 @@ final class AuthController extends Controller
         $readable = parse_url($candidate, PHP_URL_PATH);
         if ($readable === false) { return ''; }
         $path = rtrim(rawurldecode((string) $readable), '/');
-        return in_array($path, ['/login', '/register', '/forgot-password', '/reset-password'], true) ? '' : $candidate;
+        return str_starts_with($path,'/auth/google') || str_starts_with($path,'/auth/facebook') || in_array($path, ['/login', '/register', '/forgot-password', '/reset-password'], true) ? '' : $candidate;
     }
     public function forgotForm(): void
     {

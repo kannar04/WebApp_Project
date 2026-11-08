@@ -38,6 +38,7 @@ final class PaymentController extends Controller
         Csrf::ensure(); $user = $this->requireAuth();
         $attempt = [];
         try {
+            \App\Services\Captcha::ensure('pay_vietqr');
             if (!VietQr::enabled(self::config())) { throw new \DomainException('Chưa cấu hình tài khoản nhận chuyển khoản.'); }
             $attempt = (new Payment())->start((int) $id, (int) $user['id'], 'vietqr');
         } catch (\Throwable $exception) {
@@ -53,6 +54,7 @@ final class PaymentController extends Controller
         $config = self::config();
         $target = '';
         try {
+            \App\Services\Captcha::ensure('pay_vnpay');
             if (!VnpayGateway::enabled($config)) { throw new \DomainException('Chưa cấu hình VNPay.'); }
             $attempt = (new Payment())->start((int) $id, (int) $user['id'], 'vnpay');
             $target = VnpayGateway::paymentUrl($config, $attempt, self::returnUrl($config), self::clientIp(), I18n::locale(), new \DateTimeImmutable('now'));
@@ -143,6 +145,7 @@ final class PaymentController extends Controller
     {
         Csrf::ensure(); $user = $this->requireAuth();
         try {
+            \App\Services\Captcha::ensure('report_transfer');
             (new Payment())->submitTransfer((int) $id, (int) $user['id']);
             Session::flash('success', 'Đã báo chuyển khoản. Admin sẽ kiểm tra tài khoản và xác nhận thanh toán.');
         } catch (\Throwable $exception) {
