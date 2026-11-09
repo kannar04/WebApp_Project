@@ -54,7 +54,7 @@ final class TrustController extends Controller
         Csrf::ensure();
         $admin = $this->requireRole('admin');
         $decision = is_string($_POST['decision'] ?? null) ? $_POST['decision'] : '';
-        $reason = is_string($_POST['reason'] ?? null) ? trim($_POST['reason']) : '';
+        $reason = trim(input_text($_POST, 'reason'));
         try {
             if (mb_strlen($reason) > 1000) { throw new \DomainException('Ghi chú quyết định tối đa 1000 ký tự.'); }
             (new Trust())->decideVerification((int) $id, (int) $admin['id'], $decision, $reason);
@@ -71,7 +71,7 @@ final class TrustController extends Controller
         $listing = (new Listing())->findOwned((int) $id, (int) $user['id']);
         if (!$listing) { http_response_code(404); $this->render('errors/404', ['title' => 'Không tìm thấy chỗ ở']); return; }
         $this->render('host/checkin-guide', ['title' => 'Hướng dẫn nhận phòng', 'listing' => $listing,
-            'guide' => (new Trust())->guideForHost((int) $id, (int) $user['id']), 'old' => Session::pull('_checkin_guide_old', [])]);
+            'guide' => (new Trust())->guideForHost((int) $id, (int) $user['id']), 'old' => Session::pullOld('guide:'.(int)$id)]);
     }
 
     public function guideSave(string $id): never
@@ -91,18 +91,18 @@ final class TrustController extends Controller
         try {
             if (!$valid) { throw new \DomainException('Một số trường không hợp lệ hoặc vượt giới hạn độ dài.'); }
             (new Trust())->saveGuide((int) $id, (int) $user['id'], $data);
-            Session::flash('success', 'Đã lưu hướng dẫn nhận phòng. Khách chỉ thấy sau khi booking được xác nhận.');
+            Session::flash('success', 'Đã lưu hướng dẫn nhận phòng. Khách thấy hướng dẫn sau khi booking được xác nhận; mã cửa và Wi-Fi hiển thị từ 1 ngày trước ngày nhận phòng.');
         } catch (\Throwable $exception) {
-            Session::put('_checkin_guide_old', $data);
+            Session::old($data, 'guide:'.(int)$id);
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể lưu hướng dẫn. Vui lòng thử lại.');
         }
         $this->redirect('/host/listings/'.(int) $id.'/checkin-guide');
     }
 
-    /** Missing fields become empty strings; arrays and other non-strings are rejected as null. */
+    /** Missing fields become empty strings; arrays, other non-strings and invalid UTF-8 are rejected as null. */
     private function postedText(string $field): ?string
     {
-        $value = $_POST[$field] ?? '';
-        return is_string($value) ? trim($value) : null;
+        $value = input_text_or_null($_POST, $field);
+        return $value === null ? null : trim($value);
     }
 }
