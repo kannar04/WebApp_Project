@@ -107,18 +107,25 @@ final class I18n
         }
         $file = self::directory() . '/' . self::SCRIPT_FILE;
         $entries = is_file($file) ? require $file : [];
-        return is_array($entries) ? $entries : [];
+        return (is_array($entries) ? $entries : []) + (require self::directory().'/focused.php');
     }
 
     /** Current request path relative to the app base, for the locale switch to return to. */
     public static function returnPath(): string
     {
-        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
-        $path = (string) (parse_url($uri, PHP_URL_PATH) ?: '/');
-        $scriptDirectory = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
-        if ($scriptDirectory !== '/' && $scriptDirectory !== '.' && str_starts_with($path, $scriptDirectory)) {
-            $path = substr($path, strlen($scriptDirectory)) ?: '/';
+        // A page rendered by a POST is an error page, and going back to its address by GET could be a 404.
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            return '/';
         }
+        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
+        $path = parse_url($uri, PHP_URL_PATH);
+        if ($path === false) {
+            // An address parse_url cannot read (see Router::dispatch) is not the home page: it stays the page to return to, when that is safe.
+            [$path, $query] = explode('?', $uri, 2) + [1 => ''];
+            return self::safeReturnPath((app_path($path) ?? $path) . ($query !== '' ? '?' . $query : ''));
+        }
+        $path = (string) ($path ?: '/');
+        $path = app_path($path) ?? $path;
         $query = parse_url($uri, PHP_URL_QUERY);
         return $path . (is_string($query) && $query !== '' ? '?' . $query : '');
     }
