@@ -1,0 +1,19 @@
+# Project copied into a web root (XAMPP htdocs/<folder>, no VirtualHost): only public/ is served.
+# With DocumentRoot = public/ this file is not reached, or public/.htaccess replaces its rules.
+Options -Indexes
+
+# Dotfiles (.env, .gitignore, ...) are never served, here or in any folder below.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Everything goes into public/, so /.git/config or /database/seed.sql end on the site's own 404 page.
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Without mod_rewrite nothing could be limited to public/, so nothing is served.
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

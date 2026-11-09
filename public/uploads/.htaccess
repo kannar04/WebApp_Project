@@ -1,0 +1,10 @@
+# Uploads are data, never code. Only image files are served and nothing here can run, whatever
+# its name, case or trailing characters. Stands alone: the rules hold at any DocumentRoot or sub-folder.
+Options -ExecCGI -Includes -Indexes
+<IfModule php_module>
+    php_flag engine off
+</IfModule>
+Require all denied
+<FilesMatch "^[^.].*\.(?i:jpe?g|png|gif|webp)$">
+    Require all granted
+</FilesMatch>

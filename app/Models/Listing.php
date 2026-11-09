@@ -19,13 +19,31 @@ final class Listing
 
     public function searchPage(array $filters,int $limit=12,int $offset=0): array
     {
-        $statement = $this->db->prepare('CALL DST_sp_listing_search_filtered(?,?,?,?,?,?,?,?,?,?,?,?)');
+        $statement = $this->db->prepare('CALL NMT_sp_focused_listing_search(?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $statement->execute([trim($filters['location'] ?? ''), (int) ($filters['guests'] ?? 0),
             (int) ($filters['type'] ?? 0), (float) ($filters['min_price'] ?? 0), (float) ($filters['max_price'] ?? 0),
             (int) ($filters['bedrooms'] ?? 0), ($filters['check_in'] ?? '') ?: null, ($filters['check_out'] ?? '') ?: null,
-            $filters['sort'] ?? '', max(1, min(100, $limit)), max(0, $offset),json_encode($filters['amenities']??[],JSON_THROW_ON_ERROR)]);
+            $filters['sort'] ?? '', max(1, min(100, $limit)), max(0, $offset),json_encode($filters['amenities']??[],JSON_THROW_ON_ERROR), $filters['city']??'', isset($filters['north'])?json_encode(array_intersect_key($filters,array_flip(['north','south','east','west'])),JSON_THROW_ON_ERROR):null]);
         $rows=$statement->fetchAll(); $metadata=array_pop($rows);
         return ['listings'=>$rows,'total'=>(int)($metadata['__total']??0)];
+    }
+
+    public function destinations(): array { return $this->db->query('CALL LTP_sp_focused_destinations()')->fetchAll(); }
+
+    /** Public alternatives: same city/type first, then same city, then same type. */
+    public function related(array $listing, array $trip = [], int $limit = 10): array
+    {
+        $limit=max(1,min(10,$limit));
+        $trip=array_intersect_key($trip,array_flip(['check_in','check_out','guests']));
+        $matches=[];
+        foreach ([['city'=>$listing['city'],'type'=>$listing['property_type_id']],['city'=>$listing['city']],['type'=>$listing['property_type_id']]] as $scope) {
+            foreach ($this->search($trip+$scope,$limit+1) as $candidate) {
+                if ((int)$candidate['id']===(int)$listing['id']) { continue; }
+                $matches[(int)$candidate['id']]=$candidate;
+                if (count($matches)>=$limit) { break 2; }
+            }
+        }
+        return array_values($matches);
     }
 
     public function findPublic(int $id, bool $withDetails = true): ?array
@@ -108,6 +126,13 @@ final class Listing
     public function types(): array { return $this->db->query('CALL `DST_sp_list_property_types`()')->fetchAll(); }
     public function policies(): array { return $this->db->query('CALL `LTP_sp_list_cancellation_policies`()')->fetchAll(); }
     public function allAmenities(): array { return $this->db->query('CALL `DST_sp_list_amenities`()')->fetchAll(); }
+    /** Host form choices: active items plus retired ones the host's own listing still uses (listing 0 = new listing). */
+    public function catalogChoices(string $kind, int $listingId, int $hostId): array
+    {
+        $statement = $this->db->prepare('CALL DST_sp_listing_catalog_choices(?,?,?)');
+        $statement->execute([$kind, $listingId, $hostId]);
+        return $statement->fetchAll();
+    }
     public function amenityIds(int $listingId): array
     {
         $statement = $this->db->prepare('CALL `DST_sp_listing_amenity_ids`(?)');
@@ -150,7 +175,9 @@ final class Listing
         $amenities=$this->db->prepare('CALL NMT_sp_listing_amenities_for_admin(?,?)');
         $amenities->execute([$id,$actorId]);
         $listing['amenities']=$amenities->fetchAll();
-        $listing['reviews']=[];
+        $reviews=$this->db->prepare('CALL NMT_sp_listing_reviews_for_admin(?,?)');
+        $reviews->execute([$id,$actorId]);
+        $listing['reviews']=$reviews->fetchAll();
         return $listing;
     }
 }
