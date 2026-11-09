@@ -17,6 +17,22 @@ final class Booking
         $s->execute([$guestId]); return $s->fetchAll();
     }
 
+    /** Stays not yet finished (the check-out day still counts) and not cancelled or rejected, soonest first. */
+    public function upcomingForGuest(int $guestId): array
+    {
+        $today=date('Y-m-d'); $upcoming=[];
+        foreach ($this->forGuest($guestId) as $booking) {
+            if (in_array($booking['status'],['pending','confirmed'],true) && $booking['check_out']>=$today) { $upcoming[]=$booking; }
+        }
+        usort($upcoming,[self::class,'bySoonestStay']);
+        return $upcoming;
+    }
+
+    private static function bySoonestStay(array $left,array $right): int
+    {
+        return [$left['check_in'],(int)$left['id']]<=>[$right['check_in'],(int)$right['id']];
+    }
+
     public function forHost(int $hostId): array
     {
         $s=$this->db->prepare('CALL `NTK_sp_get_host_bookings`(?)');
