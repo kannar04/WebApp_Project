@@ -102,3 +102,6 @@ build/
 graph/
 tests
 .kilo/
+demo_stays/
+docs/quality/
+docs/ui-experience/
