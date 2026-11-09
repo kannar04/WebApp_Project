@@ -1,0 +1,76 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Core;
+
+final class Validator
+{
+    public const PASSWORD_RULE = 'Mật khẩu cần có ít nhất 8 ký tự. Mật khẩu quá dài có thể bị từ chối, và chữ có dấu được tính nhiều hơn một ký tự.';
+    public const PASSWORD_HIDDEN_CHARACTER = 'Mật khẩu có ký tự ẩn không dùng được. Vui lòng gõ lại mật khẩu thay vì dán từ nơi khác.';
+    public const MONEY_MAX = 9999999999.99;
+    /** A TEXT column holds 65535 bytes, not characters: 21845 'ế' or 16383 emoji fill it, and MariaDB in non-strict mode cuts the rest and reports success. */
+    public const TEXT_COLUMN_BYTES = 65535;
+
+    /**
+     * A price, fee or percent on any form: digits with up to 2 decimals after a dot, so the Vietnamese 500.000 is refused instead of read as 500.
+     * Blank gives null: each form decides what blank means. Returns the number as text, for the DECIMAL parameter of a routine.
+     * $message names the minimum and the format. A real number above the maximum gets $tooLarge instead; a caller whose $message names both limits leaves it out.
+     */
+    public static function decimal(string $value, float $minimum, float $maximum, string $message, ?string $tooLarge = null): ?string
+    {
+        $value = trim($value);
+        if ($value === '') { return null; }
+        if ($tooLarge !== null && preg_match('/^\d+(\.\d+)?$/D', $value) === 1 && (float) $value > $maximum) { throw new \DomainException($tooLarge); }
+        if (!self::isDecimal($value) || (float) $value < $minimum || (float) $value > $maximum) { throw new \DomainException($message); }
+        return $value;
+    }
+
+    public static function isDecimal(string $value): bool
+    {
+        return preg_match('/^\d{1,10}(\.\d{1,2})?$/D', $value) === 1;
+    }
+
+    /**
+     * The nightly price and cleaning fee of the Host and Admin listing forms. Prices are charged in whole dong, so one under 0.5 would make the nights free.
+     * A blank price fails that minimum; a blank fee means no fee. Throws before changing anything, so the caller still holds what was typed.
+     */
+    public static function listingPrices(array $data): array
+    {
+        $data['nightly_price'] = self::decimal($data['nightly_price'] ?: '0', 0.5, self::MONEY_MAX, 'Giá mỗi đêm phải từ 1đ trở lên. Viết liền không dấu chấm, ví dụ 500000.', 'Giá mỗi đêm tối đa là 9.999.999.999đ.');
+        $data['cleaning_fee'] = self::decimal($data['cleaning_fee'] ?: '0', 0, self::MONEY_MAX, 'Phụ phí không được âm. Viết liền không dấu chấm, ví dụ 50000.', 'Phụ phí tối đa là 9.999.999.999đ.');
+        return $data;
+    }
+
+    /** The description of the Host and Admin listing forms, measured as the column measures it. Throws before changing anything, so the caller still holds what was typed. */
+    public static function listingDescription(string $description): void
+    {
+        if (strlen($description) > self::TEXT_COLUMN_BYTES) { throw new \DomainException('Mô tả quá dài nên chưa được lưu. Hãy rút ngắn: giới hạn khoảng 20.000 chữ có dấu, emoji chiếm nhiều chỗ hơn.'); }
+    }
+
+    /** For setting a password only: bcrypt ignores what follows byte 72 or a NUL. Login stays lenient so older, longer passwords still open. */
+    public static function passwordAllowed(string $password): bool
+    {
+        return strlen($password) >= 8 && strlen($password) <= 72 && !str_contains($password, "\0");
+    }
+
+    /** What to tell a person about a password passwordAllowed refuses, in words they can act on; null when it is allowed. */
+    public static function passwordProblem(string $password): ?string
+    {
+        if (self::passwordAllowed($password)) { return null; }
+        return str_contains($password, "\0") ? self::PASSWORD_HIDDEN_CHARACTER : self::PASSWORD_RULE;
+    }
+
+    /** For text fields: all spaces counts as blank. Never list a password here, a password is not trimmed anywhere; passwordAllowed decides. */
+    public static function required(array $data, array $fields): array
+    {
+        $errors = [];
+        foreach ($fields as $field => $label) {
+            if (!isset($data[$field]) || trim((string) $data[$field]) === '') {
+                $errors[$field] = $label . ' là bắt buộc.';
+            }
+        }
+        return $errors;
+    }
+}
+
