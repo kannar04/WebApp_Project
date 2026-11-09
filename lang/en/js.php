@@ -24,6 +24,7 @@ return [
     'Giờ mở cửa' => 'Opening hours',
     'Chưa có thông tin giờ mở cửa' => 'Opening hours unavailable',
     'Chỉ đường' => 'Directions',
+    'Mở Google Maps' => 'Open Google Maps',
     'Khu vực quá rộng. Hãy phóng to bản đồ rồi tìm lại.' => 'This area is too large. Zoom in and search again.',
     'Đang tải địa điểm dịch vụ…' => 'Loading places…',
     '{count} địa điểm dịch vụ trong khu vực này.' => '{count} places in this area.',

@@ -427,7 +427,11 @@
                 directions.href = 'https://www.google.com/maps/dir/?api=1&destination=' + item.latitude + ',' + item.longitude;
                 directions.target = '_blank';
                 directions.rel = 'noopener noreferrer';
-                body.append(directions);
+                const googleMaps = element('a', 'btn btn-outline-primary btn-sm mt-2', window.h2hT('Mở Google Maps'));
+                googleMaps.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(item.latitude + ',' + item.longitude);
+                googleMaps.target = '_blank';
+                googleMaps.rel = 'noopener noreferrer';
+                body.append(directions, element('br'), googleMaps);
                 this.popup.replaceChildren(close, body);
             }
             this.popup.setAttribute('aria-label', item.title);
