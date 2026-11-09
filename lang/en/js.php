@@ -7,6 +7,7 @@ return [
     'Đang tìm…' => 'Searching…',
     'Không thể cập nhật yêu thích.' => 'Could not update your wishlist.',
     'Không thể cập nhật yêu thích. Vui lòng thử lại.' => 'Could not update your wishlist. Please try again.',
+    'Trang này đã hết hạn, có thể vì phiên đăng nhập đã kết thúc. Vui lòng tải lại trang.' => 'This page has expired, possibly because your sign-in ended. Please reload the page.',
     'Chọn ngày để xem tổng tiền' => 'Select dates to see the total',
     'Đang kiểm tra lịch và tính giá…' => 'Checking availability and calculating the price…',
     'Không thể tính giá.' => 'Could not calculate the price.',
@@ -51,4 +52,18 @@ return [
     // messages.js: booking conversation form
     'Đang gửi…' => 'Sending…',
     'Gửi tin nhắn' => 'Send message',
+    // focused-booking.js, focused-discovery.js and app.js: Thức's focused booking and home feed
+    'Đang tải…' => 'Loading…',
+    'Chọn ngày ở' => 'Choose your dates',
+    'Xem lại đặt chỗ' => 'Review booking',
+    'tổng cho {count} đêm' => 'total for {count} nights',
+    'Tìm gần đây' => 'Recent search',
+    'Điểm đến' => 'Destination',
+    '{count} chỗ ở' => '{count} homes',
+    'Nhấn Tìm chỗ ở để tìm theo địa điểm đã nhập.' => 'Select Find a place to search the location you entered.',
+    'Bạn đã xem hết chỗ ở trong tìm kiếm này.' => 'You have seen all homes for this search.',
+    'Đang tải thêm chỗ ở…' => 'Loading more homes…',
+    'Đã tải thêm {count} chỗ ở.' => 'Loaded {count} more homes.',
+    'Không tải được thêm chỗ ở. Các kết quả hiện tại vẫn được giữ.' => 'Could not load more homes. Your current results are still here.',
+    'Thử lại' => 'Try again',
 ];
