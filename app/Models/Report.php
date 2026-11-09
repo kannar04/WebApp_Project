@@ -5,17 +5,20 @@ use Core\ProcedureConnection;
 
 final class Report
 {
-    public function create(int $actorId,?int $listingId,?int $bookingId,string $category,string $description): void
+    /** False when this reporter already has an open report on the same target: nothing new was saved. */
+    public function create(int $actorId,?int $listingId,?int $bookingId,string $category,string $description): bool
     {
-        ProcedureConnection::connection()->prepare('CALL NTK_sp_report_create(?,?,?,?,?)')->execute([$actorId,$listingId,$bookingId,$category,$description]);
+        $s=ProcedureConnection::connection()->prepare('CALL NTK_sp_report_create(?,?,?,?,?)'); $s->execute([$actorId,$listingId,$bookingId,$category,$description]); return $s->rowCount()===1;
     }
     public function forUser(int $actorId): array
     {
         $s=ProcedureConnection::connection()->prepare('CALL NMT_sp_reports_for_user(?)'); $s->execute([$actorId]); return $s->fetchAll();
     }
-    public function forAdmin(int $actorId): array
+    public function adminPage(int $actorId,int $limit,int $offset): array
     {
-        $s=ProcedureConnection::connection()->prepare('CALL NTK_sp_admin_reports(?)'); $s->execute([$actorId]); return $s->fetchAll();
+        $s=ProcedureConnection::connection()->prepare('CALL NTK_sp_admin_reports(?,?,?)'); $s->execute([$actorId,$limit,$offset]); $rows=$s->fetchAll();
+        $total=(int)array_pop($rows)['__total'];
+        return ['reports'=>$rows,'total'=>$total];
     }
     public function resolve(int $id,int $actorId,string $status,string $resolution): void
     {
