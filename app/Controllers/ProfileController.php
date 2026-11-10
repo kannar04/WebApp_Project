@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Controllers;
 use App\Models\Booking;
+use App\Models\Trust;
 use App\Models\User;
 use App\Services\DiscoveryService;
 use App\Services\UploadService;
@@ -14,10 +15,11 @@ final class ProfileController extends Controller
     public function show(): void
     {
         $user = $this->requireAuth();
-        $upcoming = array_filter((new Booking())->forGuest((int)$user['id']), fn($b) => in_array($b['status'], ['pending', 'confirmed'], true));
+        $upcoming = (new Booking())->upcomingForGuest((int)$user['id']);
         $this->render('profile/show', ['title' => 'Tài khoản', 'user' => $user, 'upcoming' => $upcoming, 'old' => Session::pull('_profile_old', []),
             'verification' => (new \App\Models\Trust())->verificationStatus((int)$user['id']), 'verificationOld' => Session::pull('_verification_old', []),
             'trustBadges' => (new \App\Models\Trust())->badges([(int)$user['id']], (int)$user['id']),
+            'hostRoleRemoved' => !in_array('host', $user['roles'], true) && (new User())->hostRoleRemoved((int)$user['id']),
             'discoveryHistory' => DiscoveryService::summary((int)$user['id'])]);
     }
 
@@ -25,13 +27,17 @@ final class ProfileController extends Controller
     {
         Csrf::ensure();
         $user = $this->requireAuth();
-        $rawName = $_POST['full_name'] ?? '';
         $rawPhone = $_POST['phone'] ?? '';
-        $name = is_string($rawName) ? trim($rawName) : '';
+        $name = trim(input_text($_POST, 'full_name'));
         $phone = is_string($rawPhone) ? trim($rawPhone) : '';
-        if (!is_string($rawName) || !is_string($rawPhone) || $name === '' || mb_strlen($name) > 150 || strlen($phone) > 20) {
+        if (!is_string($rawPhone) || $name === '' || mb_strlen($name) > 150 || strlen($phone) > 20) {
             Session::put('_profile_old', ['full_name' => $name, 'phone' => $phone]);
             Session::flash('error', 'Họ tên và số điện thoại không hợp lệ hoặc vượt giới hạn độ dài.');
+            $this->redirect('/profile#personal');
+        }
+        if (!Trust::phoneAllowed($phone)) {
+            Session::put('_profile_old', ['full_name' => $name, 'phone' => $phone]);
+            Session::flash('error', Trust::PHONE_RULE);
             $this->redirect('/profile#personal');
         }
         try {
@@ -45,7 +51,16 @@ final class ProfileController extends Controller
         }
         $this->redirect('/profile#personal');
     }
-    public function becomeHost(): never {Csrf::ensure();$user=$this->requireAuth();(new User())->grantHost((int)$user['id']);Session::flash('success','Vai trò Host đã được kích hoạt.');$this->redirect('/host');}
+    public function becomeHost(): never
+    {
+        Csrf::ensure(); $user=$this->requireAuth();
+        try {
+            (new User())->grantHost((int)$user['id']);
+        } catch (\DomainException $exception) {
+            Session::flash('error',$exception->getMessage()); $this->redirect('/profile');
+        }
+        Session::flash('success','Vai trò Host đã được kích hoạt.'); $this->redirect('/host');
+    }
     public function password(): never
     {
         Csrf::ensure(); $user=$this->requireAuth();
