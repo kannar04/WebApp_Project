@@ -18,3 +18,4 @@
 <link rel="icon" type="image/png" sizes="512x512" href="<?= e(asset('images/app-icon-512.png')) ?>">
 <link rel="apple-touch-icon" sizes="180x180" href="<?= e(asset('images/apple-touch-icon.png')) ?>">
 <link rel="stylesheet" href="<?= e(asset('css/brand.css')) ?>">
+<link rel="stylesheet" href="<?= e(asset('css/decoration.css')) ?>">
