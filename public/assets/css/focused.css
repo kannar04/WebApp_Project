@@ -6,6 +6,17 @@
 .discovery-saved { display:flex; align-items:center; gap:8px; white-space:nowrap; min-height:44px; }
 .focused-home .home-search { margin:0; z-index:5; }
 .focused-home .search-bar { background:transparent; border:1px solid var(--primary); border-radius:16px; box-shadow:none; padding:8px; display:grid; grid-template-columns:minmax(0,1fr) 142px 142px 80px 48px; align-items:center; gap:4px; }
+.focused-home .search-bar.is-floating-search,
+html[data-theme='dark'] .focused-home .search-bar.is-floating-search {
+ position:fixed;
+ top:var(--floating-search-top);
+ left:var(--floating-search-left);
+ width:var(--floating-search-width);
+ z-index:990;
+ margin:0;
+ background:var(--card);
+ box-shadow:0 8px 24px rgba(15,35,26,.16);
+}
 html[data-theme='dark'] .focused-home .search-bar { background:transparent; }
 .focused-home .search-field { min-width:0; min-height:48px; padding:0 10px; border:0; display:flex; align-items:center; gap:8px; border-radius:8px; }
 .focused-home .search-field:focus-within { background:transparent; }
@@ -266,3 +277,22 @@ html[data-theme='dark'] .focused-home .home-filter[open]>summary { border-color:
 @keyframes captcha-refresh-spin { to { transform:rotate(360deg); } }
 @media(prefers-reduced-motion:reduce) { .captcha-refresh,.captcha-refresh svg { transition:none; } .captcha-field[aria-busy="true"] .captcha-refresh svg { animation:none; } }
 .captcha-field [data-captcha-status]:empty { display:none; }
+/* Compact floating search; keep mobile controls at least 44px tall. */
+.focused-home .search-bar.is-floating-search,
+html[data-theme='dark'] .focused-home .search-bar.is-floating-search {
+ width:min(920px,var(--floating-search-width));
+ left:calc(var(--floating-search-left) + (var(--floating-search-width) - min(920px,var(--floating-search-width))) / 2);
+ padding:5px;
+ border-radius:32px;
+ grid-template-columns:minmax(0,1fr) 126px 126px 66px 44px;
+}
+.focused-home .is-floating-search .search-field { min-height:40px; border-radius:24px; }
+.focused-home .is-floating-search .destination-field input { height:40px; line-height:40px; font-size:16px; }
+.focused-home .is-floating-search .search-guests input { height:40px; }
+.focused-home .is-floating-search .search-button { width:44px; height:44px; min-height:44px; border-radius:50%; }
+@media (max-width:767.98px) {
+ .focused-home .search-bar.is-floating-search,
+ html[data-theme='dark'] .focused-home .search-bar.is-floating-search { grid-template-columns:minmax(0,1fr) 44px 44px 48px 44px; gap:0; padding:4px; }
+ .focused-home .is-floating-search .search-field { min-height:44px; }
+ .focused-home .is-floating-search .destination-field input { font-size:14px; }
+}

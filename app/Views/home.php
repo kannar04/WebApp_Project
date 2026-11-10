@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__.'/components/ui-icons.php';
 $pageScripts[]='js/focused-discovery.js';
+$pageScripts[]='js/floating-search.js';
 $filterErrors=$filterErrors??[];
 $stayQuery=$stayQuery??'';
 parse_str(ltrim($stayQuery,'?'),$cardFilters);
