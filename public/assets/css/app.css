@@ -584,3 +584,20 @@ html[data-theme="dark"] .h2h-map-popup-close { background: rgba(28,36,31,.92); c
 @media (max-width: 767.98px) {
     .auth-tools { position: static; align-self: flex-end; margin: -19px -6px 10px 0; }
 }
+
+/* QC: discoverable actions, accessible photo viewer and detail navigation. */
+.photo-open { display:block; width:100%; padding:0; border:0; background:transparent; cursor:zoom-in; overflow:hidden; border-radius:inherit; }
+.photo-open img { width:100%; height:100%; object-fit:cover; }
+.photo-open:focus-visible { outline:3px solid var(--primary, #195c47); outline-offset:3px; }
+.photo-viewer { width:min(1100px,96vw); max-height:94dvh; padding:16px; border:0; border-radius:12px; background:var(--surface,#fff); color:var(--text,#172b24); }
+.photo-viewer::backdrop { background:rgb(0 0 0 / 80%); }
+.photo-viewer > img { display:block; width:100%; height:75dvh; object-fit:contain; }
+.photo-viewer-controls { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.floating-messages { position:fixed; bottom:90px; right:24px; width:52px; height:52px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:var(--primary,#195c47); color:#fff; z-index:100; box-shadow:0 4px 16px rgb(0 0 0 / 18%); }
+.floating-messages svg { width:24px; height:24px; }
+[data-detail-url] { cursor:pointer; }
+[data-detail-url]:hover { background:var(--surface-alt,#f3f7f4); }
+.review-actions { display:flex; flex-wrap:wrap; gap:12px; justify-content:flex-end; margin-top:24px; }
+.message-list:empty { display:none; }
+
+@media(max-width:767.98px){.photo-grid>.photo-open:not(:first-child){display:none}.photo-grid .photo-open{grid-row:auto}.moderation-form{flex-wrap:wrap}.moderation-form .form-control{flex-basis:100%}}

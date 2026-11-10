@@ -29,7 +29,8 @@ foreach($types as $type){ $mapTypeLabels[(string)$type['name']]=__((string)$type
             <div class="filter-actions"><button class="btn btn-primary" type="submit"><?= e(__('Tìm trên bản đồ')) ?></button><a class="btn btn-outline-primary" href="<?= e(url('/map')) ?>"><?= e(__('Đặt lại')) ?></a><a class="btn btn-ghost" data-map-list-link href="<?= e(url('/'.($mapFilters?'?'.http_build_query($mapFilters):'').'#listing-results')) ?>"><?= e(__('Xem dạng danh sách')) ?></a></div>
             <p class="text-muted small mb-0 mt-2"><?= e(__('Giá tính bằng VND cho một đêm. Chỉ chỗ ở đã có vị trí trên bản đồ mới được hiển thị.')) ?></p>
         </form>
-        <div class="discovery-map-layout">
+        <form class="surface-card mb-3" data-map-address-form data-api="<?= e(url('/api/addresses')) ?>"><label for="map-address"><?= e(__('Tìm khu vực theo địa chỉ')) ?></label><div class="form-row"><div class="col-md-9 mb-2"><input class="form-control" id="map-address" name="address" minlength="3" maxlength="255" placeholder="<?= e(__('Số nhà, đường, phường hoặc thành phố')) ?>" required></div><div class="col-md-3 mb-2"><button class="btn btn-outline-primary btn-block" type="submit"><?= e(__('Tìm địa chỉ')) ?></button></div></div><div data-map-address-results role="status" aria-live="polite"></div></form>
+<div class="discovery-map-layout">
             <div class="discovery-map-panel"><button class="btn btn-primary mb-3" type="button" data-search-area hidden><?= e(__('Tìm trong khu vực này')) ?></button>
                 <div class="discovery-map discovery-map-search" data-discovery-map="search" data-label="<?= e(__('Bản đồ chỗ ở')) ?>"
                     data-api="<?= e(url('/api/listings/map')) ?>" data-location="<?= e($filters['location']??'') ?>"

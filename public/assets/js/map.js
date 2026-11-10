@@ -946,6 +946,25 @@
             this.clearButton.addEventListener('click', this);
             this.latitude.addEventListener('input', this);
             this.longitude.addEventListener('input', this);
+            root.querySelector('[data-address-search]')?.addEventListener('click', async event => {
+                const button = event.currentTarget;
+                const results = root.querySelector('[data-address-results]');
+                const address = [document.getElementById('address').value, document.getElementById('city').value].filter(Boolean).join(', ');
+                button.disabled = true; results.textContent = window.h2hT('Đang tìm địa chỉ…');
+                try {
+                    const response = await fetch(button.dataset.addressApi + '?q=' + encodeURIComponent(address), {headers:{Accept:'application/json'}, signal:AbortSignal.timeout(15000)});
+                    const data = await response.json();
+                    if (!response.ok || !data.success) throw new Error(data.message);
+                    results.replaceChildren();
+                    if (!data.data.places.length) results.textContent = window.h2hT('Không tìm thấy địa chỉ. Hãy nhập rõ số nhà, đường và thành phố.');
+                    data.data.places.forEach(place => {
+                        const choice = document.createElement('button'); choice.type = 'button'; choice.className = 'btn btn-ghost d-block mb-2'; choice.textContent = place.label;
+                        choice.addEventListener('click', () => { this.pick(place.latitude, place.longitude); if (this.panel.hidden) this.toggle(); this.map.setView(place.latitude,place.longitude,16); results.replaceChildren(); });
+                        results.append(choice);
+                    });
+                } catch (error) { results.textContent = error.message || window.h2hT('Chưa tìm được địa chỉ. Vui lòng thử lại.'); }
+                finally { button.disabled = false; }
+            });
             this.validate();
         }
 
@@ -1014,7 +1033,27 @@
         }
     }
 
-    function initSearch(container) { container.h2hMap = new MapSearchPage(container); }
+    function initSearch(container) {
+        container.h2hMap = new MapSearchPage(container);
+        const form = document.querySelector('[data-map-address-form]');
+        form?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const results = form.querySelector('[data-map-address-results]');
+            const button = form.querySelector('button'); button.disabled = true;
+            results.textContent = window.h2hT('Đang tìm địa chỉ…');
+            try {
+                const response = await fetch(form.dataset.api+'?q='+encodeURIComponent(form.elements.address.value), {headers:{Accept:'application/json'},signal:AbortSignal.timeout(15000)});
+                const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.message);
+                results.replaceChildren();
+                if (!data.data.places.length) results.textContent = window.h2hT('Không tìm thấy địa chỉ. Hãy nhập rõ số nhà, đường và thành phố.');
+                data.data.places.forEach(place => {
+                    const choice = document.createElement('button'); choice.type = 'button'; choice.className='btn btn-ghost d-block'; choice.textContent=place.label;
+                    choice.addEventListener('click', () => { container.h2hMap.map.setView(place.latitude,place.longitude,14); container.h2hMap.searchArea(); results.replaceChildren(); }); results.append(choice);
+                });
+            } catch(error) { results.textContent = error.message || window.h2hT('Chưa tìm được địa chỉ. Vui lòng thử lại.'); }
+            finally { button.disabled=false; }
+        });
+    }
 
     function initStatic(container) {
         const lat = Number(container.dataset.lat);

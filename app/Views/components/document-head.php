@@ -11,3 +11,10 @@
 <link rel="stylesheet" href="<?= e(asset('css/figma.css')) ?>">
 <link rel="stylesheet" href="<?= e(asset('css/experience.css')) ?>">
 <link rel="stylesheet" href="<?= e(asset('css/focused.css')) ?>">
+
+<meta name="application-name" content="Home2Home">
+<meta name="theme-color" content="#285947">
+<link rel="icon" type="image/svg+xml" href="<?= e(asset('images/favicon.svg')) ?>">
+<link rel="icon" type="image/png" sizes="512x512" href="<?= e(asset('images/app-icon-512.png')) ?>">
+<link rel="apple-touch-icon" sizes="180x180" href="<?= e(asset('images/apple-touch-icon.png')) ?>">
+<link rel="stylesheet" href="<?= e(asset('css/brand.css')) ?>">

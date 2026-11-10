@@ -1,0 +1,62 @@
+// Run with Playwright available on NODE_PATH; no database or paid providers are contacted.
+const { chromium } = require('playwright');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const fixture = path.join(os.tmpdir(), 'h2h-qc-ui');
+(async () => {
+  const browser = await chromium.launch({headless:true, ...(process.env.QC_CHROMIUM ? {executablePath:process.env.QC_CHROMIUM} : {})});
+  const results=[];
+  for (const viewport of [{width:1440,height:1000},{width:390,height:844}]) {
+    const page=await browser.newPage({viewport});
+    const errors=[];
+    page.on('pageerror', e => errors.push(e.message));
+    let failSend=true;
+    const messages=[{is_mine:0,sender_name:'Host',created_at:'2026-11-09 10:00:00',is_hidden:0,body:'<img src=x onerror=alert(1)>',read_at:null}];
+    await page.route('**/api/bookings/42/messages', route => route.fulfill({json:{success:true,data:{state:{can_send:1},messages}}}));
+    await page.route('http://127.0.0.1:8091/bookings/42/messages', route => {
+      if(failSend) return route.fulfill({status:422,json:{success:false,message:'Thử lại'}});
+      messages.push({is_mine:1,sender_name:'Guest',created_at:'2026-11-09 10:01:00',is_hidden:0,body:'Hello',read_at:null});
+      return route.fulfill({json:{success:true,data:null}});
+    });
+    await page.route('**/__qc-messages', route=>route.fulfill({contentType:'text/html',body:fs.readFileSync(path.join(fixture,'messages.html'),'utf8')}));
+    await page.goto('http://127.0.0.1:8091/__qc-messages', {waitUntil:'networkidle'});
+    await page.locator('[data-message-list]').getByText('<img src=x onerror=alert(1)>',{exact:true}).waitFor();
+    assert.equal(await page.locator('[data-message-list] img').count(),0,'Messages must render as text.');
+    await page.locator('#message-body').fill('Hello');
+    await page.locator('[data-message-form] button').click();
+    await page.locator('[data-message-error]:visible').waitFor();
+    assert.equal(await page.locator('#message-body').inputValue(),'Hello','Failure must preserve draft.');
+    failSend=false;
+    await page.locator('[data-message-form] button').click();
+    await page.waitForFunction(() => document.querySelector('#message-body').value==='');
+    await page.locator('[data-message-list]').getByText('Hello',{exact:true}).waitFor();
+    assert(!await page.getByText('Đã gửi tin nhắn.',{exact:true}).count());
+    await page.screenshot({path:path.join(fixture,`messages-${viewport.width}.png`),fullPage:true});
+    await page.route('**/api/addresses?q=*', route=>route.fulfill({json:{success:true,data:{places:[{latitude:11.94,longitude:108.43,label:'12 Nguyễn Văn Cừ, Đà Lạt'}]}}}));
+    await page.route('**/*tile.openstreetmap.org/**', route=>route.abort());
+    await page.route('**/__qc-host', route=>route.fulfill({contentType:'text/html',body:fs.readFileSync(path.join(fixture,'host.html'),'utf8')}));
+    await page.goto('http://127.0.0.1:8091/__qc-host',{waitUntil:'networkidle'});
+    await page.locator('[data-address-search]').click();
+    await page.locator('[data-address-results] button').click();
+    assert.equal(await page.locator('[data-picker-lat]').inputValue(),'11.940000');
+    assert.equal(await page.locator('[data-picker-lng]').inputValue(),'108.430000');
+    await page.locator('input[name="photos[]"]').setInputFiles([path.resolve('public/assets/images/demo/1502672260266-1c1ef2d93688.jpg'),path.resolve('public/assets/images/demo/1560448204-e02f11c3d0e2.jpg')]);
+    assert.equal(await page.locator('input[name="photos[]"]').evaluate(e=>e.files.length),2);
+    await page.locator('.photo-open').first().click();
+    assert.equal(await page.locator('dialog').evaluate(e=>e.open),true);
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.locator('.photo-viewer-controls span').textContent(),'2 / 2');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('dialog').evaluate(e=>e.open),false);
+    await page.evaluate(()=>scrollTo(0,0));
+    await page.screenshot({path:path.join(fixture,`host-${viewport.width}.png`),fullPage:true});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Page must fit viewport.');
+    assert.deepEqual(errors,[]);
+    results.push(viewport.width);
+    await page.close();
+  }
+  await browser.close();
+  console.log('QC browser checks passed at widths '+results.join(', ')+'. Screenshots: '+fixture);
+})().catch(e=>{console.error(e);process.exit(1);});

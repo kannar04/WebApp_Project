@@ -43,6 +43,7 @@ final class BookingService
      */
     public function book(int $listingId, int $guestId, string $checkIn, string $checkOut, int $guests, string $promoCode='', ?string $shownTotal=null): array
     {
+        (new \App\Models\ContactVerification())->ensureBookable($guestId);
         $this->validateDates($checkIn, $checkOut, $guests);
         $statement = $this->db->prepare('CALL DST_sp_booking_create(?,?,?,?,?,?,?)');
         $statement->execute([$listingId, $guestId, $checkIn, $checkOut, $guests, $this->promoCode($promoCode), $shownTotal]);

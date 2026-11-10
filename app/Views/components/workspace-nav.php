@@ -1,5 +1,6 @@
 <?php
 $workspaceLinks = $isAdminWorkspace ? [
+    ['/admin/host-requests',__('Host requests'),'user'],
     ['/admin',__('Tổng quan'),'grid'], ['/admin/catalog',__('Danh mục'),'sliders'],
     ['/admin/reviews',__('Đánh giá'),'star'], ['/admin/reports',__('Báo cáo'),'shield'],
     ['/admin/payments',__('Thanh toán'),'calendar'], ['/admin/promotions',__('Khuyến mãi'),'plus'],
@@ -8,7 +9,7 @@ $workspaceLinks = $isAdminWorkspace ? [
 ] : [
     ['/host',__('Tổng quan'),'grid'], ['/host/listings/create',__('Đăng chỗ ở'),'plus'],
     ['/host/reviews',__('Đánh giá của khách'),'star'], ['/messages',__('Tin nhắn'),'message'],
-    ['/profile',__('Hồ sơ'),'user'],
+    ['/notifications',__('Thông báo'),'bell'], ['/profile',__('Hồ sơ'),'user'],
 ];
 ?>
 <aside class="workspace-nav">

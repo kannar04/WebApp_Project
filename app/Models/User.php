@@ -55,7 +55,18 @@ final class User
 
     public function grantHost(int $id): void
     {
-        $this->db->prepare('CALL `LTP_sp_user_grant_host`(?)')->execute([$id]);
+        if ($this->hostRoleRemoved($id)) {
+            throw new \DomainException('Admin đã gỡ vai trò Host của bạn. Hãy liên hệ Admin nếu bạn muốn làm Host trở lại.');
+        }
+        $contact = (new ContactVerification())->status($id);
+        $identity = (new Trust())->verificationStatus($id);
+        if (empty($contact['email_verified']) || empty($contact['phone_verified'])) {
+            throw new \DomainException('Xác minh email và số điện thoại trong hồ sơ trước khi đăng ký làm Host.');
+        }
+        if (($identity['status'] ?? '') !== 'approved' || empty($identity['is_current'])) {
+            throw new \DomainException('Gửi yêu cầu xác minh danh tính và chờ Admin duyệt trước khi đăng ký làm Host.');
+        }
+        (new HostRequest())->submit($id, !empty($identity['is_debug']) || \App\Services\DebugVerification::verified('phone', $id));
     }
 
     /** True while the last Admin change to this account's Host role was a removal. */

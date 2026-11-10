@@ -39,3 +39,5 @@
     <?php endif; ?>
 </div>
 <?php endif; ?>
+
+<?php if(!$preview && \Core\Auth::id()!==(int)$listing['host_id']): ?><section class="page-section pt-0"><div class="container"><h2><?= e(__('Liên hệ chủ nhà')) ?></h2><p><?= e(__('Hỏi thông tin trước khi đặt phòng hoặc giữ liên lạc sau chuyến đi trong hộp thư riêng.')) ?></p><?php if(\Core\Auth::check()): ?><form method="post" action="<?= e(url('/messages/open')) ?>"><?= csrf_field() ?><input type="hidden" name="listing_id" value="<?= (int)$listing['id'] ?>"><button class="btn btn-outline-primary" type="submit"><?= e(__('Nhắn tin với chủ nhà')) ?></button></form><?php else: ?><a class="btn btn-outline-primary" href="<?= e(url('/login?'.http_build_query(['next'=>'/listings/'.(int)$listing['id']]))) ?>"><?= e(__('Đăng nhập để nhắn tin với chủ nhà')) ?></a><?php endif; ?></div></section><?php endif; ?>
