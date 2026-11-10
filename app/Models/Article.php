@@ -13,21 +13,21 @@ final class Article
     /** @return array{articles: array<int,array>, total: int} */
     public function publicPage(string $category, int $limit, int $offset): array
     {
-        $statement = $this->db->prepare('CALL sp_article_public_list(?,?,?)');
+        $statement = $this->db->prepare('CALL LTP_sp_article_public_list(?,?,?)');
         $statement->execute([$category, $limit, $offset]);
         return $this->withTotal($statement->fetchAll(), 'articles');
     }
 
     public function findPublished(string $slug): ?array
     {
-        $statement = $this->db->prepare('CALL sp_article_public_get(?)');
+        $statement = $this->db->prepare('CALL DST_sp_article_public_get(?)');
         $statement->execute([$slug]);
         return $statement->fetch() ?: null;
     }
 
     public function related(int $id, int $limit = 3): array
     {
-        $statement = $this->db->prepare('CALL sp_article_public_related(?,?)');
+        $statement = $this->db->prepare('CALL NMT_sp_article_public_related(?,?)');
         $statement->execute([$id, $limit]);
         return $statement->fetchAll();
     }
@@ -35,14 +35,14 @@ final class Article
     /** @return array{articles: array<int,array>, total: int} */
     public function adminPage(int $actor, string $query, string $category, string $status, int $limit, int $offset): array
     {
-        $statement = $this->db->prepare('CALL sp_admin_articles(?,?,?,?,?,?)');
+        $statement = $this->db->prepare('CALL NMT_sp_admin_articles(?,?,?,?,?,?)');
         $statement->execute([$actor, $query, $category, $status, $limit, $offset]);
         return $this->withTotal($statement->fetchAll(), 'articles');
     }
 
     public function findForAdmin(int $actor, int $id): ?array
     {
-        $statement = $this->db->prepare('CALL sp_admin_article_find(?,?)');
+        $statement = $this->db->prepare('CALL DST_sp_admin_article_find(?,?)');
         $statement->execute([$actor, $id]);
         return $statement->fetch() ?: null;
     }
@@ -50,7 +50,7 @@ final class Article
     /** Creates when $id is 0; returns the saved id, final slug and status. */
     public function save(int $actor, int $id, array $data): array
     {
-        $statement = $this->db->prepare('CALL sp_admin_article_save(?,?,?,?,?,?,?,?,?,?,?,?)');
+        $statement = $this->db->prepare('CALL LTP_sp_admin_article_save(?,?,?,?,?,?,?,?,?,?,?,?)');
         $statement->execute([$actor, $id, $data['category'], $data['title'], $data['slug'], $data['auto_slug'] ? 1 : 0,
             $data['excerpt'], $data['body'], $data['cover'], $data['cover_alt'] !== '' ? $data['cover_alt'] : null,
             $data['remove_cover'] ? 1 : 0, $data['status']]);
@@ -61,12 +61,12 @@ final class Article
 
     public function setStatus(int $actor, int $id, string $status): void
     {
-        $this->db->prepare('CALL sp_admin_article_set_status(?,?,?)')->execute([$actor, $id, $status]);
+        $this->db->prepare('CALL NMT_sp_admin_article_set_status(?,?,?)')->execute([$actor, $id, $status]);
     }
 
     public function delete(int $actor, int $id): void
     {
-        $this->db->prepare('CALL sp_admin_article_delete(?,?)')->execute([$actor, $id]);
+        $this->db->prepare('CALL NTK_sp_admin_article_delete(?,?)')->execute([$actor, $id]);
     }
 
     private function withTotal(array $rows, string $key): array

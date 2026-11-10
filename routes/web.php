@@ -1,0 +1,104 @@
+<?php
+declare(strict_types=1);
+use App\Controllers\AdminController;
+use App\Controllers\AuthController;
+use App\Controllers\BookingController;
+use App\Controllers\HomeController;
+use App\Controllers\HostController;
+use App\Controllers\ListingController;
+use App\Controllers\ProfileController;
+use App\Controllers\WishlistController;
+use Core\Router;
+$router=new Router();
+$router->get('/forgot-password',[AuthController::class,'forgotForm']);
+$router->post('/forgot-password',[AuthController::class,'forgot']);
+$router->get('/reset-password',[AuthController::class,'resetForm']);
+$router->post('/reset-password',[AuthController::class,'reset']);
+$router->post('/profile/password',[ProfileController::class,'password']);
+$router->get('/host/reviews',[\App\Controllers\ReviewController::class,'host']);
+$router->post('/host/reviews/{id}/reply',[\App\Controllers\ReviewController::class,'reply']);
+$router->get('/admin/reviews',[\App\Controllers\ReviewController::class,'admin']);
+$router->post('/admin/reviews/{id}/moderate',[\App\Controllers\ReviewController::class,'moderate']);
+$router->get('/reports',[\App\Controllers\ReportController::class,'index']);
+$router->post('/reports',[\App\Controllers\ReportController::class,'create']);
+$router->get('/admin/reports',[\App\Controllers\ReportController::class,'admin']);
+$router->post('/admin/reports/{id}/resolve',[\App\Controllers\ReportController::class,'resolve']);
+$router->get('/admin/catalog',[\App\Controllers\CatalogController::class,'index']);
+$router->post('/admin/catalog',[\App\Controllers\CatalogController::class,'save']);
+$router->get('/bookings/{id}',[BookingController::class,'show']);
+$router->post('/host/listings/{id}/delete',[HostController::class,'delete']);
+$router->post('/host/listings/{id}/photos',[HostController::class,'photos']);
+$router->get('/admin/listings/{id}/preview',[AdminController::class,'listingPreview']);
+$router->get('/notifications',[\App\Controllers\NotificationController::class,'index']);
+$router->post('/notifications/{id}/read',[\App\Controllers\NotificationController::class,'read']);
+$router->get('/',[HomeController::class,'index']);
+// Nice-to-have i18n: Vietnamese/English interface switch (cookie h2h_locale)
+$router->post('/locale',[\App\Controllers\LocaleController::class,'change']);
+$router->get('/api/listings',[HomeController::class,'search']);
+$router->get('/login',[AuthController::class,'loginForm']);$router->post('/login',[AuthController::class,'login']);
+$router->get('/register',[AuthController::class,'registerForm']);$router->post('/register',[AuthController::class,'register']);$router->post('/logout',[AuthController::class,'logout']);
+$router->get('/profile',[ProfileController::class,'show']);$router->post('/profile',[ProfileController::class,'update']);$router->post('/profile/become-host',[ProfileController::class,'becomeHost']);
+$router->get('/listings/{id}/review',[BookingController::class,'reviewStay']);
+$router->get('/listings/{id}',[ListingController::class,'show']);$router->get('/api/listings/{id}/quote',[ListingController::class,'quote']);$router->post('/listings/{id}/book',[BookingController::class,'create']);
+$router->get('/bookings',[BookingController::class,'index']);$router->post('/bookings/{id}/cancel',[BookingController::class,'cancel']);$router->post('/bookings/{id}/review',[BookingController::class,'review']);
+$router->get('/wishlist',[WishlistController::class,'index']);$router->get('/api/wishlist',[WishlistController::class,'saved']);$router->post('/api/wishlist/{id}',[WishlistController::class,'toggle']);
+$router->get('/host',[HostController::class,'dashboard']);$router->get('/host/listings/create',[HostController::class,'createForm']);$router->post('/host/listings',[HostController::class,'store']);$router->get('/host/listings/{id}/edit',[HostController::class,'editForm']);$router->get('/host/listings/{id}/availability',[HostController::class,'availabilityPage']);$router->post('/host/listings/{id}',[HostController::class,'update']);$router->post('/host/listings/{id}/visibility',[HostController::class,'visibility']);$router->post('/api/host/listings/{id}/availability',[HostController::class,'availability']);$router->post('/host/bookings/{id}/transition',[HostController::class,'transition']);
+$router->get('/admin',[AdminController::class,'dashboard']);$router->post('/admin/users',[AdminController::class,'userCreate']);$router->get('/admin/users/{id}/edit',[AdminController::class,'userEdit']);$router->post('/admin/users/{id}',[AdminController::class,'userUpdate']);$router->post('/admin/users/{id}/delete',[AdminController::class,'userDelete']);$router->post('/admin/users/{id}/status',[AdminController::class,'userStatus']);$router->post('/admin/users/{id}/roles',[AdminController::class,'userRoles']);$router->post('/admin/listings/{id}/moderate',[AdminController::class,'moderate']);$router->get('/admin/listings/{id}/edit',[AdminController::class,'listingEdit']);$router->post('/admin/listings/{id}',[AdminController::class,'listingUpdate']);$router->post('/admin/listings/{id}/visibility',[AdminController::class,'listingVisibility']);$router->post('/admin/listings/{id}/delete',[AdminController::class,'listingDelete']);$router->post('/admin/bookings/{id}/transition',[AdminController::class,'bookingTransition']);
+// Nice-to-have booking extras: flexible pricing, promo codes, Instant Book, payment status
+$router->get('/host/listings/{id}/pricing',[\App\Controllers\BookingExtrasController::class,'hostPricing']);
+$router->post('/host/listings/{id}/pricing',[\App\Controllers\BookingExtrasController::class,'hostPricingSave']);
+$router->post('/host/bookings/{id}/payment',[\App\Controllers\BookingExtrasController::class,'hostMarkPaid']);
+$router->get('/admin/holidays',[\App\Controllers\BookingExtrasController::class,'adminHolidays']);
+$router->post('/admin/holidays',[\App\Controllers\BookingExtrasController::class,'adminHolidaySave']);
+$router->post('/admin/holidays/{id}/delete',[\App\Controllers\BookingExtrasController::class,'adminHolidayDelete']);
+$router->get('/admin/promotions',[\App\Controllers\BookingExtrasController::class,'adminPromotions']);
+$router->post('/admin/promotions',[\App\Controllers\BookingExtrasController::class,'adminPromotionSave']);
+$router->post('/admin/promotions/{id}/toggle',[\App\Controllers\BookingExtrasController::class,'adminPromotionToggle']);
+$router->post('/admin/promotions/{id}/delete',[\App\Controllers\BookingExtrasController::class,'adminPromotionDelete']);
+$router->get('/admin/payments',[\App\Controllers\BookingExtrasController::class,'adminPayments']);
+$router->post('/admin/payments/{id}/paid',[\App\Controllers\BookingExtrasController::class,'adminPaymentPaid']);
+$router->post('/admin/payments/{id}/refund',[\App\Controllers\BookingExtrasController::class,'adminPaymentRefund']);
+
+// Nice-to-have online payment: VietQR bank transfer (Admin confirms) and VNPay
+$router->get('/bookings/{id}/pay',[\App\Controllers\PaymentController::class,'checkout']);
+$router->post('/bookings/{id}/pay/vietqr',[\App\Controllers\PaymentController::class,'startTransfer']);
+$router->post('/bookings/{id}/pay/vnpay',[\App\Controllers\PaymentController::class,'startVnpay']);
+$router->get('/payments/vnpay/return',[\App\Controllers\PaymentController::class,'vnpayReturn']);
+$router->get('/payments/vnpay/ipn',[\App\Controllers\PaymentController::class,'vnpayIpn']);
+$router->get('/payments/{id}',[\App\Controllers\PaymentController::class,'transfer']);
+$router->post('/payments/{id}/transferred',[\App\Controllers\PaymentController::class,'submitTransfer']);
+$router->post('/admin/payments/transfers/{id}',[\App\Controllers\PaymentController::class,'adminDecideTransfer']);
+$router->post('/admin/payments/duplicates/{id}',[\App\Controllers\PaymentController::class,'adminResolveDuplicate']);
+
+// Nice-to-have trust: identity verification, trusted Host badge, check-in guide
+$router->post('/profile/verification',[\App\Controllers\TrustController::class,'submitVerification']);
+$router->get('/admin/verifications',[\App\Controllers\TrustController::class,'adminIndex']);
+$router->post('/admin/verifications/{id}/decide',[\App\Controllers\TrustController::class,'adminDecide']);
+$router->get('/host/listings/{id}/checkin-guide',[\App\Controllers\TrustController::class,'guideForm']);
+$router->post('/host/listings/{id}/checkin-guide',[\App\Controllers\TrustController::class,'guideSave']);
+
+// Nice-to-have conversation: booking messages, check-in reminders
+$router->get('/messages',[\App\Controllers\MessageController::class,'index']);
+$router->post('/bookings/{id}/messages',[\App\Controllers\MessageController::class,'send']);
+$router->get('/admin/messages',[\App\Controllers\MessageController::class,'admin']);
+$router->post('/admin/messages/{id}/moderate',[\App\Controllers\MessageController::class,'moderate']);
+
+// Nice-to-have discovery: map search, recommendations
+$router->get('/map',[\App\Controllers\DiscoveryController::class,'map']);
+$router->get('/api/listings/map',[\App\Controllers\DiscoveryController::class,'search']);
+$router->post('/profile/history/clear',[\App\Controllers\DiscoveryController::class,'clearHistory']);
+
+// Nice-to-have content: articles and travel guides
+$router->get('/articles',[\App\Controllers\ArticleController::class,'index']);
+$router->get('/articles/{slug}',[\App\Controllers\ArticleController::class,'show']);
+$router->get('/admin/articles',[\App\Controllers\AdminArticleController::class,'index']);
+$router->get('/admin/articles/create',[\App\Controllers\AdminArticleController::class,'createForm']);
+$router->post('/admin/articles',[\App\Controllers\AdminArticleController::class,'store']);
+$router->get('/admin/articles/{id}/edit',[\App\Controllers\AdminArticleController::class,'editForm']);
+$router->get('/admin/articles/{id}/preview',[\App\Controllers\AdminArticleController::class,'preview']);
+$router->post('/admin/articles/{id}',[\App\Controllers\AdminArticleController::class,'update']);
+$router->post('/admin/articles/{id}/status',[\App\Controllers\AdminArticleController::class,'status']);
+$router->post('/admin/articles/{id}/delete',[\App\Controllers\AdminArticleController::class,'delete']);
+
+return $router;
+
