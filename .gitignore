@@ -75,6 +75,10 @@ public/uploads/*
 # Local database / backup
 # =========================
 *.sql
+!database/migrations/20261108_google_auth.sql
+!database/migrations/20261108_facebook_auth.sql
+!database/migrations/20261108_booking_emails.sql
+!database/migrations/20261109_qc_verification.sql
 *.sqlite
 *.sqlite3
 *.db
@@ -101,7 +105,18 @@ build/
 # Sơ đồ phân tích cục bộ
 graph/
 tests
+!tests/
+tests/*
+!tests/qc_patch_test.php
+!tests/qc_ui_fixture.php
+!tests/qc_ui_test.cjs
+!tests/debug_verification_test.php
+!tests/vnpay_gateway_test.php
 .kilo/
-demo_stays/
-docs/quality/
 docs/ui-experience/
+docs/quality/visual/
+demo_stays/
+
+# Local recovery snapshots
+.local-backups/
+COMMIT_SCHEDULE.md
