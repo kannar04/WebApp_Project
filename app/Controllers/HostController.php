@@ -12,8 +12,8 @@ use Core\Session;
 final class HostController extends Controller
 {
     public function dashboard(): void {$u=$this->requireRole('host');$this->render('host/dashboard',['title'=>'Không gian Host','stats'=>(new HostRepository())->stats((int)$u['id']),'monthlyRevenue'=>(new HostRepository())->monthlyRevenue((int)$u['id']),'listings'=>(new Listing())->hostListings((int)$u['id']),'bookings'=>(new Booking())->forHost((int)$u['id']),'trustStatus'=>(new \App\Models\Trust())->badges([(int)$u['id']],(int)$u['id'])[(int)$u['id']]??null,'payments'=>(new \App\Models\BookingExtras())->paymentMap((int)$u['id'],'host')]);}
-    public function createForm(): void {$this->requireRole('host');$m=new Listing();$this->render('host/listing-form',['title'=>'Đăng chỗ ở','listing'=>null,'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>[],'old'=>Session::pullOld()]);}
-    public function editForm(string $id): void {$u=$this->requireRole('host');$m=new Listing();$listing=$m->findOwned((int)$id,(int)$u['id']);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('host/listing-form',['title'=>'Chỉnh sửa chỗ ở','listing'=>$listing,'photos'=>$m->photos((int)$id,(int)$u['id']),'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>$m->amenityIds((int)$id),'old'=>Session::pullOld()]);}
+    public function createForm(): void {$this->requireRole('host');$m=new Listing();$this->render('host/listing-form',['title'=>'Đăng chỗ ở','listing'=>null,'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>[],'old'=>Session::pullOld('new-listing')]);}
+    public function editForm(string $id): void {$u=$this->requireRole('host');$m=new Listing();$listing=$m->findOwned((int)$id,(int)$u['id']);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('host/listing-form',['title'=>'Chỉnh sửa chỗ ở','listing'=>$listing,'photos'=>$m->photos((int)$id,(int)$u['id']),'types'=>$m->catalogChoices('type',(int)$id,(int)$u['id']),'policies'=>$m->policies(),'amenities'=>$m->catalogChoices('amenity',(int)$id,(int)$u['id']),'selectedAmenities'=>$m->amenityIds((int)$id),'old'=>Session::pullOld('listing:'.(int)$id)]);}
     public function availabilityPage(string $id): void
     {
         $user=$this->requireRole('host'); $model=new Listing();
@@ -21,7 +21,8 @@ final class HostController extends Controller
         if (!$listing) { http_response_code(404); $this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']); return; }
         try { $calendar=\Core\Calendar::month($_GET['month']??date('Y-m')); }
         catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
-        $this->render('host/availability',['title'=>'Lịch khả dụng','listing'=>$listing,
+        $old=Session::pullOld(); if (($old['listing_id']??null)!==(int)$id) { $old=[]; }
+        $this->render('host/availability',['title'=>'Lịch khả dụng','listing'=>$listing,'old'=>$old,
             'dates'=>$model->availability((int)$id,(int)$user['id']),'calendar'=>$calendar,
             'calendarDays'=>$model->calendar((int)$id,(int)$user['id'],$calendar['start'],$calendar['end']),
             'calendarPath'=>'/host/listings/'.$id.'/availability']);
@@ -30,7 +31,7 @@ final class HostController extends Controller
     public function delete(string $id): never
     {
         Csrf::ensure(); $user=$this->requireRole('host');
-        try { (new Listing())->softDelete((int)$id,(int)$user['id']); Session::flash('success','Đã xóa mềm tin. Lịch sử booking và ảnh gốc được giữ nguyên.'); }
+        try { (new Listing())->softDelete((int)$id,(int)$user['id']); Session::flash('success','Đã xóa tin. Lịch sử booking vẫn được giữ.'); }
         catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
         $this->redirect('/host');
     }
@@ -55,8 +56,13 @@ final class HostController extends Controller
                 || array_diff($remove,$current)) { throw new \DomainException('Danh sách ảnh đã thay đổi. Hãy tải lại trang.'); }
             if (count(array_unique($ordered))!==count($ordered)) { throw new \DomainException('Các ảnh giữ lại phải có thứ tự khác nhau.'); }
             asort($ordered,SORT_NUMERIC);
-            $model->managePhotos((int)$id,(int)$user['id'],array_keys($ordered),$current);
-            Session::flash('success','Đã cập nhật ảnh và gửi tin duyệt lại. Chỉ gỡ liên kết; không xóa file gốc.');
+            // The same photos in the same order: nothing to review, so a live listing stays live.
+            if (array_keys($ordered)===$current) {
+                Session::flash('success','Ảnh không có thay đổi nên tin vẫn giữ nguyên.');
+            } else {
+                $model->managePhotos((int)$id,(int)$user['id'],array_keys($ordered),$current);
+                Session::flash('success','Đã cập nhật ảnh và gửi tin duyệt lại.');
+            }
         } catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); }
         $this->redirect('/host/listings/'.$id.'/edit');
     }
@@ -68,20 +74,19 @@ final class HostController extends Controller
         $data += self::coordinateInput($_POST);
         $listingModel = new Listing();
         $returnPath = $listingId ? '/host/listings/'.$listingId.'/edit' : '/host/listings/create';
+        $oldScope = $listingId ? 'listing:'.$listingId : 'new-listing'; // Fixed here: a failed create rolls back the id it was given and returns to the blank form.
         $database = \Core\Database::connection();
         try {
             if ($listingId && !$listingModel->findOwned($listingId, $hostId)) {
                 throw new \DomainException('Không có quyền sửa chỗ ở.');
             }
+            \Core\Validator::listingDescription($data['description']);
             foreach (['title' => 180, 'address' => 255, 'city' => 100, 'description' => 65535] as $field => $maxLength) {
                 if ($data[$field] === '' || mb_strlen($data[$field]) > $maxLength) {
                     throw new \DomainException('Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.');
                 }
             }
-            if ($data['nightly_price'] <= 0 || $data['cleaning_fee'] < 0
-                || $data['nightly_price'] > 9999999999.99 || $data['cleaning_fee'] > 9999999999.99) {
-                throw new \DomainException('Giá phải lớn hơn 0 và phụ phí không được âm.');
-            }
+            $data = \Core\Validator::listingPrices($data);
             foreach (['max_guests', 'room_count', 'bedroom_count', 'bed_count'] as $field) {
                 if ($data[$field] < 1 || $data[$field] > 65535) {
                     throw new \DomainException('Sức chứa, số phòng và số giường phải từ 1 đến 65535.');
@@ -93,14 +98,14 @@ final class HostController extends Controller
                 }
             }
             self::assertCoordinates($data);
-            if (!in_array($data['property_type_id'], array_map('intval', array_column($listingModel->types(), 'id')), true)
+            if (!in_array($data['property_type_id'], array_map('intval', array_column($listingModel->catalogChoices('type', (int) $listingId, $hostId), 'id')), true)
                 || !in_array($data['cancellation_policy_id'], array_map('intval', array_column($listingModel->policies(), 'id')), true)) {
                 throw new \DomainException('Loại chỗ ở hoặc chính sách hủy không hợp lệ.');
             }
             $amenities = $_POST['amenities'] ?? [];
             if (!is_array($amenities)) { throw new \DomainException('Tiện nghi không hợp lệ.'); }
-            $amenities = array_map('intval', $amenities);
-            if (array_diff($amenities, array_map('intval', array_column($listingModel->allAmenities(), 'id')))) {
+            $amenities = array_map('intval', array_filter($amenities, 'is_string'));
+            if (array_diff($amenities, array_map('intval', array_column($listingModel->catalogChoices('amenity', (int) $listingId, $hostId), 'id')))) {
                 throw new \DomainException('Tiện nghi không tồn tại hoặc đã ngừng sử dụng.');
             }
 
@@ -119,7 +124,7 @@ final class HostController extends Controller
             $this->redirect('/host');
         } catch (\Throwable $exception) {
             if ($database->inTransaction()) { $database->rollBack(); }
-            Session::old($data + ['amenities' => is_array($_POST['amenities'] ?? null) ? array_map('intval', $_POST['amenities']) : []]);
+            Session::old($data + ['amenities' => is_array($_POST['amenities'] ?? null) ? array_map('intval', $_POST['amenities']) : []], $oldScope);
             Session::flash('error', $exception instanceof \DomainException
                 ? $exception->getMessage() : 'Không thể lưu chỗ ở. Vui lòng thử lại.');
             $this->redirect($returnPath);
@@ -148,19 +153,19 @@ final class HostController extends Controller
             }
         }
     }
-    private function listingInput(): array {return ['property_type_id'=>(int)($_POST['property_type_id']??0),'cancellation_policy_id'=>(int)($_POST['cancellation_policy_id']??0),'title'=>trim((string)($_POST['title']??'')),'address'=>trim((string)($_POST['address']??'')),'city'=>trim((string)($_POST['city']??'')),'description'=>trim((string)($_POST['description']??'')),'nightly_price'=>(float)($_POST['nightly_price']??0),'cleaning_fee'=>(float)($_POST['cleaning_fee']??0),'max_guests'=>(int)($_POST['max_guests']??0),'room_count'=>(int)($_POST['room_count']??1),'bedroom_count'=>(int)($_POST['bedroom_count']??1),'bed_count'=>(int)($_POST['bed_count']??1),'check_in_time'=>(string)($_POST['check_in_time']??'14:00'),'check_out_time'=>(string)($_POST['check_out_time']??'11:00'),'allows_smoking'=>isset($_POST['allows_smoking']),'allows_pets'=>isset($_POST['allows_pets']),'allows_parties'=>isset($_POST['allows_parties'])];}
+    private function listingInput(): array {return ['property_type_id'=>(int)input_text($_POST,'property_type_id','0'),'cancellation_policy_id'=>(int)input_text($_POST,'cancellation_policy_id','0'),'title'=>trim(input_text($_POST,'title')),'address'=>trim(input_text($_POST,'address')),'city'=>trim(input_text($_POST,'city')),'description'=>trim(input_text($_POST,'description')),'nightly_price'=>trim(input_text($_POST,'nightly_price','0')),'cleaning_fee'=>trim(input_text($_POST,'cleaning_fee','0')),'max_guests'=>(int)input_text($_POST,'max_guests','0'),'room_count'=>(int)input_text($_POST,'room_count','1'),'bedroom_count'=>(int)input_text($_POST,'bedroom_count','1'),'bed_count'=>(int)input_text($_POST,'bed_count','1'),'check_in_time'=>input_text($_POST,'check_in_time','14:00'),'check_out_time'=>input_text($_POST,'check_out_time','11:00'),'allows_smoking'=>is_string($_POST['allows_smoking']??null),'allows_pets'=>is_string($_POST['allows_pets']??null),'allows_parties'=>is_string($_POST['allows_parties']??null)];}
     public function visibility(string $id): never
     {
         Csrf::ensure(); $user=$this->requireRole('host');
         try {
-            (new Listing())->setVisible((int)$id,(int)$user['id'],!empty($_POST['visible']));
+            (new Listing())->setVisible((int)$id,(int)$user['id'],!empty(input_text($_POST,'visible')));
             Session::flash('success','Đã cập nhật hiển thị.');
         } catch (\Throwable $exception) {
             Session::flash('error',$exception instanceof \DomainException ? $exception->getMessage() : 'Không thể cập nhật hiển thị. Vui lòng thử lại.');
         }
         $this->redirect('/host');
     }
-    public function availability(string $id): never {Csrf::ensure();$u=$this->requireRole('host');$date=(string)($_POST['date']??'');$valid=\DateTimeImmutable::createFromFormat('!Y-m-d',$date);$message='Ngày không hợp lệ.';$ok=$valid&&$valid->format('Y-m-d')===$date&&$valid>=new \DateTimeImmutable('today');if($ok){$ok=(new Listing())->setAvailability((int)$id,(int)$u['id'],$date,!empty($_POST['open']),(string)($_POST['reason']??''));$message=$ok?'Đã cập nhật lịch.':'Không thể chặn ngày đã có booking xác nhận.';}if(str_contains((string)($_SERVER['HTTP_ACCEPT']??''),'application/json')){$this->json($ok,$message,null,[],$ok?200:422);}Session::flash($ok?'success':'error',$message);$this->redirect('/host/listings/'.$id.'/availability');}
-    public function transition(string $id): never {Csrf::ensure();$u=$this->requireRole('host');try{(new BookingService())->hostTransition((int)$id,(int)$u['id'],(string)($_POST['status']??''));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/host');}
+    public function availability(string $id): never {Csrf::ensure();$u=$this->requireRole('host');$date=input_text($_POST,'date');$valid=\Core\Calendar::date($date);$message='Ngày không hợp lệ.';$ok=$valid&&$valid>=new \DateTimeImmutable('today');$open=!empty(input_text($_POST,'open'));$reason=input_text($_POST,'reason');if($ok&&!$open&&mb_strlen($reason)>5000){$ok=false;$message='Lý do chặn ngày tối đa 5000 ký tự.';}elseif($ok){$ok=(new Listing())->setAvailability((int)$id,(int)$u['id'],$date,$open,$reason);$message=$ok?'Đã cập nhật lịch.':'Không thể chặn ngày đã có booking xác nhận.';}if(str_contains((string)($_SERVER['HTTP_ACCEPT']??''),'application/json')){$this->json($ok,$message,null,[],$ok?200:422);}Session::flash($ok?'success':'error',$message);if(!$ok){Session::old(['listing_id'=>(int)$id,'date'=>preg_match('/^\d{4}-\d{2}-\d{2}$/D',$date)?$date:'','reason'=>$reason]);}$month=input_text($_POST,'month');$this->redirect('/host/listings/'.$id.'/availability'.(preg_match('/^\d{4}-\d{2}$/D',$month)?'?month='.$month:''));}
+    public function transition(string $id): never {Csrf::ensure();$u=$this->requireRole('host');try{(new BookingService())->hostTransition((int)$id,(int)$u['id'],input_text($_POST,'status'));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/host');}
 }
 

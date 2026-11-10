@@ -3,12 +3,15 @@ declare(strict_types=1);
 namespace App\Controllers;
 use App\Models\AdminRepository;
 use App\Models\Booking;
+use App\Models\Trust;
 use App\Models\User;
 use App\Services\BookingService;
+use Core\Auth;
 use Core\Controller;
 use Core\Csrf;
 use Core\Database;
 use Core\Session;
+use Core\Validator;
 final class AdminController extends Controller
 {
     public function dashboard(): void
@@ -17,11 +20,11 @@ final class AdminController extends Controller
         $query=is_string($_GET['booking_q']??null)?mb_substr(trim($_GET['booking_q']),0,254):'';
         $status=is_string($_GET['booking_status']??null)?$_GET['booking_status']:'';
         if (!in_array($status,['','pending','confirmed','rejected','cancelled','completed'],true)) { $status=''; Session::flash('error','Trạng thái lọc booking không hợp lệ.'); }
-        $users=(new User())->all(is_string($_GET['q']??null)?$_GET['q']:'');
+        $users=(new User())->all(is_string($_GET['q']??null)?mb_substr(trim($_GET['q']),0,254):'');
         // Translated here with a {brand} slot (same key as the dashboard h1): the plain text "Quản trị Home2Home" is also the seeded Admin's display name.
         $this->render('admin/dashboard',['title'=>__('Quản trị {brand}',['brand'=>'Home2Home']),'stats'=>$repo->stats(),
             'users'=>$users,'listings'=>$repo->listings(),
-            'bookings'=>(new Booking())->adminSearch((int)$admin['id'],$query,$status),'bookingQuery'=>$query,'bookingStatus'=>$status,
+            'bookings'=>(new Booking())->adminSearch((int)$admin['id'],$query,$status),'bookingQuery'=>$query,'bookingStatus'=>$status,'old'=>Session::pullOld('new-user'),
             'trustBadges'=>(new \App\Models\Trust())->badges(array_column($users,'id'),(int)$admin['id'])]);
     }
     public function listingPreview(string $id): void
@@ -32,14 +35,14 @@ final class AdminController extends Controller
         try { $calendar=\Core\Calendar::month($_GET['month']??date('Y-m')); }
         catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
         $this->render('listings/show',['title'=>'Xem trước: '.$listing['title'],'listing'=>$listing,'preview'=>true,'calendar'=>$calendar,
-            'calendarDays'=>$model->calendar((int)$id,(int)$admin['id'],$calendar['start'],$calendar['end']),'calendarPath'=>'/admin/listings/'.$id.'/preview']);
+            'calendarDays'=>$model->calendar((int)$id,(int)$admin['id'],$calendar['start'],$calendar['end']),'calendarPath'=>'/admin/listings/'.$id.'/preview','reviewBadges'=>(new \App\Models\Trust())->reviewBadges((int)$id)]);
     }
     public function userStatus(string $id): never
     {
-        Csrf::ensure(); $admin=$this->requireRole('admin'); $status=(string)($_POST['status']??'');
-        if (!in_array($status,['active','suspended'],true)) { Session::flash('error','Trạng thái tài khoản không hợp lệ.'); $this->redirect('/admin'); }
+        Csrf::ensure(); $admin=$this->requireRole('admin'); $status=input_text($_POST,'status');
+        if (!in_array($status,['active','suspended','restore'],true)) { Session::flash('error','Trạng thái tài khoản không hợp lệ.'); $this->redirect('/admin'); }
         $this->managedUserChange((int)$id,(int)$admin['id'],'set_user_status',$status,
-            fn()=>(new User())->setStatus((int)$id,$status),'Đã cập nhật tài khoản.');
+            fn()=>(new User())->setStatus((int)$id,$status),$status==='restore'?'Đã khôi phục tài khoản.':'Đã cập nhật tài khoản.',$status!=='restore');
     }
     public function userRoles(string $id): never
     {
@@ -49,31 +52,35 @@ final class AdminController extends Controller
         }
         if ($roles === []) { $roles = ['guest']; } // User::replaceRoles saves guest when nothing is ticked; audit the same value.
         $this->managedUserChange((int)$id,(int)$admin['id'],'set_user_roles',implode(',',$roles),
-            fn()=>(new User())->replaceRoles((int)$id,$roles),'Đã cập nhật vai trò.');
+            fn()=>(new User())->replaceRoles((int)$id,$roles,(int)$admin['id']),'Đã cập nhật vai trò.');
     }
     public function userCreate(): never
     {
         Csrf::ensure(); $admin=$this->requireRole('admin');
-        $data=['full_name'=>trim((string)($_POST['full_name']??'')),'email'=>trim((string)($_POST['email']??'')),
-            'phone'=>trim((string)($_POST['phone']??'')),'password'=>(string)($_POST['password']??'')];
+        $data=['full_name'=>trim(input_text($_POST,'full_name')),'email'=>trim(input_text($_POST,'email')),
+            'phone'=>trim(input_text($_POST,'phone')),'password'=>input_password($_POST,'password')];
+        Session::old(['full_name'=>$data['full_name'],'email'=>$data['email'],'phone'=>$data['phone']],'new-user'); // For every refusal below; never the password.
         $roles=$_POST['roles']??['guest'];
         if ($data['full_name']==='' || mb_strlen($data['full_name'])>150 || !filter_var($data['email'],FILTER_VALIDATE_EMAIL)
-            || strlen($data['email'])>254 || strlen($data['phone'])>20 || strlen($data['password'])<8
+            || strlen($data['email'])>254 || strlen($data['phone'])>20
             || !$this->rolesAreValid($roles)) {
             Session::flash('error','Thông tin tài khoản mới không hợp lệ.'); $this->redirect('/admin');
         }
+        $passwordProblem=Validator::passwordProblem($data['password']);
+        if ($passwordProblem!==null) { Session::flash('error',$passwordProblem); $this->redirect('/admin'); }
+        if (!Trust::phoneAllowed($data['phone'])) { Session::flash('error',Trust::PHONE_RULE); $this->redirect('/admin'); }
         $database=Database::connection(); $database->beginTransaction();
         try {
             $newId=(new User())->adminCreate($data,$roles);
             (new AdminRepository())->audit((int)$admin['id'],'create_user','user',$newId,$data['email']);
-            $database->commit(); Session::flash('success','Đã tạo tài khoản.');
+            $database->commit(); Session::pullOld(); Session::flash('success','Đã tạo tài khoản.');
         } catch (\Throwable $exception) {
             if ($database->inTransaction()) { $database->rollBack(); }
             Session::flash('error','Không thể tạo tài khoản. Kiểm tra email đã tồn tại và thử lại.');
         }
         $this->redirect('/admin');
     }
-    public function userEdit(string $id): void {$this->requireRole('admin');$user=(new User())->findForAdmin((int)$id);if(!$user){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy tài khoản']);return;}$this->render('admin/user-edit',['title'=>'Sửa tài khoản','managedUser'=>$user,'old'=>Session::pullOld(),'trustBadges'=>(new \App\Models\Trust())->badges([(int)$id],(int)\Core\Auth::id())]);}
+    public function userEdit(string $id): void {$this->requireRole('admin');$user=(new User())->findForAdmin((int)$id);if(!$user){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy tài khoản']);return;}$this->render('admin/user-edit',['title'=>'Sửa tài khoản','managedUser'=>$user,'old'=>Session::pullOld('user:'.(int)$id),'trustBadges'=>(new \App\Models\Trust())->badges([(int)$id],(int)\Core\Auth::id())]);}
     public function userUpdate(string $id): never
     {
         Csrf::ensure();
@@ -85,22 +92,32 @@ final class AdminController extends Controller
             $this->redirect('/admin');
         }
         $data = [
-            'full_name' => trim((string) ($_POST['full_name'] ?? '')),
-            'email' => trim((string) ($_POST['email'] ?? '')),
-            'phone' => trim((string) ($_POST['phone'] ?? '')),
-            'password' => (string) ($_POST['password'] ?? ''),
+            'full_name' => trim(input_text($_POST, 'full_name')),
+            'email' => trim(input_text($_POST, 'email')),
+            'phone' => trim(input_text($_POST, 'phone')),
+            'password' => input_password($_POST, 'password'),
         ];
         if ($data['full_name'] === '' || mb_strlen($data['full_name']) > 150
             || !filter_var($data['email'], FILTER_VALIDATE_EMAIL) || strlen($data['email']) > 254
-            || strlen($data['phone']) > 20
-            || ($data['password'] !== '' && strlen($data['password']) < 8)) {
-            Session::old(array_diff_key($data, ['password'=>1]));
-            Session::flash('error', 'Thông tin cập nhật không hợp lệ; mật khẩu mới cần ít nhất 8 ký tự.');
+            || strlen($data['phone']) > 20) {
+            Session::old(array_diff_key($data, ['password'=>1]), 'user:'.$userId);
+            Session::flash('error', 'Thông tin cập nhật không hợp lệ.');
+            $this->redirect('/admin/users/'.$userId.'/edit');
+        }
+        $passwordProblem = $data['password'] === '' ? null : Validator::passwordProblem($data['password']);
+        if ($passwordProblem !== null) {
+            Session::old(array_diff_key($data, ['password'=>1]), 'user:'.$userId);
+            Session::flash('error', $passwordProblem);
+            $this->redirect('/admin/users/'.$userId.'/edit');
+        }
+        if (!Trust::phoneAllowed($data['phone'])) {
+            Session::old(array_diff_key($data, ['password'=>1]), 'user:'.$userId);
+            Session::flash('error', Trust::PHONE_RULE);
             $this->redirect('/admin/users/'.$userId.'/edit');
         }
         $roles = $_POST['roles'] ?? ['guest'];
         if (!$this->rolesAreValid($roles)) {
-            Session::old(array_diff_key($data, ['password'=>1]));
+            Session::old(array_diff_key($data, ['password'=>1]), 'user:'.$userId);
             Session::flash('error', 'Vai trò không hợp lệ.');
             $this->redirect('/admin/users/'.$userId.'/edit');
         }
@@ -112,17 +129,23 @@ final class AdminController extends Controller
         $database->beginTransaction();
         try {
             $userModel->adminUpdate($userId, $data);
-            $userModel->replaceRoles($userId, $roles);
+            $userModel->replaceRoles($userId, $roles, (int) $admin['id']);
             (new AdminRepository())->audit((int) $admin['id'], 'update_user', 'user', $userId, $data['email']);
             $database->commit();
             Session::flash('success', 'Đã cập nhật tài khoản.');
         } catch (\Throwable $exception) {
             if ($database->inTransaction()) { $database->rollBack(); }
-            $message = $exception instanceof \PDOException && $exception->getCode() === '23000'
-                ? 'Email đã được sử dụng.' : 'Không thể cập nhật tài khoản. Vui lòng thử lại.';
-            Session::old(array_diff_key($data, ['password'=>1]) + ['roles'=>$roles]);
+            $message = $exception instanceof \DomainException ? $exception->getMessage()
+                : ($exception instanceof \PDOException && $exception->getCode() === '23000'
+                ? 'Email đã được sử dụng.' : 'Không thể cập nhật tài khoản. Vui lòng thử lại.');
+            Session::old(array_diff_key($data, ['password'=>1]) + ['roles'=>$roles], 'user:'.$userId);
             Session::flash('error', $message);
             $this->redirect('/admin/users/'.$userId.'/edit');
+        }
+        // A new password of one's own ends this session, as on the profile page; signing out here lets the message survive that.
+        if ($userId === (int) $admin['id'] && $data['password'] !== '') {
+            Auth::logout(); Session::start(); Session::flash('success', 'Đã cập nhật tài khoản. Vui lòng đăng nhập lại.');
+            $this->redirect('/login');
         }
         $this->redirect('/admin');
     }
@@ -130,7 +153,7 @@ final class AdminController extends Controller
     {
         Csrf::ensure(); $admin=$this->requireRole('admin');
         $this->managedUserChange((int)$id,(int)$admin['id'],'delete_user','Soft delete',
-            fn()=>(new User())->softDelete((int)$id),'Đã xóa mềm tài khoản.');
+            fn()=>(new User())->softDelete((int)$id),'Đã xóa tài khoản.');
     }
 
     private function rolesAreValid(mixed $roles): bool
@@ -142,12 +165,12 @@ final class AdminController extends Controller
         return true;
     }
 
-    private function managedUserChange(int $id, int $adminId, string $action, string $details, callable $operation, string $message): never
+    private function managedUserChange(int $id, int $adminId, string $action, string $details, callable $operation, string $message, bool $mustBeLive = true): never
     {
         $database=Database::connection(); $ownsTransaction=false;
         try {
             if ($id===$adminId) { throw new \DomainException('Không thể thay đổi trạng thái hoặc vai trò của Admin đang đăng nhập.'); }
-            if (!(new User())->findForAdmin($id)) { throw new \DomainException('Tài khoản không tồn tại.'); }
+            if ($mustBeLive && !(new User())->findForAdmin($id)) { throw new \DomainException('Tài khoản không tồn tại.'); }
             $ownsTransaction=!$database->inTransaction();
             if ($ownsTransaction) { $database->beginTransaction(); }
             $operation();
@@ -160,29 +183,28 @@ final class AdminController extends Controller
         }
         $this->redirect('/admin');
     }
-    public function moderate(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');$action=(string)($_POST['action']??'');$note=trim((string)($_POST['note']??''));if(!in_array($action,['approved','rejected'],true)||($action==='rejected'&&$note==='')){Session::flash('error','Từ chối bài đăng phải có lý do.');$this->redirect('/admin');}try{(new AdminRepository())->moderate((int)$id,(int)$admin['id'],$action,$note);Session::flash('success','Đã cập nhật kiểm duyệt bài đăng.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể kiểm duyệt bài đăng. Vui lòng thử lại.');}$this->redirect('/admin');}
-    public function listingEdit(string $id): void {$this->requireRole('admin');$listing=(new AdminRepository())->findListing((int)$id);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('admin/listing-edit',['title'=>'Sửa chỗ ở','listing'=>$listing,'old'=>Session::pullOld()]);}
+    public function moderate(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');$action=input_text($_POST,'action');$note=trim(input_text($_POST,'note'));if(!in_array($action,['approved','rejected'],true)||($action==='rejected'&&$note==='')){Session::flash('error','Từ chối bài đăng phải có lý do.');$this->redirect('/admin');}if(mb_strlen($note)>5000){Session::old(['moderation_listing'=>(int)$id,'moderation_note'=>mb_substr($note,0,5000)]);Session::flash('error','Lý do hoặc ghi chú kiểm duyệt tối đa 5000 ký tự.');$this->redirect('/admin');}try{(new AdminRepository())->moderate((int)$id,(int)$admin['id'],$action,$note);Session::flash('success','Đã cập nhật kiểm duyệt bài đăng.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể kiểm duyệt bài đăng. Vui lòng thử lại.');}$this->redirect('/admin');}
+    public function listingEdit(string $id): void {$this->requireRole('admin');$listing=(new AdminRepository())->findListing((int)$id);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('admin/listing-edit',['title'=>'Sửa chỗ ở','listing'=>$listing,'old'=>Session::pullOld('listing:'.(int)$id)]);}
     public function listingUpdate(string $id): never
     {
         Csrf::ensure();
         $admin=$this->requireRole('admin');
-        $data=['title'=>trim((string)($_POST['title']??'')),'address'=>trim((string)($_POST['address']??'')),
-            'city'=>trim((string)($_POST['city']??'')),'description'=>trim((string)($_POST['description']??'')),
-            'nightly_price'=>(float)($_POST['nightly_price']??0),'cleaning_fee'=>(float)($_POST['cleaning_fee']??0),
-            'max_guests'=>(int)($_POST['max_guests']??0)];
+        $data=['title'=>trim(input_text($_POST,'title')),'address'=>trim(input_text($_POST,'address')),
+            'city'=>trim(input_text($_POST,'city')),'description'=>trim(input_text($_POST,'description')),
+            'nightly_price'=>trim(input_text($_POST,'nightly_price','0')),'cleaning_fee'=>trim(input_text($_POST,'cleaning_fee','0')),
+            'max_guests'=>(int)input_text($_POST,'max_guests','0')];
         try {
+            \Core\Validator::listingDescription($data['description']);
             foreach (['title'=>180,'address'=>255,'city'=>100,'description'=>65535] as $field=>$maximum) {
                 if ($data[$field]==='' || mb_strlen($data[$field])>$maximum) { throw new \DomainException('Vui lòng nhập đầy đủ thông tin trong giới hạn độ dài.'); }
             }
-            if ($data['nightly_price']<=0 || $data['nightly_price']>9999999999.99 || $data['cleaning_fee']<0
-                || $data['cleaning_fee']>9999999999.99 || $data['max_guests']<1 || $data['max_guests']>65535) {
-                throw new \DomainException('Giá phải lớn hơn 0, phụ phí không được âm và sức chứa phải hợp lệ.');
-            }
+            $data=\Core\Validator::listingPrices($data);
+            if ($data['max_guests']<1 || $data['max_guests']>65535) { throw new \DomainException('Sức chứa phải từ 1 đến 65535.'); }
             (new AdminRepository())->updateListing((int)$id,(int)$admin['id'],$data);
             Session::flash('success','Đã cập nhật chỗ ở.');
             $this->redirect('/admin');
         } catch (\Throwable $exception) {
-            Session::old($data);
+            Session::old($data,'listing:'.(int)$id);
             Session::flash('error',$exception instanceof \DomainException ? $exception->getMessage() : 'Không thể lưu chỗ ở. Vui lòng thử lại.');
             $this->redirect('/admin/listings/'.$id.'/edit');
         }
@@ -191,8 +213,8 @@ final class AdminController extends Controller
     {
         Csrf::ensure(); $admin = $this->requireRole('admin');
         try {
-            (new AdminRepository())->setListingVisibility((int)$id, (int)$admin['id'], !empty($_POST['visible']));
-            Session::flash('success', 'Đã cập nhật hiển thị listing.');
+            (new AdminRepository())->setListingVisibility((int)$id, (int)$admin['id'], !empty(input_text($_POST,'visible')));
+            Session::flash('success', 'Đã cập nhật hiển thị chỗ ở.');
         } catch (\Throwable $exception) {
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể cập nhật hiển thị. Vui lòng thử lại.');
         }
@@ -203,12 +225,12 @@ final class AdminController extends Controller
         Csrf::ensure(); $admin = $this->requireRole('admin');
         try {
             (new AdminRepository())->softDeleteListing((int)$id, (int)$admin['id']);
-            Session::flash('success', 'Đã gỡ listing (soft delete).');
+            Session::flash('success', 'Đã gỡ chỗ ở khỏi hệ thống.');
         } catch (\Throwable $exception) {
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể gỡ chỗ ở. Vui lòng thử lại.');
         }
         $this->redirect('/admin');
     }
-    public function bookingTransition(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');try{(new BookingService())->adminTransition((int)$id,(int)$admin['id'],(string)($_POST['status']??''));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/admin');}
+    public function bookingTransition(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');try{(new BookingService())->adminTransition((int)$id,(int)$admin['id'],input_text($_POST,'status'));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/admin');}
 }
 
