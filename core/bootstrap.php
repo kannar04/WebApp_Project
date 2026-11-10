@@ -1,0 +1,179 @@
+<?php
+
+declare(strict_types=1);
+
+spl_autoload_register(static function (string $class): void {
+    $prefixes = [
+        'App\\' => dirname(__DIR__) . '/app/',
+        'Core\\' => __DIR__ . '/',
+    ];
+    foreach ($prefixes as $prefix => $baseDirectory) {
+        if (!str_starts_with($class, $prefix)) {
+            continue;
+        }
+        $relative = substr($class, strlen($prefix));
+        $file = $baseDirectory . str_replace('\\', '/', $relative) . '.php';
+        if (is_file($file)) {
+            require $file;
+        }
+    }
+});
+
+$envFile = dirname(__DIR__) . '/.env';
+if (is_file($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+        if (str_starts_with(trim($line), '#') || !str_contains($line, '=')) {
+            continue;
+        }
+        [$key, $value] = array_map('trim', explode('=', $line, 2));
+        if (getenv($key) === false) {
+            putenv($key . '=' . $value);
+        }
+    }
+}
+
+$app = require dirname(__DIR__) . '/config/app.php';
+date_default_timezone_set($app['timezone']);
+configure_error_output($app['debug']);
+
+/** PHP errors go to the log and reach a web response only under APP_DEBUG. The CLI keeps php.ini's setting so tests and tools still print their failures. */
+function configure_error_output(bool $debug, string $sapi = PHP_SAPI): void
+{
+    if ($sapi !== 'cli') {
+        ini_set('display_errors', $debug ? '1' : '0');
+        ini_set('log_errors', '1');
+    }
+}
+
+/** Request text from $_GET or $_POST: an absent, array-shaped (name[]=1) or invalid UTF-8 value gives $default, so bad bytes are never stored as '?'. */
+function input_text(array $source, string $key, string $default = ''): string
+{
+    return isset($source[$key]) ? input_text_or_null($source, $key) ?? $default : $default;
+}
+
+/**
+ * The same text for a caller that refuses a bad value instead of taking it as empty: an array-shaped or invalid UTF-8 value gives null, an absent one ''.
+ * A textarea posts a line break as CRLF although its maxlength counted it as one character, so line breaks reach every check and routine as \n.
+ */
+function input_text_or_null(array $source, string $key): ?string
+{
+    $value = $source[$key] ?? '';
+    return is_string($value) && mb_check_encoding($value, 'UTF-8') ? str_replace(["\r\n", "\r"], "\n", $value) : null;
+}
+
+/** A password is bytes, not text: it comes through untouched, or a password set by an older client would no longer open. */
+function input_password(array $source, string $key): string
+{
+    $value = $source[$key] ?? '';
+    return is_string($value) ? $value : '';
+}
+
+function e(mixed $value): string
+{
+    return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+function url(string $path = ''): string
+{
+    $configured = (require dirname(__DIR__) . '/config/app.php')['url'];
+    if ($configured !== '') {
+        return $configured . '/' . ltrim($path, '/');
+    }
+    $scriptDirectory = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
+    $base = $scriptDirectory === '/' ? '' : rtrim($scriptDirectory, '/');
+    return $base . '/' . ltrim($path, '/');
+}
+
+/**
+ * A URL path as url() expects it: relative to the app, so the base is added back exactly once.
+ * The root .htaccess rewrites /folder/x into public/ while the address stays /folder/x, so under
+ * /folder/public both that and /folder count as the base. Null when the path lies outside the app.
+ */
+function app_path(string $path): ?string
+{
+    $base = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
+    if ($base === '/' || $base === '.') { $base = ''; }
+    $segments = explode('/', $path);
+    foreach (str_ends_with($base, '/public') ? [$base, substr($base, 0, -7)] : [$base] as $candidate) {
+        $depth = substr_count($candidate, '/') + 1;
+        // Browsers percent-encode the address (/My%20Folder) while SCRIPT_NAME is decoded.
+        if (rawurldecode(implode('/', array_slice($segments, 0, $depth))) === $candidate) {
+            return '/' . implode('/', array_slice($segments, $depth));
+        }
+    }
+    return null;
+}
+
+function asset(string $path): string { return url('/assets/' . ltrim($path, '/')); }
+function old(string $key, mixed $default = ''): mixed { return $GLOBALS['old'][$key] ?? $default; }
+function csrf_field(): string { return '<input type="hidden" name="_token" value="' . e(\Core\Csrf::token()) . '">'; }
+/** Interface text: Vietnamese source in, current-locale text out (see core/I18n.php). */
+function __(string $text, array $params = []): string { return \Core\I18n::translate($text, $params); }
+
+/**
+ * One cancellation policy's refund terms in words, from a row of cancellation_policies or a booking's snapshot.
+ * A cutoff no booking can reach (the strict policy stores 99999 hours, past 10 years here) reads as the policy's own text, never as a number of hours.
+ */
+function policy_terms(array $policy, ?string $description = null): string
+{
+    $name = isset($policy['name']) ? __((string) $policy['name']) : __('Chính sách đã lưu');
+    $hours = (int) ($policy['cutoff_hours'] ?? 0);
+    $late = (float) ($policy['late_refund_pct'] ?? 0);
+    if ($hours < 87600) {
+        return __('{policy}: trước giờ nhận phòng ít nhất {hours} giờ hoàn {early}%; sau mốc đó hoàn {late}%.', ['policy' => $name, 'hours' => $hours, 'early' => (float) ($policy['early_refund_pct'] ?? 0), 'late' => $late]);
+    }
+    return $description !== null && $description !== '' ? $name . ': ' . __($description) : __('{policy}: hủy lúc nào cũng hoàn {late}%.', ['policy' => $name, 'late' => $late]);
+}
+
+/** Display label for a stored status code (booking, listing, user, review); unknown codes are shown as stored. */
+function status_label(?string $code): string
+{
+    $labels = [
+        'draft' => __('Bản nháp'), 'pending' => __('Chờ duyệt'), 'approved' => __('Đã duyệt'), 'rejected' => __('Bị từ chối'),
+        'confirmed' => __('Đã xác nhận'), 'cancelled' => __('Đã hủy'), 'completed' => __('Hoàn thành'),
+        'active' => __('Đang hoạt động'), 'suspended' => __('Tạm khóa'), 'deleted' => __('Đã xóa'),
+        'visible' => __('Đang hiển thị'), 'hidden' => __('Đã ẩn'),
+    ];
+    return $labels[(string) $code] ?? (string) $code;
+}
+
+/** "2026-10-13" -> "13/10/2026"; with $withTime, "2026-10-13 14:25:58.624797" -> "13/10/2026 14:25". */
+function display_date(?string $value, bool $withTime = false): string
+{
+    return $withTime ? \App\Services\ConversationService::displayTime($value) : \App\Services\ConversationService::displayDate($value);
+}
+
+/** Decimal fraction in the current locale: 4,5 in Vietnamese, 4.5 in English; $trim drops trailing zeros. */
+function display_decimal(float $value, int $decimals = 1, bool $trim = false): string
+{
+    $point = \Core\I18n::locale() === 'en' ? '.' : ',';
+    $text = number_format($value, $decimals, $point, $point === '.' ? ',' : '.');
+    return $trim && $decimals > 0 ? rtrim(rtrim($text, '0'), $point) : $text;
+}
+
+/** A Host's average beside the Trusted Host minimum: just under it, one decimal would round up to the minimum itself, so show two decimals rounded down. */
+function display_trust_rating(array $metrics): string
+{
+    $average = (float) $metrics['average_rating'];
+    return empty($metrics['rating_met']) && round($average, 1) >= (float) $metrics['min_rating']
+        ? display_decimal((float) $metrics['average_rating_floor'], 2)
+        : display_decimal($average);
+}
+
+/** A Host's refusal rate beside the Trusted Host maximum: just over it, one decimal would round down to the maximum itself, so show two decimals rounded up. */
+function display_trust_cancel(array $metrics): string
+{
+    $rate = (float) $metrics['cancel_pct'];
+    return empty($metrics['cancel_met']) && $rate <= (float) $metrics['max_cancel_pct']
+        ? display_decimal((float) $metrics['cancel_pct_ceil'], 2)
+        : display_decimal($rate);
+}
+
+/** Resolve database image paths under the configured app base, preserving remote URLs. */
+function image_url(?string $path): string
+{
+    if (!$path) { return asset('images/placeholder.svg'); }
+    if (preg_match('#^https?://#i', $path)) { return $path; }
+    return url('/'.ltrim($path, '/'));
+}
+

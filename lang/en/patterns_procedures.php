@@ -8,18 +8,58 @@ declare(strict_types=1);
  * Order matters: the first matching template wins, so specific templates come before generic ones.
  */
 return [
+    // ---- 020_booking.sql: sp_booking_create refusal when the price moved after the quote
+    'Giá đã thay đổi nên chưa có booking nào được tạo. Tổng tiền mới: {amount}đ. Hãy xem lại rồi đặt lại.' => 'The price has changed, so no booking was made. New total: {amount}đ. Please review it and book again.',
+    // ---- 070_booking_extras.sql: sp_booking_payment_refund refusal when the amount owed moved after the form was opened
+    'Số tiền hoàn của booking #{id} đã đổi nên chưa ghi nhận. Cần hoàn: {amount}đ. Hãy xem lại rồi ghi nhận lại.' => 'The refund for booking #{id} has changed, so nothing was recorded. Refund owed: {amount}đ. Please review it and record it again.',
     // ---- 020_booking.sql: sp_booking_create notifications
     'Đặt ngay thành công: booking #{id} đã được tự động xác nhận.' => 'Instant Book: booking #{id} has been confirmed automatically.',
     'Bạn có booking Đặt ngay mới cho “{listing}” (#{id}), đã được tự động xác nhận.' => 'You have a new Instant Book booking for “{listing}” (#{id}); it was confirmed automatically.',
     'Bạn có yêu cầu đặt chỗ mới cho “{listing}”.' => 'You have a new booking request for “{listing}”.',
 
-    // ---- 020_booking.sql: sp_booking_transition Host notification (the status is the raw code)
+    // ---- 020_booking.sql: sp_booking_transition Host notification. {status} is a Vietnamese label found in the dictionary; the raw-code entries keep older rows readable.
+    'Booking #{id} chuyển sang trạng thái {status}.' => 'Booking #{id} is now {status}.',
     'Booking #{id} chuyển sang confirmed.' => 'Booking #{id} is now confirmed.',
     'Booking #{id} chuyển sang rejected.' => 'Booking #{id} is now rejected.',
     'Booking #{id} chuyển sang completed.' => 'Booking #{id} is now completed.',
     'Booking #{id} chuyển sang {status}.' => 'Booking #{id} changed to {status}.',
 
+    // ---- 030_atomic_writes.sql: sp_admin_listing_soft_delete refusal and Guest notification
+    'Không thể gỡ chỗ ở: còn {count} booking đã xác nhận chưa kết thúc. Hãy liên hệ Host và khách để xử lý trước. Có thể ẩn tin để ngừng nhận yêu cầu mới.' => 'This listing cannot be taken down: {count} confirmed booking(s) have not finished. Contact the Host and guest to resolve them first. You can hide the listing to stop new requests.',
+    'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì chỗ ở đã được gỡ khỏi hệ thống.' => 'Booking request #{id} for “{listing}” was rejected because the listing has been taken down.',
+    'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì chỗ ở không được duyệt.' => 'Booking request #{id} for “{listing}” was rejected because the listing was not approved.',
+
+    // ---- 010_models.sql: sp_user_soft_delete refusal and notifications to the other party
+    'Không thể xóa tài khoản: còn {count} booking đã xác nhận chưa kết thúc (với tư cách khách hoặc Host). Hãy liên hệ các bên để xử lý trước.' => 'This account cannot be deleted: {count} confirmed booking(s) have not finished (as guest or Host). Contact the people involved to resolve them first.',
+    'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì tài khoản Host đã bị xóa.' => 'Booking request #{id} for “{listing}” was rejected because the Host account was deleted.',
+    'Yêu cầu đặt chỗ #{id} cho “{listing}” đã bị từ chối vì tài khoản khách đã bị xóa.' => 'Booking request #{id} for “{listing}” was rejected because the guest account was deleted.',
+
+    // ---- 030_atomic_writes.sql: sp_user_roles_replace refusal
+    'Không thể bỏ vai trò Host: tài khoản còn {listings} chỗ ở và {bookings} booking chưa kết thúc. Hãy gỡ chỗ ở và xử lý booking trước.' => 'The Host role cannot be removed: this account still has {listings} listing(s) and {bookings} unfinished booking(s). Take the listings down and handle the bookings first.',
+
+    // ---- 060_quality_community.sql: sp_admin_report_resolve notifications to the reporter ({reason} is the Admin's own text)
+    'Báo cáo #{id} về “{listing}” đã được giải quyết. Kết luận: {reason}' => 'Report #{id} about “{listing}” was resolved. Conclusion: {reason}',
+    'Báo cáo #{id} về “{listing}” không được chấp nhận. Kết luận: {reason}' => 'Report #{id} about “{listing}” was dismissed. Conclusion: {reason}',
+    'Admin đang xử lý báo cáo #{id} về “{listing}”. Ghi chú: {reason}' => 'Admin is looking into report #{id} about “{listing}”. Note: {reason}',
+    'Admin đang xử lý báo cáo #{id} về “{listing}”.' => 'Admin is looking into report #{id} about “{listing}”.',
+    'Báo cáo #{id} về “{listing}” đang chờ Admin xử lý. Ghi chú: {reason}' => 'Report #{id} about “{listing}” is waiting for Admin. Note: {reason}',
+    'Báo cáo #{id} về “{listing}” đang chờ Admin xử lý.' => 'Report #{id} about “{listing}” is waiting for Admin.',
+
+    // ---- 030_atomic_writes.sql: Host notifications about a rejected or removed listing
+    'Tin “{listing}” đã bị Admin từ chối. Lý do: {reason}' => 'Admin rejected your listing “{listing}”. Reason: {reason}',
+    'Tin “{listing}” đã được Admin duyệt.' => 'Admin approved your listing “{listing}”.',
+    'Admin đã gỡ chỗ ở “{listing}” khỏi hệ thống.' => 'Admin took your listing “{listing}” down.',
+    'Admin đã ẩn tin “{listing}”. Tin không hiển thị với khách cho đến khi Admin hiện lại; hãy liên hệ Admin nếu bạn cần.' => 'Admin hid your listing “{listing}”. Guests cannot see it until an Admin shows it again; contact an Admin if you need to.',
+    'Admin đã hiện lại tin “{listing}”.' => 'Admin showed your listing “{listing}” again.',
+    'Admin đã ẩn tin “{listing}”, tin mà bạn đang tự ẩn. Bạn chỉ hiện lại được sau khi Admin bỏ ẩn; hãy liên hệ Admin nếu bạn cần.' => 'Admin also hid “{listing}”, which you had hidden yourself. You can show it again only after Admin lifts this hide; contact an Admin if you need to.',
+    'Admin đã bỏ ẩn tin “{listing}”. Tin vẫn đang ẩn vì bạn đã tự ẩn trước đó; bạn có thể tự hiện lại khi sẵn sàng.' => 'Admin lifted the hide on “{listing}”. It stays hidden because you had hidden it yourself; you can show it again when you are ready.',
+
     // ---- 020_booking.sql: sp_booking_cancel Guest notification (now e.g. 1.500.000đ / 100; the second entry keeps older rows stored as 1500000.00 / 100.00)
+    'Booking #{id} đã hủy. Khoản thanh toán đã được hoàn trước đó nên không có khoản hoàn thêm.' => 'Booking #{id} was cancelled. The payment was already refunded, so no further refund is due.',
+    'Booking #{id} đã hủy. Theo chính sách hủy, khoản đã thanh toán không được hoàn.' => 'Booking #{id} was cancelled. Under the cancellation policy, the payment is not refunded.',
+    'Booking #{id} đã hủy khi đã thanh toán. Cần hoàn {amount}đ cho khách theo chính sách ({percent}%).' => 'Booking #{id} was cancelled after payment. Refund {amount}đ to the guest under the policy ({percent}%).',
+    'Booking #{id} đã hủy khi đã thanh toán. Theo chính sách hủy, khoản hoàn là 0đ nên không cần hoàn tiền.' => 'Booking #{id} was cancelled after payment. Under the cancellation policy the refund is 0đ, so nothing needs refunding.',
+    'Booking #{id} đã hủy.' => 'Booking #{id} was cancelled.',
     'Booking #{id} đã hủy. Mức hoàn: {amount}đ ({percent}%).' => 'Booking #{id} was cancelled. Refund: {amount}đ ({percent}%).',
     'Booking #{id} đã hủy. Mức hoàn: {amount} ({percent}%).' => 'Booking #{id} was cancelled. Refund: {amount} ({percent}%).',
 
@@ -49,7 +89,22 @@ return [
     'Booking #{id}: khách báo đã chuyển {amount}đ với nội dung {reference}. Vui lòng kiểm tra tài khoản và xác nhận.' => 'Booking #{id}: the guest reported transferring {amount}đ with reference {reference}. Please check the account and confirm.',
     'Booking #{id} đã được xác nhận thanh toán chuyển khoản {amount}đ (mã {reference}).' => 'Bank transfer payment of {amount}đ confirmed for booking #{id} (reference {reference}).',
     'Chưa xác nhận được chuyển khoản cho booking #{id} (mã {reference}). Lý do: {reason}' => 'The bank transfer for booking #{id} (reference {reference}) could not be confirmed. Reason: {reason}',
+    'Booking #{id} đã được thanh toán bằng giao dịch khác nên chuyển khoản {amount}đ (mã {reference}) đã được đóng. Nếu khoản này đã vào tài khoản, Admin sẽ hoàn lại cho bạn. Ghi chú: {reason}' => 'Booking #{id} was paid by another transaction, so the bank transfer of {amount}đ (reference {reference}) was closed. If this money reached the account, an Admin will return it to you. Note: {reason}',
+    'Đã đóng chuyển khoản trùng vì booking đã được thanh toán bằng giao dịch khác; nếu khoản này đã vào tài khoản, Admin sẽ hoàn lại cho khách. Ghi chú: {reason}' => 'Duplicate bank transfer closed because the booking was paid by another transaction; if this money reached the account, an Admin will return it to the guest. Note: {reason}',
+    'Booking #{id} đã hủy nhưng VNPay vẫn nhận {amount}đ. Admin sẽ hoàn lại khoản này cho bạn.' => 'Booking #{id} is cancelled but VNPay still took {amount}đ. An Admin will return this money to you.',
+    'Chỗ ở của booking #{id} đã bị gỡ nhưng VNPay vẫn nhận {amount}đ. Admin sẽ hoàn lại khoản này cho bạn.' => 'The listing of booking #{id} was taken down but VNPay still took {amount}đ. An Admin will return this money to you.',
+    'Booking #{id} đã hủy nhưng đã nhận chuyển khoản {amount}đ (mã {reference}). Admin sẽ hoàn lại khoản này cho bạn.' => 'Booking #{id} is cancelled but a bank transfer of {amount}đ (reference {reference}) arrived. An Admin will return this money to you.',
+    'Chỗ ở của booking #{id} đã bị gỡ nhưng đã nhận chuyển khoản {amount}đ (mã {reference}). Admin sẽ hoàn lại khoản này cho bạn.' => 'The listing of booking #{id} was taken down but a bank transfer of {amount}đ (reference {reference}) arrived. An Admin will return this money to you.',
     'Booking #{id} đã thanh toán thành công qua VNPay {amount}đ.' => 'Booking #{id} was paid via VNPay: {amount}đ.',
+    'Booking #{id} vừa nhận {amount}đ qua VNPay (mã {reference}) trong khi tài khoản Host đang tạm khóa. Vui lòng kiểm tra chuyến ở này.' => 'Booking #{id} just received {amount}đ via VNPay (reference {reference}) while the Host\'s account is temporarily locked. Please check this stay.',
+    'Booking #{id} vừa nhận {amount}đ qua chuyển khoản (mã {reference}) trong khi tài khoản Host đang tạm khóa. Vui lòng kiểm tra chuyến ở này.' => 'Booking #{id} just received {amount}đ by bank transfer (reference {reference}) while the Host\'s account is temporarily locked. Please check this stay.',
+    'Booking #{id} đã hủy nhưng vẫn nhận {amount}đ qua chuyển khoản (mã {reference}). Vui lòng hoàn tiền cho khách.' => 'Booking #{id} was cancelled but still received {amount}đ by bank transfer (reference {reference}). Please refund the guest.',
     'Booking #{id} đã hủy nhưng vẫn nhận {amount}đ qua VNPay (mã {reference}). Vui lòng hoàn tiền cho khách.' => 'Booking #{id} was cancelled but still received {amount}đ via VNPay (reference {reference}). Please refund the guest.',
+    'Booking #{id} đã được thanh toán trước đó nên khoản VNPay {amount}đ (mã {reference}) là thanh toán trùng. Admin sẽ hoàn lại khoản này cho bạn.' => 'Booking #{id} was already paid, so the VNPay payment of {amount}đ (reference {reference}) is a duplicate. An admin will refund it to you.',
+    'Khoản VNPay {amount}đ (mã {reference}) của booking #{id} đã được hoàn lại. Booking vẫn được giữ là đã thanh toán.' => 'The VNPay payment of {amount}đ (reference {reference}) on booking #{id} was refunded. The booking stays paid.',
+    'Khoản VNPay {amount}đ (mã {reference}) của booking #{id} đã được hoàn lại. Khoản thanh toán chính của booking cũng đã được hoàn trước đó.' => 'The VNPay payment of {amount}đ (reference {reference}) on booking #{id} was refunded. The main payment on this booking was refunded earlier too.',
+    'Đã hoàn khoản thanh toán trùng: {reason}' => 'Duplicate payment refunded: {reason}',
+    'Booking #{id} thuộc chỗ ở đã gỡ nhưng vẫn nhận {amount}đ qua chuyển khoản (mã {reference}). Vui lòng hoàn tiền cho khách.' => 'Booking #{id} belongs to a taken-down listing but still received {amount}đ by bank transfer (reference {reference}). Please refund the guest.',
+    'Booking #{id} thuộc chỗ ở đã gỡ nhưng vẫn nhận {amount}đ qua VNPay (mã {reference}). Vui lòng hoàn tiền cho khách.' => 'Booking #{id} belongs to a taken-down listing but still received {amount}đ via VNPay (reference {reference}). Please refund the guest.',
     'Booking #{id} nhận thêm {amount}đ qua VNPay (mã {reference}) sau khi đã thanh toán. Vui lòng hoàn tiền cho khách.' => 'Booking #{id} received another {amount}đ via VNPay (reference {reference}) after it was already paid. Please refund the guest.',
 ];

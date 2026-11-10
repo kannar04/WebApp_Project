@@ -39,7 +39,7 @@ final class AdminArticleController extends Controller
     public function createForm(): void
     {
         $this->requireRole('admin');
-        $this->renderForm(null, Session::pullOld());
+        $this->renderForm(null, Session::pullOld('new-article'));
     }
 
     public function store(): never
@@ -57,7 +57,7 @@ final class AdminArticleController extends Controller
             $this->notFound();
             return;
         }
-        $this->renderForm($article, Session::pullOld());
+        $this->renderForm($article, Session::pullOld('article:'.(int)$id));
     }
 
     public function update(string $id): void
@@ -88,7 +88,7 @@ final class AdminArticleController extends Controller
         Csrf::ensure();
         $user = $this->requireRole('admin');
         $status = $_POST['status'] ?? '';
-        $back = ($_POST['return'] ?? '') === 'edit' ? '/admin/articles/'.(int) $id.'/edit' : '/admin/articles';
+        $back = ($_POST['return'] ?? '') === 'edit' ? '/admin/articles/'.(int) $id.'/edit' : self::listReturnPath('/admin/articles');
         try {
             if (!is_string($status) || !isset(self::STATUSES[$status])) { throw new \DomainException('Trạng thái bài viết không hợp lệ.'); }
             (new Article())->setStatus((int) $user['id'], (int) $id, $status);
@@ -109,7 +109,7 @@ final class AdminArticleController extends Controller
         } catch (\DomainException $exception) {
             Session::flash('error', $exception->getMessage());
         }
-        $this->redirect('/admin/articles');
+        $this->redirect(self::listReturnPath('/admin/articles'));
     }
 
     private function persist(array $user, ?array $existing): never
@@ -117,8 +117,7 @@ final class AdminArticleController extends Controller
         $back = $existing ? '/admin/articles/'.(int) $existing['id'].'/edit' : '/admin/articles/create';
         $input = [];
         foreach (['title', 'category', 'slug', 'excerpt', 'body', 'cover_alt'] as $field) {
-            $value = $_POST[$field] ?? '';
-            $input[$field] = is_string($value) ? trim(str_replace(["\r\n", "\r"], "\n", $value)) : '';
+            $input[$field] = trim(str_replace(["\r\n", "\r"], "\n", input_text($_POST, $field)));
         }
         $intent = $_POST['intent'] ?? 'save';
         $status = match ($intent) { 'publish' => 'published', 'draft' => 'draft', default => $existing ? null : 'draft' };
@@ -137,7 +136,7 @@ final class AdminArticleController extends Controller
         if (mb_strlen($excerpt) > 500) { $errors[] = 'Tóm tắt tối đa 500 ký tự.'; }
         if (mb_strlen($input['cover_alt']) > 255) { $errors[] = 'Mô tả ảnh bìa tối đa 255 ký tự.'; }
         // Each sentence is translated before joining; the layout can only translate whole known sentences.
-        if ($errors) { $this->back($back, $input, implode(' ', array_map('__', $errors))); }
+        if ($errors) { $this->back($back, $input, $existing, implode(' ', array_map('__', $errors))); }
 
         $cover = null;
         try {
@@ -151,11 +150,11 @@ final class AdminArticleController extends Controller
                 'remove_cover' => $removeCover && $cover === null, 'status' => $status]);
         } catch (\DomainException $exception) {
             $this->discardUpload($cover);
-            $this->back($back, $input, $exception->getMessage());
+            $this->back($back, $input, $existing, $exception->getMessage());
         } catch (\PDOException $exception) {
             $this->discardUpload($cover);
             if ($exception->getCode() !== '23000') { throw $exception; }
-            $this->back($back, $input, 'Đường dẫn đã được dùng cho bài viết khác.');
+            $this->back($back, $input, $existing, 'Đường dẫn đã được dùng cho bài viết khác.');
         }
         $message = $existing ? 'Đã lưu bài viết.' : 'Đã tạo bài viết.';
         $message .= $saved['status'] === 'published' ? ' Bài đang hiển thị công khai.' : ' Bài đang là bản nháp, chưa hiển thị công khai.';
@@ -163,9 +162,9 @@ final class AdminArticleController extends Controller
         $this->redirect('/admin/articles/'.(int) $saved['id'].'/edit');
     }
 
-    private function back(string $path, array $input, string $error): never
+    private function back(string $path, array $input, ?array $existing, string $error): never
     {
-        Session::old($input);
+        Session::old($input, $existing ? 'article:'.(int)$existing['id'] : 'new-article');
         Session::flash('error', $error);
         $this->redirect($path);
     }
