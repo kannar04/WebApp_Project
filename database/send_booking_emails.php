@@ -11,7 +11,7 @@ foreach(array_slice($argv,1) as $argument){
 try {
     if($test!==null){
         $mailer=new App\Services\MailService();
-        if(!$mailer->configured()){throw new RuntimeException('Email is disabled or not configured. See docs/booking-emails.md.');}
+        if(!$mailer->configured()){throw new RuntimeException('Email is disabled or not configured. See README.md (Booking email).');}
         $sent=$mailer->send($test,'Home2Home - Mail configuration test','This is a Home2Home mail configuration test. No booking was created or changed.');
         echo $sent?"Test email accepted by the configured transport.\n":"Test email failed. Check private SMTP settings and server logs.\n";exit($sent?0:1);
     }

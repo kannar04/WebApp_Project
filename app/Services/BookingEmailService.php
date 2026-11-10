@@ -13,7 +13,7 @@ final class BookingEmailService
         $mailer=new MailService();
         $config=require dirname(__DIR__,2).'/config/mail.php';
         if(!$mailer->configured()||!self::validBaseUrl($config['base_url'])){
-            throw new \RuntimeException('Email is disabled or not configured. See docs/booking-emails.md. Queue left untouched.');
+            throw new \RuntimeException('Email is disabled or not configured. See README.md (Booking email). Queue left untouched.');
         }
         $queue=new BookingEmail();$result=['sent'=>0,'failed'=>0,'skipped'=>0,'busy'=>false];
         if(!$queue->lock(true)){$result['busy']=true;return $result;}

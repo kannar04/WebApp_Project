@@ -116,3 +116,7 @@ tests/*
 docs/ui-experience/
 docs/quality/visual/
 demo_stays/
+
+# Local recovery snapshots
+.local-backups/
+COMMIT_SCHEDULE.md
