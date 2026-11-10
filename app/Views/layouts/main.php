@@ -14,12 +14,12 @@ $messageUnread=$currentUser?\App\Services\ConversationService::navigation((int)$
 ?>
 <!doctype html>
 <html lang="<?= e(\Core\I18n::locale()) ?>">
-<head><?php require dirname(__DIR__).'/components/document-head.php'; ?><link rel="icon" type="image/svg+xml" href="<?= e(asset('images/favicon.svg')) ?>"><noscript><style>.navbar-toggler{display:none}@media(max-width:991.98px){.site-header{position:static}.site-header .navbar-collapse.collapse{display:block}}.account-trigger{display:none}.site-header .account-dropdown .dropdown-menu{display:block;position:static}</style></noscript></head>
+<head><?php require dirname(__DIR__).'/components/document-head.php'; ?><noscript><style>.navbar-toggler{display:none}@media(max-width:991.98px){.site-header{position:static}.site-header .navbar-collapse.collapse{display:block}}.account-trigger{display:none}.site-header .account-dropdown .dropdown-menu{display:block;position:static}</style></noscript></head>
 <body class="experience-body<?= $isWorkspace?' workspace-body':'' ?>">
 <a class="skip-link" href="#main-content"><?= e(__('Bỏ qua điều hướng')) ?></a>
 <header class="site-header"><div class="container">
 <nav class="navbar navbar-expand-lg navbar-light px-0" aria-label="<?= e(__('Điều hướng chính')) ?>">
-    <a class="navbar-brand brand" href="<?= e(url('/')) ?>">home2home<span class="brand-dot" aria-hidden="true">.</span></a>
+    <a class="navbar-brand brand" href="<?= e(url('/')) ?>"><?php require dirname(__DIR__).'/components/brand.php'; ?></a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="<?= e(__('Mở điều hướng')) ?>"><span class="navbar-toggler-icon"></span></button>
     <div class="collapse navbar-collapse" id="mainNav">
         <ul class="navbar-nav mx-auto">
@@ -33,6 +33,7 @@ $messageUnread=$currentUser?\App\Services\ConversationService::navigation((int)$
                 <a class="btn btn-ghost" href="<?= e(url('/login'.$authQuery)) ?>"><?= e(__('Đăng nhập')) ?></a>
                 <a class="btn btn-primary nav-signup" href="<?= e(url('/register'.$authQuery)) ?>"><?= e(__('Đăng ký')) ?> <?= ui_icon('arrow') ?></a>
             <?php else: ?>
+                <a class="icon-control" href="<?= e(url('/notifications')) ?>" aria-label="<?= e(__('Thông báo')) ?>"><?= ui_icon('bell') ?></a>
                 <a class="nav-message icon-control" href="<?= e(url('/messages')) ?>"><?= ui_icon('message') ?><span class="sr-only"><?= e(__('Tin nhắn')) ?></span><?php if($messageUnread>0): ?><span class="nav-unread-badge"><?= $messageUnread>99?'99+':(int)$messageUnread ?><span class="sr-only"> <?= e(__('tin nhắn chưa đọc')) ?></span></span><?php endif; ?></a>
                 <div class="dropdown account-dropdown">
                     <button class="account-trigger" id="account-menu-button" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="account-avatar" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($currentUser['full_name'],0,1))) ?></span><span class="account-name"><?= e($currentUser['full_name']) ?></span><?= ui_icon('chevron') ?></button>
@@ -62,7 +63,7 @@ $messageUnread=$currentUser?\App\Services\ConversationService::navigation((int)$
 </main>
 <footer class="site-footer"><div class="container">
     <div class="footer-main row">
-        <div class="col-md-6"><a class="brand" href="<?= e(url('/')) ?>">home2home<span class="brand-dot" aria-hidden="true">.</span></a><p class="footer-manifesto"><?= e(__('Ở đâu cũng thấy như ở nhà.')) ?></p></div>
+        <div class="col-md-6"><a class="brand" href="<?= e(url('/')) ?>"><?php require dirname(__DIR__).'/components/brand.php'; ?></a><p class="footer-manifesto"><?= e(__('Ở đâu cũng thấy như ở nhà.')) ?></p></div>
         <div class="col-6 col-md-3"><h2><?= e(__('Khám phá')) ?></h2><a href="<?= e(url('/')) ?>"><?= e(__('Tìm chỗ ở')) ?></a><a href="<?= e(url('/map')) ?>"><?= e(__('Xem trên bản đồ')) ?></a><a href="<?= e(url('/articles')) ?>"><?= e(__('Cẩm nang du lịch và tin tức')) ?></a></div>
         <div class="col-6 col-md-3"><h2><?= e(__('Hành trình của bạn')) ?></h2><a href="<?= e(url('/bookings')) ?>"><?= e(__('Đặt chỗ')) ?></a><a href="<?= e(url('/wishlist')) ?>"><?= e(__('Yêu thích')) ?></a><a href="<?= e(url('/profile')) ?>"><?= e(__('Tài khoản của bạn')) ?></a></div>
     </div>
@@ -78,6 +79,8 @@ $messageUnread=$currentUser?\App\Services\ConversationService::navigation((int)$
 <script src="<?= e(asset('vendor/jquery.slim.min.js')) ?>"></script>
 <script src="<?= e(asset('vendor/bootstrap.bundle.min.js')) ?>"></script>
 <script type="application/json" id="h2h-i18n"><?= json_encode(\Core\I18n::scriptDictionary(),JSON_FORCE_OBJECT|JSON_HEX_TAG|JSON_HEX_AMP|JSON_UNESCAPED_UNICODE) ?></script>
+<?php if($currentUser && !str_starts_with($requestPath,'/messages')): ?><a class="floating-messages" href="<?= e(url('/messages')) ?>" aria-label="<?= e(__('Mở hộp thư')) ?>"><?= ui_icon('message') ?><?php if($messageUnread): ?><span><?= (int)$messageUnread ?></span><?php endif; ?></a><?php endif; ?>
 <script src="<?= e(asset('js/app.js')) ?>"></script>
+<script src="<?= e(asset('js/qc-ui.js')) ?>"></script>
 <?php foreach(($pageScripts??[]) as $pageScript): ?><script src="<?= e(asset($pageScript)) ?>"></script><?php endforeach; ?>
 </body></html>
