@@ -79,6 +79,7 @@ public/uploads/*
 !database/migrations/20261108_facebook_auth.sql
 !database/migrations/20261108_booking_emails.sql
 !database/migrations/20261109_qc_verification.sql
+!database/migrations/20261111_normalize_utf8mb4_collation.sql
 *.sqlite
 *.sqlite3
 *.db
