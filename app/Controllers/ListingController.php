@@ -26,6 +26,27 @@ final class ListingController extends Controller
             'trustBadges'=>(new \App\Models\Trust())->badges([(int)$listing['host_id']],\Core\Auth::id()),'reviewBadges'=>(new \App\Models\Trust())->reviewBadges((int)$id),
             'bookingRules'=>(new BookingExtras())->listingRules((int)$id),'upcomingHolidays'=>(new BookingExtras())->upcomingHolidays(6)]);
     }
+    public function nearbyServices(string $id): never
+    {
+        $category = input_text($_GET, 'category', 'all');
+        if (!isset(\App\Services\GeoapifyPlaces::CATEGORIES[$category])) {
+            $this->json(false, 'Loại dịch vụ không hợp lệ.', null, [], 422);
+        }
+        $listing = (new Listing())->findPublic((int)$id, false);
+        if (!$listing) { $this->json(false, 'Không tìm thấy chỗ ở.', null, [], 404); }
+        if (($listing['latitude'] ?? null) === null || ($listing['longitude'] ?? null) === null) {
+            $this->json(false, 'Chỗ ở chưa có tọa độ để tìm dịch vụ gần đây.', null, [], 422);
+        }
+        // External requests must not hold the visitor's session lock.
+        if (session_status() === PHP_SESSION_ACTIVE) { session_write_close(); }
+        try {
+            $items = (new \App\Services\GeoapifyPlaces())->nearby((float)$listing['latitude'], (float)$listing['longitude'], $category);
+        } catch (\Throwable $exception) {
+            $this->json(false, 'Chưa tải được dịch vụ gần đây. Vui lòng thử lại sau.', null, [], 503);
+        }
+        $this->json(true, '', ['places' => $items, 'radius' => \App\Services\GeoapifyPlaces::RADIUS, 'limit' => 40]);
+    }
+
     /** Dates, guests and promo code in the URL, as the sign-in link and the month arrows bring them back. Only the shape is checked here: the quote and the booking judge the values. */
     private function bookingFromQuery(): array
     {
