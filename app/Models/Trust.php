@@ -34,11 +34,25 @@ final class Trust
         return preg_replace('/[\s.\-]+/u', '', trim($raw)) ?? '';
     }
 
-    public function submitVerification(int $actorId, string $fullName, string $phone, string $idNumber): int
+    public function submitVerification(int $actorId, string $fullName, string $phone, string $idNumber, array $documents): int
     {
-        $statement = $this->db->prepare('CALL DST_sp_identity_verification_submit(?,?,?,?)');
-        $statement->execute([$actorId, trim($fullName), self::normalizePhone($phone), self::normalizeIdNumber($idNumber)]);
+        $statement = $this->db->prepare('CALL DST_sp_identity_verification_submit(?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $statement->execute([$actorId, trim($fullName), self::normalizePhone($phone), self::normalizeIdNumber($idNumber),
+            $documents['front']['storage_name'],$documents['front']['mime_type'],$documents['front']['byte_size'],
+            $documents['back']['storage_name'],$documents['back']['mime_type'],$documents['back']['byte_size'],
+            $documents['selfie']['storage_name'],$documents['selfie']['mime_type'],$documents['selfie']['byte_size']]);
         return (int) $this->db->lastInsertId();
+    }
+
+    public function documentForActor(int $verificationId,string $kind,int $actorId,bool $admin): ?array
+    {
+        $procedure=$admin?'DST_sp_identity_document_for_admin':'NMT_sp_identity_document_for_user';
+        $statement=$this->db->prepare('CALL '.$procedure.'(?,?,?)');$statement->execute([$actorId,$verificationId,$kind]);return $statement->fetch()?:null;
+    }
+
+    public function documentsForAdmin(int $verificationId,int $adminId): array
+    {
+        $statement=$this->db->prepare('CALL LTP_sp_identity_documents_for_admin(?,?)');$statement->execute([$adminId,$verificationId]);return $statement->fetchAll();
     }
 
     public function verificationStatus(int $actorId): ?array
