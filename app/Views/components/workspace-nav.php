@@ -3,12 +3,12 @@ $workspaceLinks = $isAdminWorkspace ? [
     ['/admin/host-requests',__('Host requests'),'user'],
     ['/admin',__('Tổng quan'),'grid'], ['/admin/catalog',__('Danh mục'),'sliders'],
     ['/admin/reviews',__('Đánh giá'),'star'], ['/admin/reports',__('Báo cáo'),'shield'],
-    ['/admin/payments',__('Thanh toán'),'calendar'], ['/admin/promotions',__('Khuyến mãi'),'plus'],
+    ['/admin/payments',__('Thanh toán'),'calendar'], ['/admin/host-payouts',__('Chi trả Host'),'ticket'], ['/admin/promotions',__('Khuyến mãi'),'plus'],
     ['/admin/holidays',__('Ngày lễ'),'calendar'], ['/admin/verifications',__('Xác minh danh tính'),'shield'],
     ['/admin/messages',__('Tin nhắn'),'message'], ['/admin/articles',__('Bài viết'),'book'],
 ] : [
     ['/host',__('Tổng quan'),'grid'], ['/host/listings/create',__('Đăng chỗ ở'),'plus'],
-    ['/host/reviews',__('Đánh giá của khách'),'star'], ['/messages',__('Tin nhắn'),'message'],
+    ['/host/reviews',__('Đánh giá của khách'),'star'], ['/host/payouts',__('Tài khoản nhận tiền'),'ticket'], ['/messages',__('Tin nhắn'),'message'],
     ['/notifications',__('Thông báo'),'bell'], ['/profile',__('Hồ sơ'),'user'],
 ];
 ?>
