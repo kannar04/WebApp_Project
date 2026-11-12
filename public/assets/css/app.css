@@ -625,5 +625,9 @@ html[data-theme="dark"] .h2h-map-popup-close { background: rgba(28,36,31,.92); c
 [data-detail-url]:hover { background:var(--surface-alt,#f3f7f4); }
 .review-actions { display:flex; flex-wrap:wrap; gap:12px; justify-content:flex-end; margin-top:24px; }
 .message-list:empty { display:none; }
+.verification-documents { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.verification-documents figure { margin:0; }
+.verification-documents img { display:block; width:100%; aspect-ratio:4/3; object-fit:contain; background:var(--surface-alt,#f3f7f4); border:1px solid var(--border,#dce5df); border-radius:12px; }
+.verification-documents figcaption { margin-top:6px; text-align:center; font-size:.875rem; font-weight:600; }
 
-@media(max-width:767.98px){.photo-grid>.photo-open:not(:first-child){display:none}.photo-grid .photo-open{grid-row:auto}.moderation-form{flex-wrap:wrap}.moderation-form .form-control{flex-basis:100%}}
+@media(max-width:767.98px){.photo-grid>.photo-open:not(:first-child){display:none}.photo-grid .photo-open{grid-row:auto}.moderation-form{flex-wrap:wrap}.moderation-form .form-control{flex-basis:100%}.verification-documents{grid-template-columns:1fr}}

@@ -5,6 +5,7 @@ namespace App\Controllers;
 
 use App\Models\Listing;
 use App\Models\Trust;
+use App\Services\IdentityDocumentService;
 use Core\Controller;
 use Core\Csrf;
 use Core\Session;
@@ -21,14 +22,17 @@ final class TrustController extends Controller
         $name = $this->postedText('full_name_on_card');
         $phone = $this->postedText('phone');
         $idNumber = $this->postedText('id_number');
+        $documents=[];$files=['front'=>'cccd_front','back'=>'cccd_back','selfie'=>'face_photo'];$storage=new IdentityDocumentService();
         try {
             if ($name === null || $phone === null || $idNumber === null || mb_strlen($name) > 150 || strlen($phone) > 20 || strlen($idNumber) > 20) {
                 throw new \DomainException('Thông tin xác minh không hợp lệ hoặc vượt giới hạn độ dài.');
             }
-            (new Trust())->submitVerification((int) $user['id'], $name, $phone, $idNumber);
+            foreach($files as $kind=>$field){$file=$_FILES[$field]??[];$documents[$kind]=$storage->store(is_array($file)?$file:[],$kind);}
+            (new Trust())->submitVerification((int) $user['id'], $name, $phone, $idNumber,$documents);
             Session::pull('_verification_old');
             Session::flash('success', 'Đã gửi yêu cầu xác minh. Admin sẽ xem xét và thông báo kết quả cho bạn.');
         } catch (\Throwable $exception) {
+            $storage->discard($documents);
             // The CCCD number is never kept in the session for re-display.
             Session::put('_verification_old', ['full_name_on_card' => (string) $name, 'phone' => (string) $phone]);
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể gửi yêu cầu xác minh. Vui lòng thử lại.');
@@ -55,14 +59,26 @@ final class TrustController extends Controller
         $admin = $this->requireRole('admin');
         $decision = is_string($_POST['decision'] ?? null) ? $_POST['decision'] : '';
         $reason = trim(input_text($_POST, 'reason'));
+        $documents=[];
         try {
             if (mb_strlen($reason) > 1000) { throw new \DomainException('Ghi chú quyết định tối đa 1000 ký tự.'); }
-            (new Trust())->decideVerification((int) $id, (int) $admin['id'], $decision, $reason);
+            $model=new Trust();$documents=$model->documentsForAdmin((int)$id,(int)$admin['id']);
+            $model->decideVerification((int) $id, (int) $admin['id'], $decision, $reason);
+            (new IdentityDocumentService())->discard($documents);
             Session::flash('success', $decision === 'approved' ? 'Đã duyệt xác minh danh tính; số CCCD đã được che.' : 'Đã từ chối yêu cầu xác minh; số CCCD đã được che.');
         } catch (\Throwable $exception) {
             Session::flash('error', $exception instanceof \DomainException ? $exception->getMessage() : 'Không thể lưu quyết định. Vui lòng thử lại.');
         }
         $this->redirect('/admin/verifications');
+    }
+
+    public function document(string $id,string $kind): never
+    {
+        $user=$this->requireAuth();if(!in_array($kind,IdentityDocumentService::KINDS,true)){http_response_code(404);exit;}
+        $admin=in_array('admin',$user['roles'],true);$document=(new Trust())->documentForActor((int)$id,$kind,(int)$user['id'],$admin);
+        $path=$document?IdentityDocumentService::path((string)$document['storage_name']):null;
+        if(!$path){http_response_code(404);header('Cache-Control: no-store');exit;}
+        $extension=pathinfo($path,PATHINFO_EXTENSION);header('Content-Type: '.$document['mime_type']);header('Content-Length: '.filesize($path));header('Content-Disposition: inline; filename="identity-'.$kind.'.'.$extension.'"');header('Cache-Control: private, no-store, max-age=0');header('Pragma: no-cache');header('X-Content-Type-Options: nosniff');readfile($path);exit;
     }
 
     public function guideForm(string $id): void

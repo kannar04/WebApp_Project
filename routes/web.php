@@ -105,6 +105,7 @@ $router->post('/admin/payments/duplicates/{id}',[\App\Controllers\PaymentControl
 
 // Nice-to-have trust: identity verification, trusted Host badge, check-in guide
 $router->post('/profile/verification',[\App\Controllers\TrustController::class,'submitVerification']);
+$router->get('/verifications/{id}/documents/{kind}',[\App\Controllers\TrustController::class,'document']);
 $router->get('/admin/verifications',[\App\Controllers\TrustController::class,'adminIndex']);
 $router->post('/admin/verifications/{id}/decide',[\App\Controllers\TrustController::class,'adminDecide']);
 $router->get('/host/listings/{id}/checkin-guide',[\App\Controllers\TrustController::class,'guideForm']);
