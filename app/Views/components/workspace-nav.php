@@ -3,7 +3,7 @@ $workspaceLinks = $isAdminWorkspace ? [
     ['/admin/host-requests',__('Host requests'),'user'],
     ['/admin',__('Tổng quan'),'grid'], ['/admin/catalog',__('Danh mục'),'sliders'],
     ['/admin/reviews',__('Đánh giá'),'star'], ['/admin/reports',__('Báo cáo'),'shield'],
-    ['/admin/payments',__('Thanh toán'),'calendar'], ['/admin/host-payouts',__('Chi trả Host'),'ticket'], ['/admin/promotions',__('Khuyến mãi'),'plus'],
+    ['/admin/payments',__('Thanh toán'),'calendar'], ['/admin/guest-refunds',__('Hoàn tiền Guest'),'ticket'], ['/admin/host-payouts',__('Chi trả Host'),'ticket'], ['/admin/promotions',__('Khuyến mãi'),'plus'],
     ['/admin/holidays',__('Ngày lễ'),'calendar'], ['/admin/verifications',__('Xác minh danh tính'),'shield'],
     ['/admin/messages',__('Tin nhắn'),'message'], ['/admin/articles',__('Bài viết'),'book'],
 ] : [
