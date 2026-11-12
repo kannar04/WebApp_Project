@@ -27,13 +27,23 @@ final class SmsVerification
         if (!preg_match('/^AC[a-f0-9]{32}$/iD',$account) || $token==='' || !preg_match('/^VA[a-f0-9]{32}$/iD',$service)) {
             throw new \DomainException('Dịch vụ SMS chưa được cấu hình. Vui lòng liên hệ quản trị viên.');
         }
+        if (!function_exists('curl_init')) {
+            throw new \DomainException('Dịch vụ SMS chưa khả dụng. Vui lòng liên hệ quản trị viên.');
+        }
         $request=curl_init('https://verify.twilio.com/v2/Services/'.$service.'/'.$resource);
+        if ($request === false) {
+            throw new \DomainException('Không thể kết nối dịch vụ SMS. Vui lòng thử lại sau.');
+        }
         curl_setopt_array($request,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query($fields),CURLOPT_USERPWD=>$account.':'.$token,
             CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>3,CURLOPT_TIMEOUT=>10]);
         if (PHP_OS_FAMILY==='Windows' && defined('CURLSSLOPT_NATIVE_CA')) { curl_setopt($request,CURLOPT_SSL_OPTIONS,CURLSSLOPT_NATIVE_CA); }
         $body=curl_exec($request); $status=curl_getinfo($request,CURLINFO_RESPONSE_CODE); curl_close($request);
         if ($status===404 && $resource==='VerificationCheck') { return ['status'=>'expired']; }
         if ($status<200 || $status>=300 || !is_string($body)) { throw new \DomainException('Không thể xác minh SMS lúc này. Hãy kiểm tra số điện thoại và thử lại sau.'); }
-        return json_decode($body,true)??[];
+        $result = json_decode($body, true);
+        if (!is_array($result) || !is_string($result['status'] ?? null)) {
+            throw new \DomainException('Phản hồi dịch vụ SMS không hợp lệ. Vui lòng thử lại sau.');
+        }
+        return $result;
     }
 }

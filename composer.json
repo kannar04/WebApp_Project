@@ -1,5 +1,6 @@
 {
     "require": {
+        "ext-curl": "*",
         "phpmailer/phpmailer": "^7.2"
     }
 }
