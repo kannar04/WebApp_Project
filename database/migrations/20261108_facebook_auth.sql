@@ -3,7 +3,7 @@ ALTER TABLE oauth_identities
     DROP CONSTRAINT IF EXISTS chk_oauth_provider,
     ADD CONSTRAINT chk_oauth_provider CHECK (provider IN ('google','facebook'));
 DELIMITER $$
-CREATE OR REPLACE PROCEDURE NMT_sp_facebook_identity_find(IN p_subject VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin)
+CREATE OR REPLACE PROCEDURE DST_sp_facebook_identity_find(IN p_subject VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin)
 BEGIN
     SELECT user_id FROM oauth_identities WHERE provider='facebook' AND subject=p_subject;
 END$$
