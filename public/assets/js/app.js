@@ -297,6 +297,48 @@
     }
 
     function initialize() {
+        document.querySelectorAll('[data-captcha]').forEach(field => {
+            const button = field.querySelector('[data-captcha-refresh]');
+            const image = field.querySelector('[data-captcha-image]');
+            const id = field.querySelector('[data-captcha-id]');
+            const answer = field.querySelector('[name="captcha_answer"]');
+            const status = field.querySelector('[data-captcha-status]');
+            if (!button || !image || !id || !answer || !status) return;
+            image.addEventListener('error', () => { status.textContent = field.dataset.errorText; status.setAttribute('data-error', ''); });
+            button.addEventListener('click', async () => {
+                if (button.disabled) return;
+                button.disabled = true;
+                status.textContent = '';
+                status.removeAttribute('data-error');
+                field.setAttribute('aria-busy', 'true');
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 10000);
+                try {
+                    const body = new URLSearchParams({
+                        captcha_id: id.value,
+                        _token: field.closest('form')?.querySelector('[name="_token"]')?.value || ''
+                    });
+                    const response = await fetch(field.dataset.refreshUrl, {
+                        method: 'POST', body, credentials: 'same-origin',
+                        headers: {Accept: 'application/json'}, signal: controller.signal
+                    });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) throw new Error(result.message || field.dataset.errorText);
+                    id.value = result.data.id;
+                    image.src = result.data.image_url;
+                    answer.value = '';
+                    answer.focus();
+                    status.textContent = field.dataset.successText;
+                } catch (error) {
+                    status.setAttribute('data-error', '');
+                    status.textContent = error.name === 'AbortError' ? field.dataset.errorText : (error.message || field.dataset.errorText);
+                } finally {
+                    clearTimeout(timeout);
+                    button.disabled = false;
+                    field.removeAttribute('aria-busy');
+                }
+            });
+        });
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const baseUrl = document.querySelector('meta[name="app-base-url"]')?.content.replace(/\/$/, '') || '';
 
