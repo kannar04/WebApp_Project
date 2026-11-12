@@ -11,7 +11,7 @@ final class GoogleIdentity
 
     public function find(string $subject): ?int
     {
-        $query=$this->db->prepare('CALL NMT_sp_oauth_identity_find(?)');
+        $query=$this->db->prepare('CALL DST_sp_oauth_identity_find(?)');
         $query->execute([$subject]);
         $row=$query->fetch();
         return $row ? (int)$row['user_id'] : null;

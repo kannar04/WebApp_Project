@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS direct_messages (
  FOREIGN KEY(conversation_id) REFERENCES direct_conversations(id), FOREIGN KEY(sender_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 DELIMITER $$
-CREATE OR REPLACE PROCEDURE NMT_sp_direct_open(IN p_actor BIGINT UNSIGNED,IN p_listing BIGINT UNSIGNED)
+CREATE OR REPLACE PROCEDURE LTP_sp_direct_open(IN p_actor BIGINT UNSIGNED,IN p_listing BIGINT UNSIGNED)
 BEGIN
  DECLARE v_other BIGINT UNSIGNED;
  IF NOT EXISTS(SELECT 1 FROM users WHERE id=p_actor AND status='active' AND deleted_at IS NULL) THEN
@@ -128,7 +128,7 @@ BEGIN
  ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id);
  SELECT id FROM direct_conversations WHERE member_a=LEAST(p_actor,v_other) AND member_b=GREATEST(p_actor,v_other);
 END$$
-CREATE OR REPLACE PROCEDURE NMT_sp_direct_state(IN p_chat BIGINT UNSIGNED,IN p_actor BIGINT UNSIGNED)
+CREATE OR REPLACE PROCEDURE LTP_sp_direct_state(IN p_chat BIGINT UNSIGNED,IN p_actor BIGINT UNSIGNED)
 BEGIN
  SELECT c.id,u.full_name AS other_name,'guest' AS my_role,'pending' AS status,
  (u.status='active' AND u.deleted_at IS NULL) AS can_send, (u.deleted_at IS NOT NULL) AS other_deleted
@@ -136,7 +136,7 @@ BEGIN
  JOIN users me ON me.id=p_actor AND me.status='active' AND me.deleted_at IS NULL
  WHERE c.id=p_chat AND p_actor IN(c.member_a,c.member_b);
 END$$
-CREATE OR REPLACE PROCEDURE NMT_sp_direct_thread(IN p_chat BIGINT UNSIGNED,IN p_actor BIGINT UNSIGNED)
+CREATE OR REPLACE PROCEDURE LTP_sp_direct_thread(IN p_chat BIGINT UNSIGNED,IN p_actor BIGINT UNSIGNED)
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM direct_conversations c JOIN users u ON u.id=p_actor AND u.status='active' AND u.deleted_at IS NULL WHERE c.id=p_chat AND p_actor IN(c.member_a,c.member_b)) THEN
   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Không tìm thấy cuộc trò chuyện.';
@@ -146,7 +146,7 @@ BEGIN
  FROM (SELECT * FROM direct_messages WHERE conversation_id=p_chat ORDER BY id DESC LIMIT 500) recent
  JOIN users u ON u.id=recent.sender_id ORDER BY recent.id;
 END$$
-CREATE OR REPLACE PROCEDURE NMT_sp_direct_send(IN p_chat BIGINT UNSIGNED,IN p_actor BIGINT UNSIGNED,IN p_body TEXT)
+CREATE OR REPLACE PROCEDURE LTP_sp_direct_send(IN p_chat BIGINT UNSIGNED,IN p_actor BIGINT UNSIGNED,IN p_body TEXT)
 BEGIN
  DECLARE v_id BIGINT UNSIGNED;
  DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
@@ -162,7 +162,7 @@ BEGIN
  INSERT INTO direct_messages(conversation_id,sender_id,body) VALUES(p_chat,p_actor,p_body);
  COMMIT;
 END$$
-CREATE OR REPLACE PROCEDURE NMT_sp_direct_inbox(IN p_actor BIGINT UNSIGNED)
+CREATE OR REPLACE PROCEDURE LTP_sp_direct_inbox(IN p_actor BIGINT UNSIGNED)
 BEGIN
  SELECT c.id,u.full_name AS other_name,
  (SELECT body FROM direct_messages WHERE conversation_id=c.id ORDER BY id DESC LIMIT 1) AS last_body,
