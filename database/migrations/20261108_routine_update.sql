@@ -39,7 +39,7 @@ DELIMITER ;
 
 -- 060_quality_community.sql
 DELIMITER $$
-CREATE OR REPLACE PROCEDURE DST_sp_listing_catalog_choices(IN p_kind VARCHAR(12), IN p_listing BIGINT UNSIGNED, IN p_host BIGINT UNSIGNED)
+CREATE OR REPLACE PROCEDURE DST_sp_listing_catalog_choices(IN p_kind VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_listing BIGINT UNSIGNED, IN p_host BIGINT UNSIGNED)
 BEGIN
     IF p_kind='type' THEN
         SELECT pt.id,pt.name,pt.description,pt.is_active FROM property_types pt
@@ -93,7 +93,7 @@ DELIMITER ;
 DELIMITER $$
 CREATE OR REPLACE PROCEDURE NMT_sp_focused_listing_search(
     IN p_location VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_guests INT,IN p_type BIGINT UNSIGNED,IN p_min DECIMAL(12,2),IN p_max DECIMAL(12,2),IN p_bedrooms INT,
-    IN p_start DATE,IN p_end DATE,IN p_sort VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_limit INT,IN p_offset INT, IN p_amenities LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_city VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_bounds LONGTEXT)
+    IN p_start DATE,IN p_end DATE,IN p_sort VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_limit INT,IN p_offset INT, IN p_amenities LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_city VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci, IN p_bounds LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
     -- đ has its own weight in every collation of MariaDB 10.4, unlike the other Vietnamese accents, so "Da Lat" only finds "Đà Lạt" with it folded on both sides. REPLACE is case-sensitive, hence both cases.
     DECLARE v_location VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT REPLACE(REPLACE(p_location,'đ','d'),'Đ','D');
@@ -1050,7 +1050,7 @@ DELIMITER ;
 DELIMITER $$
 CREATE OR REPLACE PROCEDURE LTP_sp_booking_refund_preview(IN p_booking BIGINT UNSIGNED, IN p_actor BIGINT UNSIGNED)
 BEGIN
-    DECLARE v_status VARCHAR(12);
+    DECLARE v_status VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_start DATE;
     DECLARE v_total DECIMAL(12,2);
     DECLARE v_fee DECIMAL(12,2);
@@ -1059,7 +1059,7 @@ BEGIN
     DECLARE v_base DECIMAL(12,2) DEFAULT 0;
     DECLARE v_default_zone TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     DECLARE v_default_time TIME;
-    DECLARE v_payment VARCHAR(10);
+    DECLARE v_payment VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     CALL DST_sp_quality_assert_booking(p_booking,p_actor);
     SELECT b.status,b.check_in,b.total_amount,b.fee_amount,b.policy_snapshot,l.check_in_time,l.time_zone INTO v_status,v_start,v_total,v_fee,v_policy,v_default_time,v_default_zone
         FROM bookings b JOIN listings l ON l.id=b.listing_id WHERE b.id=p_booking;

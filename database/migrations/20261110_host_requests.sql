@@ -38,7 +38,7 @@ BEGIN
  CALL NTK_sp_admin_assert_role(p_admin);
  SELECT r.*,u.full_name,u.status account_status FROM host_requests r JOIN users u ON u.id=r.user_id ORDER BY r.status='pending' DESC,r.created_at DESC;
 END$$
-CREATE OR REPLACE PROCEDURE NMT_sp_admin_host_request_decide(IN p_admin BIGINT UNSIGNED,IN p_user BIGINT UNSIGNED,IN p_decision VARCHAR(20),IN p_reason VARCHAR(1000),IN p_allow_debug BOOLEAN)
+CREATE OR REPLACE PROCEDURE NMT_sp_admin_host_request_decide(IN p_admin BIGINT UNSIGNED,IN p_user BIGINT UNSIGNED,IN p_decision VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_reason VARCHAR(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_allow_debug BOOLEAN)
 BEGIN
  DECLARE v_user BIGINT UNSIGNED;
  DECLARE v_debug BOOLEAN;

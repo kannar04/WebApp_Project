@@ -39,7 +39,7 @@ BEGIN
         WHERE id=p_id AND channel='email' AND event_type='booking_confirmed' AND delivery_status IN ('pending','failed') AND attempt_count<5;
     SELECT ROW_COUNT() claimed;
 END$$
-CREATE OR REPLACE PROCEDURE NTK_sp_booking_email_finish(IN p_id BIGINT UNSIGNED,IN p_sent BOOL,IN p_terminal BOOL,IN p_reason VARCHAR(40))
+CREATE OR REPLACE PROCEDURE NTK_sp_booking_email_finish(IN p_id BIGINT UNSIGNED,IN p_sent BOOL,IN p_terminal BOOL,IN p_reason VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
     UPDATE notifications SET delivery_status=IF(p_sent,'sent','failed'),sent_at=IF(p_sent,NOW(6),NULL),
         attempt_count=IF(p_terminal,5,attempt_count),body=IF(p_sent,body,CONCAT('Delivery note: ',LEFT(p_reason,40)))
