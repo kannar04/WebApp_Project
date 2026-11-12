@@ -1,72 +1,77 @@
-// Booking messages: show the latest message, Ctrl/Cmd + Enter to send, and no double submission.
-(function bookingMessages() {
+// Poll only while the conversation is visible. Keep drafts on every failure.
+(() => {
     'use strict';
-
-    var RELEASE_AFTER_MS = 20000;
-    var releaseTimer = null;
-
-    function scrollToLatest(list) {
-        list.scrollTop = list.scrollHeight;
+    const root = document.querySelector('[data-message-thread]');
+    if (!root) return;
+    const list = root.querySelector('[data-message-list]');
+    const form = root.querySelector('[data-message-form]');
+    const error = root.querySelector('[data-message-error]');
+    const t = window.h2hT || (s => s);
+    let busy = false, polling = false, stopped = false, timer, snapshot = '';
+    const showError = message => { error.textContent = message; error.hidden = !message; };
+    async function request(url, options = {}) {
+        const response = await fetch(url, {...options, headers: {'Accept':'application/json'}, credentials:'same-origin', signal:AbortSignal.timeout(15000)});
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || t('Không thể tải tin nhắn. Vui lòng thử lại.'));
+        return result.data;
     }
-
-    function submitOnShortcut(event) {
-        if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) { return; }
+    async function refresh() {
+        const data = await request(root.dataset.updatesUrl);
+        const next = JSON.stringify(data.messages);
+        if (next !== snapshot) {
+            const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+            const fragment = document.createDocumentFragment();
+            data.messages.forEach(message => {
+                const item = document.createElement('li');
+                item.className = 'message-item ' + (Number(message.is_mine) ? 'is-mine' : 'is-theirs');
+                const bubble = document.createElement('div'); bubble.className = 'message-bubble';
+                const meta = document.createElement('p'); meta.className = 'message-meta';
+                meta.textContent = (Number(message.is_mine) ? t('Bạn') : message.sender_name) + ' · ' + message.created_at.slice(0,16);
+                const body = document.createElement('p'); body.className = 'message-body';
+                body.style.whiteSpace = 'pre-wrap';
+                body.textContent = Number(message.is_hidden) ? t('Tin nhắn đã bị quản trị viên ẩn.') : message.body;
+                bubble.append(meta, body); item.append(bubble); fragment.append(item);
+            });
+            list.replaceChildren(fragment);
+            root.querySelector('.thread-empty')?.remove();
+            if (atBottom || !snapshot) list.scrollTop = list.scrollHeight;
+            snapshot = next;
+        }
+        if (form) {
+            form.hidden = !Number(data.state.can_send);
+            if (form.hidden) showError(t('Cuộc trò chuyện hiện chỉ có thể xem lại.'));
+        }
+    }
+    async function poll() {
+        if (polling || stopped) return;
+        polling = true;
+        clearTimeout(timer);
+        if (!document.hidden && !busy) {
+            try { await refresh(); } catch (e) { showError(e.message || t('Mất kết nối. Tin nhắn sẽ được tải lại tự động.')); }
+        }
+        polling = false;
+        if (!stopped) timer = setTimeout(poll, 4000);
+    }
+    form?.addEventListener('submit', async event => {
         event.preventDefault();
-        var form = event.target.form;
-        if (!form || form.dataset.sending === 'true' || !form.reportValidity()) { return; }
-        if (typeof form.requestSubmit === 'function') {
-            form.requestSubmit();
-        } else {
-            markSending(form);
-            form.submit();
-        }
-    }
-
-    function markSending(form) {
-        form.dataset.sending = 'true';
-        var button = form.querySelector('button[type="submit"]');
-        if (button) {
-            button.disabled = true;
-            button.textContent = window.h2hT('Đang gửi…');
-        }
-        // Stopping the page load fires no event, so give the form back in case the message never left. The text stays in the box.
-        window.clearTimeout(releaseTimer);
-        releaseTimer = window.setTimeout(unlockSubmit, RELEASE_AFTER_MS);
-    }
-
-    function lockSubmit(event) {
-        if (event.target.dataset.sending === 'true') {
-            event.preventDefault();
-            return;
-        }
-        markSending(event.target);
-    }
-
-    function unlockSubmit() {
-        window.clearTimeout(releaseTimer);
-        var form = document.querySelector('[data-message-form]');
-        delete form.dataset.sending;
-        var button = form.querySelector('button[type="submit"]');
-        if (button) {
-            button.disabled = false;
-            button.textContent = window.h2hT('Gửi tin nhắn');
-        }
-    }
-
-    function initializeMessages() {
-        var list = document.querySelector('[data-message-list]');
-        if (list) { scrollToLatest(list); }
-        var form = document.querySelector('[data-message-form]');
-        if (!form) { return; }
-        form.elements.body.addEventListener('keydown', submitOnShortcut);
-        form.addEventListener('submit', lockSubmit);
-        // A page restored from the back/forward cache must not keep a disabled button.
-        window.addEventListener('pageshow', unlockSubmit);
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeMessages, {once: true});
-    } else {
-        initializeMessages();
-    }
-}());
+        if (busy || !form.reportValidity()) return;
+        busy = true; showError('');
+        const button = form.querySelector('[type="submit"]');
+        button.disabled = true;
+        const draft = form.elements.body.value;
+        try {
+            await request(form.action, {method:'POST', body:new FormData(form)});
+            if (form.elements.body.value === draft) form.elements.body.value = '';
+            await refresh(); list.scrollTop = list.scrollHeight;
+        } catch (e) { showError(e.message || t('Chưa gửi được tin nhắn. Nội dung của bạn vẫn được giữ lại.')); }
+        finally { busy = false; button.disabled = false; }
+    });
+    form?.elements.body.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); form.requestSubmit(); }
+    });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+    window.addEventListener('pagehide', () => { stopped = true; clearTimeout(timer); });
+    window.addEventListener('pageshow', () => { stopped = false; poll(); });
+    list.scrollTop = list.scrollHeight;
+    poll();
+})();
