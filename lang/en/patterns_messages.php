@@ -3,6 +3,8 @@
 // Each {slot} captures the variable part; a captured value that is itself a dictionary key (a status, a category,
 // a field label) is translated too. Specific templates come first; the ones that start or end with a slot come last.
 return [
+    'Đã tạo {count} lệnh chi trả, tổng {amount}đ.' => 'Created {count} payout orders totalling {amount} VND.',
+    'Đã tạo {count} lệnh chi trả, tổng {amount}đ; {failed} lệnh cần kiểm tra lại.' => 'Created {count} payout orders totalling {amount} VND; {failed} orders need review.',
     // BookingController::create / ::cancel
     'Đặt ngay thành công! Booking #{id} đã được xác nhận. Bạn thanh toán khi nhận phòng.' => 'Booked instantly! Booking #{id} is confirmed. You pay at check-in.',
     'Yêu cầu đặt chỗ #{id} đã được gửi tới Host.' => 'Booking request #{id} has been sent to the Host.',

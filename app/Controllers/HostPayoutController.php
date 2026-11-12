@@ -75,6 +75,21 @@ final class HostPayoutController extends Controller
         $this->redirect('/admin/host-payouts');
     }
 
+    public function adminCreateAll(): never
+    {
+        Csrf::ensure();$user=$this->requireRole('admin');$model=new HostPayout();$created=0;$failed=0;$amount=0.0;$locked=false;
+        try{
+            $locked=$model->schedulerLock(true);if(!$locked){throw new \DomainException('Một tiến trình tạo lệnh chi trả khác đang chạy.');}
+            foreach($model->hourlyCandidates((int)$user['id']) as $candidate){
+                try{$payout=$model->createPayout((int)$candidate['booking_id'],(int)$user['id']);$created++;$amount+=(float)($payout['net_amount']??0);}
+                catch(\Throwable){$failed++;}
+            }
+            Session::flash('success','Đã tạo '.$created.' lệnh chi trả, tổng '.number_format($amount,0,',','.').'đ'.($failed>0?'; '.$failed.' lệnh cần kiểm tra lại.':'.'));
+        }catch(\Throwable $exception){Session::flash('error',$exception instanceof \DomainException?$exception->getMessage():self::GENERIC_ERROR);}
+        finally{if($locked){$model->schedulerLock(false);}}
+        $this->redirect('/admin/host-payouts');
+    }
+
     public function adminMarkPaid(string $id): never
     {
         Csrf::ensure();$user=$this->requireRole('admin');$transactionNo=$this->text('transaction_no',100);$note=$this->text('note',500);
