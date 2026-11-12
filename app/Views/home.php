@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__.'/components/ui-icons.php';
 $pageScripts[]='js/focused-discovery.js';
+$pageScripts[]='js/floating-search.js';
 $filterErrors=$filterErrors??[];
 $stayQuery=$stayQuery??'';
 parse_str(ltrim($stayQuery,'?'),$cardFilters);
@@ -37,7 +38,7 @@ $resetUrl=url('/'.($resetQuery===''?'':'?'.$resetQuery).'#listing-results');
 
     </div>
 </section>
-<?php if(!empty($upcoming) && !$hasFilters): ?><div class="container"><a class="upcoming-trip" href="<?= e(url('/bookings/'.$upcoming['id'])) ?>"><?= ui_icon('calendar') ?><span><strong><?= e(__('Chuyến đi sắp tới của bạn')) ?> · <?= e($upcoming['title']) ?></strong><small><?= e($upcoming['check_in']) ?> — <?= e($upcoming['check_out']) ?> · <?= e(status_label($upcoming['status'])) ?></small></span><?= ui_icon('arrow') ?></a></div><?php endif; ?>
+<?php if(!empty($upcoming) && !$hasFilters): ?><div class="container"><a class="upcoming-trip" href="<?= e(url('/bookings/'.$upcoming['id'])) ?>"><?= ui_icon('calendar') ?><span><strong><?= e(__('Chuyến đi sắp tới của bạn')) ?> · <?= e($upcoming['title']) ?></strong><small><?= e($upcoming['check_in']) ?> — <?= e($upcoming['check_out']) ?> · <?= e(($upcoming['status']==='pending'?__('Chờ chủ nhà xác nhận'):status_label($upcoming['status']))) ?></small></span><?= ui_icon('arrow') ?></a></div><?php endif; ?>
 <?php require __DIR__.'/components/discovery-home.php'; ?>
 <section class="listing-section" id="listing-results" aria-labelledby="listing-results-title">
     <div class="container">
