@@ -49,7 +49,11 @@ final class BookingController extends Controller
                     'fingerprint'=>TripContext::fingerprint($quote,$listing),'expires'=>time()+1800];
             }
         } catch (\DomainException $exception) { $error=$exception->getMessage(); http_response_code(422); }
-        $this->render('bookings/review',['title'=>'Xem lại chuyến đi của bạn','listing'=>$listing,'trip'=>$trip,'quote'=>$quote,'error'=>$error,'reviewToken'=>$reviewToken]);
+        $contactStatus=\Core\Auth::check()?(new \App\Models\ContactVerification())->status((int)\Core\Auth::id()):[];
+        if (\Core\Auth::check() && (empty($contactStatus['email_verified']) || empty($contactStatus['phone_verified']))) {
+            $_SESSION['_verification_return']=TripContext::path((int)$id,$trip,true);
+        }
+        $this->render('bookings/review',['contactStatus'=>$contactStatus, 'title'=>'Xem lại chuyến đi của bạn','listing'=>$listing,'trip'=>$trip,'quote'=>$quote,'error'=>$error,'reviewToken'=>$reviewToken]);
     }
 
     public function create(string $id): never
@@ -61,6 +65,11 @@ final class BookingController extends Controller
         }
         Csrf::ensure();
         $user=$this->requireAuth();
+        try { (new \App\Models\ContactVerification())->ensureBookable((int)$user['id']); }
+        catch (\DomainException $exception) {
+            $_SESSION['_verification_return']=TripContext::path((int)$id,$trip,true);
+            Session::flash('error',$exception->getMessage()); $this->redirect('/profile#contact-verification');
+        }
         if(!in_array('guest',$user['roles'],true)){Session::flash('error','Tài khoản của bạn không có vai trò Guest nên không thể đặt chỗ. Hãy liên hệ Admin nếu cần.');$this->redirect('/listings/'.(int)$id);}
         $token=is_string($_POST['review_token']??null)?$_POST['review_token']:'';
         if ($token==='') {

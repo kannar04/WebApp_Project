@@ -24,10 +24,10 @@ $bookingPath = '/bookings/'.(int)$checkout['booking_id'];
 <?php else: ?>
 <div class="pay-options">
 <?php if($vietqrEnabled): ?><section class="pay-option" aria-labelledby="pay-vietqr-title"><h2 class="h5" id="pay-vietqr-title"><?= e(__('Chuyển khoản VietQR')) ?></h2><p><?= e(__('Quét mã QR bằng ứng dụng ngân hàng, MoMo hoặc ZaloPay; số tiền và nội dung được điền sẵn. Admin xác nhận sau khi tiền vào tài khoản.')) ?></p>
-<form method="post" action="<?= e(url($bookingPath.'/pay/vietqr')) ?>"><?= csrf_field() ?><button class="btn btn-primary btn-block" type="submit"><?= e($checkout['transfer_status']==='pending'?__('Xem lại mã QR'):__('Lấy mã QR chuyển khoản')) ?></button></form></section><?php endif; ?>
+<form method="post" action="<?= e(url($bookingPath.'/pay/vietqr')) ?>"><?= csrf_field() ?><?php $captchaAction='pay_vietqr'; require dirname(__DIR__).'/components/captcha.php'; ?><button class="btn btn-primary btn-block" type="submit"><?= e($checkout['transfer_status']==='pending'?__('Xem lại mã QR'):__('Lấy mã QR chuyển khoản')) ?></button></form></section><?php endif; ?>
 <?php if($vnpayEnabled): ?><section class="pay-option" aria-labelledby="pay-vnpay-title"><h2 class="h5" id="pay-vnpay-title">VNPay</h2><p><?= e(__('Thanh toán bằng thẻ ATM, thẻ quốc tế hoặc mã QR qua cổng VNPay. Booking được ghi nhận đã thanh toán ngay khi VNPay báo thành công.')) ?></p>
 <?php if($vnpaySandbox): ?><p class="small text-muted"><?= e(__('Cổng VNPay thử nghiệm (sandbox): dùng thẻ test của VNPay, không trừ tiền thật.')) ?></p><?php endif; ?>
-<form method="post" action="<?= e(url($bookingPath.'/pay/vnpay')) ?>"><?= csrf_field() ?><button class="btn btn-outline-primary btn-block" type="submit"><?= e(__('Thanh toán qua VNPay')) ?></button></form></section><?php endif; ?>
+<form method="post" action="<?= e(url($bookingPath.'/pay/vnpay')) ?>"><?= csrf_field() ?><?php $captchaAction='pay_vnpay'; require dirname(__DIR__).'/components/captcha.php'; ?><button class="btn btn-outline-primary btn-block" type="submit"><?= e(__('Thanh toán qua VNPay')) ?></button></form></section><?php endif; ?>
 </div>
 <p class="text-muted small mt-3 mb-0"><?= e(__('Không muốn trả trước? Bạn vẫn có thể thanh toán cho Host khi nhận phòng.')) ?></p>
 <?php endif; ?>
