@@ -16,11 +16,14 @@ final class ProfileController extends Controller
     {
         $user = $this->requireAuth();
         $upcoming = (new Booking())->upcomingForGuest((int)$user['id']);
-        $this->render('profile/show', ['title' => 'Tài khoản', 'user' => $user, 'upcoming' => $upcoming, 'old' => Session::pull('_profile_old', []),
+        $this->render('profile/show', ['title' => 'Tài khoản', 'contactStatus'=>(new \App\Models\ContactVerification())->status((int)$user['id']), 'user' => $user, 'upcoming' => $upcoming, 'old' => Session::pull('_profile_old', []),
             'verification' => (new \App\Models\Trust())->verificationStatus((int)$user['id']), 'verificationOld' => Session::pull('_verification_old', []),
             'trustBadges' => (new \App\Models\Trust())->badges([(int)$user['id']], (int)$user['id']),
             'hostRoleRemoved' => !in_array('host', $user['roles'], true) && (new User())->hostRoleRemoved((int)$user['id']),
-            'discoveryHistory' => DiscoveryService::summary((int)$user['id'])]);
+            'hostRequest' => (new \App\Models\HostRequest())->status((int)$user['id']),
+            'discoveryHistory' => DiscoveryService::summary((int)$user['id']),
+            'googleLinked' => (new \App\Models\GoogleIdentity())->linked((int)$user['id']),
+            'facebookLinked' => (new \App\Models\FacebookIdentity())->linked((int)$user['id'])]);
     }
 
     public function update(): never
@@ -59,7 +62,7 @@ final class ProfileController extends Controller
         } catch (\DomainException $exception) {
             Session::flash('error',$exception->getMessage()); $this->redirect('/profile');
         }
-        Session::flash('success','Vai trò Host đã được kích hoạt.'); $this->redirect('/host');
+        Session::flash('success', 'Host request submitted. Please wait for admin approval.'); $this->redirect('/profile');
     }
     public function password(): never
     {
