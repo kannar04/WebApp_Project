@@ -6,12 +6,13 @@ function payoutCheck(bool $condition,string $message): void { if(!$condition){th
 
 $db=Core\Database::connection();
 $schema=(string)$db->query('SELECT DATABASE()')->fetchColumn();
-$tables=$db->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=? AND table_name IN ('host_payout_accounts','host_payouts')");
-$tables->execute([$schema]);payoutCheck((int)$tables->fetchColumn()===2,'Host payout tables are missing.');
+$tables=$db->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=? AND table_name IN ('host_payout_accounts','host_payouts','host_payout_settings')");
+$tables->execute([$schema]);payoutCheck((int)$tables->fetchColumn()===3,'Host payout tables are missing.');
 
 $expected=['DST_sp_host_payout_account_get','LTP_sp_host_payout_account_save','NMT_sp_admin_payout_accounts','NTK_sp_admin_payout_account_decide',
     'NMT_sp_host_payout_summary','NTK_sp_host_payouts','DST_sp_admin_host_payouts','LTP_sp_admin_host_payout_create',
-    'NMT_sp_admin_host_payout_mark_paid','NTK_sp_admin_host_payout_totals'];
+    'NMT_sp_admin_host_payout_mark_paid','NTK_sp_admin_host_payout_totals','DST_sp_host_payout_settings_get',
+    'LTP_sp_admin_host_payout_settings_save','NMT_sp_hourly_host_payout_candidates','NTK_sp_host_payout_scheduler_lock'];
 $placeholders=implode(',',array_fill(0,count($expected),'?'));
 $routines=$db->prepare("SELECT routine_name FROM information_schema.routines WHERE routine_schema=? AND routine_type='PROCEDURE' AND routine_name IN ($placeholders)");
 $routines->execute(array_merge([$schema],$expected));
@@ -30,6 +31,12 @@ foreach($rows as $row){
     payoutCheck(in_array($row['row_type'],['eligible','payout'],true),'Unknown Admin payout row type.');
     payoutCheck((float)$row['net_amount']>=0,'Negative Host payout detected.');
 }
+$model->hourlyCandidates($admin);
+payoutCheck($model->schedulerLock(true),'Scheduler lock could not be acquired.');
+payoutCheck($model->schedulerLock(false),'Scheduler lock could not be released.');
+$db->beginTransaction();
+try{$model->saveGlobalFee($admin,'12.50');payoutCheck(App\Models\HostPayout::feePercent()==='12.50','Global payout fee update failed.');}
+finally{$db->rollBack();}
 
 $host=(int)$db->query("SELECT user_id FROM user_roles WHERE role='host' ORDER BY user_id LIMIT 1")->fetchColumn();
 if($host>0){
