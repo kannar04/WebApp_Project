@@ -18,7 +18,7 @@ final class ConversationService
     {
         self::remindOpportunistically($userId);
         try {
-            return (new BookingMessage())->unreadCount($userId);
+            return (new BookingMessage())->unreadCount($userId) + array_sum(array_map(static fn($chat)=>(int)$chat['unread_count'],(new \App\Models\DirectConversation())->inbox($userId)));
         } catch (\Throwable $exception) {
             error_log('Home2Home message badge skipped: '.$exception::class);
             return 0;
