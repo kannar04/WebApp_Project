@@ -1,0 +1,1 @@
+<svg class="facebook-mark" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="5" fill="#1877f2"/><path fill="#fff" d="M16.3 13.5l.5-3.2h-3.1V8.2c0-.9.4-1.7 1.8-1.7H17V3.8c-.8-.1-1.6-.2-2.4-.2-2.5 0-4.2 1.5-4.2 4.3v2.4H7.6v3.2h2.8V24h3.3V13.5z"/></svg>
