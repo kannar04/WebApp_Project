@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS oauth_identities (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DELIMITER $$
-CREATE OR REPLACE PROCEDURE NMT_sp_oauth_identity_find(IN p_subject VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin)
+CREATE OR REPLACE PROCEDURE DST_sp_oauth_identity_find(IN p_subject VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin)
 BEGIN
     SELECT user_id FROM oauth_identities WHERE provider='google' AND subject=p_subject;
 END$$
