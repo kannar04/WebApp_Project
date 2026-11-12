@@ -16,10 +16,21 @@ class Controller
         }
         // Views render before layouts, so shared view helpers must be loaded here.
         require_once dirname(__DIR__) . '/app/Views/components/ui-icons.php';
+        $bufferLevel = ob_get_level();
         ob_start();
-        require $viewFile;
-        $content = (string) ob_get_clean();
-        require $layoutFile;
+        try {
+            require $viewFile;
+            $content = (string) ob_get_clean();
+            ob_start();
+            require $layoutFile;
+            $output = (string) ob_get_clean();
+        } catch (\Throwable $exception) {
+            while (ob_get_level() > $bufferLevel) {
+                ob_end_clean();
+            }
+            throw $exception;
+        }
+        echo $output;
     }
 
     public function redirect(string $path): never
