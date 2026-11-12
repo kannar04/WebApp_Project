@@ -17,8 +17,16 @@
                 <div class="nearby-results-heading"><span class="nearby-results-title"><?= e(__('Quanh chỗ ở')) ?></span><p role="status" aria-live="polite" data-nearby-status><?= e(__('Đang tải dịch vụ gần đây…')) ?></p></div>
                 <div role="alert" data-nearby-error hidden><p class="text-danger" data-nearby-message></p><button type="button" class="btn btn-outline-primary btn-sm" data-nearby-retry><?= e(__('Thử lại')) ?></button></div>
                 <ol class="discovery-map-list" data-nearby-list></ol>
+                <button type="button" class="btn btn-outline-primary nearby-view-all" data-nearby-open data-label="<?= e(__('Xem tất cả {count} địa điểm')) ?>" aria-haspopup="dialog" aria-controls="nearby-sheet" hidden></button>
             </section>
         </div>
+        <dialog id="nearby-sheet" class="nearby-sheet" aria-labelledby="nearby-sheet-title" data-nearby-sheet>
+            <header class="nearby-sheet-header">
+                <h2 id="nearby-sheet-title"><?= e(__('Quanh chỗ ở')) ?></h2>
+                <form method="dialog"><button type="submit" class="btn btn-ghost" autofocus><?= e(__('Đóng')) ?></button></form>
+            </header>
+            <div class="nearby-sheet-content" data-nearby-sheet-content></div>
+        </dialog>
         <div class="nearby-footer"><p class="nearby-legend"><span aria-hidden="true"></span><?= e(__('Ghim màu đỏ đánh dấu chỗ ở.')) ?></p><p><?= e(__('Khoảng cách theo đường thẳng.')) ?></p><p><a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a></p></div>
         <noscript><p><?= e(__('Bật JavaScript để xem dịch vụ gần chỗ ở.')) ?></p></noscript>
     </div>

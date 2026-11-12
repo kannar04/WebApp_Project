@@ -4,6 +4,7 @@ return [
     'Ăn uống, vui chơi và những tiện ích cần thiết quanh chỗ ở.' => 'Food, leisure and everyday essentials around your stay.',
     'Khám phá quán ăn, cà phê và cửa hàng quanh chỗ ở.' => 'Explore restaurants, cafes and shops around your stay.',
     'Quanh chỗ ở' => 'Around your stay',
+    'Xem tất cả {count} địa điểm' => 'View all {count} places',
     'Khoảng cách theo đường thẳng.' => 'Straight-line distances.',
     'Dịch vụ gần đây' => 'Nearby services',
     'Quán ăn, quán cà phê và cửa hàng trong bán kính 1 km quanh chỗ ở. Khoảng cách tính theo đường thẳng.' => 'Restaurants, cafes and shops within 1 km of the property. Distances are measured in a straight line.',
