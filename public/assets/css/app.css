@@ -321,6 +321,27 @@ body { overflow-wrap: break-word; }
     #stay-nearby .discovery-map-results { height: auto; overflow: visible; overscroll-behavior-y: auto; scrollbar-gutter: auto; }
     #stay-nearby .nearby-results-heading { position: static; }
     [data-nearby-map] .h2h-map-viewport { touch-action: pan-y pinch-zoom; }
+    .nearby-services-layout [data-nearby-preview] > :nth-child(n+6) { display: none; }
+    #stay-nearby .nearby-services-layout .nearby-view-all:not([hidden]) { display: block; width: 100%; margin-top: 12px; min-height: 44px; }
+}
+#stay-nearby .nearby-view-all, .nearby-sheet:not([open]) { display: none; }
+@media (max-width: 991.98px) {
+    .nearby-sheet[open] {
+        position: fixed; inset: 0; display: flex; flex-direction: column;
+        width: 100%; max-width: none; height: 100%; height: 100dvh; max-height: none;
+        margin: 0; padding: 0; border: 0; overflow: hidden;
+        color: var(--text); background: var(--card, #fff);
+    }
+    html:has(.nearby-sheet[open]) { overflow: hidden; }
+    .nearby-sheet-header {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: max(12px, env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid var(--border);
+    }
+    #stay-nearby .nearby-sheet-header h2 { margin: 0; }
+    .nearby-sheet-header button { min-height: 44px; }
+    .nearby-sheet-content { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior-y: contain; padding: 16px 16px max(16px, env(safe-area-inset-bottom)); }
+    #stay-nearby .nearby-sheet .discovery-map-results { border: 0; padding: 0; }
+    .nearby-sheet .nearby-results-title { display: none; }
 }
 @media (max-width: 575.98px) { .discovery-map-layout { --discovery-map-height: max(300px, 52vh); } .discovery-map-search { height: 52vh; min-height: 300px; } .discovery-map-item-link { grid-template-columns: 80px minmax(0, 1fr); } .discovery-map-item img { width: 80px; height: 60px; } .discovery-mini-map { height: 300px; } .discovery-map-filters .filter-actions .btn { flex: 1 1 calc(50% - 6px); } .discovery-map-filters .filter-actions .btn-primary { flex-basis: 100%; } }
 

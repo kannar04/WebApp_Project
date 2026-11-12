@@ -810,7 +810,7 @@
         }
     }
 
-    function renderServiceList(list, map, items) {
+    function renderServiceList(list, map, items, beforeSelect) {
         list.replaceChildren();
         const nearby = list.hasAttribute('data-nearby-list');
         for (const item of items) {
@@ -833,6 +833,7 @@
                 select.append(distance);
             }
             select.addEventListener('click', () => {
+                beforeSelect?.();
                 map.setView(item.latitude, item.longitude);
                 map.openPopup(map.markers.find((marker) => marker.item.id === item.id), true);
             });
@@ -851,7 +852,12 @@
             this.message = root.querySelector('[data-nearby-message]');
             this.retry = root.querySelector('[data-nearby-retry]');
             this.category = 'all';
-            this.filters = root.querySelectorAll('[data-nearby-category]');
+            this.filterGroup = root.querySelector('.nearby-filters');
+            this.filters = this.filterGroup.querySelectorAll('[data-nearby-category]');
+            this.openButton = root.querySelector('[data-nearby-open]');
+            this.sheet = root.querySelector('[data-nearby-sheet]');
+            this.sheetContent = root.querySelector('[data-nearby-sheet-content]');
+            if (typeof this.sheet?.showModal === 'function') { this.bindSheet(); }
             this.home = {lat: Number(root.dataset.lat), lng: Number(root.dataset.lng)};
             this.map = new SlippyMap(root.querySelector('[data-nearby-map]'), {
                 center: this.home, zoom: 17, label: root.querySelector('[data-nearby-map]').dataset.label,
@@ -881,6 +887,37 @@
             } else { this.query(); }
         }
 
+        bindSheet() {
+            this.list.setAttribute('data-nearby-preview', '');
+            const mobile = window.matchMedia('(max-width: 991.98px)');
+            const panels = [this.filterGroup, this.results];
+            const placeholders = panels.map(() => element('div'));
+            this.openButton.addEventListener('click', () => {
+                if (!mobile.matches || this.sheet.open) { return; }
+                for (const [index, panel] of panels.entries()) {
+                    const placeholder = placeholders[index];
+                    const style = getComputedStyle(panel);
+                    placeholder.style.height = panel.getBoundingClientRect().height + 'px';
+                    placeholder.style.marginBlock = style.marginBlock;
+                    panel.replaceWith(placeholder);
+                    this.sheetContent.append(panel);
+                }
+                this.sheet.returnValue = '';
+                this.sheet.showModal();
+                this.sheetContent.scrollTop = 0;
+            });
+            this.sheet.addEventListener('close', () => {
+                for (const [index, panel] of panels.entries()) { placeholders[index].replaceWith(panel); }
+                if (this.sheet.returnValue !== 'map' && mobile.matches) {
+                    const returnTarget = this.openButton.hidden ? this.results : this.openButton;
+                    returnTarget.focus({preventScroll: true});
+                }
+            });
+            mobile.addEventListener('change', () => {
+                if (!mobile.matches && this.sheet.open) { this.sheet.close(); }
+            });
+        }
+
         async query() {
             this.abort?.abort();
             const controller = new AbortController();
@@ -908,7 +945,13 @@
                 this.map.setPin(this.home.lat, this.home.lng);
                 this.map.fitPoints(items.concat([{latitude: this.home.lat, longitude: this.home.lng}]), 15);
                 this.map.zoomAround(this.map.zoom + 2);
-                renderServiceList(this.list, this.map, items);
+                renderServiceList(this.list, this.map, items, () => {
+                    if (this.sheet?.open) { this.sheet.close('map'); }
+                });
+                if (this.list.hasAttribute('data-nearby-preview')) {
+                    this.openButton.hidden = items.length <= 5;
+                    this.openButton.textContent = this.openButton.dataset.label.replace('{count}', items.length);
+                }
                 this.status.textContent = items.length
                     ? window.h2hT('{count} địa điểm trong bán kính 1 km.', {count: items.length})
                     : window.h2hT('Chưa tìm thấy dịch vụ trong bán kính 1 km. Hãy thử loại dịch vụ khác.');

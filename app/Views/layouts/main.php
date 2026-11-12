@@ -82,5 +82,7 @@ $messageUnread=$currentUser?\App\Services\ConversationService::navigation((int)$
 <?php if($currentUser && !str_starts_with($requestPath,'/messages')): ?><a class="floating-messages" href="<?= e(url('/messages')) ?>" aria-label="<?= e(__('Mở hộp thư')) ?>"><?= ui_icon('message') ?><?php if($messageUnread): ?><span><?= (int)$messageUnread ?></span><?php endif; ?></a><?php endif; ?>
 <script src="<?= e(asset('js/app.js')) ?>"></script>
 <script src="<?= e(asset('js/qc-ui.js')) ?>"></script>
-<?php foreach(($pageScripts??[]) as $pageScript): ?><script src="<?= e(asset($pageScript)) ?>"></script><?php endforeach; ?>
+<?php foreach (($pageScripts ?? []) as $pageScript): ?>
+<script src="<?= e(asset($pageScript) . ($pageScript === 'js/map.js' ? '?v=' . filemtime(dirname(__DIR__, 3) . '/public/assets/js/map.js') : '')) ?>"></script>
+<?php endforeach; ?>
 </body></html>
