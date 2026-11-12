@@ -14,6 +14,8 @@ class Controller
         if (!is_file($viewFile) || !is_file($layoutFile)) {
             throw new \RuntimeException('View không tồn tại: ' . $view);
         }
+        // Views render before layouts, so shared view helpers must be loaded here.
+        require_once dirname(__DIR__) . '/app/Views/components/ui-icons.php';
         ob_start();
         require $viewFile;
         $content = (string) ob_get_clean();
