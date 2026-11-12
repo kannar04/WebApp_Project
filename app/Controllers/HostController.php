@@ -11,7 +11,56 @@ use Core\Csrf;
 use Core\Session;
 final class HostController extends Controller
 {
-    public function dashboard(): void {$u=$this->requireRole('host');$this->render('host/dashboard',['title'=>'Không gian Host','stats'=>(new HostRepository())->stats((int)$u['id']),'monthlyRevenue'=>(new HostRepository())->monthlyRevenue((int)$u['id']),'listings'=>(new Listing())->hostListings((int)$u['id']),'bookings'=>(new Booking())->forHost((int)$u['id']),'trustStatus'=>(new \App\Models\Trust())->badges([(int)$u['id']],(int)$u['id'])[(int)$u['id']]??null,'payments'=>(new \App\Models\BookingExtras())->paymentMap((int)$u['id'],'host')]);}
+    public function preview(string $id): void
+    {
+        $user=$this->requireRole('host'); $model=new Listing();
+        $listing=$model->findOwned((int)$id,(int)$user['id']);
+        if (!$listing) { http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return; }
+        $public=$model->findPublic((int)$id);
+        if ($public) { $listing=$public; }
+        else {
+            $types=array_column($model->catalogChoices('type',(int)$id,(int)$user['id']),null,'id');
+            $policies=array_column($model->policies(),null,'id');
+            $policy=$policies[$listing['cancellation_policy_id']]??[];
+            $listing['property_type']=$types[$listing['property_type_id']]['name']??'Chỗ ở';
+            $listing['cancellation_name']=$policy['name']??'';
+            $listing['cancellation_description']=$policy['description']??'';
+            $listing['host_name']=$user['full_name'];
+            $listing['photos']=$model->photos((int)$id,(int)$user['id']);
+            $selected=$model->amenityIds((int)$id);
+            $listing['amenities']=array_values(array_filter($model->catalogChoices('amenity',(int)$id,(int)$user['id']),fn($a)=>in_array((int)$a['id'],$selected,true)));
+            $listing['reviews']=[];
+        }
+        try { $calendar=\Core\Calendar::month($_GET['month']??date('Y-m')); }
+        catch (\DomainException $exception) { $calendar=\Core\Calendar::month(date('Y-m')); }
+        $this->render('listings/show',['title'=>$listing['title'],'listing'=>$listing,'preview'=>true,'previewLabel'=>'Xem trước tin của bạn','previewBack'=>'/host',
+            'calendar'=>$calendar,'calendarDays'=>$model->calendar((int)$id,(int)$user['id'],$calendar['start'],$calendar['end']),
+            'calendarPath'=>'/host/listings/'.(int)$id.'/preview']);
+    }
+
+    public function dashboard(): void
+    {
+        $user=$this->requireRole('host');
+        $id=(int)$user['id'];
+        $tab=is_string($_GET['tab']??null) ? $_GET['tab'] : 'listings';
+        if (!in_array($tab,['listings','bookings','revenue'],true)) { $tab='listings'; }
+        $repository=new HostRepository();
+        $rows=match($tab) {
+            'bookings'=>(new Booking())->forHost($id),
+            'revenue'=>$repository->monthlyRevenue($id),
+            default=>(new Listing())->hostListings($id),
+        };
+        $pagination=\Core\Pagination::from($rows,$_GET['page']??1);
+        $this->render('host/dashboard',[
+            'title'=>'Không gian Host','stats'=>$repository->stats($id),'tab'=>$tab,
+            'listings'=>$tab==='listings'?$pagination['rows']:[],
+            'bookings'=>$tab==='bookings'?$pagination['rows']:[],
+            'monthlyRevenue'=>$tab==='revenue'?$pagination['rows']:[],
+            'page'=>$pagination['page'],'pages'=>$pagination['pages'],
+            'trustStatus'=>(new \App\Models\Trust())->badges([$id],$id)[$id]??null,
+            'payments'=>$tab==='bookings'?(new \App\Models\BookingExtras())->paymentMap($id,'host'):[],
+        ]);
+    }
     public function createForm(): void {$this->requireRole('host');$m=new Listing();$this->render('host/listing-form',['title'=>'Đăng chỗ ở','listing'=>null,'types'=>$m->types(),'policies'=>$m->policies(),'amenities'=>$m->allAmenities(),'selectedAmenities'=>[],'old'=>Session::pullOld('new-listing')]);}
     public function editForm(string $id): void {$u=$this->requireRole('host');$m=new Listing();$listing=$m->findOwned((int)$id,(int)$u['id']);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('host/listing-form',['title'=>'Chỉnh sửa chỗ ở','listing'=>$listing,'photos'=>$m->photos((int)$id,(int)$u['id']),'types'=>$m->catalogChoices('type',(int)$id,(int)$u['id']),'policies'=>$m->policies(),'amenities'=>$m->catalogChoices('amenity',(int)$id,(int)$u['id']),'selectedAmenities'=>$m->amenityIds((int)$id),'old'=>Session::pullOld('listing:'.(int)$id)]);}
     public function availabilityPage(string $id): void
@@ -76,6 +125,7 @@ final class HostController extends Controller
         $returnPath = $listingId ? '/host/listings/'.$listingId.'/edit' : '/host/listings/create';
         $oldScope = $listingId ? 'listing:'.$listingId : 'new-listing'; // Fixed here: a failed create rolls back the id it was given and returns to the blank form.
         $database = \Core\Database::connection();
+        $uploaded = [];
         try {
             if ($listingId && !$listingModel->findOwned($listingId, $hostId)) {
                 throw new \DomainException('Không có quyền sửa chỗ ở.');
@@ -117,13 +167,15 @@ final class HostController extends Controller
                 $listingId = $listingModel->create($hostId, $data);
             }
             $listingModel->setAmenities($listingId, $amenities, $hostId);
-            $photo = (new UploadService())->image($_FILES['photo'] ?? [], 'listing-'.$listingId);
-            if ($photo) { $listingModel->addPhoto($listingId, $photo, $data['title'], $hostId); }
+            $uploaded = (new UploadService())->images($_FILES['photos'] ?? [], 'listing-'.$listingId);
+            if (count($listingModel->photos($listingId,$hostId))+count($uploaded)>100) { throw new \DomainException('Mỗi tin đăng được có tối đa 100 ảnh.'); }
+            foreach ($uploaded as $photo) { $listingModel->addPhoto($listingId, $photo, $data['title'], $hostId); }
             $database->commit();
             Session::flash('success', 'Đã lưu chỗ ở và chuyển về trạng thái chờ duyệt.');
             $this->redirect('/host');
         } catch (\Throwable $exception) {
             if ($database->inTransaction()) { $database->rollBack(); }
+            (new UploadService())->discard($uploaded);
             Session::old($data + ['amenities' => is_array($_POST['amenities'] ?? null) ? array_map('intval', $_POST['amenities']) : []], $oldScope);
             Session::flash('error', $exception instanceof \DomainException
                 ? $exception->getMessage() : 'Không thể lưu chỗ ở. Vui lòng thử lại.');
@@ -166,6 +218,6 @@ final class HostController extends Controller
         $this->redirect('/host');
     }
     public function availability(string $id): never {Csrf::ensure();$u=$this->requireRole('host');$date=input_text($_POST,'date');$valid=\Core\Calendar::date($date);$message='Ngày không hợp lệ.';$ok=$valid&&$valid>=new \DateTimeImmutable('today');$open=!empty(input_text($_POST,'open'));$reason=input_text($_POST,'reason');if($ok&&!$open&&mb_strlen($reason)>5000){$ok=false;$message='Lý do chặn ngày tối đa 5000 ký tự.';}elseif($ok){$ok=(new Listing())->setAvailability((int)$id,(int)$u['id'],$date,$open,$reason);$message=$ok?'Đã cập nhật lịch.':'Không thể chặn ngày đã có booking xác nhận.';}if(str_contains((string)($_SERVER['HTTP_ACCEPT']??''),'application/json')){$this->json($ok,$message,null,[],$ok?200:422);}Session::flash($ok?'success':'error',$message);if(!$ok){Session::old(['listing_id'=>(int)$id,'date'=>preg_match('/^\d{4}-\d{2}-\d{2}$/D',$date)?$date:'','reason'=>$reason]);}$month=input_text($_POST,'month');$this->redirect('/host/listings/'.$id.'/availability'.(preg_match('/^\d{4}-\d{2}$/D',$month)?'?month='.$month:''));}
-    public function transition(string $id): never {Csrf::ensure();$u=$this->requireRole('host');try{(new BookingService())->hostTransition((int)$id,(int)$u['id'],input_text($_POST,'status'));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/host');}
+    public function transition(string $id): never {Csrf::ensure();$u=$this->requireRole('host');try{(new BookingService())->hostTransition((int)$id,(int)$u['id'],input_text($_POST,'status'));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect(($_POST['return_to']??'')==='detail'?'/bookings/'.(int)$id:'/host');}
 }
 

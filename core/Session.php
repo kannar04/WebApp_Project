@@ -40,7 +40,7 @@ final class Session
     public static function forgetFormData(): void
     {
         foreach (array_keys($_SESSION) as $key) {
-            if ($key === '_flash' || $key === '_message_draft' || str_ends_with((string) $key, '_old')) {
+            if ($key === '_flash' || $key === '_message_draft' || str_starts_with((string) $key, '_direct_draft:') || str_ends_with((string) $key, '_old')) {
                 unset($_SESSION[$key]);
             }
         }

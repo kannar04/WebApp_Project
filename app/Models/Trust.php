@@ -45,7 +45,16 @@ final class Trust
     {
         $statement = $this->db->prepare('CALL NTK_sp_identity_verification_status(?)');
         $statement->execute([$actorId]);
-        return $statement->fetch() ?: null;
+        $status=$statement->fetch() ?: null;
+        if (\App\Services\DebugVerification::verified('identity',$actorId)) {
+            $user=\Core\Auth::user();
+            if ($user && (int)$user['id']===$actorId && self::normalizePhone((string)$user['phone'])===($_SESSION['_debug_verification']['identity']??null)) {
+                return ['id'=>0,'status'=>'approved','is_current'=>1,'is_debug'=>true,'full_name_on_card'=>$user['full_name'],
+                    'phone'=>self::normalizePhone((string)$user['phone']),'id_number_masked'=>'DEBUG (không có CCCD thật)',
+                    'decision_reason'=>'Local debug simulation','created_at'=>date('Y-m-d H:i:s'),'reviewed_at'=>date('Y-m-d H:i:s')];
+            }
+        }
+        return $status;
     }
 
     public function adminVerifications(int $adminId, string $status, string $query): array
@@ -77,6 +86,12 @@ final class Trust
         foreach (array_chunk(array_values($ids), 200) as $chunk) {
             $statement->execute([implode(',', $chunk), $actorId]);
             foreach ($statement->fetchAll() as $row) { $badges[(int) $row['user_id']] = $row; }
+        }
+        if ($actorId!==null && isset($badges[$actorId]) && \App\Services\DebugVerification::verified('identity',$actorId)) {
+            $user=\Core\Auth::user();
+            if ($user && (int)$user['id']===$actorId && self::normalizePhone((string)$user['phone'])===($_SESSION['_debug_verification']['identity']??null)) {
+                $badges[$actorId]['is_verified']=1;
+            }
         }
         return $badges;
     }
