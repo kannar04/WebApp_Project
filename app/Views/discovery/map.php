@@ -11,7 +11,7 @@ foreach($types as $type){ $mapTypeLabels[(string)$type['name']]=__((string)$type
 ?>
 <section class="page-section discovery-map-page" aria-labelledby="map-title">
     <div class="container">
-        <div class="section-title"><div><h1 id="map-title"><?= e(__('Tìm chỗ ở trên bản đồ')) ?></h1><p><?= e(__('Di chuyển bản đồ, rồi chọn Tìm trong khu vực này để cập nhật kết quả.')) ?></p></div></div>
+        <div class="section-title"><div><h1 id="map-title"><?= e(__('Tìm chỗ ở trên bản đồ')) ?></h1><p><?= e(__('Di chuyển bản đồ, rồi chọn Tìm trong khu vực này để cập nhật kết quả.')) ?></p><a href="#tourism-services"><?= e(__('Khám phá địa điểm ăn uống và giải trí')) ?></a></div></div>
         <form class="surface-card discovery-map-filters mb-4" method="get" action="<?= e(url('/map')) ?>" data-map-filter-form aria-labelledby="map-filter-title">
             <h2 class="h6" id="map-filter-title"><?= e(__('Điều kiện tìm kiếm')) ?></h2>
             <?php if($searchError!==null): ?><div class="alert alert-danger" role="alert"><strong><?= e(__('Chưa áp dụng được điều kiện.')) ?></strong> <?= e($filterErrors?implode(' ',array_map('__',array_unique(array_values($filterErrors)))):__($searchError)) ?></div><?php endif; ?>
@@ -29,7 +29,8 @@ foreach($types as $type){ $mapTypeLabels[(string)$type['name']]=__((string)$type
             <div class="filter-actions"><button class="btn btn-primary" type="submit"><?= e(__('Tìm trên bản đồ')) ?></button><a class="btn btn-outline-primary" href="<?= e(url('/map')) ?>"><?= e(__('Đặt lại')) ?></a><a class="btn btn-ghost" data-map-list-link href="<?= e(url('/'.($mapFilters?'?'.http_build_query($mapFilters):'').'#listing-results')) ?>"><?= e(__('Xem dạng danh sách')) ?></a></div>
             <p class="text-muted small mb-0 mt-2"><?= e(__('Giá tính bằng VND cho một đêm. Chỉ chỗ ở đã có vị trí trên bản đồ mới được hiển thị.')) ?></p>
         </form>
-        <div class="discovery-map-layout">
+        <form class="surface-card mb-3" data-map-address-form data-api="<?= e(url('/api/addresses')) ?>"><label for="map-address"><?= e(__('Tìm khu vực theo địa chỉ')) ?></label><div class="form-row"><div class="col-md-9 mb-2"><input class="form-control" id="map-address" name="address" minlength="3" maxlength="255" placeholder="<?= e(__('Số nhà, đường, phường hoặc thành phố')) ?>" required></div><div class="col-md-3 mb-2"><button class="btn btn-outline-primary btn-block" type="submit"><?= e(__('Tìm địa chỉ')) ?></button></div></div><div data-map-address-results role="status" aria-live="polite"></div></form>
+<div class="discovery-map-layout">
             <div class="discovery-map-panel"><button class="btn btn-primary mb-3" type="button" data-search-area hidden><?= e(__('Tìm trong khu vực này')) ?></button>
                 <div class="discovery-map discovery-map-search" data-discovery-map="search" data-label="<?= e(__('Bản đồ chỗ ở')) ?>"
                     data-api="<?= e(url('/api/listings/map')) ?>" data-location="<?= e($filters['location']??'') ?>"
@@ -37,7 +38,7 @@ foreach($types as $type){ $mapTypeLabels[(string)$type['name']]=__((string)$type
                     data-initial="<?= e(json_encode($listings,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)) ?>"
                     data-type-labels="<?= e(json_encode($mapTypeLabels,JSON_UNESCAPED_UNICODE|JSON_FORCE_OBJECT)) ?>"></div>
             </div>
-            <section class="discovery-map-results" aria-labelledby="map-results-title">
+            <section class="discovery-map-results" aria-labelledby="map-results-title" tabindex="0">
                 <h2 class="h6 sr-only" id="map-results-title"><?= e(__('Chỗ ở trong khu vực bản đồ')) ?></h2>
                 <p class="discovery-map-count" role="status" aria-live="polite" data-map-count><strong><?= e($countLabel) ?></strong></p>
                 <p class="text-danger small" role="alert" data-map-error hidden></p>
@@ -47,5 +48,26 @@ foreach($types as $type){ $mapTypeLabels[(string)$type['name']]=__((string)$type
                 <div class="empty-state discovery-map-empty" data-map-empty<?= $listings?' hidden':'' ?>><h3 class="h5"><?= e(__('Không có chỗ ở trong khu vực này')) ?></h3><p><?= e(__('Hãy kéo bản đồ sang vùng khác, thu nhỏ để xem rộng hơn hoặc bỏ bớt điều kiện.')) ?></p><a class="btn btn-outline-primary" href="<?= e(url('/map')) ?>"><?= e(__('Xem tất cả chỗ ở')) ?></a></div>
             </section>
         </div>
+        <section id="tourism-services" class="mt-5" aria-labelledby="services-title" data-tourism-services>
+            <h2 id="services-title"><?= e(__('Bản đồ dịch vụ du lịch')) ?></h2>
+            <p><?= e(__('Khám phá quán ăn, bar, địa điểm giải trí và quán nước. Chọn thành phố hoặc di chuyển bản đồ, rồi tìm trong khu vực bạn muốn.')) ?></p>
+            <form class="surface-card mb-4" data-services-form>
+                <div class="form-row">
+                    <div class="form-group col-12 col-md-6"><label for="services-city"><?= e(__('Thành phố')) ?></label><select id="services-city" class="form-control" data-services-city><option value=""><?= e(__('Khu vực trên bản đồ')) ?></option></select></div>
+                    <div class="form-group col-12 col-md-6"><label for="services-category"><?= e(__('Loại dịch vụ')) ?></label><select id="services-category" class="form-control" data-services-category><option value="all"><?= e(__('Tất cả dịch vụ')) ?></option><option value="food"><?= e(__('Quán ăn')) ?></option><option value="bar">Bar</option><option value="entertainment"><?= e(__('Giải trí')) ?></option><option value="cafe"><?= e(__('Quán nước')) ?></option></select></div>
+                </div>
+                <button type="submit" class="btn btn-primary" data-services-search><?= e(__('Tìm dịch vụ trong khu vực này')) ?></button>
+                <p class="small text-muted mt-2 mb-0"><?= e(__('Dữ liệu cộng đồng OpenStreetMap có thể chưa đầy đủ. Phóng to bản đồ để tìm trong khu vực nhỏ hơn.')) ?></p>
+            </form>
+            <div class="discovery-map-layout">
+                <div class="discovery-map-panel"><div class="discovery-map discovery-map-search" data-services-map data-label="<?= e(__('Bản đồ dịch vụ du lịch')) ?>"></div></div>
+                <section class="discovery-map-results" aria-label="<?= e(__('Địa điểm dịch vụ du lịch')) ?>" tabindex="0">
+                    <p role="status" aria-live="polite" data-services-status><?= e(__('Chọn Tìm dịch vụ trong khu vực này để tải địa điểm.')) ?></p>
+                    <p role="alert" class="text-danger" data-services-error hidden></p>
+                    <ol class="discovery-map-list" data-services-list></ol>
+                </section>
+            </div>
+            <noscript><p><?= e(__('Bật JavaScript để sử dụng bản đồ dịch vụ du lịch.')) ?></p></noscript>
+        </section>
     </div>
 </section>
