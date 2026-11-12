@@ -80,6 +80,7 @@ $router->get('/admin/payments',[\App\Controllers\BookingExtrasController::class,
 $router->post('/admin/payments/{id}/paid',[\App\Controllers\BookingExtrasController::class,'adminPaymentPaid']);
 $router->post('/admin/payments/{id}/refund',[\App\Controllers\BookingExtrasController::class,'adminPaymentRefund']);
 $router->get('/admin/host-payouts',[\App\Controllers\HostPayoutController::class,'adminIndex']);
+$router->post('/admin/host-payout-settings',[\App\Controllers\HostPayoutController::class,'adminSaveSettings']);
 $router->post('/admin/host-payout-accounts/{id}/decide',[\App\Controllers\HostPayoutController::class,'adminDecideAccount']);
 $router->post('/admin/host-payouts/bookings/{id}',[\App\Controllers\HostPayoutController::class,'adminCreate']);
 $router->post('/admin/host-payouts/{id}/paid',[\App\Controllers\HostPayoutController::class,'adminMarkPaid']);

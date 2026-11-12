@@ -58,6 +58,15 @@ final class HostPayoutController extends Controller
         $this->redirect('/admin/host-payouts');
     }
 
+    public function adminSaveSettings(): never
+    {
+        Csrf::ensure();$user=$this->requireRole('admin');$feePercent=$this->text('fee_percent',6);
+        try{if(!preg_match('/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/D',$feePercent)){throw new \DomainException('Phí nền tảng phải từ 0 đến 100%, tối đa hai số thập phân.');}
+            (new HostPayout())->saveGlobalFee((int)$user['id'],$feePercent);Session::flash('success','Đã cập nhật phí nền tảng chung. Các lệnh đã tạo không thay đổi.');}
+        catch(\Throwable $exception){Session::flash('error',$exception instanceof \DomainException?$exception->getMessage():self::GENERIC_ERROR);}
+        $this->redirect('/admin/host-payouts');
+    }
+
     public function adminCreate(string $bookingId): never
     {
         Csrf::ensure();$user=$this->requireRole('admin');
