@@ -317,6 +317,11 @@ body { overflow-wrap: break-word; }
 .discovery-history-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .page-section.discovery-history-section { min-height: 0; }
 @media (max-width: 991.98px) { .discovery-map-layout { --discovery-map-height: max(320px, 58vh); grid-template-columns: 1fr; } .discovery-map-panel { position: relative; top: auto; } .discovery-map-search { height: 58vh; min-height: 320px; } }
+@media (max-width: 991.98px) {
+    #stay-nearby .discovery-map-results { height: auto; overflow: visible; overscroll-behavior-y: auto; scrollbar-gutter: auto; }
+    #stay-nearby .nearby-results-heading { position: static; }
+    [data-nearby-map] .h2h-map-viewport { touch-action: pan-y pinch-zoom; }
+}
 @media (max-width: 575.98px) { .discovery-map-layout { --discovery-map-height: max(300px, 52vh); } .discovery-map-search { height: 52vh; min-height: 300px; } .discovery-map-item-link { grid-template-columns: 80px minmax(0, 1fr); } .discovery-map-item img { width: 80px; height: 60px; } .discovery-mini-map { height: 300px; } .discovery-map-filters .filter-actions .btn { flex: 1 1 calc(50% - 6px); } .discovery-map-filters .filter-actions .btn-primary { flex-basis: 100%; } }
 
 /* Nice-to-have content: articles and travel guides */
