@@ -67,6 +67,8 @@ $router->get('/admin',[AdminController::class,'dashboard']);$router->post('/admi
 $router->get('/host/listings/{id}/pricing',[\App\Controllers\BookingExtrasController::class,'hostPricing']);
 $router->post('/host/listings/{id}/pricing',[\App\Controllers\BookingExtrasController::class,'hostPricingSave']);
 $router->post('/host/bookings/{id}/payment',[\App\Controllers\BookingExtrasController::class,'hostMarkPaid']);
+$router->get('/host/payouts',[\App\Controllers\HostPayoutController::class,'hostIndex']);
+$router->post('/host/payout-account',[\App\Controllers\HostPayoutController::class,'hostSaveAccount']);
 $router->get('/admin/holidays',[\App\Controllers\BookingExtrasController::class,'adminHolidays']);
 $router->post('/admin/holidays',[\App\Controllers\BookingExtrasController::class,'adminHolidaySave']);
 $router->post('/admin/holidays/{id}/delete',[\App\Controllers\BookingExtrasController::class,'adminHolidayDelete']);
@@ -77,6 +79,10 @@ $router->post('/admin/promotions/{id}/delete',[\App\Controllers\BookingExtrasCon
 $router->get('/admin/payments',[\App\Controllers\BookingExtrasController::class,'adminPayments']);
 $router->post('/admin/payments/{id}/paid',[\App\Controllers\BookingExtrasController::class,'adminPaymentPaid']);
 $router->post('/admin/payments/{id}/refund',[\App\Controllers\BookingExtrasController::class,'adminPaymentRefund']);
+$router->get('/admin/host-payouts',[\App\Controllers\HostPayoutController::class,'adminIndex']);
+$router->post('/admin/host-payout-accounts/{id}/decide',[\App\Controllers\HostPayoutController::class,'adminDecideAccount']);
+$router->post('/admin/host-payouts/bookings/{id}',[\App\Controllers\HostPayoutController::class,'adminCreate']);
+$router->post('/admin/host-payouts/{id}/paid',[\App\Controllers\HostPayoutController::class,'adminMarkPaid']);
 
 // Nice-to-have online payment: VietQR bank transfer (Admin confirms) and VNPay
 $router->get('/bookings/{id}/pay',[\App\Controllers\PaymentController::class,'checkout']);
