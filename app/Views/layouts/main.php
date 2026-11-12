@@ -9,7 +9,7 @@ if($basePath!=='' && str_starts_with($requestPath,$basePath.'/')) { $requestPath
 $isAdminWorkspace=$currentUser && in_array('admin',$currentUser['roles'],true) && ($requestPath==='/admin'||str_starts_with($requestPath,'/admin/'));
 $isHostWorkspace=$currentUser && in_array('host',$currentUser['roles'],true) && ($requestPath==='/host'||str_starts_with($requestPath,'/host/'));
 $isWorkspace=$isAdminWorkspace||$isHostWorkspace;
-$isAccountPage=$currentUser && preg_match('~^/(profile|bookings|wishlist|messages|notifications|reports|payments)(/|$)~',$requestPath);
+$isAccountPage=$currentUser && preg_match('~^/(profile|bookings|wishlist|messages|notifications|reports|payments|refunds)(/|$)~',$requestPath);
 $messageUnread=$currentUser?\App\Services\ConversationService::navigation((int)$currentUser['id']):0;
 ?>
 <!doctype html>
@@ -38,7 +38,7 @@ $messageUnread=$currentUser?\App\Services\ConversationService::navigation((int)$
                 <div class="dropdown account-dropdown">
                     <button class="account-trigger" id="account-menu-button" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="account-avatar" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($currentUser['full_name'],0,1))) ?></span><span class="account-name"><?= e($currentUser['full_name']) ?></span><?= ui_icon('chevron') ?></button>
                     <div class="dropdown-menu dropdown-menu-right" aria-labelledby="account-menu-button">
-                        <?php foreach([['/profile',__('Hồ sơ'),'user'],['/bookings',__('Đặt chỗ'),'calendar'],['/wishlist',__('Yêu thích'),'heart'],['/notifications',__('Thông báo'),'bell']] as [$accountPath,$accountLabel,$accountIcon]): ?><a class="dropdown-item" href="<?= e(url($accountPath)) ?>"><?= ui_icon($accountIcon) ?> <?= e($accountLabel) ?></a><?php endforeach; ?>
+                        <?php foreach([['/profile',__('Hồ sơ'),'user'],['/bookings',__('Đặt chỗ'),'calendar'],['/refunds',__('Nhận hoàn tiền'),'ticket'],['/wishlist',__('Yêu thích'),'heart'],['/notifications',__('Thông báo'),'bell']] as [$accountPath,$accountLabel,$accountIcon]): ?><a class="dropdown-item" href="<?= e(url($accountPath)) ?>"><?= ui_icon($accountIcon) ?> <?= e($accountLabel) ?></a><?php endforeach; ?>
                         <div class="dropdown-divider"></div>
                         <?php if(in_array('host',$currentUser['roles'],true)): ?><a class="dropdown-item" href="<?= e(url('/host')) ?>"><?= ui_icon('home') ?> <?= e(__('Không gian Host')) ?></a><?php endif; ?>
                         <?php if(in_array('admin',$currentUser['roles'],true)): ?><a class="dropdown-item" href="<?= e(url('/admin')) ?>"><?= ui_icon('grid') ?> <?= e(__('Quản trị')) ?></a><?php endif; ?>
@@ -52,7 +52,7 @@ $messageUnread=$currentUser?\App\Services\ConversationService::navigation((int)$
 <main id="main-content" tabindex="-1">
     <?php if($isWorkspace): ?><div class="workspace-shell"><?php require dirname(__DIR__).'/components/workspace-nav.php'; ?><div class="workspace-content"><?php endif; ?>
     <?php if($isAccountPage): ?><div class="account-navigation"><nav class="container" aria-label="<?= e(__('Tài khoản của bạn')) ?>">
-        <?php foreach([['/profile',__('Hồ sơ'),'user'],['/bookings',__('Đặt chỗ'),'calendar'],['/wishlist',__('Yêu thích'),'heart'],['/messages',__('Tin nhắn'),'message'],['/notifications',__('Thông báo'),'bell']] as [$accountPath,$accountLabel,$accountIcon]): $active=$requestPath===$accountPath || str_starts_with($requestPath,$accountPath.'/'); ?>
+        <?php foreach([['/profile',__('Hồ sơ'),'user'],['/bookings',__('Đặt chỗ'),'calendar'],['/refunds',__('Nhận hoàn tiền'),'ticket'],['/wishlist',__('Yêu thích'),'heart'],['/messages',__('Tin nhắn'),'message'],['/notifications',__('Thông báo'),'bell']] as [$accountPath,$accountLabel,$accountIcon]): $active=$requestPath===$accountPath || str_starts_with($requestPath,$accountPath.'/'); ?>
         <a href="<?= e(url($accountPath)) ?>" <?= $active?'class="is-active" aria-current="page"':'' ?>><?= ui_icon($accountIcon) ?> <?= e($accountLabel) ?></a>
         <?php endforeach; ?>
     </nav></div><?php endif; ?>
