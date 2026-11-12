@@ -7,7 +7,8 @@
 <script src="<?= e(asset('js/theme.js')) ?>"></script>
 <link rel="stylesheet" href="<?= e(asset('css/fonts.css')) ?>">
 <link rel="stylesheet" href="<?= e(asset('vendor/bootstrap.min.css')) ?>">
-<link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">
+<?php $appCssVersion = filemtime(dirname(__DIR__, 3) . '/public/assets/css/app.css'); ?>
+<link rel="stylesheet" href="<?= e(asset('css/app.css') . '?v=' . $appCssVersion) ?>">
 <link rel="stylesheet" href="<?= e(asset('css/figma.css')) ?>">
 <link rel="stylesheet" href="<?= e(asset('css/experience.css')) ?>">
 <link rel="stylesheet" href="<?= e(asset('css/focused.css')) ?>">
