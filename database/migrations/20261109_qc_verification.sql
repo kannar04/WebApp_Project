@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS email_challenges (
  INDEX ix_challenge_email(email,created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 DELIMITER $$
-CREATE OR REPLACE PROCEDURE NMT_sp_email_challenge_get(IN p_id CHAR(64),IN p_actor BIGINT UNSIGNED)
+CREATE OR REPLACE PROCEDURE NMT_sp_email_challenge_get(IN p_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin,IN p_actor BIGINT UNSIGNED)
 BEGIN
  SELECT email,full_name,password_hash,phone FROM email_challenges
  WHERE id=p_id AND (user_id <=> p_actor) AND created_at>NOW()-INTERVAL 1 DAY;
@@ -34,7 +34,7 @@ BEGIN
  FROM users u LEFT JOIN contact_verifications c ON c.user_id=u.id
  WHERE u.id=p_user AND u.status='active' AND u.deleted_at IS NULL;
 END$$
-CREATE OR REPLACE PROCEDURE NMT_sp_email_challenge_issue(IN p_id CHAR(64),IN p_user BIGINT UNSIGNED,IN p_email VARCHAR(254),IN p_name VARCHAR(150),IN p_password VARCHAR(255),IN p_phone VARCHAR(20),IN p_hash CHAR(64))
+CREATE OR REPLACE PROCEDURE NMT_sp_email_challenge_issue(IN p_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin,IN p_user BIGINT UNSIGNED,IN p_email VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_name VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_password VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_phone VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,IN p_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin)
 BEGIN
  -- Serializes requests for the same email, including requests from different sessions.
  DECLARE v_locked INT DEFAULT 0;
@@ -55,10 +55,10 @@ BEGIN
  VALUES(p_id,p_user,LOWER(p_email),p_name,p_password,NULLIF(p_phone,''),p_hash,NOW()+INTERVAL 10 MINUTE);
  DO RELEASE_LOCK(CONCAT('h2h-email-',LEFT(SHA2(LOWER(p_email),256),48)));
 END$$
-CREATE OR REPLACE PROCEDURE NMT_sp_email_challenge_consume(IN p_id CHAR(64),IN p_hash CHAR(64),IN p_actor BIGINT UNSIGNED)
+CREATE OR REPLACE PROCEDURE NMT_sp_email_challenge_consume(IN p_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin,IN p_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin,IN p_actor BIGINT UNSIGNED)
 proc: BEGIN
- DECLARE v_id CHAR(64); DECLARE v_user BIGINT UNSIGNED; DECLARE v_email VARCHAR(254); DECLARE v_name VARCHAR(150);
- DECLARE v_password VARCHAR(255); DECLARE v_phone VARCHAR(20); DECLARE v_hash CHAR(64); DECLARE v_attempts INT; DECLARE v_expires DATETIME(6);
+ DECLARE v_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin; DECLARE v_user BIGINT UNSIGNED; DECLARE v_email VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; DECLARE v_name VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ DECLARE v_password VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; DECLARE v_phone VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; DECLARE v_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin; DECLARE v_attempts INT; DECLARE v_expires DATETIME(6);
  DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
  START TRANSACTION;
  SELECT id,user_id,email,full_name,password_hash,phone,code_hash,attempts,expires_at
@@ -81,7 +81,7 @@ proc: BEGIN
  COMMIT;
  SELECT v_user AS user_id;
 END$$
-CREATE OR REPLACE PROCEDURE NMT_sp_phone_verify(IN p_user BIGINT UNSIGNED,IN p_phone VARCHAR(20))
+CREATE OR REPLACE PROCEDURE NMT_sp_phone_verify(IN p_user BIGINT UNSIGNED,IN p_phone VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
  UPDATE contact_verifications c JOIN users u ON u.id=c.user_id
  SET c.verified_phone=p_phone,c.phone_verified_at=NOW(6)
@@ -146,7 +146,7 @@ BEGIN
  FROM (SELECT * FROM direct_messages WHERE conversation_id=p_chat ORDER BY id DESC LIMIT 500) recent
  JOIN users u ON u.id=recent.sender_id ORDER BY recent.id;
 END$$
-CREATE OR REPLACE PROCEDURE NMT_sp_direct_send(IN p_chat BIGINT UNSIGNED,IN p_actor BIGINT UNSIGNED,IN p_body TEXT)
+CREATE OR REPLACE PROCEDURE NMT_sp_direct_send(IN p_chat BIGINT UNSIGNED,IN p_actor BIGINT UNSIGNED,IN p_body TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci)
 BEGIN
  DECLARE v_id BIGINT UNSIGNED;
  DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
