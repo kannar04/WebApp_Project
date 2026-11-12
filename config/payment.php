@@ -8,8 +8,7 @@ return [
     'bank_name' => trim((string) (getenv('PAYMENT_BANK_NAME') ?: '')),
     'account_no' => trim((string) (getenv('PAYMENT_ACCOUNT_NO') ?: '')),
     'account_name' => trim((string) (getenv('PAYMENT_ACCOUNT_NAME') ?: '')),
-    // Business policy, configured per environment. Never inferred from a request or embedded in a payout.
-    'host_payout_fee_percent' => trim((string) (getenv('HOST_PAYOUT_FEE_PERCENT') ?: '0')),
+    'host_payout_system_admin_id' => trim((string) (getenv('HOST_PAYOUT_SYSTEM_ADMIN_ID') ?: '')),
     'vnpay_tmn_code' => trim((string) (getenv('VNPAY_TMN_CODE') ?: '')),
     'vnpay_hash_secret' => trim((string) (getenv('VNPAY_HASH_SECRET') ?: '')),
     'vnpay_pay_url' => trim((string) (getenv('VNPAY_PAY_URL') ?: 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html')),

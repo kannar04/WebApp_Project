@@ -12,9 +12,9 @@ final class HostPayout
 
     public static function feePercent(): string
     {
-        $config=require dirname(__DIR__,2).'/config/payment.php';
-        $value=(string)($config['host_payout_fee_percent']??'');
-        if(!preg_match('/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/D',$value)){throw new \RuntimeException('HOST_PAYOUT_FEE_PERCENT must be between 0 and 100 with at most two decimals.');}
+        $statement=Database::connection()->query('CALL DST_sp_host_payout_settings_get()');
+        $value=(string)($statement->fetch()['fee_percent']??'');$statement->closeCursor();
+        if(!preg_match('/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/D',$value)){throw new \RuntimeException('Cấu hình phí chi trả Host không hợp lệ.');}
         return $value;
     }
 
@@ -32,7 +32,7 @@ final class HostPayout
 
     public function hostSummary(int $hostId): array
     {
-        $statement=$this->db->prepare('CALL NMT_sp_host_payout_summary(?,?)');$statement->execute([$hostId,self::feePercent()]);
+        $statement=$this->db->prepare('CALL NMT_sp_host_payout_summary(?)');$statement->execute([$hostId]);
         $row=$statement->fetch()?:['paid_total'=>0,'pending_total'=>0,'eligible_total'=>0];$statement->closeCursor();return $row;
     }
 
@@ -53,12 +53,12 @@ final class HostPayout
 
     public function adminPayouts(int $adminId): array
     {
-        $statement=$this->db->prepare('CALL DST_sp_admin_host_payouts(?,?)');$statement->execute([$adminId,self::feePercent()]);$rows=$statement->fetchAll();$statement->closeCursor();return $rows;
+        $statement=$this->db->prepare('CALL DST_sp_admin_host_payouts(?)');$statement->execute([$adminId]);$rows=$statement->fetchAll();$statement->closeCursor();return $rows;
     }
 
     public function createPayout(int $bookingId,int $adminId): array
     {
-        $statement=$this->db->prepare('CALL LTP_sp_admin_host_payout_create(?,?,?)');$statement->execute([$bookingId,$adminId,self::feePercent()]);
+        $statement=$this->db->prepare('CALL LTP_sp_admin_host_payout_create(?,?)');$statement->execute([$bookingId,$adminId]);
         $row=$statement->fetch()?:[];$statement->closeCursor();return $row;
     }
 
@@ -71,5 +71,20 @@ final class HostPayout
     {
         $statement=$this->db->prepare('CALL NTK_sp_admin_host_payout_totals(?)');$statement->execute([$adminId]);
         $row=$statement->fetch()?:['pending_count'=>0,'pending_amount'=>0,'paid_count'=>0,'paid_amount'=>0];$statement->closeCursor();return $row;
+    }
+
+    public function saveGlobalFee(int $adminId,string $feePercent): void
+    {
+        $statement=$this->db->prepare('CALL LTP_sp_admin_host_payout_settings_save(?,?)');$statement->execute([$adminId,$feePercent]);$statement->closeCursor();
+    }
+
+    public function hourlyCandidates(int $adminId): array
+    {
+        $statement=$this->db->prepare('CALL NMT_sp_hourly_host_payout_candidates(?)');$statement->execute([$adminId]);$rows=$statement->fetchAll();$statement->closeCursor();return $rows;
+    }
+
+    public function schedulerLock(bool $acquire): bool
+    {
+        $statement=$this->db->prepare('CALL NTK_sp_host_payout_scheduler_lock(?)');$statement->execute([$acquire]);$locked=(int)$statement->fetchColumn()===1;$statement->closeCursor();return $locked;
     }
 }
