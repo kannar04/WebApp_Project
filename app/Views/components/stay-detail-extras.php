@@ -1,13 +1,29 @@
 <?php if(!$preview): ?>
 <div class="container stay-detail-extras">
-    <section class="stay-host" aria-labelledby="stay-host-title">
+    <?php
+        $hostBadge = ($trustBadges ?? [])[(int)$listing['host_id']] ?? [];
+        $hostReviewCount = (int)($hostBadge['review_count'] ?? 0);
+        $hostJoined = !empty($listing['host_since']) ? strtotime((string)$listing['host_since']) : false;
+    ?>
+    <section class="stay-host" id="stay-host" aria-labelledby="stay-host-title">
         <h2 id="stay-host-title"><?= e(__('Gặp gỡ Host')) ?></h2>
+        <div class="stay-host-layout">
+        <div>
         <div class="stay-host-profile">
             <?php if(!empty($listing['host_avatar'])): ?><img src="<?= e(image_url($listing['host_avatar'])) ?>" alt="" loading="lazy" width="80" height="80"><?php else: ?><span class="stay-host-initial" aria-hidden="true"><?= e(mb_substr($listing['host_name'],0,1)) ?></span><?php endif; ?>
             <div><h3><?= e($listing['host_name']) ?></h3>
-                <?php if(!empty($listing['host_since'])): ?><p><?= e(__('Tham gia từ {year}',['year'=>date('Y',strtotime($listing['host_since']))])) ?></p><?php endif; ?>
-                <?php $badge=($trustBadges??[])[(int)$listing['host_id']]??null; $badgeShowHost=true; $badgeExplain=false; require __DIR__.'/trust-badges.php'; ?>
+                <p><?= e(__('Host của {title}', ['title'=>$listing['title']])) ?></p>
+                <?php $badge=$hostBadge; $badgeShowHost=true; $badgeExplain=false; require __DIR__.'/trust-badges.php'; ?>
             </div>
+        </div>
+        <?php if(!empty($listing['reviews'])): ?><a class="stay-host-review-link" href="#stay-reviews"><?= e(__('Xem đánh giá về chỗ ở này')) ?> <?= ui_icon('arrow') ?></a><?php endif; ?>
+        </div>
+        <dl class="stay-host-facts">
+            <div><dt><?= ui_icon('calendar') ?> <?= e(__('Thành viên từ')) ?></dt><dd><?php if($hostJoined!==false): ?><time datetime="<?= e(date('Y-m-d',$hostJoined)) ?>"><?= e(date('m/Y',$hostJoined)) ?></time><?php else: ?><?= e(__('Chưa có thông tin')) ?><?php endif; ?></dd></div>
+            <div><dt><?= ui_icon('star') ?> <?= e(__('Đánh giá về Host')) ?></dt><dd><?php if($hostReviewCount>0): ?><strong><?= e(display_decimal((float)$hostBadge['average_rating'],1)) ?><span> / 5</span></strong><span class="stay-host-review-count"><?= e(__('{count} đánh giá trên các chỗ ở của Host',['count'=>$hostReviewCount])) ?></span><?php else: ?><?= e(__('Chưa có đánh giá')) ?><?php endif; ?></dd></div>
+            <div><dt><?= ui_icon('pin') ?> <?= e(__('Địa điểm chỗ ở')) ?></dt><dd><?= e($listing['city']) ?></dd></div>
+            <div><dt><?= ui_icon('shield') ?> <?= e(__('Xác minh danh tính')) ?></dt><dd class="<?= !empty($hostBadge['is_verified']) ? 'stay-host-verified' : '' ?>"><?= e(!empty($hostBadge['is_verified']) ? __('Đã xác minh') : __('Chưa có xác minh danh tính')) ?></dd></div>
+        </dl>
         </div>
     </section>
     <?php if(!empty($relatedListings)): ?>
@@ -23,3 +39,5 @@
     <?php endif; ?>
 </div>
 <?php endif; ?>
+
+<?php if(!$preview && \Core\Auth::id()!==(int)$listing['host_id']): ?><section class="page-section pt-0"><div class="container"><h2><?= e(__('Liên hệ chủ nhà')) ?></h2><p><?= e(__('Hỏi thông tin trước khi đặt phòng hoặc giữ liên lạc sau chuyến đi trong hộp thư riêng.')) ?></p><?php if(\Core\Auth::check()): ?><form method="post" action="<?= e(url('/messages/open')) ?>"><?= csrf_field() ?><input type="hidden" name="listing_id" value="<?= (int)$listing['id'] ?>"><button class="btn btn-outline-primary" type="submit"><?= e(__('Nhắn tin với chủ nhà')) ?></button></form><?php else: ?><a class="btn btn-outline-primary" href="<?= e(url('/login?'.http_build_query(['next'=>'/listings/'.(int)$listing['id']]))) ?>"><?= e(__('Đăng nhập để nhắn tin với chủ nhà')) ?></a><?php endif; ?></div></section><?php endif; ?>
