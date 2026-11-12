@@ -1,10 +1,8 @@
 -- Home2Home: database update for the UI redesign and the bug fixes.
--- Run this on the shared db_home2home once, at the same time the PHP goes onto dev: 63 routines change and 10 are new.
+-- Run this against the configured application database once, at the same time the PHP goes onto dev: 63 routines change and 10 are new.
 -- 7 of the changed routines take different parameters, so a caller with the old list fails: do not run this ahead of the PHP, or leave the PHP waiting after it.
 -- Safe to run again: it only replaces routines and adds one index. Tables and data are not touched.
 -- Names are the owner-prefixed ones used on dev.
-
-USE db_home2home;
 
 CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_entity ON admin_audit_logs (entity_type, entity_id, action);
 

@@ -7,7 +7,6 @@ if (PHP_SAPI !== 'cli') {
 ");
 }
 
-const DATABASE_NAME = 'db_home2home';
 const OWNER_TARGETS = [
     'NMT' => 44,
     'NTK' => 43,
@@ -21,13 +20,16 @@ function quoteIdentifier(string $identifier): string
 }
 
 $projectRoot = dirname(__DIR__, 2);
+$databaseName = getenv('DB_DATABASE') ?: 'db_home2home';
+$databaseHost = getenv('DB_HOST') ?: '127.0.0.1';
+$databasePort = getenv('DB_PORT') ?: '3306';
 $outputDir = $projectRoot . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'migrations';
 if (!is_dir($outputDir) && !mkdir($outputDir, 0777, true) && !is_dir($outputDir)) {
     throw new RuntimeException("Cannot create migration directory: {$outputDir}");
 }
 
 $pdo = new PDO(
-    'mysql:host=127.0.0.1;port=3306;dbname=' . DATABASE_NAME . ';charset=utf8mb4',
+    'mysql:host=' . $databaseHost . ';port=' . $databasePort . ';dbname=' . $databaseName . ';charset=utf8mb4',
     getenv('DB_USERNAME') ?: 'root',
     getenv('DB_PASSWORD') ?: '',
     [
@@ -40,7 +42,7 @@ $pdo = new PDO(
 $routineNames = $pdo->query(
     "SELECT ROUTINE_NAME
        FROM information_schema.ROUTINES
-      WHERE ROUTINE_SCHEMA = " . $pdo->quote(DATABASE_NAME) . "
+      WHERE ROUTINE_SCHEMA = " . $pdo->quote($databaseName) . "
         AND ROUTINE_TYPE = 'PROCEDURE'
       ORDER BY ROUTINE_NAME"
 )->fetchAll(PDO::FETCH_COLUMN);
@@ -129,12 +131,12 @@ foreach ($mapping as $oldName => $newName) {
     }
 
     foreach ($mapping as $calledOldName => $calledNewName) {
-        $callPattern = '/(\bCALL\s+)(?:' . preg_quote(quoteIdentifier(DATABASE_NAME), '/') . '\s*\.\s*)?'
+        $callPattern = '/(\bCALL\s+)(?:' . preg_quote(quoteIdentifier($databaseName), '/') . '\s*\.\s*)?'
             . preg_quote(quoteIdentifier($calledOldName), '/') . '(?=\s*\()/iu';
         $createSql = preg_replace($callPattern, '$1' . quoteIdentifier($calledNewName), $createSql);
 
         if (!str_contains($calledOldName, ' ')) {
-            $unquotedCallPattern = '/(\bCALL\s+)(?:' . preg_quote(DATABASE_NAME, '/') . '\s*\.\s*)?'
+            $unquotedCallPattern = '/(\bCALL\s+)(?:' . preg_quote($databaseName, '/') . '\s*\.\s*)?'
                 . preg_quote($calledOldName, '/') . '(?=\s*\()/iu';
             $createSql = preg_replace($unquotedCallPattern, '$1' . quoteIdentifier($calledNewName), $createSql);
         }
