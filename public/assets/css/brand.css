@@ -1,0 +1,44 @@
+/* Shared identity: paired roofs, a welcoming doorway, and a warm brass accent. */
+.brand .brand-logo {
+    width: 38px;
+    height: 38px;
+    margin-right: 10px;
+    flex: 0 0 auto;
+}
+.brand-wordmark { white-space: nowrap; }
+.brand-connector { color: var(--primary); }
+.brand .brand-dot { color: #a56c2b; }
+.brand:focus-visible { outline: 2px solid var(--primary); outline-offset: 5px; border-radius: 4px; }
+.site-footer .brand-logo { width: 44px; height: 44px; }
+.site-footer .footer-manifesto { max-width: 28ch; }
+.auth-story-photo::after {
+    content: "";
+    position: absolute;
+    right: 24px;
+    top: 24px;
+    width: 64px;
+    height: 64px;
+    background: url('../images/brand-mark.svg') center / contain no-repeat;
+    pointer-events: none;
+}
+.auth-story-photo { position: relative; }
+.stat-grid > div > .stat-icon {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    color: var(--primary);
+    background: var(--surface);
+    border-radius: 8px;
+}
+.stat-icon .ui-icon { width: 19px; height: 19px; }
+html[data-theme="dark"] .brand-connector,
+html[data-theme="dark"] .stat-grid > div > .stat-icon { color: var(--accent); }
+html[data-theme="dark"] .brand .brand-dot { color: #e6ba76; }
+html[data-theme="dark"] .brand:focus-visible { outline-color: var(--accent); }
+@media (max-width: 575.98px) {
+    .brand .brand-logo { width: 32px; height: 32px; margin-right: 8px; }
+    .auth-story-photo::after { width: 48px; height: 48px; right: 16px; top: 16px; }
+}

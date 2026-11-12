@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'Ăn uống, vui chơi và những tiện ích cần thiết quanh chỗ ở.' => 'Food, leisure and everyday essentials around your stay.',
+    'Khám phá quán ăn, cà phê và cửa hàng quanh chỗ ở.' => 'Explore restaurants, cafes and shops around your stay.',
+    'Quanh chỗ ở' => 'Around your stay',
+    'Khoảng cách theo đường thẳng.' => 'Straight-line distances.',
+    'Dịch vụ gần đây' => 'Nearby services',
+    'Quán ăn, quán cà phê và cửa hàng trong bán kính 1 km quanh chỗ ở. Khoảng cách tính theo đường thẳng.' => 'Restaurants, cafes and shops within 1 km of the property. Distances are measured in a straight line.',
+    'Bản đồ dịch vụ gần chỗ ở' => 'Map of services near the property',
+    'Danh sách dịch vụ gần chỗ ở' => 'Services near the property',
+    'Ghim màu đỏ đánh dấu chỗ ở.' => 'The red pin marks the property.',
+    'Bật JavaScript để xem dịch vụ gần chỗ ở.' => 'Enable JavaScript to view nearby services.',
+    'Chỗ ở chưa có tọa độ để tìm dịch vụ gần đây.' => 'This property has no coordinates for finding nearby services.',
+    'Loại dịch vụ không hợp lệ.' => 'Invalid service category.',
+    'Khám phá địa điểm ăn uống và giải trí' => 'Explore food, drinks and entertainment',
+    'Bản đồ dịch vụ du lịch' => 'Tourism services map',
+    'Khám phá quán ăn, bar, địa điểm giải trí và quán nước. Chọn thành phố hoặc di chuyển bản đồ, rồi tìm trong khu vực bạn muốn.' => 'Explore restaurants, bars, entertainment and cafes. Choose a city or move the map, then search your preferred area.',
+    'Khu vực trên bản đồ' => 'Current map area',
+    'Loại dịch vụ' => 'Service category',
+    'Tất cả dịch vụ' => 'All services',
+    'Tìm dịch vụ trong khu vực này' => 'Search services in this area',
+    'Dữ liệu cộng đồng OpenStreetMap có thể chưa đầy đủ. Phóng to bản đồ để tìm trong khu vực nhỏ hơn.' => 'OpenStreetMap community data may be incomplete. Zoom in to search a smaller area.',
+    'Địa điểm dịch vụ du lịch' => 'Tourism service locations',
+    'Chọn Tìm dịch vụ trong khu vực này để tải địa điểm.' => 'Select Search services in this area to load places.',
+    'Bật JavaScript để sử dụng bản đồ dịch vụ du lịch.' => 'Enable JavaScript to use the tourism services map.',
+];
