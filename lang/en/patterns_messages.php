@@ -1,0 +1,32 @@
+<?php
+// Templates for runtime text that PHP code builds by concatenation (flash messages, page titles, validation errors).
+// Each {slot} captures the variable part; a captured value that is itself a dictionary key (a status, a category,
+// a field label) is translated too. Specific templates come first; the ones that start or end with a slot come last.
+return [
+    // BookingController::create / ::cancel
+    'Đặt ngay thành công! Booking #{id} đã được xác nhận. Bạn thanh toán khi nhận phòng.' => 'Booked instantly! Booking #{id} is confirmed. You pay at check-in.',
+    'Yêu cầu đặt chỗ #{id} đã được gửi tới Host.' => 'Booking request #{id} has been sent to the Host.',
+    'Đã hủy booking. Mức hoàn dự kiến: {percent}%.' => 'Booking cancelled. Expected refund: {percent}%.',
+
+    // BookingExtrasController: holidays, promo codes, payments
+    'Đã lưu ngày lễ {date}. Giá ngày lễ áp dụng cho báo giá mới.' => 'Holiday {date} saved. Holiday prices apply to new quotes.',
+    'Đã lưu mã khuyến mãi {code}.' => 'Promo code {code} saved.',
+    'Đã ghi nhận hoàn {amount}đ cho booking #{id}.' => 'Refund of {amount}đ recorded for booking #{id}.',
+    'Đã ghi nhận thanh toán khi nhận phòng cho booking #{id}.' => 'Payment at check-in recorded for booking #{id}.',
+    'Booking #{id} đã được thanh toán trước đó nên khoản VNPay vừa rồi là thanh toán trùng. Admin sẽ hoàn lại khoản này cho bạn.' => 'Booking #{id} was already paid, so this VNPay payment is a duplicate. An admin will refund it to you.',
+    'VNPay đã ghi nhận khoản thanh toán nhưng booking #{id} đã hủy. Admin sẽ hoàn lại {amount}đ cho bạn.' => 'VNPay took the payment, but booking #{id} is cancelled. An Admin will return {amount}đ to you.',
+    'VNPay đã ghi nhận khoản thanh toán nhưng chỗ ở của booking #{id} đã bị gỡ. Admin sẽ hoàn lại khoản này cho bạn.' => 'VNPay took the payment, but the listing of booking #{id} was taken down. An Admin will return this money to you.',
+    'Khoản VNPay trùng của booking #{id} đã được hoàn lại cho bạn.' => 'The duplicate VNPay payment on booking #{id} was refunded to you.',
+    'Khoản thanh toán VNPay của booking #{id} đã được ghi nhận hoàn tiền.' => 'The VNPay payment on booking #{id} has been recorded as refunded.',
+    'Thanh toán VNPay thành công cho booking #{id}.' => 'VNPay payment succeeded for booking #{id}.',
+
+    // MessageController::send (limit = BookingMessage::MAX_LENGTH)
+    'Tin nhắn cần từ 1 đến {max} ký tự.' => 'Messages must be 1 to {max} characters.',
+
+    // Page titles: AdminController/AdminArticleController previews, ArticleController category pages
+    'Xem trước: {title}' => 'Preview: {title}',
+    '{category} · Cẩm nang' => '{category} · Guides',
+
+    // Core\Validator::required — {field} is a label such as "Họ tên" or "Mật khẩu"
+    '{field} là bắt buộc.' => '{field} is required.',
+];

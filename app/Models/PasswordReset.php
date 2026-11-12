@@ -1,0 +1,25 @@
+<?php
+declare(strict_types=1);
+namespace App\Models;
+use Core\ProcedureConnection;
+
+final class PasswordReset
+{
+    public function issue(int $userId,string $rawToken): void
+    {
+        ProcedureConnection::connection()->prepare('CALL DST_sp_password_reset_issue(?,?)')->execute([$userId,hash('sha256',$rawToken)]);
+    }
+    public function usable(string $rawToken): bool
+    {
+        $statement=ProcedureConnection::connection()->prepare('CALL NTK_sp_password_reset_usable(?)');
+        $statement->execute([hash('sha256',$rawToken)]);
+        return (bool)$statement->fetch()['usable'];
+    }
+    public function consume(string $rawToken,string $password): void
+    {
+        if (!preg_match('/^[a-f0-9]{64}$/D',$rawToken)) { throw new \DomainException('Liên kết không hợp lệ, đã hết hạn hoặc đã sử dụng.'); }
+        $problem = \Core\Validator::passwordProblem($password);
+        if ($problem !== null) { throw new \DomainException($problem); }
+        ProcedureConnection::connection()->prepare('CALL NTK_sp_password_reset_consume(?,?)')->execute([hash('sha256',$rawToken),password_hash($password,PASSWORD_DEFAULT)]);
+    }
+}

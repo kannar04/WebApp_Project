@@ -1,0 +1,20 @@
+<?php
+return [
+    'Tiếp tục với Facebook'=>'Continue with Facebook',
+    'Liên kết với Facebook'=>'Link Facebook account',
+    'Facebook hiện chưa khả dụng. Bạn vẫn có thể dùng Google hoặc email và mật khẩu.'=>'Facebook sign-in is currently unavailable. You can still use Google or email and password.',
+    'Đăng nhập Facebook hiện chưa khả dụng. Vui lòng dùng Google hoặc email và mật khẩu.'=>'Facebook sign-in is currently unavailable. Please use Google or email and password.',
+    'Không thể xác thực tài khoản Facebook. Vui lòng thử lại.'=>'Could not verify your Facebook account. Please try again.',
+    'Phiên đăng nhập Facebook không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.'=>'Your Facebook sign-in session is invalid or expired. Please try again.',
+    'Bạn đã hủy đăng nhập Facebook.'=>'You cancelled Facebook sign-in.',
+    'Đã liên kết tài khoản Facebook.'=>'Your Facebook account has been linked.',
+    'Chưa thể đăng nhập Facebook. Vui lòng thử lại sau.'=>'Facebook sign-in failed. Please try again later.',
+    'Facebook chưa cung cấp email. Hãy đăng nhập bằng email rồi liên kết Facebook trong hồ sơ.'=>'Facebook did not provide an email. Sign in with email first, then link Facebook in your profile.',
+    'Email này đã có tài khoản. Hãy đăng nhập bằng mật khẩu rồi liên kết Facebook trong hồ sơ.'=>'This email already has an account. Sign in with your password, then link Facebook in your profile.',
+    'Tài khoản Facebook hoặc tài khoản Home2Home đã có liên kết khác.'=>'The Facebook or Home2Home account already has another connection.',
+    'Không thể liên kết tài khoản Facebook.'=>'Could not link your Facebook account.',
+    'Tài khoản Facebook này đã được liên kết với tài khoản khác.'=>'This Facebook account is already linked to another account.',
+    'Bạn đã liên kết một tài khoản Facebook khác.'=>'You have already linked another Facebook account.',
+    'Bạn có thể đăng nhập Home2Home bằng tài khoản Facebook đã liên kết.'=>'You can sign in to Home2Home with your linked Facebook account.',
+    'Xác nhận mật khẩu hiện tại rồi chọn tài khoản Facebook muốn dùng để đăng nhập.'=>'Confirm your current password, then choose the Facebook account you want to use for sign-in.',
+];

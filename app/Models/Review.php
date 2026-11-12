@@ -1,0 +1,29 @@
+<?php
+declare(strict_types=1);
+namespace App\Models;
+use Core\ProcedureConnection as Database;
+final class Review
+{
+    /** Same limit as sp_review_create. */
+    public const MAX_COMMENT_LENGTH = 5000;
+    public function forHost(int $actorId): array
+    {
+        $s=\Core\ProcedureConnection::connection()->prepare('CALL DST_sp_host_reviews(?)'); $s->execute([$actorId]); return $s->fetchAll();
+    }
+    public function reply(int $id,int $actorId,string $reply): void
+    {
+        \Core\ProcedureConnection::connection()->prepare('CALL LTP_sp_host_review_reply(?,?,?)')->execute([$id,$actorId,$reply]);
+    }
+    public function adminPage(int $actorId,int $limit,int $offset): array
+    {
+        $s=\Core\ProcedureConnection::connection()->prepare('CALL LTP_sp_admin_reviews(?,?,?)'); $s->execute([$actorId,$limit,$offset]); $rows=$s->fetchAll();
+        $total=(int)array_pop($rows)['__total'];
+        return ['reviews'=>$rows,'total'=>$total];
+    }
+    public function moderate(int $id,int $actorId,string $status): void
+    {
+        \Core\ProcedureConnection::connection()->prepare('CALL NMT_sp_admin_review_moderate(?,?,?)')->execute([$id,$actorId,$status]);
+    }
+    public function create(int $bookingId,int $guestId,int $rating,string $comment): bool { $db=Database::connection();$s=$db->prepare('CALL `DST_sp_review_create`(?,?,?,?)');$s->execute([$rating,trim($comment),$bookingId,$guestId]);return $s->rowCount()===1; }
+}
+
