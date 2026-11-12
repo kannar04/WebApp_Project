@@ -74,7 +74,6 @@ public/uploads/*
 # =========================
 # Local database / backup
 # =========================
-*.sql
 !database/migrations/20261108_google_auth.sql
 !database/migrations/20261108_facebook_auth.sql
 !database/migrations/20261108_booking_emails.sql
