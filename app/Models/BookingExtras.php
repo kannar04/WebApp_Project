@@ -19,6 +19,7 @@ final class BookingExtras
 
     public function upcomingHolidays(int $limit): array
     {
+        
         $statement = $this->db->prepare('CALL NTK_sp_public_holidays_upcoming(?)');
         $statement->execute([$limit]);
         return $statement->fetchAll();

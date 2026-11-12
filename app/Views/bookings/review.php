@@ -1,3 +1,4 @@
+<?php if(!\Core\Auth::check()): ?><div class="container mt-3"><div class="alert alert-info" role="status"><?= e(__('Bạn đang xem trước chuyến đi. Bạn có thể xem ảnh, ngày trống và chi phí trước khi đăng nhập để đặt phòng.')) ?></div></div><?php endif; ?>
 <?php require_once dirname(__DIR__).'/components/ui-icons.php'; ?>
 <section class="page-section booking-review"><div class="container">
     <a class="review-back" href="<?= e(url(\App\Services\TripContext::path((int)$listing['id'],$trip))) ?>"><?= ui_icon('arrow') ?> <?= e(__('Quay lại chỗ ở')) ?></a>
@@ -15,7 +16,9 @@
         <?php if(!empty($quote['promo']['message'])): ?><p class="alert alert-info"><?= e($quote['promo']['message']) ?></p><?php endif; ?>
         <p><?= e($quote['instant_book']?__('Chỗ ở này xác nhận ngay sau khi bạn đặt.'):__('Host cần chấp nhận yêu cầu trước khi chuyến đi được xác nhận.')) ?></p>
         <p class="text-muted small"><?= e(\App\Models\Payment::onlineConfigured()?__('Thanh toán khi nhận phòng, hoặc thanh toán online sau khi booking được xác nhận.'):__('Thanh toán trực tiếp cho Host khi nhận phòng.')) ?></p>
-        <?php if(\Core\Auth::check()): ?>
+        <?php if(\Core\Auth::check() && (empty($contactStatus['email_verified']) || empty($contactStatus['phone_verified']))): ?>
+        <div class="alert alert-warning" role="status"><?= e(__('Bạn chưa xác minh số điện thoại hoặc email. Hãy xác minh trong hồ sơ trước khi đặt phòng.')) ?></div><a class="btn btn-primary btn-block" href="<?= e(url('/profile#contact-verification')) ?>"><?= e(__('Xác minh thông tin liên hệ')) ?></a>
+        <?php elseif(\Core\Auth::check()): ?>
         <form method="post" action="<?= e(url('/listings/'.$listing['id'].'/book')) ?>">
             <?= csrf_field() ?><input type="hidden" name="review_token" value="<?= e($reviewToken) ?>">
             <?php foreach($trip as $key=>$value): ?><input type="hidden" name="<?= e($key) ?>" value="<?= e($value) ?>"><?php endforeach; ?>
