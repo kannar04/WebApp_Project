@@ -10,6 +10,23 @@ use App\Controllers\ProfileController;
 use App\Controllers\WishlistController;
 use Core\Router;
 $router=new Router();
+$router->post('/profile/debug-verification',[\App\Controllers\DebugVerificationController::class,'update']);
+$router->get('/verify-email',[\App\Controllers\ContactVerificationController::class,'emailForm']);
+$router->post('/verify-email/resend',[\App\Controllers\ContactVerificationController::class,'emailResend']);
+$router->post('/verify-email',[\App\Controllers\ContactVerificationController::class,'emailConfirm']);
+$router->post('/profile/verify-email',[\App\Controllers\ContactVerificationController::class,'emailRequest']);
+$router->post('/profile/phone/request',[\App\Controllers\ContactVerificationController::class,'phoneRequest']);
+$router->post('/profile/phone/confirm',[\App\Controllers\ContactVerificationController::class,'phoneConfirm']);
+
+$router->get('/api/addresses',[\App\Controllers\AddressController::class,'search']);
+$router->post('/auth/facebook',[AuthController::class,'facebookStart']);
+$router->get('/auth/facebook/callback',[AuthController::class,'facebookCallback']);
+$router->post('/auth/facebook/link',[AuthController::class,'facebookLink']);
+$router->get('/captcha/image',[\App\Controllers\CaptchaController::class,'image']);
+$router->post('/captcha/refresh',[\App\Controllers\CaptchaController::class,'refresh']);
+$router->post('/auth/google',[AuthController::class,'googleStart']);
+$router->get('/auth/google/callback',[AuthController::class,'googleCallback']);
+$router->post('/auth/google/link',[AuthController::class,'googleLink']);
 $router->get('/forgot-password',[AuthController::class,'forgotForm']);
 $router->post('/forgot-password',[AuthController::class,'forgot']);
 $router->get('/reset-password',[AuthController::class,'resetForm']);
@@ -29,6 +46,7 @@ $router->get('/bookings/{id}',[BookingController::class,'show']);
 $router->post('/host/listings/{id}/delete',[HostController::class,'delete']);
 $router->post('/host/listings/{id}/photos',[HostController::class,'photos']);
 $router->get('/admin/listings/{id}/preview',[AdminController::class,'listingPreview']);
+$router->get('/host/listings/{id}/preview',[HostController::class,'preview']);
 $router->get('/notifications',[\App\Controllers\NotificationController::class,'index']);
 $router->post('/notifications/{id}/read',[\App\Controllers\NotificationController::class,'read']);
 $router->get('/',[HomeController::class,'index']);
@@ -39,6 +57,7 @@ $router->get('/login',[AuthController::class,'loginForm']);$router->post('/login
 $router->get('/register',[AuthController::class,'registerForm']);$router->post('/register',[AuthController::class,'register']);$router->post('/logout',[AuthController::class,'logout']);
 $router->get('/profile',[ProfileController::class,'show']);$router->post('/profile',[ProfileController::class,'update']);$router->post('/profile/become-host',[ProfileController::class,'becomeHost']);
 $router->get('/listings/{id}/review',[BookingController::class,'reviewStay']);
+$router->get('/api/listings/{id}/nearby-services',[ListingController::class,'nearbyServices']);
 $router->get('/listings/{id}',[ListingController::class,'show']);$router->get('/api/listings/{id}/quote',[ListingController::class,'quote']);$router->post('/listings/{id}/book',[BookingController::class,'create']);
 $router->get('/bookings',[BookingController::class,'index']);$router->post('/bookings/{id}/cancel',[BookingController::class,'cancel']);$router->post('/bookings/{id}/review',[BookingController::class,'review']);
 $router->get('/wishlist',[WishlistController::class,'index']);$router->get('/api/wishlist',[WishlistController::class,'saved']);$router->post('/api/wishlist/{id}',[WishlistController::class,'toggle']);
@@ -79,6 +98,12 @@ $router->post('/host/listings/{id}/checkin-guide',[\App\Controllers\TrustControl
 
 // Nice-to-have conversation: booking messages, check-in reminders
 $router->get('/messages',[\App\Controllers\MessageController::class,'index']);
+$router->post('/messages/open',[\App\Controllers\DirectMessageController::class,'open']);
+$router->get('/messages/direct/{id}',[\App\Controllers\DirectMessageController::class,'show']);
+$router->post('/messages/direct/{id}',[\App\Controllers\DirectMessageController::class,'send']);
+$router->get('/api/messages/direct/{id}',[\App\Controllers\DirectMessageController::class,'updates']);
+$router->get('/messages/{id}' ,[\App\Controllers\MessageController::class,'thread']);
+$router->get('/api/bookings/{id}/messages',[\App\Controllers\MessageController::class,'updates']);
 $router->post('/bookings/{id}/messages',[\App\Controllers\MessageController::class,'send']);
 $router->get('/admin/messages',[\App\Controllers\MessageController::class,'admin']);
 $router->post('/admin/messages/{id}/moderate',[\App\Controllers\MessageController::class,'moderate']);
@@ -100,5 +125,10 @@ $router->post('/admin/articles/{id}',[\App\Controllers\AdminArticleController::c
 $router->post('/admin/articles/{id}/status',[\App\Controllers\AdminArticleController::class,'status']);
 $router->post('/admin/articles/{id}/delete',[\App\Controllers\AdminArticleController::class,'delete']);
 
-return $router;
 
+
+
+$router->get('/admin/host-requests',[\App\Controllers\HostRequestController::class,'index']);
+$router->post('/admin/host-requests/{id}/decide',[\App\Controllers\HostRequestController::class,'decide']);
+
+return $router;
