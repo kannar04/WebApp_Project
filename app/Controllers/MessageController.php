@@ -11,10 +11,37 @@ use Core\Session;
 /** Booking messages: participant inbox/send and Admin search/moderation. Routines re-check every rule. */
 final class MessageController extends Controller
 {
+    public function thread(string $id): void
+    {
+        $user = $this->requireAuth();
+        try {
+            $booking = (new \App\Models\Booking())->detail((int)$id, (int)$user['id']);
+            $conversation = ConversationService::bookingPanel((int)$id, (int)$user['id'], $booking);
+            if ($conversation === null) { throw new \DomainException('Không tìm thấy cuộc trò chuyện.'); }
+        } catch (\DomainException $exception) {
+            http_response_code(404); $this->render('errors/404', ['title'=>'Không tìm thấy cuộc trò chuyện']); return;
+        }
+        $this->render('messages/show', compact('booking', 'conversation') + ['title'=>'Tin nhắn · '.$booking['title']]);
+    }
+
+    public function updates(string $id): never
+    {
+        $user = $this->requireAuth();
+        header('Cache-Control: no-store');
+        try {
+            $model = new BookingMessage();
+            $state = $model->state((int)$id, (int)$user['id']);
+            $messages = $model->thread((int)$id, (int)$user['id']);
+            $this->json(true, '', ['state'=>$state, 'messages'=>$messages]);
+        } catch (\DomainException $exception) {
+            $this->json(false, 'Không tìm thấy cuộc trò chuyện.', null, [], 404);
+        }
+    }
+
     public function index(): void
     {
         $user = $this->requireAuth();
-        $this->render('messages/index', ['title' => 'Tin nhắn', 'conversations' => (new BookingMessage())->inbox((int) $user['id'])]);
+        $this->render('messages/index', ['title' => 'Tin nhắn', 'directConversations'=>(new \App\Models\DirectConversation())->inbox((int)$user['id']), 'conversations' => (new BookingMessage())->inbox((int) $user['id'])]);
     }
 
     public function send(string $id): never
@@ -28,19 +55,22 @@ final class MessageController extends Controller
         }
         $raw = $_POST['body'] ?? null;
         $body = BookingMessage::normalize($raw);
+        $ajax = str_contains((string)($_SERVER['HTTP_ACCEPT']??''), 'application/json');
         if ($body === null) {
+            if ($ajax) { $this->json(false, 'Tin nhắn cần từ 1 đến 2000 ký tự.', null, [], 422); }
             ConversationService::keepDraft($bookingId, $raw);
             Session::flash('error', 'Tin nhắn cần từ 1 đến '.BookingMessage::MAX_LENGTH.' ký tự.');
-            $this->redirect('/bookings/'.$bookingId.'#booking-messages');
+            $this->redirect('/messages/'.$bookingId);
         }
         try {
             (new BookingMessage())->send($bookingId, (int) $user['id'], $body);
-            Session::flash('success', 'Đã gửi tin nhắn.');
+            if ($ajax) { $this->json(true, ''); }
         } catch (\DomainException $exception) {
+            if ($ajax) { $this->json(false, $exception->getMessage(), null, [], 422); }
             ConversationService::keepDraft($bookingId, $raw);
             Session::flash('error', $exception->getMessage());
         }
-        $this->redirect('/bookings/'.$bookingId.'#booking-messages');
+        $this->redirect('/messages/'.$bookingId);
     }
 
     public function admin(): void

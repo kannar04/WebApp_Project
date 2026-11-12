@@ -1,0 +1,25 @@
+<?php
+declare(strict_types=1);
+return [
+    'Điều hướng chính' => 'Main navigation',
+    'Điều hướng không gian làm việc' => 'Workspace navigation',
+    'Tổng quan' => 'Overview',
+    'Hồ sơ' => 'Profile',
+    'Bản đồ' => 'Map',
+    'Tài khoản của bạn' => 'Your account',
+    'Hành trình của bạn' => 'Your journey',
+    'Việt Nam, theo nhịp riêng của bạn.' => 'Vietnam, at your own pace.',
+    'Khám phá chỗ ở' => 'Explore stays',
+    'Quay lại khám phá' => 'Back to exploring',
+    'Lên đầu trang' => 'Back to top',
+    'tin nhắn chưa đọc' => 'unread messages',
+    'Một nơi mới.' => 'Somewhere new.',
+    'Một nơi như nhà.' => 'Somewhere like home.',
+    'Tìm chỗ ở dành cho bạn' => 'Find your kind of stay',
+    'Chào mừng trở lại.' => 'Welcome back.',
+    'Những chỗ ở đã lưu, những chuyến đi sắp tới — tất cả đang chờ bạn.' => 'Your saved places and upcoming adventures. Pick up where you left off.',
+    'Tài khoản trải nghiệm' => 'Explore with a demo account',
+    'Thông tin chỗ ở' => 'About this stay',
+    'Chọn ngày ở' => 'Choose your dates',
+    'Bảng quản lý chỗ ở' => 'Property management table',
+];

@@ -35,7 +35,7 @@ final class AdminController extends Controller
         try { $calendar=\Core\Calendar::month($_GET['month']??date('Y-m')); }
         catch (\DomainException $exception) { Session::flash('error',$exception->getMessage()); $calendar=\Core\Calendar::month(date('Y-m')); }
         $this->render('listings/show',['title'=>'Xem trước: '.$listing['title'],'listing'=>$listing,'preview'=>true,'calendar'=>$calendar,
-            'calendarDays'=>$model->calendar((int)$id,(int)$admin['id'],$calendar['start'],$calendar['end']),'calendarPath'=>'/admin/listings/'.$id.'/preview','reviewBadges'=>(new \App\Models\Trust())->reviewBadges((int)$id)]);
+            'calendarDays'=>$model->calendar((int)$id,(int)$admin['id'],$calendar['start'],$calendar['end']),'old'=>Session::pullOld(), 'calendarPath'=>'/admin/listings/'.$id.'/preview','reviewBadges'=>(new \App\Models\Trust())->reviewBadges((int)$id)]);
     }
     public function userStatus(string $id): never
     {
@@ -183,7 +183,7 @@ final class AdminController extends Controller
         }
         $this->redirect('/admin');
     }
-    public function moderate(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');$action=input_text($_POST,'action');$note=trim(input_text($_POST,'note'));if(!in_array($action,['approved','rejected'],true)||($action==='rejected'&&$note==='')){Session::flash('error','Từ chối bài đăng phải có lý do.');$this->redirect('/admin');}if(mb_strlen($note)>5000){Session::old(['moderation_listing'=>(int)$id,'moderation_note'=>mb_substr($note,0,5000)]);Session::flash('error','Lý do hoặc ghi chú kiểm duyệt tối đa 5000 ký tự.');$this->redirect('/admin');}try{(new AdminRepository())->moderate((int)$id,(int)$admin['id'],$action,$note);Session::flash('success','Đã cập nhật kiểm duyệt bài đăng.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể kiểm duyệt bài đăng. Vui lòng thử lại.');}$this->redirect('/admin');}
+    public function moderate(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');$action=input_text($_POST,'action');$note=trim(input_text($_POST,'note'));if(!in_array($action,['approved','rejected'],true)||($action==='rejected'&&$note==='')){Session::flash('error','Từ chối bài đăng phải có lý do.');$this->redirect(($_POST['return_to']??'')==='detail'?'/admin/listings/'.(int)$id.'/preview':'/admin');}if(mb_strlen($note)>5000){Session::old(['moderation_listing'=>(int)$id,'moderation_note'=>mb_substr($note,0,5000)]);Session::flash('error','Lý do hoặc ghi chú kiểm duyệt tối đa 5000 ký tự.');$this->redirect(($_POST['return_to']??'')==='detail'?'/admin/listings/'.(int)$id.'/preview':'/admin');}try{(new AdminRepository())->moderate((int)$id,(int)$admin['id'],$action,$note);Session::flash('success','Đã cập nhật kiểm duyệt bài đăng.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể kiểm duyệt bài đăng. Vui lòng thử lại.');}$this->redirect(($_POST['return_to']??'')==='detail'?'/admin/listings/'.(int)$id.'/preview':'/admin');}
     public function listingEdit(string $id): void {$this->requireRole('admin');$listing=(new AdminRepository())->findListing((int)$id);if(!$listing){http_response_code(404);$this->render('errors/404',['title'=>'Không tìm thấy chỗ ở']);return;}$this->render('admin/listing-edit',['title'=>'Sửa chỗ ở','listing'=>$listing,'old'=>Session::pullOld('listing:'.(int)$id)]);}
     public function listingUpdate(string $id): never
     {
@@ -231,6 +231,6 @@ final class AdminController extends Controller
         }
         $this->redirect('/admin');
     }
-    public function bookingTransition(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');try{(new BookingService())->adminTransition((int)$id,(int)$admin['id'],input_text($_POST,'status'));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect('/admin');}
+    public function bookingTransition(string $id): never {Csrf::ensure();$admin=$this->requireRole('admin');try{(new BookingService())->adminTransition((int)$id,(int)$admin['id'],input_text($_POST,'status'));Session::flash('success','Đã cập nhật booking.');}catch(\Throwable $e){Session::flash('error',$e instanceof \DomainException ? $e->getMessage() : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');}$this->redirect(($_POST['return_to']??'')==='detail'?'/bookings/'.(int)$id:'/admin');}
 }
 
