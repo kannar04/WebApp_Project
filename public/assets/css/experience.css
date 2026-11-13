@@ -160,6 +160,8 @@ select.form-control { padding-right: 26px; }
 .mobile-booking-bar { display: none; }
 .auth-body { background: var(--page); }
 .auth-header { display: flex; align-items: center; justify-content: space-between; min-height: 96px; padding: 20px 48px; }
+.auth-header > .row { flex: 1 1 auto; }
+.auth-header > .row > .col-12 { display: flex; align-items: center; justify-content: space-between; }
 .auth-header .appearance-controls { border: 0; padding: 0; margin: 0; }
 .auth-experience { padding: 0 32px 32px; }
 .auth-story { padding: 0 16px; }
@@ -188,6 +190,8 @@ select.form-control { padding-right: 26px; }
 .auth-demo p { margin: 8px 0; overflow-wrap: anywhere; }
 .account-navigation { background: var(--card); border-bottom: 1px solid var(--border); }
 .account-navigation nav { display: flex; align-items: center; gap: 32px; overflow-x: auto; padding-top: 4px; }
+.account-navigation nav > .row { flex: 1 0 100%; }
+.account-navigation nav > .row > .col-12 { display: flex; align-items: center; gap: 32px; }
 .account-navigation a { display: flex; align-items: center; gap: 8px; min-height: 66px; white-space: nowrap; color: var(--muted); border-bottom: 2px solid transparent; font-size: 13px; }
 .account-navigation a.is-active { color: var(--primary); border-color: var(--primary); }
 .account-navigation .ui-icon { width: 17px; height: 17px; flex-basis: 17px; }
@@ -384,6 +388,7 @@ html[data-theme='dark'] .footer-bottom { border-color: var(--border); }
     .auth-experience .auth-panel { padding: 24px 20px 40px; }
     .auth-panel h1 { font-size: 39px; }
     .account-navigation nav { gap: 24px; }
+    .account-navigation nav > .row > .col-12 { gap: 24px; }
     .account-navigation a { min-height: 58px; font-size: 12px; }
     .workspace-nav { padding-inline: 16px; }
     .workspace-content .page-section, .workspace-content .detail-page { padding: 28px 20px 48px; }

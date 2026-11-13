@@ -5,7 +5,7 @@ $actionLabels=['confirmed'=>__('Xác nhận'),'rejected'=>__('Từ chối'),'com
 $policy=$booking['policy'];
 $extras=$extras??[];
 ?>
-<section class="page-section"><div class="container narrow">
+<section class="page-section"><div class="container narrow"><div class="row"><div class="col-12">
     <div class="section-title"><div><p class="eyebrow"><?= e(__('CHI TIẾT BOOKING #{id}', ['id'=>(int)$booking['id']])) ?></p><h1><?= e($booking['title']) ?></h1></div><a class="btn btn-ghost" href="<?= e(url($back)) ?>"><?= e(__('Quay lại danh sách')) ?></a></div>
     <article class="surface-card">
         <span class="status status-<?= e($booking['status']) ?>"><?= e($labels[$booking['status']]) ?></span><?php if(!empty($extras['is_instant_book'])): ?> <span class="instant-tag"><?= e(__('⚡ Đặt ngay')) ?></span><?php endif; ?>
@@ -75,4 +75,4 @@ $extras=$extras??[];
         <?php if(!empty($booking['listing_public'])): ?><a class="btn btn-ghost" href="<?= e(url('/listings/'.$booking['listing_id'])) ?>"><?= e(__('Xem chỗ ở công khai')) ?></a><?php endif; ?>
     </article>
     <?php if($conversation!==null): ?><section class="surface-card mt-4" id="booking-messages"><h2><?= e(__('Trao đổi với chủ nhà và khách')) ?></h2><a class="btn btn-primary" href="<?= e(url('/messages/'.(int)$booking['id'])) ?>"><?= e(__('Mở cuộc trò chuyện')) ?></a></section><?php endif; ?>
-</div></section>
+</div></div></div></section>

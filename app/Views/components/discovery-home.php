@@ -5,7 +5,7 @@ $discoveryRecent=$discovery['recent']??[];
 ?>
 <?php if($discoveryRecommendations || $discoveryRecent): ?>
 <section class="discovery-shelf" aria-label="<?= e(__('Gợi ý dựa trên lịch sử của bạn')) ?>" data-discovery-shelf>
-    <div class="container">
+    <div class="container"><div class="row"><div class="col-12">
         <?php if($discoveryRecommendations): ?>
         <div class="section-title"><div><h2 id="discovery-recommendations-title"><?= e(__('Gợi ý cho bạn')) ?></h2><p><?= e(__('Dựa trên chỗ ở bạn đã xem và tìm kiếm gần đây.')) ?> <a href="<?= e(url('/profile#discovery-history')) ?>"><?= e(__('Quản lý lịch sử')) ?></a></p></div></div>
         <div class="row" data-recommendations>
@@ -24,6 +24,6 @@ $discoveryRecent=$discovery['recent']??[];
             <?php foreach($discoveryRecent as $item): ?><li><a href="<?= e(url('/listings/'.(int)$item['id'])) ?>"><img src="<?= e(image_url($item['image_url'])) ?>" alt="" loading="lazy"><span class="discovery-recent-body"><strong><?= e($item['title']) ?></strong><small><?= e($item['city']) ?> · <?= e(\App\Services\BookingService::money((float)$item['nightly_price'])) ?> <?= e(__('/ đêm')) ?></small></span></a></li><?php endforeach; ?>
         </ul>
         <?php endif; ?>
-    </div>
+    </div></div></div>
 </section>
 <?php endif; ?>

@@ -6,7 +6,7 @@ $values=array_replace($fields,$isEdit?array_intersect_key($article,$fields):[],a
 $values=array_map('strval',$values);
 $published=$isEdit && $article['status']==='published';
 ?>
-<section class="page-section"><div class="container narrow">
+<section class="page-section"><div class="container narrow"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('QUẢN TRỊ · BÀI VIẾT')) ?></p><h1><?= e($isEdit?__('Sửa bài viết'):__('Viết bài mới')) ?></h1><p><?= e(__('Thay đổi của Admin được ghi vào nhật ký quản trị.')) ?></p></div><a class="btn btn-ghost" href="<?= e(url('/admin/articles')) ?>"><?= e(__('Quay lại danh sách')) ?></a></div>
 <?php if($isEdit): ?>
 <section class="surface-card mb-4" aria-labelledby="article-state-title"><h2 id="article-state-title"><?= e(__('Trạng thái')) ?></h2>
@@ -37,4 +37,4 @@ $published=$isEdit && $article['status']==='published';
 </fieldset>
 <div class="action-row"><?php if($isEdit): ?><button class="btn btn-primary" type="submit" name="intent" value="save"><?= e(__('Lưu thay đổi')) ?></button><?php else: ?><button class="btn btn-outline-primary" type="submit" name="intent" value="draft"><?= e(__('Lưu nháp')) ?></button><button class="btn btn-primary" type="submit" name="intent" value="publish"><?= e(__('Đăng bài')) ?></button><?php endif; ?><a class="btn btn-ghost" href="<?= e(url('/admin/articles')) ?>"><?= e(__('Hủy')) ?></a></div>
 </form>
-</div></section>
+</div></div></div></section>

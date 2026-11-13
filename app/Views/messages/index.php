@@ -1,5 +1,5 @@
 <?php $otherLabels=['guest'=>'Host','host'=>'Guest']; $statusLabels=['pending'=>__('Chờ chủ nhà xác nhận'),'confirmed'=>__('Đã xác nhận'),'rejected'=>__('Bị từ chối'),'cancelled'=>__('Đã hủy'),'completed'=>__('Hoàn thành')]; ?>
-<section class="page-section"><div class="container narrow">
+<section class="page-section"><div class="container narrow"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('HỘP THƯ BOOKING')) ?></p><h1><?= e(__('Tin nhắn')) ?></h1><p><?= e(__('Mỗi booking có một cuộc trò chuyện riêng giữa Guest và Host.')) ?></p></div><a class="btn btn-ghost" href="<?= e(url('/notifications')) ?>"><?= e(__('Xem thông báo')) ?></a></div>
 <form class="mb-4" method="post" action="<?= e(url('/messages/open')) ?>"><?= csrf_field() ?><button class="btn btn-outline-primary" type="submit"><?= e(__('Nhắn với quản trị viên')) ?></button></form>
 <?php if(!empty($directConversations)): ?><h2><?= e(__('Liên hệ đã lưu')) ?></h2><ul class="conversation-list"><?php foreach($directConversations as $direct): ?><li><a class="conversation-item" href="<?= e(url('/messages/direct/'.(int)$direct['id'])) ?>"><strong><?= e($direct['other_name']) ?></strong><?php if((int)$direct['unread_count']): ?> · <?= (int)$direct['unread_count'] ?> <?= e(__('chưa đọc')) ?><?php endif; ?><p><?= e(mb_substr($direct['last_body']??'',0,160)) ?></p></a></li><?php endforeach; ?></ul><?php endif; ?>
@@ -16,4 +16,4 @@
 </a></li>
 <?php endforeach; ?>
 </ul><?php endif; ?>
-</div></section>
+</div></div></div></section>

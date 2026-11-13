@@ -5,7 +5,7 @@ $listing = array_merge($listing ?? [], $oldInput);
 $selectedAmenities = $oldInput['amenities'] ?? $selectedAmenities;
 $retiredNote = ' ('.__('không còn cung cấp').')';
 ?>
-<section class="page-section"><div class="container narrow">
+<section class="page-section"><div class="container narrow"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow">HOST</p><h1><?= e($isEdit ? __('Chỉnh sửa chỗ ở') : __('Đăng chỗ ở mới')) ?></h1><p><?= e(__('Sau khi lưu, tin sẽ được Admin duyệt trước khi xuất hiện công khai.')) ?></p></div><?php if($isEdit): ?><a class="btn btn-ghost" href="<?= e(url('/host/listings/'.(int)$listing['id'].'/checkin-guide')) ?>"><?= e(__('Hướng dẫn nhận phòng')) ?></a><?php endif; ?><?php if($isEdit): ?><a class="btn btn-ghost" href="<?= e(url('/host/listings/'.(int)$listing['id'].'/pricing')) ?>"><?= e(__('Giá & đặt chỗ')) ?></a><?php endif; ?></div>
 <?php if($isEdit && ($listing['moderation_status'] ?? '')==='rejected' && trim((string)($listing['moderation_reason'] ?? ''))!==''): ?><div class="alert alert-warning text-break" role="status"><?= e(__('Admin đã từ chối tin này.')) ?> <?= e(__('Lý do từ chối:')) ?> <?= e($listing['moderation_reason']) ?></div><?php endif; ?>
 <form class="surface-card" method="post" enctype="multipart/form-data" action="<?= e(url($isEdit ? '/host/listings/'.$listing['id'] : '/host/listings')) ?>"><?= csrf_field() ?>
@@ -21,12 +21,12 @@ $retiredNote = ' ('.__('không còn cung cấp').')';
 <fieldset class="form-group"><legend><?= e(__('Nội quy')) ?></legend><div class="check-grid"><label><input type="checkbox" name="allows_smoking" <?= !empty($listing['allows_smoking'])?'checked':'' ?>> <?= e(__('Cho phép hút thuốc')) ?></label><label><input type="checkbox" name="allows_pets" <?= !empty($listing['allows_pets'])?'checked':'' ?>> <?= e(__('Cho phép thú cưng')) ?></label><label><input type="checkbox" name="allows_parties" <?= !empty($listing['allows_parties'])?'checked':'' ?>> <?= e(__('Cho phép tiệc')) ?></label></div></fieldset>
 <div class="form-group"><label for="photo"><?= e(__('Thêm ảnh (tối đa 20 ảnh, mỗi ảnh 5 MB)')) ?></label><input class="form-control-file" id="photo" type="file" name="photos[]" multiple accept="image/jpeg,image/png,image/webp"><small class="form-text text-muted"><?= e(__('Ảnh mới được tải lên khi bấm “Lưu và gửi duyệt” ngay bên dưới.')) ?></small></div>
 <button class="btn btn-primary" type="submit"><?= e(__('Lưu và gửi duyệt')) ?></button> <a class="btn btn-ghost" href="<?= e(url('/host')) ?>"><?= e(__('Hủy')) ?></a></form>
-</div></section>
+</div></div></div></section>
 <?php if($isEdit): ?>
-<section class="page-section pt-0"><div class="container narrow"><form class="surface-card" method="post" action="<?= e(url('/host/listings/'.$listing['id'].'/photos')) ?>"><?= csrf_field() ?>
+<section class="page-section pt-0"><div class="container narrow"><div class="row"><div class="col-12"><form class="surface-card" method="post" action="<?= e(url('/host/listings/'.$listing['id'].'/photos')) ?>"><?= csrf_field() ?>
 <h2><?= e(__('Quản lý ảnh hiện có')) ?></h2><p><?= e(__('Đổi thứ tự (số nhỏ hiển thị trước) hoặc chọn ảnh cần gỡ. Tin được duyệt lại sau khi thay đổi ảnh.')) ?></p>
 <?php if(!$photos): ?><p class="text-muted"><?= e(__('Chưa có ảnh. Dùng mục “Thêm ảnh” ở trên.')) ?></p><?php else: ?><div class="row">
 <?php foreach($photos as $index=>$photo): ?><div class="col-sm-6 mb-3"><img class="photo-thumbnail" src="<?= e(image_url($photo['image_url'])) ?>" alt="<?= e($photo['alt_text']) ?>">
 <label for="position-<?= (int)$photo['id'] ?>"><?= e(__('Thứ tự ảnh {number}', ['number' => $index+1])) ?></label><input class="form-control mb-2" id="position-<?= (int)$photo['id'] ?>" type="number" min="1" max="100" name="positions[<?= (int)$photo['id'] ?>]" value="<?= $index+1 ?>" required>
 <label><input type="checkbox" name="remove[]" value="<?= (int)$photo['id'] ?>"> <?= e(__('Gỡ ảnh này khỏi tin')) ?></label></div><?php endforeach; ?></div><button class="btn btn-outline-primary" data-confirm="<?= e(__('Lưu thứ tự/gỡ ảnh đã chọn? Nếu ảnh thay đổi, tin sẽ được gửi duyệt lại.')) ?>"><?= e(__('Lưu quản lý ảnh')) ?></button><?php endif; ?>
-</form></div></section><?php endif; ?>
+</form></div></div></div></section><?php endif; ?>

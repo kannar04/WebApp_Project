@@ -15,7 +15,7 @@ if ((string)($_SERVER['QUERY_STRING']??'')===$resetQuery) { $resetQuery.=($reset
 $resetUrl=url('/'.($resetQuery===''?'':'?'.$resetQuery).'#listing-results');
 ?>
 <div class="home-page focused-home">
-<section class="container" aria-labelledby="home-title">
+<section class="container" aria-labelledby="home-title"><div class="row"><div class="col-12">
     <div class="discovery-intro">
         <h1 id="home-title"><?= e(__('Bạn muốn ở đâu trong chuyến đi tới?')) ?></h1>
     </div>
@@ -37,11 +37,11 @@ $resetUrl=url('/'.($resetQuery===''?'':'?'.$resetQuery).'#listing-results');
         <div class="destination-links"><a href="<?= e(url('/')) ?>" <?= !$hasFilters?'aria-current="page"':'' ?>><?= e(__('Khám phá tất cả')) ?></a><?php foreach(array_slice($destinations,0,5) as $destination): $destinationQuery=array_replace($resetFilters,['location'=>$destination['city'],'city'=>$destination['city']]); foreach(['north','south','east','west'] as $bound){unset($destinationQuery[$bound]);} ?><a href="<?= e(url('/?'.http_build_query($destinationQuery).'#listing-results')) ?>" <?= ($filters['city']??'')===$destination['city']?'aria-current="page"':'' ?>><?= e($destination['city']) ?></a><?php endforeach; ?></div>
 
     </div>
-</section>
-<?php if(!empty($upcoming) && !$hasFilters): ?><div class="container"><a class="upcoming-trip" href="<?= e(url('/bookings/'.$upcoming['id'])) ?>"><?= ui_icon('calendar') ?><span><strong><?= e(__('Chuyến đi sắp tới của bạn')) ?> · <?= e($upcoming['title']) ?></strong><small><?= e($upcoming['check_in']) ?> — <?= e($upcoming['check_out']) ?> · <?= e(($upcoming['status']==='pending'?__('Chờ chủ nhà xác nhận'):status_label($upcoming['status']))) ?></small></span><?= ui_icon('arrow') ?></a></div><?php endif; ?>
+</div></div></section>
+<?php if(!empty($upcoming) && !$hasFilters): ?><div class="container"><div class="row"><div class="col-12"><a class="upcoming-trip" href="<?= e(url('/bookings/'.$upcoming['id'])) ?>"><?= ui_icon('calendar') ?><span><strong><?= e(__('Chuyến đi sắp tới của bạn')) ?> · <?= e($upcoming['title']) ?></strong><small><?= e($upcoming['check_in']) ?> — <?= e($upcoming['check_out']) ?> · <?= e(($upcoming['status']==='pending'?__('Chờ chủ nhà xác nhận'):status_label($upcoming['status']))) ?></small></span><?= ui_icon('arrow') ?></a></div></div></div><?php endif; ?>
 <?php require __DIR__.'/components/discovery-home.php'; ?>
 <section class="listing-section" id="listing-results" aria-labelledby="listing-results-title">
-    <div class="container">
+    <div class="container"><div class="row"><div class="col-12">
         <div class="discovery-results-heading"><h2 id="listing-results-title" class="<?= $hasFilters?'':'sr-only' ?>"><?= e(!empty($filters['north'])?__('Chỗ ở trong khu vực đã chọn'):(!empty($filters['location'])?__('Chỗ ở tại {place}',['place'=>$filters['location']]):__('Khám phá chỗ ở khắp Việt Nam'))) ?></h2><?php require __DIR__.'/components/discovery-map-link.php'; ?></div>
         <div class="stay-type-links" aria-label="<?= e(__('Loại chỗ ở')) ?>">
             <?php foreach(array_merge([['id'=>'','name'=>__('Tất cả loại')]],$types) as $type): $typeQuery=array_replace($filters,['type'=>$type['id'],'page'=>1]); ?>
@@ -119,7 +119,7 @@ $resetUrl=url('/'.($resetQuery===''?'':'?'.$resetQuery).'#listing-results');
             <?php endif; ?>
             <?php if($pages>1): ?><nav data-feed-pagination aria-label="<?= e(__('Phân trang kết quả')) ?>" class="mt-3"><ul class="pagination flex-wrap"><?php foreach(array_unique(array_filter([1,$page-1,$page,$page+1,$pages],fn($p)=>$p>=1&&$p<=$pages)) as $p): ?><li class="page-item <?= $p===$page?'active':'' ?>"><a class="page-link" <?= $p===$page?'aria-current="page"':'' ?> href="<?= e(url('/?'.http_build_query(array_replace($filters,['page'=>$p])).'#listing-results')) ?>"><?= (int)$p ?></a></li><?php endforeach; ?></ul></nav><?php endif; ?>
         <?php endif; ?>
-    </div>
+    </div></div></div>
 </section>
 
 </div>

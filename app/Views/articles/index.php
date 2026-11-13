@@ -1,5 +1,5 @@
 <?php use App\Services\ArticleText; $tabs=[''=>__('Tất cả')]+ArticleText::CATEGORIES; ?>
-<section class="page-section article-hub"><div class="container">
+<section class="page-section article-hub"><div class="container"><div class="row"><div class="col-12">
 <div class="section-title"><div><h1><?= e(__('Cẩm nang du lịch và tin tức')) ?></h1><p><?= e(__('Gợi ý lịch trình, kinh nghiệm chọn chỗ ở và cập nhật mới nhất từ Home2Home.')) ?></p></div></div>
 <nav class="article-tabs" aria-label="<?= e(__('Chuyên mục bài viết')) ?>">
 <?php foreach($tabs as $key=>$label): ?><a class="article-tab<?= $key===$category?' is-active':'' ?>" href="<?= e(url('/articles'.($key!==''?'?'.http_build_query(['category'=>$key]):''))) ?>"<?= $key===$category?' aria-current="page"':'' ?>><?= e(__($label)) ?></a>
@@ -19,4 +19,4 @@
 </div>
 <?php endif; ?>
 <?php $pageBase='/articles'; $pageQuery=['category'=>$category]; $pageLabel=__('Phân trang bài viết'); require __DIR__.'/pagination.php'; ?>
-</div></section>
+</div></div></div></section>

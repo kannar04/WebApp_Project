@@ -1,1 +1,1 @@
-<section class="page-section"><div class="container narrow"><h1><?= e(__('Tin nhắn riêng')) ?></h1><p><?= e(__('Lịch sử trao đổi được giữ lại để bạn tiếp tục liên hệ sau chuyến đi.')) ?></p><?php require __DIR__.'/thread.php'; ?></div></section>
+<section class="page-section"><div class="container narrow"><div class="row"><div class="col-12"><h1><?= e(__('Tin nhắn riêng')) ?></h1><p><?= e(__('Lịch sử trao đổi được giữ lại để bạn tiếp tục liên hệ sau chuyến đi.')) ?></p><?php require __DIR__.'/thread.php'; ?></div></div></div></section>

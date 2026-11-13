@@ -1,5 +1,5 @@
 <?php $guideValues = array_merge($guide ?? [], $old ?? []); ?>
-<section class="page-section"><div class="container narrow">
+<section class="page-section"><div class="container narrow"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('HOST · HƯỚNG DẪN NHẬN PHÒNG')) ?></p><h1><?= e($listing['title']) ?></h1><p><?= e(__('Khách có booking đã xác nhận hoặc đã hoàn thành, bạn và Admin xem được; khách chỉ thấy mã cửa và Wi-Fi từ 1 ngày trước ngày nhận phòng đến hết ngày trả phòng. Không bao giờ hiển thị công khai.')) ?></p></div><a class="btn btn-ghost text-nowrap" href="<?= e(url('/host')) ?>"><?= e(__('Quay lại')) ?></a></div>
 <form class="surface-card" method="post" action="<?= e(url('/host/listings/'.(int)$listing['id'].'/checkin-guide')) ?>"><?= csrf_field() ?>
 <div class="form-group"><label for="arrival_instructions"><?= e(__('Hướng dẫn đến và nhận phòng')) ?></label><textarea class="form-control" id="arrival_instructions" name="arrival_instructions" rows="5" minlength="10" maxlength="3000" aria-describedby="arrival-help" required><?= e($guideValues['arrival_instructions'] ?? '') ?></textarea><small class="form-text text-muted" id="arrival-help"><?= e(__('10–3000 ký tự: cách tìm đường, chỗ để xe, cách lấy chìa khóa, giờ yên tĩnh…')) ?></small></div>
@@ -9,4 +9,4 @@
 <div class="action-row"><button class="btn btn-primary" type="submit"><?= e(__('Lưu hướng dẫn')) ?></button><a class="btn btn-ghost" href="<?= e(url('/host/listings/'.(int)$listing['id'].'/edit')) ?>"><?= e(__('Chỉnh sửa chỗ ở')) ?></a></div>
 <p class="text-muted small mt-3 mb-0"><?= $guide ? e(__('Cập nhật lần cuối: {time}.', ['time' => date('d/m/Y H:i', strtotime((string)$guide['updated_at']))])) : e(__('Chưa có hướng dẫn. Khách có booking đã xác nhận sẽ thấy thông báo “Host chưa cung cấp hướng dẫn nhận phòng”.')) ?> <?= e(__('Để trống một trường không bắt buộc để xóa thông tin đó.')) ?></p>
 </form>
-</div></section>
+</div></div></div></section>

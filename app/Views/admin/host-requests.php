@@ -1,4 +1,4 @@
-<section class="page-section"><div class="container narrow">
+<section class="page-section"><div class="container narrow"><div class="row"><div class="col-12">
 <h1><?= e(__('Host requests')) ?></h1>
 <?php if(!$requests): ?><p><?= e(__('No host requests.')) ?></p><?php endif; ?>
 <?php foreach($requests as $request): ?>
@@ -15,4 +15,4 @@
 </form><?php endif; ?>
 </article><?php endforeach; ?>
 <?php $pageBase='/admin/host-requests'; $pageQuery=[]; $pageLabel=__('Host requests'); require dirname(__DIR__).'/articles/pagination.php'; ?>
-</div></section>
+</div></div></div></section>

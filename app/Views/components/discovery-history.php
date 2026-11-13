@@ -3,7 +3,7 @@
 $discoveryHistory=$discoveryHistory??null;
 ?>
 <?php if($discoveryHistory!==null): ?>
-<section class="page-section pt-0 discovery-history-section" id="discovery-history" aria-labelledby="discovery-history-title"><div class="container narrow"><div class="surface-card">
+<section class="page-section pt-0 discovery-history-section" id="discovery-history" aria-labelledby="discovery-history-title"><div class="container narrow"><div class="row"><div class="col-12"><div class="surface-card">
 <h2 id="discovery-history-title"><?= e(__('Lịch sử xem & tìm kiếm')) ?></h2>
 <p><?= e(__('Home2Home dùng chỗ ở bạn đã xem và các lần tìm kiếm gần đây (tối đa 20) để gợi ý chỗ ở phù hợp. Chỉ bạn thấy lịch sử này; chỗ ở của chính bạn không được ghi lại.')) ?></p>
 <?php if((int)$discoveryHistory['viewed_listings']>0 || (int)$discoveryHistory['searches']>0): ?>
@@ -13,5 +13,5 @@ $discoveryHistory=$discoveryHistory??null;
 <?php else: ?>
 <p class="text-muted mb-0" data-history-summary><?= e(__('Chưa có lịch sử xem hoặc tìm kiếm nào được lưu.')) ?></p>
 <?php endif; ?>
-</div></div></section>
+</div></div></div></div></section>
 <?php endif; ?>
