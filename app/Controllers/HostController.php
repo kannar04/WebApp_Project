@@ -127,9 +127,11 @@ final class HostController extends Controller
         $database = \Core\Database::connection();
         $uploaded = [];
         try {
-            if ($listingId && !$listingModel->findOwned($listingId, $hostId)) {
+            $existingListing=$listingId?$listingModel->findOwned($listingId,$hostId):null;
+            if ($listingId && !$existingListing) {
                 throw new \DomainException('Không có quyền sửa chỗ ở.');
             }
+            $data['city']=\App\Services\ListingCity::validate($data['city'],$existingListing['city']??null);
             \Core\Validator::listingDescription($data['description']);
             foreach (['title' => 180, 'address' => 255, 'city' => 100, 'description' => 65535] as $field => $maxLength) {
                 if ($data[$field] === '' || mb_strlen($data[$field]) > $maxLength) {
