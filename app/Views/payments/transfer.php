@@ -6,7 +6,7 @@ $payable = $attempt['status']==='pending' && $attempt['payment_status']==='unpai
 $reportOnly = !$payable && $attempt['status']==='pending' && $attempt['payment_status']==='unpaid' && $attempt['booking_status']==='confirmed' && $attempt['host_locked'];
 $isAdmin = \Core\Auth::hasRole('admin');
 ?>
-<section class="page-section"><div class="container narrow">
+<section class="page-section"><div class="container narrow"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('CHUYỂN KHOẢN · BOOKING #{id}', ['id'=>(int)$attempt['booking_id']])) ?></p><h1><?= e(__('Chuyển khoản VietQR')) ?></h1><p><?= e($attempt['title']) ?> · <?= e(display_date($attempt['check_in'])) ?> → <?= e(display_date($attempt['check_out'])) ?></p></div><a class="btn btn-ghost" href="<?= e(url($bookingPath)) ?>"><?= e(__('Quay lại booking')) ?></a></div>
 <article class="surface-card">
 <p><span class="status status-<?= e($attempt['status']) ?>"><?= e(__(\App\Models\Payment::attemptLabel($attempt['status']))) ?></span></p>
@@ -37,4 +37,4 @@ $isAdmin = \Core\Auth::hasRole('admin');
 <?php if($isAdmin && in_array($attempt['status'],['pending','submitted'],true)): ?><div class="mt-3"><?php $transfer=$attempt; $decideBookingId=null; require __DIR__.'/decide-form.php'; ?></div><?php endif; ?>
 </div></div>
 </article>
-</div></section>
+</div></div></div></section>

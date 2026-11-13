@@ -1,6 +1,6 @@
 <?php use App\Services\ArticleText; $categoryLabel=__(ArticleText::categoryLabel($article['category'])); $publishedDate=ArticleText::date($article['published_at']??null); ?>
 <div class="page-section article-page">
-    <div class="container article-container">
+    <div class="container article-container"><div class="row"><div class="col-12">
         <?php if($preview): ?><div class="alert alert-info" role="status">
             <strong><?= e(__('Bản xem trước dành cho Admin.')) ?></strong>
             <?= e(($article['status']??'')==='published'?__('Bài viết đang hiển thị công khai.'):__('Bài viết đang là bản nháp, khách chưa thể xem.')) ?>
@@ -33,9 +33,9 @@
             <p class="mt-4"><a class="btn btn-outline-primary" href="<?= e(url('/articles')) ?>">‹
                     <?= e(__('Quay lại Cẩm nang')) ?></a></p>
         </article>
-    </div>
+    </div></div></div>
     <?php if($related): ?><section class="article-related" aria-labelledby="related-articles-title">
-        <div class="container">
+        <div class="container"><div class="row"><div class="col-12">
             <h2 id="related-articles-title"><?= e(__('Bài viết khác')) ?></h2>
             <div class="row">
                 <?php foreach($related as $item): ?><div class="col-md-6 col-lg-4 mb-4">
@@ -56,6 +56,6 @@
                     </article>
                 </div><?php endforeach; ?>
             </div>
-        </div>
+        </div></div></div>
     </section><?php endif; ?>
 </div>

@@ -8,7 +8,7 @@ foreach(['weekend_nightly_rate','holiday_nightly_rate','weekly_discount_pct','mo
 $instantChecked=array_key_exists('instant_book',$old)?!empty($old['instant_book']):!empty($settings['instant_book']);
 $base=(float)$settings['base_nightly_rate'];
 ?>
-<section class="page-section"><div class="container narrow">
+<section class="page-section"><div class="container narrow"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('GIÁ & ĐẶT CHỖ')) ?></p><h1><?= e($settings['title']) ?></h1><p><?= e(__('Giá cơ bản {price}đ/đêm · phụ phí {fee}đ.', ['price' => number_format($base,0,',','.'), 'fee' => number_format((float)$settings['fee_amount'],0,',','.')])) ?> <?= e(__('Lưu trang này không gửi tin duyệt lại.')) ?></p></div><a class="btn btn-ghost text-nowrap" href="<?= e(url('/host')) ?>"><?= e(__('Quay lại')) ?></a></div>
 <form class="surface-card pricing-form" method="post" action="<?= e(url('/host/listings/'.(int)$settings['listing_id'].'/pricing')) ?>"><?= csrf_field() ?>
 <h2><?= e(__('Giá theo ngày')) ?></h2><p class="text-muted"><?= e(__('Để trống nếu muốn dùng giá cơ bản. Đêm thứ Sáu và thứ Bảy là đêm cuối tuần; giá ngày lễ được ưu tiên nếu đêm đó trùng ngày lễ.')) ?></p>
@@ -24,4 +24,4 @@ $base=(float)$settings['base_nightly_rate'];
 </form>
 <section class="surface-card mt-4"><h2><?= e(__('Ngày lễ sắp tới')) ?></h2><p class="text-muted"><?= e(__('Admin quản lý danh sách ngày lễ. Giá ngày lễ chỉ áp dụng khi bạn đặt giá ở trên.')) ?></p>
 <?php if(!$holidays): ?><p><?= e(__('Chưa có ngày lễ sắp tới.')) ?></p><?php else: ?><ul class="holiday-chips"><?php foreach($holidays as $holiday): ?><li><strong><?= e(date('d/m/Y',strtotime($holiday['holiday_date']))) ?></strong> <?= e(__($holiday['name'])) ?></li><?php endforeach; ?></ul><?php endif; ?></section>
-</div></section>
+</div></div></div></section>

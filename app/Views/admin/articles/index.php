@@ -1,5 +1,5 @@
 <?php use App\Services\ArticleText; $returnPath=\Core\I18n::returnPath(); $hasFilters=$filters['q']!==''||$filters['category']!==''||$filters['status']!==''; ?>
-<section class="page-section"><div class="container">
+<section class="page-section"><div class="container"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('QUẢN TRỊ')) ?></p><h1><?= e(__('Quản lý bài viết')) ?></h1><p><?= e(__('Tin tức và cẩm nang du lịch. Mọi thao tác tạo, sửa, đăng và xóa đều được ghi vào nhật ký quản trị.')) ?></p></div><div class="action-row"><a class="btn btn-ghost" href="<?= e(url('/admin')) ?>"><?= e(__('Quay lại quản trị')) ?></a><a class="btn btn-primary" href="<?= e(url('/admin/articles/create')) ?>"><?= e(__('Viết bài mới')) ?></a></div></div>
 <form class="surface-card article-filter mb-4" method="get" action="<?= e(url('/admin/articles')) ?>" role="search" aria-label="<?= e(__('Lọc bài viết')) ?>"><div class="form-row">
 <div class="form-group col-lg-5"><label for="article-filter-q"><?= e(__('Tìm theo tiêu đề hoặc đường dẫn')) ?></label><input class="form-control" id="article-filter-q" type="search" name="q" value="<?= e($filters['q']) ?>" maxlength="200"></div>
@@ -26,4 +26,4 @@
 </tbody></table></div></div>
 <?php endif; ?>
 <?php $pageBase='/admin/articles'; $pageQuery=$filters; $pageLabel=__('Phân trang danh sách bài viết'); require dirname(__DIR__,2).'/articles/pagination.php'; ?>
-</div></section>
+</div></div></div></section>

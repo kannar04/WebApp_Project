@@ -17,7 +17,7 @@ $messageUnread=$currentUser?\App\Services\ConversationService::navigation((int)$
 <head><?php require dirname(__DIR__).'/components/document-head.php'; ?><noscript><style>.navbar-toggler{display:none}@media(max-width:991.98px){.site-header{position:static}.site-header .navbar-collapse.collapse{display:block}}.account-trigger{display:none}.site-header .account-dropdown .dropdown-menu{display:block;position:static}</style></noscript></head>
 <body class="experience-body<?= $isWorkspace?' workspace-body':'' ?>">
 <a class="skip-link" href="#main-content"><?= e(__('Bỏ qua điều hướng')) ?></a>
-<header class="site-header"><div class="container">
+<header class="site-header"><div class="container"><div class="row"><div class="col-12">
 <nav class="navbar navbar-expand-lg navbar-light px-0" aria-label="<?= e(__('Điều hướng chính')) ?>">
     <a class="navbar-brand brand" href="<?= e(url('/')) ?>"><?php require dirname(__DIR__).'/components/brand.php'; ?></a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="<?= e(__('Mở điều hướng')) ?>"><span class="navbar-toggler-icon"></span></button>
@@ -48,27 +48,27 @@ $messageUnread=$currentUser?\App\Services\ConversationService::navigation((int)$
             <?php endif; ?>
         </div>
     </div>
-</nav></div></header>
+</nav></div></div></div></header>
 <main id="main-content" tabindex="-1">
     <?php if($isWorkspace): ?><div class="workspace-shell"><?php require dirname(__DIR__).'/components/workspace-nav.php'; ?><div class="workspace-content"><?php endif; ?>
-    <?php if($isAccountPage): ?><div class="account-navigation"><nav class="container" aria-label="<?= e(__('Tài khoản của bạn')) ?>">
+    <?php if($isAccountPage): ?><div class="account-navigation"><nav class="container" aria-label="<?= e(__('Tài khoản của bạn')) ?>"><div class="row"><div class="col-12">
         <?php foreach([['/profile',__('Hồ sơ'),'user'],['/bookings',__('Đặt chỗ'),'calendar'],['/refunds',__('Nhận hoàn tiền'),'ticket'],['/wishlist',__('Yêu thích'),'heart'],['/messages',__('Tin nhắn'),'message'],['/notifications',__('Thông báo'),'bell']] as [$accountPath,$accountLabel,$accountIcon]): $active=$requestPath===$accountPath || str_starts_with($requestPath,$accountPath.'/'); ?>
         <a href="<?= e(url($accountPath)) ?>" <?= $active?'class="is-active" aria-current="page"':'' ?>><?= ui_icon($accountIcon) ?> <?= e($accountLabel) ?></a>
         <?php endforeach; ?>
-    </nav></div><?php endif; ?>
-    <?php if($message=Session::flash('success')): ?><div class="container mt-3"><div class="alert alert-success" role="status" data-flash><?= e(__($message)) ?></div></div><?php endif; ?>
-    <?php if($message=Session::flash('error')): ?><div class="container mt-3"><div class="alert alert-danger" role="alert" data-flash><?= e(__($message)) ?></div></div><?php endif; ?>
+    </div></div></nav></div><?php endif; ?>
+    <?php if($message=Session::flash('success')): ?><div class="container mt-3"><div class="row"><div class="col-12"><div class="alert alert-success" role="status" data-flash><?= e(__($message)) ?></div></div></div></div><?php endif; ?>
+    <?php if($message=Session::flash('error')): ?><div class="container mt-3"><div class="row"><div class="col-12"><div class="alert alert-danger" role="alert" data-flash><?= e(__($message)) ?></div></div></div></div><?php endif; ?>
     <?= $content ?>
     <?php if($isWorkspace): ?></div></div><?php endif; ?>
 </main>
-<footer class="site-footer"><div class="container">
+<footer class="site-footer"><div class="container"><div class="row"><div class="col-12">
     <div class="footer-main row">
         <div class="col-md-6"><a class="brand" href="<?= e(url('/')) ?>"><?php require dirname(__DIR__).'/components/brand.php'; ?></a><p class="footer-manifesto"><?= e(__('Ở đâu cũng thấy như ở nhà.')) ?></p></div>
         <div class="col-6 col-md-3"><h2><?= e(__('Khám phá')) ?></h2><a href="<?= e(url('/')) ?>"><?= e(__('Tìm chỗ ở')) ?></a><a href="<?= e(url('/map')) ?>"><?= e(__('Xem trên bản đồ')) ?></a><a href="<?= e(url('/articles')) ?>"><?= e(__('Cẩm nang du lịch và tin tức')) ?></a></div>
         <div class="col-6 col-md-3"><h2><?= e(__('Hành trình của bạn')) ?></h2><a href="<?= e(url('/bookings')) ?>"><?= e(__('Đặt chỗ')) ?></a><a href="<?= e(url('/wishlist')) ?>"><?= e(__('Yêu thích')) ?></a><a href="<?= e(url('/profile')) ?>"><?= e(__('Tài khoản của bạn')) ?></a></div>
     </div>
     <div class="footer-bottom"><span>© <?= date('Y') ?> Home2Home</span><span><?= e(__('Việt Nam, theo nhịp riêng của bạn.')) ?></span><a href="#main-content"><?= e(__('Lên đầu trang')) ?> ↑</a></div>
-</div></footer>
+</div></div></div></footer>
 <?php if(!$isWorkspace && !preg_match('~^/listings/\d+(?:/review)?$~',$requestPath)): ?>
 <nav class="mobile-guest-nav" aria-label="<?= e(__('Điều hướng chính')) ?>">
     <?php foreach([['/',__('Khám phá'),'search'],['/wishlist',__('Đã lưu'),'heart'],['/bookings',__('Chuyến đi'),'calendar']] as [$mobilePath,$mobileLabel,$mobileIcon]): ?>

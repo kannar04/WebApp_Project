@@ -4,7 +4,7 @@ $threadMode=$thread!==null;
 $items=$threadMode?$thread:$results;
 $hasFilters=$filters['q']!==''||$filters['booking']!==null||$filters['user']!=='';
 ?>
-<section class="page-section"><div class="container">
+<section class="page-section"><div class="container"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('QUẢN TRỊ')) ?></p><h1><?= e(__('Tin nhắn booking')) ?></h1><p><?= e(__('Tra cứu theo từ khóa, mã booking hoặc người dùng. Ẩn tin nhắn vi phạm kèm lý do; mọi thao tác được ghi nhật ký quản trị.')) ?></p></div><a class="btn btn-ghost" href="<?= e(url('/admin')) ?>"><?= e(__('Về trang quản trị')) ?></a></div>
 <form class="surface-card admin-message-search" method="get" action="<?= e(url('/admin/messages')) ?>" role="search" aria-label="<?= e(__('Tìm tin nhắn booking')) ?>">
     <div class="form-row">
@@ -34,4 +34,4 @@ $hasFilters=$filters['q']!==''||$filters['booking']!==null||$filters['user']!=='
     </article>
     <?php endforeach; ?>
 </section>
-</div></section>
+</div></div></div></section>

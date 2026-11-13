@@ -10,7 +10,7 @@ $mapTypeLabels=[];
 foreach($types as $type){ $mapTypeLabels[(string)$type['name']]=__((string)$type['name']); }
 ?>
 <section class="page-section discovery-map-page" aria-labelledby="map-title">
-    <div class="container">
+    <div class="container"><div class="row"><div class="col-12">
         <div class="section-title"><div><h1 id="map-title"><?= e(__('Tìm chỗ ở trên bản đồ')) ?></h1><p><?= e(__('Di chuyển bản đồ, rồi chọn Tìm trong khu vực này để cập nhật kết quả.')) ?></p><a href="#tourism-services"><?= e(__('Khám phá địa điểm ăn uống và giải trí')) ?></a></div></div>
         <form class="surface-card discovery-map-filters mb-4" method="get" action="<?= e(url('/map')) ?>" data-map-filter-form aria-labelledby="map-filter-title">
             <h2 class="h6" id="map-filter-title"><?= e(__('Điều kiện tìm kiếm')) ?></h2>
@@ -69,5 +69,5 @@ foreach($types as $type){ $mapTypeLabels[(string)$type['name']]=__((string)$type
             </div>
             <noscript><p><?= e(__('Bật JavaScript để sử dụng bản đồ dịch vụ du lịch.')) ?></p></noscript>
         </section>
-    </div>
+    </div></div></div>
 </section>

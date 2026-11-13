@@ -1,6 +1,6 @@
-<?php if(!\Core\Auth::check()): ?><div class="container mt-3"><div class="alert alert-info" role="status"><?= e(__('Bạn đang xem trước chuyến đi. Bạn có thể xem ảnh, ngày trống và chi phí trước khi đăng nhập để đặt phòng.')) ?></div></div><?php endif; ?>
+<?php if(!\Core\Auth::check()): ?><div class="container mt-3"><div class="row"><div class="col-12"><div class="alert alert-info" role="status"><?= e(__('Bạn đang xem trước chuyến đi. Bạn có thể xem ảnh, ngày trống và chi phí trước khi đăng nhập để đặt phòng.')) ?></div></div></div></div><?php endif; ?>
 <?php require_once dirname(__DIR__).'/components/ui-icons.php'; ?>
-<section class="page-section booking-review"><div class="container">
+<section class="page-section booking-review"><div class="container"><div class="row"><div class="col-12">
     <a class="review-back" href="<?= e(url(\App\Services\TripContext::path((int)$listing['id'],$trip))) ?>"><?= ui_icon('arrow') ?> <?= e(__('Quay lại chỗ ở')) ?></a>
     <h1><?= e(__('Xem lại chuyến đi của bạn')) ?></h1>
     <p class="text-muted mb-4"><?= e(__('Kiểm tra thông tin bên dưới trước khi xác nhận.')) ?></p>
@@ -27,4 +27,4 @@
         <?php else: ?><a class="btn btn-primary btn-block" href="<?= e(url('/login?'.http_build_query(['next'=>\App\Services\TripContext::path((int)$listing['id'],$trip,true)]))) ?>"><?= e(__('Đăng nhập để tiếp tục')) ?> <?= ui_icon('arrow') ?></a><p class="small text-muted mt-3"><?= e(__('Ngày và số khách của bạn sẽ được giữ lại.')) ?></p><?php endif; ?>
         <?php endif; ?>
     </aside></div></div>
-</div></section>
+</div></div></div></section>
