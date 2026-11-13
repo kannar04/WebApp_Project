@@ -2,7 +2,7 @@
 $accountStatusLabels=['pending'=>__('Chờ Admin duyệt'),'approved'=>__('Đã được duyệt'),'rejected'=>__('Bị từ chối')];
 $form=array_replace($account??[], $old??[]);
 ?>
-<section class="page-section"><div class="container">
+<section class="page-section"><div class="container"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('CHI TRẢ HOST')) ?></p><h1><?= e(__('Tài khoản nhận tiền')) ?></h1><p><?= e(__('Tài khoản này chỉ dùng để Home2Home chi trả doanh thu và không hiển thị cho khách.')) ?></p></div></div>
 <div class="stat-grid"><div><span><?= e(__('Đủ điều kiện tạo lệnh')) ?></span><strong><?= e(number_format((float)$summary['eligible_total'],0,',','.').'đ') ?></strong></div><div><span><?= e(__('Đang chờ chuyển')) ?></span><strong><?= e(number_format((float)$summary['pending_total'],0,',','.').'đ') ?></strong></div><div><span><?= e(__('Đã nhận')) ?></span><strong><?= e(number_format((float)$summary['paid_total'],0,',','.').'đ') ?></strong></div><div><span><?= e(__('Phí nền tảng')) ?></span><strong><?= e($feePercent.'%') ?></strong></div></div>
 
@@ -21,4 +21,4 @@ $form=array_replace($account??[], $old??[]);
 <?php if(!$payouts): ?><div class="empty-state"><h3><?= e(__('Chưa có lệnh chi trả')) ?></h3><p><?= e(__('Lệnh sẽ xuất hiện khi booking đã hoàn thành, đã thanh toán và Admin tạo lệnh.')) ?></p></div><?php else: ?><div class="table-responsive" tabindex="0"><table class="table"><thead><tr><th><?= e(__('Booking')) ?></th><th><?= e(__('Số tiền')) ?></th><th><?= e(__('Tài khoản')) ?></th><th><?= e(__('Trạng thái')) ?></th></tr></thead><tbody>
 <?php foreach($payouts as $payout): ?><tr><td><strong>#<?= (int)$payout['booking_id'] ?></strong><br><small><?= e($payout['title']) ?></small><br><small><?= e($payout['reference']) ?></small></td><td><?= e(number_format((float)$payout['net_amount'],0,',','.').'đ') ?><br><small><?= e(__('Gốc: {gross}đ · Phí: {fee}đ',['gross'=>number_format((float)$payout['gross_amount'],0,',','.'),'fee'=>number_format((float)$payout['fee_amount'],0,',','.')])) ?></small></td><td><?= e($payout['bank_name']) ?><br><small><?= e($payout['account_no_masked']) ?></small></td><td><span class="status status-<?= e($payout['status']) ?>"><?= e($payout['status']==='paid'?__('Đã chuyển'):__('Đang chờ chuyển')) ?></span><?php if($payout['paid_at']): ?><br><small><?= e(display_date($payout['paid_at'],true)) ?></small><?php endif; ?><?php if($payout['bank_transaction_no']): ?><br><small><?= e(__('Mã GD: {code}',['code'=>$payout['bank_transaction_no']])) ?></small><?php endif; ?></td></tr><?php endforeach; ?>
 </tbody></table></div><?php endif; ?></section>
-</div></section>
+</div></div></div></section>

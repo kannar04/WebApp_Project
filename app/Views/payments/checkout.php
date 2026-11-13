@@ -2,7 +2,7 @@
 $amount = number_format((float)$checkout['amount_due'],0,',','.');
 $bookingPath = '/bookings/'.(int)$checkout['booking_id'];
 ?>
-<section class="page-section"><div class="container narrow">
+<section class="page-section"><div class="container narrow"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('THANH TOÁN BOOKING #{id}', ['id'=>(int)$checkout['booking_id']])) ?></p><h1><?= e(__('Thanh toán online')) ?></h1><p><?= e($checkout['title']) ?> · <?= e(display_date($checkout['check_in'])) ?> → <?= e(display_date($checkout['check_out'])) ?></p></div><a class="btn btn-ghost" href="<?= e(url($bookingPath)) ?>"><?= e(__('Quay lại booking')) ?></a></div>
 <article class="surface-card">
 <?php if($checkout['payment_status']!=='refunded'): ?><p class="mb-3"><?= e(__('Số tiền cần thanh toán:')) ?> <strong><?= e(__('{amount}đ', ['amount'=>$amount])) ?></strong></p><?php endif; ?>
@@ -32,4 +32,4 @@ $bookingPath = '/bookings/'.(int)$checkout['booking_id'];
 <p class="text-muted small mt-3 mb-0"><?= e(__('Không muốn trả trước? Bạn vẫn có thể thanh toán cho Host khi nhận phòng.')) ?></p>
 <?php endif; ?>
 </article>
-</div></section>
+</div></div></div></section>

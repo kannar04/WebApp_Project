@@ -8,7 +8,7 @@ $isEditing=(int)$form['id']>0;
 $codeLocked=$isEditing&&(int)($editing['booking_count']??0)>0;
 $today=date('Y-m-d');
 ?>
-<section class="page-section"><div class="container">
+<section class="page-section"><div class="container"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('QUẢN TRỊ GIÁ')) ?></p><h1><?= e(__('Mã khuyến mãi')) ?></h1><p><?= e(__('Giảm trên tiền phòng sau giảm giá theo thời gian ở; phụ phí không được giảm. Hiệu lực tính theo ngày đặt (giờ Việt Nam).')) ?></p></div><a class="btn btn-ghost text-nowrap" href="<?= e(url('/admin')) ?>"><?= e(__('Quay lại quản trị')) ?></a></div>
 <form class="surface-card mb-4 promo-admin-form" method="post" action="<?= e(url('/admin/promotions')) ?>"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$form['id'] ?>">
 <h2><?= e($isEditing?__('Sửa mã {code}', ['code'=>$form['code']]):__('Tạo mã mới')) ?></h2>
@@ -46,4 +46,4 @@ $today=date('Y-m-d');
 <form method="post" action="<?= e(url('/admin/promotions/'.(int)$promotion['id'].'/toggle')) ?>"><?= csrf_field() ?><input type="hidden" name="active" value="<?= $promotion['is_active']?0:1 ?>"><button class="btn btn-sm btn-ghost"><?= e($promotion['is_active']?__('Tắt'):__('Bật')) ?></button></form>
 <?php if((int)$promotion['booking_count']===0): ?><form method="post" action="<?= e(url('/admin/promotions/'.(int)$promotion['id'].'/delete')) ?>"><?= csrf_field() ?><button class="btn btn-sm btn-outline-danger" data-confirm="<?= e(__('Xóa vĩnh viễn mã {code}? Mã chưa được dùng cho booking nào.', ['code'=>$promotion['code']])) ?>"><?= e(__('Xóa')) ?></button></form><?php endif; ?></div></td></tr>
 <?php endforeach; ?></tbody></table></div><?php endif; ?></section>
-</div></section>
+</div></div></div></section>

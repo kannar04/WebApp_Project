@@ -1,5 +1,5 @@
 <?php $verificationLabels = ['pending' => __('Chờ duyệt'), 'approved' => __('Đã duyệt'), 'rejected' => __('Bị từ chối')]; ?>
-<section class="page-section"><div class="container">
+<section class="page-section"><div class="container"><div class="row"><div class="col-12">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('QUẢN TRỊ')) ?></p><h1><?= e(__('Xác minh danh tính')) ?></h1><p><?= e(__('Đối chiếu hai mặt CCCD với ảnh khuôn mặt. Sau quyết định, ảnh được xóa và hệ thống chỉ giữ 4 số cuối CCCD.')) ?></p></div><a class="btn btn-ghost text-nowrap" href="<?= e(url('/admin')) ?>"><?= e(__('Về quản trị')) ?></a></div>
 <section class="surface-card mb-4" aria-label="<?= e(__('Lọc yêu cầu xác minh')) ?>"><form class="form-row" method="get" action="<?= e(url('/admin/verifications')) ?>"><div class="form-group col-md-4"><label for="verification-status"><?= e(__('Trạng thái')) ?></label><select class="form-control" id="verification-status" name="status"><?php foreach(['pending' => __('Chờ duyệt'), 'approved' => __('Đã duyệt'), 'rejected' => __('Bị từ chối'), '' => __('Tất cả')] as $value => $label): ?><option value="<?= e($value) ?>" <?= $status === $value ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></div><div class="form-group col-md-6"><label for="verification-query"><?= e(__('Email, họ tên tài khoản hoặc họ tên trên CCCD')) ?></label><input class="form-control" id="verification-query" name="q" maxlength="254" value="<?= e($query) ?>"></div><div class="form-group col-md-2 align-self-end"><button class="btn btn-primary btn-block" type="submit"><?= e(__('Lọc')) ?></button></div></form></section>
 <p class="results-summary" role="status"><strong><?= e(__('{count} yêu cầu', ['count'=>count($verifications)])) ?></strong><?= count($verifications) >= 200 ? ' · '.e(__('Chỉ hiển thị 200 yêu cầu đầu tiên, hãy lọc thêm.')) : '' ?></p>
@@ -18,4 +18,4 @@
 <?php endif; ?>
 </article>
 <?php endforeach; ?>
-</div></section>
+</div></div></div></section>
