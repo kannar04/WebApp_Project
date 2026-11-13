@@ -98,6 +98,9 @@ $router->post('/bookings/{id}/pay/vietqr',[\App\Controllers\PaymentController::c
 $router->post('/bookings/{id}/pay/vnpay',[\App\Controllers\PaymentController::class,'startVnpay']);
 $router->get('/payments/vnpay/return',[\App\Controllers\PaymentController::class,'vnpayReturn']);
 $router->get('/payments/vnpay/ipn',[\App\Controllers\PaymentController::class,'vnpayIpn']);
+// Support callback URLs already configured with the singular payment path.
+$router->get('/payment/vnpay/return',[\App\Controllers\PaymentController::class,'vnpayReturn']);
+$router->get('/payment/vnpay/ipn',[\App\Controllers\PaymentController::class,'vnpayIpn']);
 $router->get('/payments/{id}',[\App\Controllers\PaymentController::class,'transfer']);
 $router->post('/payments/{id}/transferred',[\App\Controllers\PaymentController::class,'submitTransfer']);
 $router->post('/admin/payments/transfers/{id}',[\App\Controllers\PaymentController::class,'adminDecideTransfer']);
