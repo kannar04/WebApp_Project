@@ -123,3 +123,4 @@ demo_stays/
 # Local recovery snapshots
 .local-backups/
 COMMIT_SCHEDULE.md
+DEMO_SCRIPT.md
