@@ -21,11 +21,16 @@ final class AdminController extends Controller
         $status=is_string($_GET['booking_status']??null)?$_GET['booking_status']:'';
         if (!in_array($status,['','pending','confirmed','rejected','cancelled','completed'],true)) { $status=''; Session::flash('error','Trạng thái lọc booking không hợp lệ.'); }
         $users=(new User())->all(is_string($_GET['q']??null)?mb_substr(trim($_GET['q']),0,254):'');
+        $userPagination=\Core\Pagination::from($users,$_GET['users_page']??1);
+        $listingPagination=\Core\Pagination::from($repo->listings(),$_GET['listings_page']??1);
+        $bookingRows=(new Booking())->adminSearch((int)$admin['id'],$query,$status);
+        $bookingPagination=\Core\Pagination::from($bookingRows,$_GET['bookings_page']??1);
         // Translated here with a {brand} slot (same key as the dashboard h1): the plain text "Quản trị Home2Home" is also the seeded Admin's display name.
         $this->render('admin/dashboard',['title'=>__('Quản trị {brand}',['brand'=>'Home2Home']),'stats'=>$repo->stats(),
-            'users'=>$users,'listings'=>$repo->listings(),
-            'bookings'=>(new Booking())->adminSearch((int)$admin['id'],$query,$status),'bookingQuery'=>$query,'bookingStatus'=>$status,'old'=>Session::pullOld('new-user'),
-            'trustBadges'=>(new \App\Models\Trust())->badges(array_column($users,'id'),(int)$admin['id'])]);
+            'users'=>$userPagination['rows'],'listings'=>$listingPagination['rows'],
+            'tablePages'=>['users'=>$userPagination,'listings'=>$listingPagination,'bookings'=>$bookingPagination], 'bookingTotal'=>count($bookingRows),
+            'bookings'=>$bookingPagination['rows'],'bookingQuery'=>$query,'bookingStatus'=>$status,'old'=>Session::pullOld('new-user'),
+            'trustBadges'=>(new \App\Models\Trust())->badges(array_column($userPagination['rows'],'id'),(int)$admin['id'])]);
     }
     public function listingPreview(string $id): void
     {

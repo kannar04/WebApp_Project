@@ -1,3 +1,7 @@
+<?php
+$holidaysPagination=\Core\Pagination::from($holidays,$_GET['holidays_page']??1);
+$holidays=$holidaysPagination['rows'];
+?>
 <?php $old=$old??[]; $today=date('Y-m-d'); ?>
 <section class="page-section"><div class="container narrow">
 <div class="section-title"><div><p class="eyebrow"><?= e(__('QUẢN TRỊ GIÁ')) ?></p><h1><?= e(__('Ngày lễ')) ?></h1><p><?= e(__('Đêm trùng ngày lễ dùng giá ngày lễ của Host (nếu Host đã đặt). Thay đổi chỉ ảnh hưởng báo giá mới; booking đã đặt giữ giá đã lưu.')) ?></p></div><a class="btn btn-ghost text-nowrap" href="<?= e(url('/admin')) ?>"><?= e(__('Quay lại quản trị')) ?></a></div>
@@ -6,8 +10,8 @@
 <section class="surface-card"><h2><?= e(__('Danh sách ({count})', ['count'=>count($holidays)])) ?></h2>
 <?php if(array_filter(array_column($holidays,'is_demo'))): ?><p class="alert alert-warning small"><?= e(__('Các ngày có nhãn “Dữ liệu mẫu” được tạo sẵn để demo (Tết Âm lịch tính gần đúng). Hãy kiểm tra theo lịch nghỉ chính thức rồi lưu lại để xác nhận.')) ?></p><?php endif; ?>
 <?php if(!$holidays): ?><div class="empty-state"><h3><?= e(__('Chưa có ngày lễ')) ?></h3><p><?= e(__('Thêm ngày lễ để áp dụng giá ngày lễ của Host.')) ?></p></div><?php else: ?>
-<div class="table-responsive"><table class="table holiday-table"><thead><tr><th><?= e(__('Ngày')) ?></th><th><?= e(__('Tên')) ?></th><th><?= e(__('Nguồn')) ?></th><th><?= e(__('Thao tác')) ?></th></tr></thead><tbody>
+<div id="table-holidays" class="table-responsive"><table class="table holiday-table"><thead><tr><th><?= e(__('Ngày')) ?></th><th><?= e(__('Tên')) ?></th><th><?= e(__('Nguồn')) ?></th><th><?= e(__('Thao tác')) ?></th></tr></thead><tbody>
 <?php foreach($holidays as $holiday): $past=$holiday['holiday_date']<$today; ?><tr class="<?= $past?'text-muted':'' ?>"><td><?= e(date('d/m/Y',strtotime($holiday['holiday_date']))) ?><?= $past?'<br><small>'.e(__('Đã qua')).'</small>':'' ?></td><td><?= e(__($holiday['name'])) ?></td><td><?php if($holiday['is_demo']): ?><span class="status status-pending"><?= e(__('Dữ liệu mẫu')) ?></span><?php else: ?><span class="status status-approved"><?= e(__('Đã xác nhận')) ?></span><?php if($holiday['created_by_name']): ?><br><small><?= e($holiday['created_by_name']) ?></small><?php endif; ?><?php endif; ?></td>
 <td><form method="post" action="<?= e(url('/admin/holidays/'.(int)$holiday['id'].'/delete')) ?>"><?= csrf_field() ?><button class="btn btn-sm btn-outline-danger" data-confirm="<?= e(__('Xóa ngày lễ {date}? Báo giá mới sẽ dùng giá thường cho đêm này.', ['date'=>date('d/m/Y',strtotime($holiday['holiday_date']))])) ?>"><?= e(__('Xóa')) ?></button></form></td></tr><?php endforeach; ?>
-</tbody></table></div><?php endif; ?></section>
+</tbody></table></div><?php $tablePage=$holidaysPagination; $tablePageKey='holidays_page'; $tableAnchor='table-holidays'; require dirname(__DIR__).'/components/table-pagination.php'; ?><?php endif; ?></section>
 </div></section>

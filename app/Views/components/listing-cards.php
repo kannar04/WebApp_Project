@@ -6,7 +6,7 @@ $cardReturn=$listingReturn??('/?'.http_build_query($filters??[]));
 foreach($listings as $stay):
     $staySaved=in_array((int)$stay['id'],$favorites??[],true);
 ?>
-<div class="stay-card-item" data-listing-id="<?= (int)$stay['id'] ?>" id="home-<?= (int)$stay['id'] ?>">
+<div class="stay-card-item col-6 col-md-4 col-xl-2" data-listing-id="<?= (int)$stay['id'] ?>" id="home-<?= (int)$stay['id'] ?>">
     <?php require __DIR__.'/stay-card.php'; ?>
 </div>
 <?php endforeach; ?>

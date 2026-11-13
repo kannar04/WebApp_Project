@@ -41,7 +41,7 @@ $resetUrl=url('/'.($resetQuery===''?'':'?'.$resetQuery).'#listing-results');
 <?php if(!empty($upcoming) && !$hasFilters): ?><div class="container"><a class="upcoming-trip" href="<?= e(url('/bookings/'.$upcoming['id'])) ?>"><?= ui_icon('calendar') ?><span><strong><?= e(__('Chuyến đi sắp tới của bạn')) ?> · <?= e($upcoming['title']) ?></strong><small><?= e($upcoming['check_in']) ?> — <?= e($upcoming['check_out']) ?> · <?= e(($upcoming['status']==='pending'?__('Chờ chủ nhà xác nhận'):status_label($upcoming['status']))) ?></small></span><?= ui_icon('arrow') ?></a></div><?php endif; ?>
 <?php require __DIR__.'/components/discovery-home.php'; ?>
 <section class="listing-section" id="listing-results" aria-labelledby="listing-results-title">
-    <div class="container">
+    <div class="container"><div class="row"><div class="col-12">
         <div class="discovery-results-heading"><h2 id="listing-results-title" class="<?= $hasFilters?'':'sr-only' ?>"><?= e(!empty($filters['north'])?__('Chỗ ở trong khu vực đã chọn'):(!empty($filters['location'])?__('Chỗ ở tại {place}',['place'=>$filters['location']]):__('Khám phá chỗ ở khắp Việt Nam'))) ?></h2><?php require __DIR__.'/components/discovery-map-link.php'; ?></div>
         <div class="stay-type-links" aria-label="<?= e(__('Loại chỗ ở')) ?>">
             <?php foreach(array_merge([['id'=>'','name'=>__('Tất cả loại')]],$types) as $type): $typeQuery=array_replace($filters,['type'=>$type['id'],'page'=>1]); ?>
@@ -114,12 +114,12 @@ $resetUrl=url('/'.($resetQuery===''?'':'?'.$resetQuery).'#listing-results');
             <?php if(!$listings): ?>
                 <div class="empty-state"><h3><?= e(__('Chưa tìm thấy chỗ ở phù hợp')) ?></h3><p><?= e(__('Hãy thử bỏ bớt tiện nghi hoặc đổi địa điểm, ngày và số khách.')) ?></p><a class="btn btn-primary" href="<?= e(url('/#listing-results')) ?>"><?= e(__('Xóa tất cả điều kiện')) ?></a></div>
             <?php else: ?>
-                <div class="stay-grid" data-home-feed data-page="<?= (int)$page ?>" data-pages="<?= (int)$pages ?>" data-endpoint="<?= e(url('/api/listings')) ?>" data-user="<?= (int)(\Core\Auth::id()??0) ?>"><?php require __DIR__.'/components/listing-cards.php'; ?></div>
-                <div class="feed-loading" data-feed-sentinel><p role="status" aria-live="polite" data-feed-status></p><button class="btn btn-outline-primary" data-feed-more type="button" hidden><?= e(__('Xem thêm chỗ ở')) ?></button></div>
+                <div class="stay-grid row" data-paged-home><?php require __DIR__.'/components/listing-cards.php'; ?></div>
+
             <?php endif; ?>
             <?php if($pages>1): ?><nav data-feed-pagination aria-label="<?= e(__('Phân trang kết quả')) ?>" class="mt-3"><ul class="pagination flex-wrap"><?php foreach(array_unique(array_filter([1,$page-1,$page,$page+1,$pages],fn($p)=>$p>=1&&$p<=$pages)) as $p): ?><li class="page-item <?= $p===$page?'active':'' ?>"><a class="page-link" <?= $p===$page?'aria-current="page"':'' ?> href="<?= e(url('/?'.http_build_query(array_replace($filters,['page'=>$p])).'#listing-results')) ?>"><?= (int)$p ?></a></li><?php endforeach; ?></ul></nav><?php endif; ?>
         <?php endif; ?>
-    </div>
+    </div></div></div>
 </section>
 
 </div>

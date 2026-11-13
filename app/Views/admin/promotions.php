@@ -1,4 +1,8 @@
 <?php
+$promotionsPagination=\Core\Pagination::from($promotions,$_GET['promotions_page']??1);
+$promotions=$promotionsPagination['rows'];
+?>
+<?php
 $old=$old??[];
 $form=['id'=>0,'code'=>'','description'=>'','discount_type'=>'percent','discount_value'=>'','max_discount_amount'=>'','min_nights'=>'','min_subtotal'=>'','valid_from'=>date('Y-m-d'),'valid_to'=>date('Y-m-d',strtotime('+30 days')),'usage_limit'=>'','is_active'=>1];
 if($editing){ foreach(array_keys($form) as $key){ if(array_key_exists($key,$editing)){ $form[$key]=$editing[$key]??''; } } }
@@ -27,7 +31,7 @@ $today=date('Y-m-d');
 <div class="action-row"><button class="btn btn-primary" type="submit"><?= e($isEditing?__('Lưu thay đổi'):__('Tạo mã')) ?></button><?php if($isEditing): ?><a class="btn btn-ghost" href="<?= e(url('/admin/promotions')) ?>"><?= e(__('Hủy sửa')) ?></a><?php endif; ?></div></form>
 <section class="surface-card"><h2><?= e(__('Danh sách mã ({count})', ['count'=>count($promotions)])) ?></h2>
 <?php if(!$promotions): ?><div class="empty-state"><h3><?= e(__('Chưa có mã khuyến mãi')) ?></h3><p><?= e(__('Tạo mã đầu tiên bằng biểu mẫu phía trên.')) ?></p></div><?php else: ?>
-<div class="table-responsive" tabindex="0" role="region" aria-label="<?= e(__('Danh sách mã khuyến mãi')) ?>"><table class="table promo-table"><thead><tr><th><?= e(__('Mã')) ?></th><th><?= e(__('Giảm')) ?></th><th><?= e(__('Điều kiện')) ?></th><th><?= e(__('Hiệu lực')) ?></th><th><?= e(__('Lượt dùng')) ?></th><th><?= e(__('Thao tác')) ?></th></tr></thead><tbody>
+<div id="table-promotions" class="table-responsive" tabindex="0" role="region" aria-label="<?= e(__('Danh sách mã khuyến mãi')) ?>"><table class="table promo-table"><thead><tr><th><?= e(__('Mã')) ?></th><th><?= e(__('Giảm')) ?></th><th><?= e(__('Điều kiện')) ?></th><th><?= e(__('Hiệu lực')) ?></th><th><?= e(__('Lượt dùng')) ?></th><th><?= e(__('Thao tác')) ?></th></tr></thead><tbody>
 <?php foreach($promotions as $promotion):
     if(!$promotion['is_active']){ $state=['status-cancelled',__('Đã tắt')]; }
     elseif($promotion['valid_from']>$today){ $state=['status-pending',__('Chưa bắt đầu')]; }
@@ -45,5 +49,5 @@ $today=date('Y-m-d');
 <td><div class="action-row"><a class="btn btn-sm btn-outline-primary" href="<?= e(url('/admin/promotions?edit='.(int)$promotion['id'])) ?>"><?= e(__('Sửa')) ?></a>
 <form method="post" action="<?= e(url('/admin/promotions/'.(int)$promotion['id'].'/toggle')) ?>"><?= csrf_field() ?><input type="hidden" name="active" value="<?= $promotion['is_active']?0:1 ?>"><button class="btn btn-sm btn-ghost"><?= e($promotion['is_active']?__('Tắt'):__('Bật')) ?></button></form>
 <?php if((int)$promotion['booking_count']===0): ?><form method="post" action="<?= e(url('/admin/promotions/'.(int)$promotion['id'].'/delete')) ?>"><?= csrf_field() ?><button class="btn btn-sm btn-outline-danger" data-confirm="<?= e(__('Xóa vĩnh viễn mã {code}? Mã chưa được dùng cho booking nào.', ['code'=>$promotion['code']])) ?>"><?= e(__('Xóa')) ?></button></form><?php endif; ?></div></td></tr>
-<?php endforeach; ?></tbody></table></div><?php endif; ?></section>
+<?php endforeach; ?></tbody></table></div><?php $tablePage=$promotionsPagination; $tablePageKey='promotions_page'; $tableAnchor='table-promotions'; require dirname(__DIR__).'/components/table-pagination.php'; ?><?php endif; ?></section>
 </div></section>
